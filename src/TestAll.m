@@ -1,0 +1,31 @@
+clear;
+clc;
+
+tStart = datetime("now");
+
+[testResults, coverageResults] = runtests([ ...
+                                               "OpenMebius2Test.m", ...
+                                               "OpenMebius2IntegratedTest.m", ...
+                                           ], ...
+    ReportCoverageFor = pwd ...
+);
+
+tStop = datetime("now");
+deltaTime = tStop - tStart;
+web = Web(getenv("SLACK_WEBHOOK"));
+web.sendTestFinishNotification(deltaTime);
+
+testResultsTable = table(testResults);
+disp(testResultsTable);
+
+isPassed = testResultsTable.Passed;
+numFailed = sum(~isPassed);
+idx = find(~isPassed);
+
+for i = 1:numFailed
+
+    testResult = testResults(idx(i));
+    disp(testResult);
+    testResult.Details.DiagnosticRecord.Report
+
+end

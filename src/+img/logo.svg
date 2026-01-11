@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="512"
+   height="512"
+   viewBox="0 0 135.46666 135.46667"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="drawing.svg"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     showgrid="false"
+     inkscape:zoom="1.6757812"
+     inkscape:cx="238.39627"
+     inkscape:cy="256"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer2" />
+  <defs
+     id="defs2">
+    <color-profile
+       name="sRGB-IEC61966-2.1"
+       xlink:href="../../../WINDOWS/system32/spool/drivers/color/sRGB%20Color%20Space%20Profile.icm"
+       id="color-profile4285" />
+  </defs>
+  <g
+     inkscape:label="edge"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       sodipodi:type="star"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:8.29065;stroke-dasharray:none;stroke-opacity:1;stop-color:#000000"
+       id="path3174"
+       inkscape:flatsided="true"
+       sodipodi:sides="3"
+       sodipodi:cx="47.050198"
+       sodipodi:cy="67.73333"
+       sodipodi:r1="55.715168"
+       sodipodi:r2="27.85758"
+       sodipodi:arg1="0.7994253"
+       sodipodi:arg2="1.8466229"
+       inkscape:rounded="0"
+       inkscape:randomized="0"
+       d="M 85.890292,107.67863 -6.9634944,81.397188 62.223795,14.124171 Z"
+       inkscape:transform-center-x="7.263634"
+       inkscape:transform-center-y="-6.540918"
+       transform="matrix(0.95740422,0,0,0.95740422,31.561145,9.4520707)" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="node">
+    <circle
+       style="fill:#fdd000;fill-opacity:1;stroke:none;stroke-width:0.334629;stop-color:#000000"
+       id="path236"
+       cx="92.867928"
+       cy="29.616062"
+       r="26.458332" />
+    <circle
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:2.64583;stroke-dasharray:none;stroke-opacity:1;stop-color:#000000"
+       id="path236-6"
+       cx="107.73081"
+       cy="109.50048"
+       r="20.919968" />
+    <circle
+       style="fill:#2d287f;fill-opacity:1;stroke:none;stroke-width:0.418286;stop-color:#000000"
+       id="path236-6-3"
+       cx="37.61956"
+       cy="85.161964"
+       r="33.072918" />
+  </g>
+</svg>

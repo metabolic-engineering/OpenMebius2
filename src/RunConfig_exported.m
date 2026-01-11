@@ -1,0 +1,1777 @@
+classdef RunConfig_exported < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        BatchconfigUIFigure matlab.ui.Figure
+        GridLayout matlab.ui.container.GridLayout
+        TabGroup matlab.ui.container.TabGroup
+        GeneralTab matlab.ui.container.Tab
+        GridLayout5_2 matlab.ui.container.GridLayout
+        GridLayout7_2 matlab.ui.container.GridLayout
+        GeneralDefaultButton matlab.ui.control.Button
+        GeneralApplyButton matlab.ui.control.Button
+        GeneralApplyAllButton matlab.ui.control.Button
+        GeneralCloseButton matlab.ui.control.Button
+        GridLayout6_2 matlab.ui.container.GridLayout
+        TabGroup2 matlab.ui.container.TabGroup
+        MonteCarloTab matlab.ui.container.Tab
+        GridLayout9 matlab.ui.container.GridLayout
+        GridLayout10_8 matlab.ui.container.GridLayout
+        MCMethodDropDown matlab.ui.control.DropDown
+        CalculationmethodsDropDownLabel matlab.ui.control.Label
+        GridLayout10_7 matlab.ui.container.GridLayout
+        MCKNREditField matlab.ui.control.NumericEditField
+        ThenumberofrunsiKisubNRsubEditFieldLabel matlab.ui.control.Label
+        GridLayout10_6 matlab.ui.container.GridLayout
+        MCNasEditField matlab.ui.control.NumericEditField
+        CertainthresholdiNisubASsubEditFieldLabel matlab.ui.control.Label
+        GridLayout10_5 matlab.ui.container.GridLayout
+        MCProximityEditField matlab.ui.control.NumericEditField
+        ProximitythresholdepsilonLabel matlab.ui.control.Label
+        GridLayout10_4 matlab.ui.container.GridLayout
+        MCTTEditField matlab.ui.control.NumericEditField
+        TerminationtoleranceTTEditFieldLabel matlab.ui.control.Label
+        GridLayout10_3 matlab.ui.container.GridLayout
+        MCProcedureDropDown matlab.ui.control.DropDown
+        OptimizationprocedureDropDownLabel matlab.ui.control.Label
+        GridLayout10_2 matlab.ui.container.GridLayout
+        MCMIDSDEditField matlab.ui.control.NumericEditField
+        VariationsforMIDserrorLabel matlab.ui.control.Label
+        MCFixMIDCheckBox matlab.ui.control.CheckBox
+        GridLayout10 matlab.ui.container.GridLayout
+        MCLmaxEditField matlab.ui.control.NumericEditField
+        maximumnumberoftrialsLsubmaxsubLabel matlab.ui.control.Label
+        GridsearchTab matlab.ui.container.Tab
+        GridLayout11 matlab.ui.container.GridLayout
+        GridLayout12_4 matlab.ui.container.GridLayout
+        ThresholdDropDown matlab.ui.control.DropDown
+        ThresholdDropDownLabel matlab.ui.control.Label
+        GridLayout12_3 matlab.ui.container.GridLayout
+        IterationtimesforgridsearchEditField matlab.ui.control.NumericEditField
+        IterationtimesforgridsearchEditFieldLabel matlab.ui.control.Label
+        GridLayout12_2 matlab.ui.container.GridLayout
+        GridintervalDeltaixiEditField matlab.ui.control.NumericEditField
+        GridintervalDeltaixiEditFieldLabel matlab.ui.control.Label
+        GridLayout12 matlab.ui.container.GridLayout
+        ThenumberofgridpointsEditField matlab.ui.control.NumericEditField
+        ThenumberofgridpointsEditFieldLabel matlab.ui.control.Label
+        DeterminegridintervalautomaticallyCheckBox matlab.ui.control.CheckBox
+        GridLayout8 matlab.ui.container.GridLayout
+        INSTMFACheckBox matlab.ui.control.CheckBox
+        DeleteResultButton matlab.ui.control.CheckBox
+        GridLayoutAlgorithm_2 matlab.ui.container.GridLayout
+        AlgorithmCIDropDown matlab.ui.control.DropDown
+        AlgorithmforCIcalculationDropDownLabel matlab.ui.control.Label
+        CalcCICheckBox matlab.ui.control.CheckBox
+        PerturbateEffluxCheckBox matlab.ui.control.CheckBox
+        SuggestionCheckBox matlab.ui.control.CheckBox
+        LargeScaleCheckBox matlab.ui.control.CheckBox
+        GridLayoutAlgorithm matlab.ui.container.GridLayout
+        AlgorithmDropDown matlab.ui.control.DropDown
+        CalculationalgorithmDropDownLabel matlab.ui.control.Label
+        GridLayoutIteration matlab.ui.container.GridLayout
+        IterationSpinner matlab.ui.control.Spinner
+        IterationtimesforcalculationSpinnerLabel matlab.ui.control.Label
+        MSfragmentTab matlab.ui.container.Tab
+        GridLayout5 matlab.ui.container.GridLayout
+        MSTable matlab.ui.control.Table
+        GridLayout7 matlab.ui.container.GridLayout
+        MSDefaultButton matlab.ui.control.Button
+        MSApplyButton matlab.ui.control.Button
+        MSApplyAllButton matlab.ui.control.Button
+        MSCloseButton matlab.ui.control.Button
+        EffluxperturbationTab matlab.ui.container.Tab
+        GridLayout13 matlab.ui.container.GridLayout
+        GridLayout22 matlab.ui.container.GridLayout
+        EffluxUITable matlab.ui.control.Table
+        GridLayout15 matlab.ui.container.GridLayout
+        EffluxApplyButton matlab.ui.control.Button
+        EffluxApplyAllButton matlab.ui.control.Button
+        EffluxCloseButton matlab.ui.control.Button
+        TracersuggestionTab matlab.ui.container.Tab
+        GridLayout14 matlab.ui.container.GridLayout
+        GridLayout17 matlab.ui.container.GridLayout
+        GridLayout18 matlab.ui.container.GridLayout
+        LabelTable matlab.ui.control.Table
+        GridLayout16 matlab.ui.container.GridLayout
+        SuggestionApplyButton matlab.ui.control.Button
+        SuggestionApplyForAllButton matlab.ui.control.Button
+        SuggestionCloseButton matlab.ui.control.Button
+        INSTMFATab matlab.ui.container.Tab
+        GridLayout13_2 matlab.ui.container.GridLayout
+        GridLayout20 matlab.ui.container.GridLayout
+        INSTMFATimeCourseUITable matlab.ui.control.Table
+        GridLayout21 matlab.ui.container.GridLayout
+        INSTMFAPoolUITable matlab.ui.control.Table
+        GridLayout15_2 matlab.ui.container.GridLayout
+        INSTMFAReloadButton matlab.ui.control.Button
+        INSTMFAApplyButton matlab.ui.control.Button
+        INSTMFACloseButton matlab.ui.control.Button
+        ContextMenu matlab.ui.container.ContextMenu
+        AddnewpatternMenu matlab.ui.container.Menu
+        AddnewpatternsMenu matlab.ui.container.Menu
+        CopythistracerforallentriesMenu matlab.ui.container.Menu
+        ContextMenuINST matlab.ui.container.ContextMenu
+        AddexperimentsMenu matlab.ui.container.Menu
+        RemoveselectedexperimentMenu matlab.ui.container.Menu
+    end
+
+    %% Private properties
+    properties (Access = private)
+        MainApp
+        RunAddBatchApp
+        selection
+        selectedConfig
+    end
+
+    %% Public methods
+    properties (Access = public)
+        exp
+    end
+
+    %% Public methods
+    methods (Access = public)
+
+        function unlockAllFeature(app)
+        end % unlockAllFeature
+
+    end
+
+    methods (Access = protected)
+
+        function updateINSTMFATimeCourseTable(app)
+
+            currentID = app.MainApp.batch.getBatchForGUI().ID(app.selection);
+
+            if length(currentID) ~= 1
+                return;
+            end
+
+            [timePointTable, timePointTableColumnEditable] = app.MainApp.batch.getBatchINSTMFATimePoints(currentID);
+
+            app.INSTMFATimeCourseUITable.Data = timePointTable;
+            app.INSTMFATimeCourseUITable.ColumnName = timePointTable.Properties.VariableNames;
+            app.INSTMFATimeCourseUITable.RowName = {};
+            app.INSTMFATimeCourseUITable.ColumnEditable = timePointTableColumnEditable;
+
+        end % updateINSTMFATimeCourseTable
+
+    end % protected methods
+
+    %% Private methods
+    methods (Access = private)
+
+        function setConfigValue(app)
+            % SETCONFIGVALUE Set the configuration values in the app
+            % based on the selected batch row
+
+            batch = app.MainApp.batch.getBatchForGUI();
+            numSelected = size(app.selection, 1);
+
+            for i = 1:numSelected
+
+                iId = batch.ID(app.selection(i));
+                iConfig = app.MainApp.batch.getBatchConfig(iId);
+                app.selectedConfig = [app.selectedConfig; iConfig];
+
+            end
+
+        end % setConfigValue
+
+        function fillConfigValueToUI(app)
+            % FILLCONFIGVALUETOUTI Fill the configuration values into the UI components
+
+            % Iteration times
+            iterationTimes = arrayfun(@(x) x.iteration, app.selectedConfig);
+            app.IterationSpinner.Value = iterationTimes(1);
+            clear iterationTimes
+
+            % Algorithm
+            algorithm = arrayfun(@(x) x.algorithm, app.selectedConfig, "UniformOutput", false);
+            algorithm = algorithm{1};
+
+            switch algorithm
+                case 'interior-point'
+                    app.AlgorithmDropDown.Value = 'IPMs';
+                case 'SQP'
+                    app.AlgorithmDropDown.Value = 'SQP';
+            end
+
+            clear algorithm
+
+            % Large scale problem
+            largeScale = arrayfun(@(x) x.largeScale, app.selectedConfig);
+            app.LargeScaleCheckBox.Value = largeScale(1);
+            clear largeScale
+
+            % Suggest next flux
+            suggestNextFlux = arrayfun(@(x) x.suggestNextFlux, app.selectedConfig);
+            app.SuggestionCheckBox.Value = suggestNextFlux(1);
+            clear suggestNextFlux
+
+            % Perturbate efflux
+            perturbateEfflux = arrayfun(@(x) x.perturbateEfflux, app.selectedConfig);
+            app.PerturbateEffluxCheckBox.Value = perturbateEfflux(1);
+            clear perturbateEfflux
+
+            % Calculate confidence intervals
+            isCalcCI = arrayfun(@(x) x.isCalcCI, app.selectedConfig);
+            app.CalcCICheckBox.Value = isCalcCI(1);
+            clear isCalcCI
+
+            % CI Calculation Algorithm
+            ciAlgorithm = arrayfun(@(x) x.CIConf.algorithm, app.selectedConfig, "UniformOutput", false);
+            ciAlgorithm = ciAlgorithm{1};
+
+            app.AlgorithmCIDropDown.Value = ciAlgorithm;
+
+            clear ciAlgorithm
+
+            isDeleteResultFile = arrayfun(@(x) x.deleteResultFile, app.selectedConfig);
+            app.DeleteResultButton.Value = isDeleteResultFile(1);
+            clear isDeleteResultFile
+
+            % Monte Carlo-specific settings
+            if strcmp(app.AlgorithmCIDropDown.Value, 'Monte Carlo')
+                mcConfig = app.selectedConfig(1).CIConf.MC;
+
+                app.MCLmaxEditField.Value = mcConfig.iteration;
+                app.MCFixMIDCheckBox.Value = mcConfig.fixMID;
+                app.MCMIDSDEditField.Value = mcConfig.MIDSD;
+
+                switch mcConfig.optimizationProcedure
+                    case 'single'
+                        app.MCProcedureDropDown.Value = 'Single run';
+                    case 'multiple'
+                        app.MCProcedureDropDown.Value = 'Multiple run';
+                end
+
+                app.MCTTEditField.Value = mcConfig.terminationTolerance;
+                app.MCProximityEditField.Value = mcConfig.proximityThreshold;
+                app.MCNasEditField.Value = mcConfig.certainThreshold;
+                app.MCKNREditField.Value = mcConfig.theNumberOfRuns;
+
+                switch mcConfig.calculationMethod
+                    case 'discarding'
+                        app.MCMethodDropDown.Value = 'Discarding';
+                    case 'mean-varianced'
+                        app.MCMethodDropDown.Value = 'Mean-varianced';
+                end
+
+            end
+
+            % Grid search-specific settings
+            if strcmp(app.AlgorithmCIDropDown.Value, 'Grid search')
+                gridConfig = app.selectedConfig(1).CIConf.grid;
+
+                app.DeterminegridintervalautomaticallyCheckBox.Value = gridConfig.isParallel;
+                app.ThenumberofgridpointsEditField.Value = gridConfig.points;
+                app.GridintervalDeltaixiEditField.Value = gridConfig.delta;
+                app.IterationtimesforgridsearchEditField.Value = gridConfig.iteration;
+
+                switch gridConfig.threshold
+                    case 'chi-sq'
+                        app.ThresholdDropDown.Value = 'Chi-squared';
+                    case 'F-dist'
+                        app.ThresholdDropDown.Value = 'F-distribution';
+                end
+
+            end
+
+            app.INSTMFACheckBox.Value = app.selectedConfig(1).isINSTMFA;
+
+            if app.INSTMFACheckBox.Value
+
+                INSTMFA = app.selectedConfig(1).INSTMFA;
+
+                if isempty(INSTMFA)
+                    return
+                end
+
+                % Pool size
+                app.INSTMFAPoolUITable.Data = table(INSTMFA.poolMetabolite', INSTMFA.poolSize', ...
+                    'VariableNames', {'Metabolite', 'PoolSize'});
+                app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
+                app.INSTMFAPoolUITable.RowName = {};
+                app.INSTMFAPoolUITable.ColumnEditable = [false, true];
+                % Time course
+                app.INSTMFATimeCourseUITable.Data = table(INSTMFA.timePointsExpName', INSTMFA.timePoints', ...
+                    'VariableNames', {'TimePointExpName', 'TimePoint'});
+                app.INSTMFATimeCourseUITable.ColumnName = {'TimePointExpName', 'TimePoint'};
+                app.INSTMFATimeCourseUITable.RowName = {};
+                app.INSTMFATimeCourseUITable.ColumnEditable = [false, true];
+
+            end % if app.INSTMFACheckBox.Value
+
+        end % fillConfigValueToUI
+
+        function enabledisableCIUI(app, isCalcCI)
+            % ENABLEDISABLECIUI Enable or disable CI-related UI components
+            % based on the isCalcCI flag
+
+            if isCalcCI
+                % Enable CI-related components
+                app.AlgorithmCIDropDown.Enable = 'on';
+
+                % Check the selected algorithm and enable/disable components accordingly
+                selectedAlgorithm = app.AlgorithmCIDropDown.Value;
+
+                switch selectedAlgorithm
+                    case 'Monte Carlo'
+                        % Enable Monte Carlo-specific components
+                        app.MCLmaxEditField.Enable = 'on';
+                        app.MCFixMIDCheckBox.Enable = 'on';
+                        app.MCMIDSDEditField.Enable = 'on';
+                        app.MCProcedureDropDown.Enable = 'on';
+                        app.MCTTEditField.Enable = 'on';
+                        app.MCProximityEditField.Enable = 'on';
+                        app.MCNasEditField.Enable = 'on';
+                        app.MCKNREditField.Enable = 'on';
+                        app.MCMethodDropDown.Enable = 'on';
+
+                        % Disable Grid Search-specific components
+                        app.DeterminegridintervalautomaticallyCheckBox.Enable = 'off';
+                        app.ThenumberofgridpointsEditField.Enable = 'off';
+                        app.GridintervalDeltaixiEditField.Enable = 'off';
+                        app.IterationtimesforgridsearchEditField.Enable = 'off';
+                        app.ThresholdDropDown.Enable = 'off';
+
+                    case 'Grid search'
+                        % Enable Grid Search-specific components
+                        app.DeterminegridintervalautomaticallyCheckBox.Enable = 'on';
+                        app.ThenumberofgridpointsEditField.Enable = 'on';
+                        app.GridintervalDeltaixiEditField.Enable = 'on';
+                        app.IterationtimesforgridsearchEditField.Enable = 'on';
+                        app.ThresholdDropDown.Enable = 'on';
+
+                        % Disable Monte Carlo-specific components
+                        app.MCLmaxEditField.Enable = 'off';
+                        app.MCFixMIDCheckBox.Enable = 'off';
+                        app.MCMIDSDEditField.Enable = 'off';
+                        app.MCProcedureDropDown.Enable = 'off';
+                        app.MCTTEditField.Enable = 'off';
+                        app.MCProximityEditField.Enable = 'off';
+                        app.MCNasEditField.Enable = 'off';
+                        app.MCKNREditField.Enable = 'off';
+                        app.MCMethodDropDown.Enable = 'off';
+                end
+
+            else
+                % Disable all CI-related components
+                app.AlgorithmCIDropDown.Enable = 'off';
+                app.MCLmaxEditField.Enable = 'off';
+                app.MCFixMIDCheckBox.Enable = 'off';
+                app.MCMIDSDEditField.Enable = 'off';
+                app.MCProcedureDropDown.Enable = 'off';
+                app.MCTTEditField.Enable = 'off';
+                app.MCProximityEditField.Enable = 'off';
+                app.MCNasEditField.Enable = 'off';
+                app.MCKNREditField.Enable = 'off';
+                app.MCMethodDropDown.Enable = 'off';
+                app.DeterminegridintervalautomaticallyCheckBox.Enable = 'off';
+                app.ThenumberofgridpointsEditField.Enable = 'off';
+                app.GridintervalDeltaixiEditField.Enable = 'off';
+                app.IterationtimesforgridsearchEditField.Enable = 'off';
+                app.ThresholdDropDown.Enable = 'off';
+            end
+
+            enabledisableGridSetting(app)
+
+        end % enabledisableCIUI
+
+        function enabledisableGridSetting(app)
+            % ENABLEDISABLEGRIDSETTING Enable or disable grid setting UI components
+            % based on the selected algorithm
+            % and the value of the DeterminegridintervalautomaticallyCheckBox
+
+            isCalcCI = app.CalcCICheckBox.Value;
+            isGridSearch = strcmp(app.AlgorithmCIDropDown.Value, 'Grid search');
+            isAutoGridInterval = app.DeterminegridintervalautomaticallyCheckBox.Value;
+
+            if ~isCalcCI && ~isGridSearch
+                return
+            end
+
+            if isAutoGridInterval
+                % Enable grid setting components
+                app.ThenumberofgridpointsEditField.Enable = 'on';
+                app.GridintervalDeltaixiEditField.Enable = 'off';
+            else
+                % Disable grid setting components
+                app.ThenumberofgridpointsEditField.Enable = 'off';
+                app.GridintervalDeltaixiEditField.Enable = 'on';
+            end
+
+        end % enabledisableGridSetting
+
+        function enabledisableSuggestion(app)
+            % ENABLEDISABLESUGGESTION Enable or disable suggestion-related UI components
+            % based on the SuggestionCheckBox value
+
+            isSuggestLabel = app.SuggestionCheckBox.Value;
+
+            if isSuggestLabel
+
+                % Enable suggestion-related components
+                app.LabelTable.Enable = 'on';
+
+                batch = app.MainApp.batch.getBatchForGUI();
+                batchID = batch.ID(app.selection);
+                batchIDUnique = unique(batchID);
+                tableSuggestion = getBatchSuggestionTable(app.MainApp.batch, batchIDUnique);
+
+                app.LabelTable.Data = tableSuggestion;
+                app.LabelTable.ColumnName = tableSuggestion.Properties.VariableNames;
+                app.LabelTable.RowName = tableSuggestion.Properties.RowNames;
+
+            else
+
+                % Disable suggestion-related components
+                app.LabelTable.Enable = 'off';
+
+                % cleanup suggestion table
+                app.LabelTable.Data = [];
+                app.LabelTable.ColumnName = {};
+                app.LabelTable.RowName = {};
+
+            end
+
+        end % enabledisableSuggestion
+
+        function enabledisableINSTMFA(app, isINSTMFA)
+            % ENABLEDISABLEINSTMFA Enable or disable INST-MFA-related UI components
+            % based on the isINSTMFA flag
+
+            if isINSTMFA
+
+                batch = app.MainApp.batch.getBatchForGUI();
+                batchID = batch.ID(app.selection);
+                batchIDUnique = unique(batchID);
+                tablePoolSize = app.MainApp.batch.getBatchINSTMFAPoolTable(batchIDUnique);
+
+                if length(batchIDUnique) ~= 1
+                    uialert('INST-MFA settings can only be configured when a single batch is selected.', 'Error', 'Icon', 'error');
+                    return;
+                end
+
+                app.INSTMFAPoolUITable.Data = tablePoolSize;
+                app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
+                app.INSTMFAPoolUITable.RowName = {};
+                app.INSTMFATimeCourseUITable.Data = [];
+                app.INSTMFATimeCourseUITable.ColumnName = {'TimePointExpName', 'TimePoint'};
+                app.INSTMFATimeCourseUITable.RowName = {};
+
+                % Enable INST-MFA-related components
+                app.INSTMFAApplyButton.Enable = 'on';
+                app.INSTMFAPoolUITable.Enable = 'on';
+                app.INSTMFATimeCourseUITable.Enable = 'on';
+            else
+
+                app.INSTMFAPoolUITable.Data = [];
+                app.INSTMFAPoolUITable.ColumnName = {};
+                app.INSTMFAPoolUITable.RowName = {};
+                app.INSTMFATimeCourseUITable.Data = [];
+                app.INSTMFATimeCourseUITable.ColumnName = {};
+                app.INSTMFATimeCourseUITable.RowName = {};
+
+                % Disable INST-MFA-related components
+                app.INSTMFAApplyButton.Enable = 'off';
+                app.INSTMFAPoolUITable.Enable = 'off';
+                app.INSTMFATimeCourseUITable.Enable = 'off';
+            end
+
+        end % enabledisableINSTMFA
+
+        function loadMSFragmentTable(app)
+            % LOADMSFRAGMENTTABLE Load the MS fragment table for
+            % the selected batch and display it in the MSTable
+            % component
+
+            % Get the selected batch ID
+            batch = app.MainApp.batch.getBatchForGUI();
+            batchID = batch.ID(app.selection);
+            batchIDUnique = unique(batchID);
+
+            if length(batchID) ~= length(batchIDUnique)
+                error('Duplicate batch IDs found in the selection.')
+            end
+
+            clear batchIDUnique
+
+            tableSelected = app.MainApp.batch.getBatchCustomFragment(batchID);
+
+            % Fill the MSTable with the selected and available tables
+            app.MSTable.Data = tableSelected;
+            app.MSTable.ColumnName = tableSelected.Properties.VariableNames;
+            app.MSTable.RowName = tableSelected.Properties.RowNames;
+            app.MSTable.ColumnEditable = true(1, size(tableSelected, 2));
+
+        end % loadMSFragmentTable
+
+        function editTimeCourse(app)
+            % EDITTIMECOURSE Edit the time course table for INST-MFA
+
+            batchIDs = app.MainApp.batch.getBatchForGUI().ID(app.selection);
+
+            if length(batchIDs) ~= 1
+                return;
+            end
+
+            app.RunAddBatchApp = RunAddBatch(app.MainApp, 'inst-mfa', batchIDs(1));
+
+        end % editTimeCourse
+
+        function applyGeneral(app)
+            % APPLYGENERAL Apply the general settings to the selected batch
+
+            % Get the current configuration for the selected batch
+            batch = app.MainApp.batch.getBatchForGUI();
+            batchID = batch.ID(app.selection);
+            config = app.MainApp.batch.getBatchConfig(batchID(1));
+
+            % Update the configuration with values from the UI
+            config.iteration = app.IterationSpinner.Value;
+
+            switch config.algorithm
+                case 'IPMs'
+                    config.algorithm = 'interior-point';
+                case 'SQP'
+                    config.algorithm = 'SQP';
+            end
+
+            config.largeScale = app.LargeScaleCheckBox.Value;
+            config.suggestNextFlux = app.SuggestionCheckBox.Value;
+            config.perturbateEfflux = app.PerturbateEffluxCheckBox.Value;
+
+            % Update the confidence interval calculation settings
+            config.isCalcCI = app.CalcCICheckBox.Value;
+            config.CIConf.algorithm = app.AlgorithmCIDropDown.Value;
+
+            config.deleteResultFile = app.DeleteResultButton.Value;
+
+            % Monte Carlo-specific settings
+            if strcmp(config.CIConf.algorithm, 'Monte Carlo')
+                config.CIConf.MC.iteration = app.MCLmaxEditField.Value;
+                config.CIConf.MC.fixMID = app.MCFixMIDCheckBox.Value;
+                config.CIConf.MC.MIDSD = app.MCMIDSDEditField.Value;
+                config.CIConf.MC.procedure = app.MCProcedureDropDown.Value;
+                config.CIConf.MC.terminationTolerance = app.MCTTEditField.Value;
+                config.CIConf.MC.proximityThreshold = app.MCProximityEditField.Value;
+                config.CIConf.MC.certainThreshold = app.MCNasEditField.Value;
+                config.CIConf.MC.theNumberOfRuns = app.MCKNREditField.Value;
+                config.CIConf.MC.method = app.MCMethodDropDown.Value;
+
+                switch config.CIConf.MC.procedure
+                    case 'Single run'
+                        config.CIConf.MC.optimizationProcedure = 'single';
+                    case 'Multiple run'
+                        config.CIConf.MC.optimizationProcedure = 'multiple';
+                end
+
+                switch config.CIConf.MC.method
+                    case 'Discarding'
+                        config.CIConf.MC.calculationMethod = 'discarding';
+                    case 'Mean-varianced'
+                        config.CIConf.MC.calculationMethod = 'mean-varianced';
+                end
+
+            end
+
+            % Grid search-specific settings
+            if strcmp(config.CIConf.algorithm, 'Grid search')
+                config.CIConf.grid.isParallel = app.DeterminegridintervalautomaticallyCheckBox.Value;
+                config.CIConf.grid.points = app.ThenumberofgridpointsEditField.Value;
+                config.CIConf.grid.delta = app.GridintervalDeltaixiEditField.Value;
+                config.CIConf.grid.iteration = app.IterationtimesforgridsearchEditField.Value;
+                config.CIConf.grid.threshold = app.ThresholdDropDown.Value;
+            end
+
+            config.isINSTMFA = app.INSTMFACheckBox.Value;
+
+            if config.isINSTMFA
+
+                % Get pool size table
+                tablePoolSize = app.INSTMFAPoolUITable.Data;
+                config.INSTMFA.poolMetabolite = tablePoolSize.Metabolite';
+                config.INSTMFA.poolSize = tablePoolSize.PoolSize';
+
+                % Get time course table
+                tableTimeCourse = app.INSTMFATimeCourseUITable.Data;
+
+                if isempty(tableTimeCourse)
+                    config.INSTMFA.timePointsExpName = {};
+                    config.INSTMFA.timePoints = [];
+                else
+                    config.INSTMFA.timePointsExpName = tableTimeCourse.TimePointExpName';
+                    config.INSTMFA.timePoints = tableTimeCourse.TimePoint';
+                end
+
+            end % if config.isINSTMFA
+
+            % Save the updated configuration back to the batch
+            app.MainApp.batch.updateBatchConfig(batchID, config);
+
+        end % applyGeneral
+
+        function applyMSFragment(app)
+
+            data = app.MSTable.Data;
+            batch = app.MainApp.batch.getBatchForGUI();
+            batchID = batch.ID(app.selection);
+
+            batchIDUnique = unique(batchID);
+
+            if length(batchID) ~= length(batchIDUnique)
+                error('Duplicate batch IDs found in the selection.')
+            end
+
+            clear batchIDUnique
+
+            app.MainApp.batch.updateBatchConfigFragment(batchID, data)
+
+        end % applyMSFragment
+
+        function applyINSTMFA(app)
+
+            batch = app.MainApp.batch.getBatchForGUI();
+            batchID = batch.ID(app.selection);
+            batchIDUnique = unique(batchID);
+            config = app.MainApp.batch.getBatchConfig(batchIDUnique);
+
+            config.isINSTMFA = app.INSTMFACheckBox.Value;
+
+            if config.isINSTMFA
+
+                % Get pool size table
+                tablePoolSize = app.INSTMFAPoolUITable.Data;
+                config.INSTMFA.poolMetabolite = tablePoolSize.Metabolite';
+                config.INSTMFA.poolSize = tablePoolSize.PoolSize';
+
+                % Get time course table
+                tableTimeCourse = app.INSTMFATimeCourseUITable.Data;
+
+                if isempty(tableTimeCourse)
+                    config.INSTMFA.timePointsExpName = {};
+                    config.INSTMFA.timePoints = [];
+                else
+                    config.INSTMFA.timePointsExpName = tableTimeCourse.TimePointExpName';
+                    config.INSTMFA.timePoints = tableTimeCourse.TimePoint';
+                end
+
+            end % if config.isINSTMFA
+
+            % Save the updated configuration back to the batch
+            app.MainApp.batch.updateBatchConfig(batchIDUnique, config);
+
+        end % applyINSTMFA
+
+    end % private methods
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Code that executes after component creation
+        function startupFcn(app, MainApp, selection)
+
+            app.MainApp = MainApp;
+            app.exp = MainApp.exp;
+
+            selectionRow = selection(:, 1);
+            app.selection = unique(selectionRow);
+            setConfigValue(app)
+            fillConfigValueToUI(app)
+            enabledisableCIUI(app, app.CalcCICheckBox.Value)
+            enabledisableSuggestion(app)
+            app.enabledisableINSTMFA(app.INSTMFACheckBox.Value)
+            loadMSFragmentTable(app)
+
+        end
+
+        % Close request function: BatchconfigUIFigure
+        function BatchconfigUIFigureCloseRequest(app, event)
+
+            app.MainApp.unlockAllFeatureForOtherGUI()
+            pause(0.5)
+            delete(app)
+
+        end
+
+        % Button pushed function: GeneralDefaultButton
+        function GeneralDefaultButtonPushed(app, event)
+
+        end
+
+        % Button pushed function: GeneralApplyButton
+        function GeneralApplyButtonPushed(app, event)
+
+            applyGeneral(app)
+            app.MainApp.updateBatchTable();
+
+        end
+
+        % Button pushed function: GeneralApplyAllButton
+        function GeneralApplyAllButtonPushed(app, event)
+
+        end
+
+        % Button pushed function: GeneralCloseButton
+        function GeneralCloseButtonPushed(app, event)
+
+            app.MainApp.unlockAllFeatureForOtherGUI()
+            pause(0.5)
+            delete(app)
+
+        end
+
+        % Button pushed function: MSDefaultButton
+        function MSDefaultButtonPushed(app, event)
+
+        end
+
+        % Button pushed function: MSApplyButton
+        function MSApplyButtonPushed(app, event)
+
+            applyMSFragment(app)
+            app.MainApp.updateBatchTable();
+
+        end
+
+        % Button pushed function: MSApplyAllButton
+        function MSApplyAllButtonPushed(app, event)
+
+        end
+
+        % Button pushed function: MSCloseButton
+        function MSCloseButtonPushed(app, event)
+
+            app.MainApp.unlockAllFeatureForOtherGUI()
+            pause(0.5)
+            delete(app)
+
+        end
+
+        % Button pushed function: EffluxApplyAllButton
+        function EffluxApplyAllButtonPushed(app, event)
+
+        end
+
+        % Button pushed function: EffluxCloseButton
+        function EffluxCloseButtonPushed(app, event)
+
+            app.MainApp.unlockAllFeatureForOtherGUI()
+            pause(0.5)
+            delete(app)
+
+        end
+
+        % Button pushed function: SuggestionApplyButton
+        function SuggestionApplyButtonPushed(app, event)
+
+            data = app.LabelTable.Data;
+            batch = app.MainApp.batch.getBatchForGUI();
+            batchID = batch.ID(app.selection);
+            batchIDUnique = unique(batchID);
+
+            updateBatchConfigSuggestionTable(app.MainApp.batch, batchIDUnique, data)
+            updateBatchTable(app.MainApp)
+
+        end
+
+        % Button pushed function: SuggestionApplyForAllButton
+        function SuggestionApplyForAllButtonPushed(app, event)
+
+        end
+
+        % Button pushed function: SuggestionCloseButton
+        function SuggestionCloseButtonPushed(app, event)
+
+            app.MainApp.unlockAllFeatureForOtherGUI()
+            pause(0.5)
+            delete(app)
+
+        end
+
+        % Value changed function: CalcCICheckBox
+        function CalcCICheckBoxValueChanged(app, event)
+
+            enabledisableCIUI(app, app.CalcCICheckBox.Value)
+
+        end
+
+        % Value changed function: AlgorithmCIDropDown
+        function AlgorithmCIDropDownValueChanged(app, event)
+
+            enabledisableCIUI(app, app.CalcCICheckBox.Value)
+
+        end
+
+        % Value changed function:
+        % DeterminegridintervalautomaticallyCheckBox
+        function DeterminegridintervalautomaticallyCheckBoxValueChanged(app, event)
+
+            enabledisableGridSetting(app)
+
+        end
+
+        % Value changed function: INSTMFACheckBox
+        function INSTMFACheckBoxValueChanged(app, event)
+
+            app.SuggestionCheckBox.Value = false;
+            enabledisableSuggestion(app)
+
+            enabledisableINSTMFA(app, event.Source.Value)
+
+        end
+
+        % Menu selected function: AddexperimentsMenu
+        function AddexperimentsMenuSelected(app, event)
+
+            app.editTimeCourse();
+
+        end
+
+        % Menu selected function: RemoveselectedexperimentMenu
+        function RemoveselectedexperimentMenuSelected(app, event)
+
+            selectedRow = app.INSTMFATimeCourseUITable.Selection;
+            selectedRow = unique(selectedRow(:, 1));
+
+            if isempty(selectedRow)
+                return
+            end
+
+        end
+
+        % Value changed function: SuggestionCheckBox
+        function SuggestionCheckBoxValueChanged(app, event)
+
+            isSuggestLabel = app.SuggestionCheckBox.Value;
+
+            if isSuggestLabel
+
+                app.CalcCICheckBox.Value = true;
+                enabledisableCIUI(app, app.CalcCICheckBox.Value)
+                enabledisableSuggestion(app)
+
+            else
+
+                return;
+
+            end
+
+        end
+
+        % Double-clicked callback: LabelTable
+        function LabelTableDoubleClicked(app, event)
+
+            displayRow = event.InteractionInformation.DisplayRow;
+            displayColumn = event.InteractionInformation.DisplayColumn;
+
+            if isempty(displayRow) || isempty(displayColumn)
+                return
+            end
+
+            app.MainApp.TracerConfigApp = ...
+                TracerConfig( ...
+                app, ...
+                [displayRow, displayColumn] ...
+            );
+
+        end
+
+        % Menu selected function: AddnewpatternMenu
+        function AddnewpatternMenuSelected(app, event)
+
+            tableNow = app.LabelTable.Data;
+            numCol = size(tableNow, 2);
+            newRow = strings(1, numCol);
+            tableNew = array2table(newRow, 'VariableNames', app.LabelTable.ColumnName');
+
+            tableNow = [tableNow; tableNew];
+            app.LabelTable.Data = tableNow;
+
+        end
+
+        % Menu selected function: AddnewpatternsMenu
+        function AddnewpatternsMenuSelected(app, event)
+
+            n = inputdlg('Enter the number of new patterns to add:', 'Add New Patterns', [1 50], {'1'});
+            nNum = str2double(n{1});
+
+            if isnan(nNum) || nNum <= 0 || mod(nNum, 1) ~= 0
+                return;
+            end
+
+            tableNow = app.LabelTable.Data;
+            numCol = size(tableNow, 2);
+            newRows = strings(nNum, numCol);
+            tableNew = array2table(newRows, 'VariableNames', app.LabelTable.ColumnName');
+
+            tableNow = [tableNow; tableNew];
+            app.LabelTable.Data = tableNow;
+
+        end
+
+        % Menu selected function: CopythistracerforallentriesMenu
+        function CopythistracerforallentriesMenuSelected(app, event)
+
+            idxSelection = app.LabelTable.Selection;
+
+            if isempty(idxSelection)
+                return;
+            end
+
+            selectedLabel = app.LabelTable.Data{idxSelection(1, 1), idxSelection(1, 2)};
+
+            % Replace all entries in the selected column with the selected label
+            tableNow = app.LabelTable.Data;
+            numRows = size(tableNow, 1);
+
+            for i = 1:numRows
+                tableNow{i, idxSelection(1, 2)} = selectedLabel;
+            end
+
+            app.LabelTable.Data = tableNow;
+
+        end
+
+        % Key press function: BatchconfigUIFigure
+        function BatchconfigUIFigureKeyPress(app, event)
+
+            key = event.Key;
+
+            % Esc
+            if strcmp(key, 'escape')
+                app.MainApp.unlockAllFeatureForOtherGUI()
+                pause(0.5)
+                delete(app)
+            end
+
+        end
+
+        % Button pushed function: INSTMFAApplyButton
+        function INSTMFAApplyButtonPushed(app, event)
+
+            app.applyINSTMFA()
+            app.MainApp.updateBatchTable();
+
+        end
+
+        % Button pushed function: INSTMFAReloadButton
+        function INSTMFAReloadButtonPushed(app, event)
+
+            app.updateINSTMFATimeCourseTable();
+
+        end
+
+        % Button pushed function: INSTMFACloseButton
+        function INSTMFACloseButtonPushed(app, event)
+
+            app.MainApp.unlockAllFeatureForOtherGUI()
+            pause(0.5)
+            delete(app)
+
+        end
+
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Get the file path for locating images
+            pathToMLAPP = fileparts(mfilename('fullpath'));
+
+            % Create BatchconfigUIFigure and hide until all components are created
+            app.BatchconfigUIFigure = uifigure('Visible', 'off');
+            app.BatchconfigUIFigure.Position = [100 100 640 480];
+            app.BatchconfigUIFigure.Name = 'Batch config';
+            app.BatchconfigUIFigure.Icon = fullfile(pathToMLAPP, '+img', 'logo.png');
+            app.BatchconfigUIFigure.CloseRequestFcn = createCallbackFcn(app, @BatchconfigUIFigureCloseRequest, true);
+            app.BatchconfigUIFigure.KeyPressFcn = createCallbackFcn(app, @BatchconfigUIFigureKeyPress, true);
+
+            % Create GridLayout
+            app.GridLayout = uigridlayout(app.BatchconfigUIFigure);
+            app.GridLayout.ColumnWidth = {'1x'};
+            app.GridLayout.RowHeight = {'1x'};
+
+            % Create TabGroup
+            app.TabGroup = uitabgroup(app.GridLayout);
+            app.TabGroup.Layout.Row = 1;
+            app.TabGroup.Layout.Column = 1;
+
+            % Create GeneralTab
+            app.GeneralTab = uitab(app.TabGroup);
+            app.GeneralTab.Title = 'General';
+
+            % Create GridLayout5_2
+            app.GridLayout5_2 = uigridlayout(app.GeneralTab);
+            app.GridLayout5_2.ColumnWidth = {'1x'};
+            app.GridLayout5_2.RowHeight = {'1x', 'fit'};
+
+            % Create GridLayout6_2
+            app.GridLayout6_2 = uigridlayout(app.GridLayout5_2);
+            app.GridLayout6_2.RowHeight = {'1x'};
+            app.GridLayout6_2.Padding = [0 0 0 0];
+            app.GridLayout6_2.Layout.Row = 1;
+            app.GridLayout6_2.Layout.Column = 1;
+
+            % Create GridLayout8
+            app.GridLayout8 = uigridlayout(app.GridLayout6_2);
+            app.GridLayout8.ColumnWidth = {'1x'};
+            app.GridLayout8.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
+            app.GridLayout8.Padding = [0 0 0 0];
+            app.GridLayout8.Layout.Row = 1;
+            app.GridLayout8.Layout.Column = 1;
+
+            % Create GridLayoutIteration
+            app.GridLayoutIteration = uigridlayout(app.GridLayout8);
+            app.GridLayoutIteration.ColumnWidth = {'7x', '3x'};
+            app.GridLayoutIteration.RowHeight = {'1x'};
+            app.GridLayoutIteration.Padding = [0 0 0 0];
+            app.GridLayoutIteration.Layout.Row = 1;
+            app.GridLayoutIteration.Layout.Column = 1;
+
+            % Create IterationtimesforcalculationSpinnerLabel
+            app.IterationtimesforcalculationSpinnerLabel = uilabel(app.GridLayoutIteration);
+            app.IterationtimesforcalculationSpinnerLabel.Layout.Row = 1;
+            app.IterationtimesforcalculationSpinnerLabel.Layout.Column = 1;
+            app.IterationtimesforcalculationSpinnerLabel.Text = 'Iteration times for calculation';
+
+            % Create IterationSpinner
+            app.IterationSpinner = uispinner(app.GridLayoutIteration);
+            app.IterationSpinner.Limits = [1 100000];
+            app.IterationSpinner.Layout.Row = 1;
+            app.IterationSpinner.Layout.Column = 2;
+            app.IterationSpinner.Value = 10;
+
+            % Create GridLayoutAlgorithm
+            app.GridLayoutAlgorithm = uigridlayout(app.GridLayout8);
+            app.GridLayoutAlgorithm.ColumnWidth = {'6x', '4x'};
+            app.GridLayoutAlgorithm.RowHeight = {'1x'};
+            app.GridLayoutAlgorithm.Padding = [0 0 0 0];
+            app.GridLayoutAlgorithm.Layout.Row = 2;
+            app.GridLayoutAlgorithm.Layout.Column = 1;
+
+            % Create CalculationalgorithmDropDownLabel
+            app.CalculationalgorithmDropDownLabel = uilabel(app.GridLayoutAlgorithm);
+            app.CalculationalgorithmDropDownLabel.Layout.Row = 1;
+            app.CalculationalgorithmDropDownLabel.Layout.Column = 1;
+            app.CalculationalgorithmDropDownLabel.Text = 'Calculation algorithm';
+
+            % Create AlgorithmDropDown
+            app.AlgorithmDropDown = uidropdown(app.GridLayoutAlgorithm);
+            app.AlgorithmDropDown.Items = {'IPMs', 'SQP'};
+            app.AlgorithmDropDown.Layout.Row = 1;
+            app.AlgorithmDropDown.Layout.Column = 2;
+            app.AlgorithmDropDown.Value = 'IPMs';
+
+            % Create LargeScaleCheckBox
+            app.LargeScaleCheckBox = uicheckbox(app.GridLayout8);
+            app.LargeScaleCheckBox.Text = 'Large scale problem';
+            app.LargeScaleCheckBox.Layout.Row = 3;
+            app.LargeScaleCheckBox.Layout.Column = 1;
+            app.LargeScaleCheckBox.Value = true;
+
+            % Create SuggestionCheckBox
+            app.SuggestionCheckBox = uicheckbox(app.GridLayout8);
+            app.SuggestionCheckBox.ValueChangedFcn = createCallbackFcn(app, @SuggestionCheckBoxValueChanged, true);
+            app.SuggestionCheckBox.Text = 'Suggest label tracer to increase accuracy';
+            app.SuggestionCheckBox.Layout.Row = 4;
+            app.SuggestionCheckBox.Layout.Column = 1;
+
+            % Create PerturbateEffluxCheckBox
+            app.PerturbateEffluxCheckBox = uicheckbox(app.GridLayout8);
+            app.PerturbateEffluxCheckBox.Text = 'Perturbate efflux';
+            app.PerturbateEffluxCheckBox.Layout.Row = 5;
+            app.PerturbateEffluxCheckBox.Layout.Column = 1;
+
+            % Create CalcCICheckBox
+            app.CalcCICheckBox = uicheckbox(app.GridLayout8);
+            app.CalcCICheckBox.ValueChangedFcn = createCallbackFcn(app, @CalcCICheckBoxValueChanged, true);
+            app.CalcCICheckBox.Text = 'Calculate confidence intervals of fluxes';
+            app.CalcCICheckBox.Layout.Row = 7;
+            app.CalcCICheckBox.Layout.Column = 1;
+            app.CalcCICheckBox.Value = true;
+
+            % Create GridLayoutAlgorithm_2
+            app.GridLayoutAlgorithm_2 = uigridlayout(app.GridLayout8);
+            app.GridLayoutAlgorithm_2.ColumnWidth = {'6x', '4x'};
+            app.GridLayoutAlgorithm_2.RowHeight = {'1x'};
+            app.GridLayoutAlgorithm_2.Padding = [0 0 0 0];
+            app.GridLayoutAlgorithm_2.Layout.Row = 8;
+            app.GridLayoutAlgorithm_2.Layout.Column = 1;
+
+            % Create AlgorithmforCIcalculationDropDownLabel
+            app.AlgorithmforCIcalculationDropDownLabel = uilabel(app.GridLayoutAlgorithm_2);
+            app.AlgorithmforCIcalculationDropDownLabel.Layout.Row = 1;
+            app.AlgorithmforCIcalculationDropDownLabel.Layout.Column = 1;
+            app.AlgorithmforCIcalculationDropDownLabel.Text = 'Algorithm for CI calculation';
+
+            % Create AlgorithmCIDropDown
+            app.AlgorithmCIDropDown = uidropdown(app.GridLayoutAlgorithm_2);
+            app.AlgorithmCIDropDown.Items = {'Monte Carlo', 'Grid search'};
+            app.AlgorithmCIDropDown.ValueChangedFcn = createCallbackFcn(app, @AlgorithmCIDropDownValueChanged, true);
+            app.AlgorithmCIDropDown.Layout.Row = 1;
+            app.AlgorithmCIDropDown.Layout.Column = 2;
+            app.AlgorithmCIDropDown.Value = 'Monte Carlo';
+
+            % Create DeleteResultButton
+            app.DeleteResultButton = uicheckbox(app.GridLayout8);
+            app.DeleteResultButton.Text = 'Delete result file when batch is canceled';
+            app.DeleteResultButton.Layout.Row = 9;
+            app.DeleteResultButton.Layout.Column = 1;
+            app.DeleteResultButton.Value = true;
+
+            % Create INSTMFACheckBox
+            app.INSTMFACheckBox = uicheckbox(app.GridLayout8);
+            app.INSTMFACheckBox.ValueChangedFcn = createCallbackFcn(app, @INSTMFACheckBoxValueChanged, true);
+            app.INSTMFACheckBox.Text = 'Instrationaly-MFA instead of parallel labeling';
+            app.INSTMFACheckBox.Layout.Row = 6;
+            app.INSTMFACheckBox.Layout.Column = 1;
+
+            % Create TabGroup2
+            app.TabGroup2 = uitabgroup(app.GridLayout6_2);
+            app.TabGroup2.Layout.Row = 1;
+            app.TabGroup2.Layout.Column = 2;
+
+            % Create MonteCarloTab
+            app.MonteCarloTab = uitab(app.TabGroup2);
+            app.MonteCarloTab.Title = 'Monte Carlo';
+
+            % Create GridLayout9
+            app.GridLayout9 = uigridlayout(app.MonteCarloTab);
+            app.GridLayout9.ColumnWidth = {'1x'};
+            app.GridLayout9.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout9.ColumnSpacing = 5;
+            app.GridLayout9.Padding = [5 5 5 5];
+
+            % Create GridLayout10
+            app.GridLayout10 = uigridlayout(app.GridLayout9);
+            app.GridLayout10.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10.RowHeight = {'1x'};
+            app.GridLayout10.Padding = [0 0 0 0];
+            app.GridLayout10.Layout.Row = 1;
+            app.GridLayout10.Layout.Column = 1;
+
+            % Create maximumnumberoftrialsLsubmaxsubLabel
+            app.maximumnumberoftrialsLsubmaxsubLabel = uilabel(app.GridLayout10);
+            app.maximumnumberoftrialsLsubmaxsubLabel.Layout.Row = 1;
+            app.maximumnumberoftrialsLsubmaxsubLabel.Layout.Column = 1;
+            app.maximumnumberoftrialsLsubmaxsubLabel.Interpreter = 'html';
+            app.maximumnumberoftrialsLsubmaxsubLabel.Text = 'The number of trials (<i>L</i><sub>max</sub>):';
+
+            % Create MCLmaxEditField
+            app.MCLmaxEditField = uieditfield(app.GridLayout10, 'numeric');
+            app.MCLmaxEditField.Limits = [10 Inf];
+            app.MCLmaxEditField.Layout.Row = 1;
+            app.MCLmaxEditField.Layout.Column = 2;
+            app.MCLmaxEditField.Value = 500;
+
+            % Create MCFixMIDCheckBox
+            app.MCFixMIDCheckBox = uicheckbox(app.GridLayout9);
+            app.MCFixMIDCheckBox.Text = 'Fix MIDs'' variations';
+            app.MCFixMIDCheckBox.Layout.Row = 2;
+            app.MCFixMIDCheckBox.Layout.Column = 1;
+            app.MCFixMIDCheckBox.Value = true;
+
+            % Create GridLayout10_2
+            app.GridLayout10_2 = uigridlayout(app.GridLayout9);
+            app.GridLayout10_2.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_2.RowHeight = {'1x'};
+            app.GridLayout10_2.Padding = [0 0 0 0];
+            app.GridLayout10_2.Layout.Row = 3;
+            app.GridLayout10_2.Layout.Column = 1;
+
+            % Create VariationsforMIDserrorLabel
+            app.VariationsforMIDserrorLabel = uilabel(app.GridLayout10_2);
+            app.VariationsforMIDserrorLabel.Layout.Row = 1;
+            app.VariationsforMIDserrorLabel.Layout.Column = 1;
+            app.VariationsforMIDserrorLabel.Text = 'Variations for MIDs'' error:';
+
+            % Create MCMIDSDEditField
+            app.MCMIDSDEditField = uieditfield(app.GridLayout10_2, 'numeric');
+            app.MCMIDSDEditField.Limits = [1e-10 Inf];
+            app.MCMIDSDEditField.Layout.Row = 1;
+            app.MCMIDSDEditField.Layout.Column = 2;
+            app.MCMIDSDEditField.Value = 0.01;
+
+            % Create GridLayout10_3
+            app.GridLayout10_3 = uigridlayout(app.GridLayout9);
+            app.GridLayout10_3.ColumnWidth = {'6x', '4x'};
+            app.GridLayout10_3.RowHeight = {'1x'};
+            app.GridLayout10_3.Padding = [0 0 0 0];
+            app.GridLayout10_3.Layout.Row = 4;
+            app.GridLayout10_3.Layout.Column = 1;
+
+            % Create OptimizationprocedureDropDownLabel
+            app.OptimizationprocedureDropDownLabel = uilabel(app.GridLayout10_3);
+            app.OptimizationprocedureDropDownLabel.Layout.Row = 1;
+            app.OptimizationprocedureDropDownLabel.Layout.Column = 1;
+            app.OptimizationprocedureDropDownLabel.Text = 'Optimization procedure';
+
+            % Create MCProcedureDropDown
+            app.MCProcedureDropDown = uidropdown(app.GridLayout10_3);
+            app.MCProcedureDropDown.Items = {'Single run', 'Multiple run'};
+            app.MCProcedureDropDown.Layout.Row = 1;
+            app.MCProcedureDropDown.Layout.Column = 2;
+            app.MCProcedureDropDown.Value = 'Multiple run';
+
+            % Create GridLayout10_4
+            app.GridLayout10_4 = uigridlayout(app.GridLayout9);
+            app.GridLayout10_4.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_4.RowHeight = {'1x'};
+            app.GridLayout10_4.Padding = [0 0 0 0];
+            app.GridLayout10_4.Layout.Row = 5;
+            app.GridLayout10_4.Layout.Column = 1;
+
+            % Create TerminationtoleranceTTEditFieldLabel
+            app.TerminationtoleranceTTEditFieldLabel = uilabel(app.GridLayout10_4);
+            app.TerminationtoleranceTTEditFieldLabel.Layout.Row = 1;
+            app.TerminationtoleranceTTEditFieldLabel.Layout.Column = 1;
+            app.TerminationtoleranceTTEditFieldLabel.Text = 'Termination tolerance (TT):';
+
+            % Create MCTTEditField
+            app.MCTTEditField = uieditfield(app.GridLayout10_4, 'numeric');
+            app.MCTTEditField.Limits = [1e-10 Inf];
+            app.MCTTEditField.Layout.Row = 1;
+            app.MCTTEditField.Layout.Column = 2;
+            app.MCTTEditField.Value = 0.001;
+
+            % Create GridLayout10_5
+            app.GridLayout10_5 = uigridlayout(app.GridLayout9);
+            app.GridLayout10_5.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_5.RowHeight = {'1x'};
+            app.GridLayout10_5.Padding = [0 0 0 0];
+            app.GridLayout10_5.Layout.Row = 6;
+            app.GridLayout10_5.Layout.Column = 1;
+
+            % Create ProximitythresholdepsilonLabel
+            app.ProximitythresholdepsilonLabel = uilabel(app.GridLayout10_5);
+            app.ProximitythresholdepsilonLabel.Layout.Row = 1;
+            app.ProximitythresholdepsilonLabel.Layout.Column = 1;
+            app.ProximitythresholdepsilonLabel.Interpreter = 'html';
+            app.ProximitythresholdepsilonLabel.Text = 'Proximity threshold (<i>&epsilon;</i>):';
+
+            % Create MCProximityEditField
+            app.MCProximityEditField = uieditfield(app.GridLayout10_5, 'numeric');
+            app.MCProximityEditField.Limits = [1e-10 Inf];
+            app.MCProximityEditField.Layout.Row = 1;
+            app.MCProximityEditField.Layout.Column = 2;
+            app.MCProximityEditField.Value = 0.001;
+
+            % Create GridLayout10_6
+            app.GridLayout10_6 = uigridlayout(app.GridLayout9);
+            app.GridLayout10_6.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_6.RowHeight = {'1x'};
+            app.GridLayout10_6.Padding = [0 0 0 0];
+            app.GridLayout10_6.Layout.Row = 7;
+            app.GridLayout10_6.Layout.Column = 1;
+
+            % Create CertainthresholdiNisubASsubEditFieldLabel
+            app.CertainthresholdiNisubASsubEditFieldLabel = uilabel(app.GridLayout10_6);
+            app.CertainthresholdiNisubASsubEditFieldLabel.Layout.Row = 1;
+            app.CertainthresholdiNisubASsubEditFieldLabel.Layout.Column = 1;
+            app.CertainthresholdiNisubASsubEditFieldLabel.Interpreter = 'html';
+            app.CertainthresholdiNisubASsubEditFieldLabel.Text = 'Certain threshold (<i>N</i><sub>AS</sub>):';
+
+            % Create MCNasEditField
+            app.MCNasEditField = uieditfield(app.GridLayout10_6, 'numeric');
+            app.MCNasEditField.Limits = [1 Inf];
+            app.MCNasEditField.Layout.Row = 1;
+            app.MCNasEditField.Layout.Column = 2;
+            app.MCNasEditField.Value = 3;
+
+            % Create GridLayout10_7
+            app.GridLayout10_7 = uigridlayout(app.GridLayout9);
+            app.GridLayout10_7.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_7.RowHeight = {'1x'};
+            app.GridLayout10_7.Padding = [0 0 0 0];
+            app.GridLayout10_7.Layout.Row = 8;
+            app.GridLayout10_7.Layout.Column = 1;
+
+            % Create ThenumberofrunsiKisubNRsubEditFieldLabel
+            app.ThenumberofrunsiKisubNRsubEditFieldLabel = uilabel(app.GridLayout10_7);
+            app.ThenumberofrunsiKisubNRsubEditFieldLabel.Layout.Row = 1;
+            app.ThenumberofrunsiKisubNRsubEditFieldLabel.Layout.Column = 1;
+            app.ThenumberofrunsiKisubNRsubEditFieldLabel.Interpreter = 'html';
+            app.ThenumberofrunsiKisubNRsubEditFieldLabel.Text = 'The number of runs (<i>K</i><sub>NR</sub>):';
+
+            % Create MCKNREditField
+            app.MCKNREditField = uieditfield(app.GridLayout10_7, 'numeric');
+            app.MCKNREditField.Limits = [10 Inf];
+            app.MCKNREditField.Layout.Row = 1;
+            app.MCKNREditField.Layout.Column = 2;
+            app.MCKNREditField.Value = 50;
+
+            % Create GridLayout10_8
+            app.GridLayout10_8 = uigridlayout(app.GridLayout9);
+            app.GridLayout10_8.ColumnWidth = {'5x', '5x'};
+            app.GridLayout10_8.RowHeight = {'1x'};
+            app.GridLayout10_8.Padding = [0 0 0 0];
+            app.GridLayout10_8.Layout.Row = 9;
+            app.GridLayout10_8.Layout.Column = 1;
+
+            % Create CalculationmethodsDropDownLabel
+            app.CalculationmethodsDropDownLabel = uilabel(app.GridLayout10_8);
+            app.CalculationmethodsDropDownLabel.Layout.Row = 1;
+            app.CalculationmethodsDropDownLabel.Layout.Column = 1;
+            app.CalculationmethodsDropDownLabel.Text = 'Calculation methods';
+
+            % Create MCMethodDropDown
+            app.MCMethodDropDown = uidropdown(app.GridLayout10_8);
+            app.MCMethodDropDown.Items = {'Discarding', 'Mean-varianced'};
+            app.MCMethodDropDown.Layout.Row = 1;
+            app.MCMethodDropDown.Layout.Column = 2;
+            app.MCMethodDropDown.Value = 'Discarding';
+
+            % Create GridsearchTab
+            app.GridsearchTab = uitab(app.TabGroup2);
+            app.GridsearchTab.Title = 'Grid search';
+
+            % Create GridLayout11
+            app.GridLayout11 = uigridlayout(app.GridsearchTab);
+            app.GridLayout11.ColumnWidth = {'1x'};
+            app.GridLayout11.RowHeight = {'fit', 'fit', 'fit', 'fit', '1x', '1x'};
+            app.GridLayout11.Padding = [5 5 5 5];
+
+            % Create DeterminegridintervalautomaticallyCheckBox
+            app.DeterminegridintervalautomaticallyCheckBox = uicheckbox(app.GridLayout11);
+            app.DeterminegridintervalautomaticallyCheckBox.ValueChangedFcn = createCallbackFcn(app, @DeterminegridintervalautomaticallyCheckBoxValueChanged, true);
+            app.DeterminegridintervalautomaticallyCheckBox.Text = 'Determine grid interval automatically';
+            app.DeterminegridintervalautomaticallyCheckBox.Layout.Row = 1;
+            app.DeterminegridintervalautomaticallyCheckBox.Layout.Column = 1;
+            app.DeterminegridintervalautomaticallyCheckBox.Value = true;
+
+            % Create GridLayout12
+            app.GridLayout12 = uigridlayout(app.GridLayout11);
+            app.GridLayout12.ColumnWidth = {'7x', '3x'};
+            app.GridLayout12.RowHeight = {'1x'};
+            app.GridLayout12.Padding = [0 0 0 0];
+            app.GridLayout12.Layout.Row = 2;
+            app.GridLayout12.Layout.Column = 1;
+
+            % Create ThenumberofgridpointsEditFieldLabel
+            app.ThenumberofgridpointsEditFieldLabel = uilabel(app.GridLayout12);
+            app.ThenumberofgridpointsEditFieldLabel.Layout.Row = 1;
+            app.ThenumberofgridpointsEditFieldLabel.Layout.Column = 1;
+            app.ThenumberofgridpointsEditFieldLabel.Text = 'The number of grid points';
+
+            % Create ThenumberofgridpointsEditField
+            app.ThenumberofgridpointsEditField = uieditfield(app.GridLayout12, 'numeric');
+            app.ThenumberofgridpointsEditField.Limits = [10 Inf];
+            app.ThenumberofgridpointsEditField.Layout.Row = 1;
+            app.ThenumberofgridpointsEditField.Layout.Column = 2;
+            app.ThenumberofgridpointsEditField.Value = 10;
+
+            % Create GridLayout12_2
+            app.GridLayout12_2 = uigridlayout(app.GridLayout11);
+            app.GridLayout12_2.ColumnWidth = {'7x', '3x'};
+            app.GridLayout12_2.RowHeight = {'1x'};
+            app.GridLayout12_2.Padding = [0 0 0 0];
+            app.GridLayout12_2.Layout.Row = 3;
+            app.GridLayout12_2.Layout.Column = 1;
+
+            % Create GridintervalDeltaixiEditFieldLabel
+            app.GridintervalDeltaixiEditFieldLabel = uilabel(app.GridLayout12_2);
+            app.GridintervalDeltaixiEditFieldLabel.Layout.Row = 1;
+            app.GridintervalDeltaixiEditFieldLabel.Layout.Column = 1;
+            app.GridintervalDeltaixiEditFieldLabel.Interpreter = 'html';
+            app.GridintervalDeltaixiEditFieldLabel.Text = 'Grid interval (&Delta;<i>x</i>):';
+
+            % Create GridintervalDeltaixiEditField
+            app.GridintervalDeltaixiEditField = uieditfield(app.GridLayout12_2, 'numeric');
+            app.GridintervalDeltaixiEditField.Limits = [0.1 Inf];
+            app.GridintervalDeltaixiEditField.Layout.Row = 1;
+            app.GridintervalDeltaixiEditField.Layout.Column = 2;
+            app.GridintervalDeltaixiEditField.Value = 1;
+
+            % Create GridLayout12_3
+            app.GridLayout12_3 = uigridlayout(app.GridLayout11);
+            app.GridLayout12_3.ColumnWidth = {'7x', '3x'};
+            app.GridLayout12_3.RowHeight = {'1x'};
+            app.GridLayout12_3.Padding = [0 0 0 0];
+            app.GridLayout12_3.Layout.Row = 4;
+            app.GridLayout12_3.Layout.Column = 1;
+
+            % Create IterationtimesforgridsearchEditFieldLabel
+            app.IterationtimesforgridsearchEditFieldLabel = uilabel(app.GridLayout12_3);
+            app.IterationtimesforgridsearchEditFieldLabel.Layout.Row = 1;
+            app.IterationtimesforgridsearchEditFieldLabel.Layout.Column = 1;
+            app.IterationtimesforgridsearchEditFieldLabel.Text = 'Iteration times for grid search';
+
+            % Create IterationtimesforgridsearchEditField
+            app.IterationtimesforgridsearchEditField = uieditfield(app.GridLayout12_3, 'numeric');
+            app.IterationtimesforgridsearchEditField.Limits = [1 Inf];
+            app.IterationtimesforgridsearchEditField.Layout.Row = 1;
+            app.IterationtimesforgridsearchEditField.Layout.Column = 2;
+            app.IterationtimesforgridsearchEditField.Value = 30;
+
+            % Create GridLayout12_4
+            app.GridLayout12_4 = uigridlayout(app.GridLayout11);
+            app.GridLayout12_4.ColumnWidth = {'6x', '4x'};
+            app.GridLayout12_4.RowHeight = {'fit'};
+            app.GridLayout12_4.Padding = [0 0 0 0];
+            app.GridLayout12_4.Layout.Row = 5;
+            app.GridLayout12_4.Layout.Column = 1;
+
+            % Create ThresholdDropDownLabel
+            app.ThresholdDropDownLabel = uilabel(app.GridLayout12_4);
+            app.ThresholdDropDownLabel.Layout.Row = 1;
+            app.ThresholdDropDownLabel.Layout.Column = 1;
+            app.ThresholdDropDownLabel.Text = 'Threshold';
+
+            % Create ThresholdDropDown
+            app.ThresholdDropDown = uidropdown(app.GridLayout12_4);
+            app.ThresholdDropDown.Items = {'F-distribution', 'Chi-squared'};
+            app.ThresholdDropDown.Layout.Row = 1;
+            app.ThresholdDropDown.Layout.Column = 2;
+            app.ThresholdDropDown.Value = 'F-distribution';
+
+            % Create GridLayout7_2
+            app.GridLayout7_2 = uigridlayout(app.GridLayout5_2);
+            app.GridLayout7_2.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout7_2.RowHeight = {'1x'};
+            app.GridLayout7_2.Padding = [0 0 0 0];
+            app.GridLayout7_2.Layout.Row = 2;
+            app.GridLayout7_2.Layout.Column = 1;
+
+            % Create GeneralCloseButton
+            app.GeneralCloseButton = uibutton(app.GridLayout7_2, 'push');
+            app.GeneralCloseButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralCloseButtonPushed, true);
+            app.GeneralCloseButton.Layout.Row = 1;
+            app.GeneralCloseButton.Layout.Column = 5;
+            app.GeneralCloseButton.Text = 'Close';
+
+            % Create GeneralApplyAllButton
+            app.GeneralApplyAllButton = uibutton(app.GridLayout7_2, 'push');
+            app.GeneralApplyAllButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralApplyAllButtonPushed, true);
+            app.GeneralApplyAllButton.Layout.Row = 1;
+            app.GeneralApplyAllButton.Layout.Column = 4;
+            app.GeneralApplyAllButton.Text = 'Apply for all';
+
+            % Create GeneralApplyButton
+            app.GeneralApplyButton = uibutton(app.GridLayout7_2, 'push');
+            app.GeneralApplyButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralApplyButtonPushed, true);
+            app.GeneralApplyButton.Layout.Row = 1;
+            app.GeneralApplyButton.Layout.Column = 3;
+            app.GeneralApplyButton.Text = 'Apply';
+
+            % Create GeneralDefaultButton
+            app.GeneralDefaultButton = uibutton(app.GridLayout7_2, 'push');
+            app.GeneralDefaultButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralDefaultButtonPushed, true);
+            app.GeneralDefaultButton.Layout.Row = 1;
+            app.GeneralDefaultButton.Layout.Column = 2;
+            app.GeneralDefaultButton.Text = 'Set as default';
+
+            % Create MSfragmentTab
+            app.MSfragmentTab = uitab(app.TabGroup);
+            app.MSfragmentTab.Title = 'MS fragment';
+
+            % Create GridLayout5
+            app.GridLayout5 = uigridlayout(app.MSfragmentTab);
+            app.GridLayout5.ColumnWidth = {'1x'};
+            app.GridLayout5.RowHeight = {'1x', 'fit'};
+
+            % Create GridLayout7
+            app.GridLayout7 = uigridlayout(app.GridLayout5);
+            app.GridLayout7.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout7.RowHeight = {'1x'};
+            app.GridLayout7.Padding = [0 0 0 0];
+            app.GridLayout7.Layout.Row = 2;
+            app.GridLayout7.Layout.Column = 1;
+
+            % Create MSCloseButton
+            app.MSCloseButton = uibutton(app.GridLayout7, 'push');
+            app.MSCloseButton.ButtonPushedFcn = createCallbackFcn(app, @MSCloseButtonPushed, true);
+            app.MSCloseButton.Layout.Row = 1;
+            app.MSCloseButton.Layout.Column = 5;
+            app.MSCloseButton.Text = 'Close';
+
+            % Create MSApplyAllButton
+            app.MSApplyAllButton = uibutton(app.GridLayout7, 'push');
+            app.MSApplyAllButton.ButtonPushedFcn = createCallbackFcn(app, @MSApplyAllButtonPushed, true);
+            app.MSApplyAllButton.Layout.Row = 1;
+            app.MSApplyAllButton.Layout.Column = 4;
+            app.MSApplyAllButton.Text = 'Apply for all';
+
+            % Create MSApplyButton
+            app.MSApplyButton = uibutton(app.GridLayout7, 'push');
+            app.MSApplyButton.ButtonPushedFcn = createCallbackFcn(app, @MSApplyButtonPushed, true);
+            app.MSApplyButton.Layout.Row = 1;
+            app.MSApplyButton.Layout.Column = 3;
+            app.MSApplyButton.Text = 'Apply';
+
+            % Create MSDefaultButton
+            app.MSDefaultButton = uibutton(app.GridLayout7, 'push');
+            app.MSDefaultButton.ButtonPushedFcn = createCallbackFcn(app, @MSDefaultButtonPushed, true);
+            app.MSDefaultButton.Layout.Row = 1;
+            app.MSDefaultButton.Layout.Column = 2;
+            app.MSDefaultButton.Text = 'Set as default';
+
+            % Create MSTable
+            app.MSTable = uitable(app.GridLayout5);
+            app.MSTable.ColumnName = '';
+            app.MSTable.RowName = {};
+            app.MSTable.Layout.Row = 1;
+            app.MSTable.Layout.Column = 1;
+
+            % Create EffluxperturbationTab
+            app.EffluxperturbationTab = uitab(app.TabGroup);
+            app.EffluxperturbationTab.Title = 'Efflux perturbation';
+
+            % Create GridLayout13
+            app.GridLayout13 = uigridlayout(app.EffluxperturbationTab);
+            app.GridLayout13.ColumnWidth = {'1x'};
+            app.GridLayout13.RowHeight = {'1x', 'fit'};
+
+            % Create GridLayout15
+            app.GridLayout15 = uigridlayout(app.GridLayout13);
+            app.GridLayout15.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout15.RowHeight = {'1x'};
+            app.GridLayout15.Padding = [0 0 0 0];
+            app.GridLayout15.Layout.Row = 2;
+            app.GridLayout15.Layout.Column = 1;
+
+            % Create EffluxCloseButton
+            app.EffluxCloseButton = uibutton(app.GridLayout15, 'push');
+            app.EffluxCloseButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxCloseButtonPushed, true);
+            app.EffluxCloseButton.Layout.Row = 1;
+            app.EffluxCloseButton.Layout.Column = 5;
+            app.EffluxCloseButton.Text = 'Close';
+
+            % Create EffluxApplyAllButton
+            app.EffluxApplyAllButton = uibutton(app.GridLayout15, 'push');
+            app.EffluxApplyAllButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxApplyAllButtonPushed, true);
+            app.EffluxApplyAllButton.Layout.Row = 1;
+            app.EffluxApplyAllButton.Layout.Column = 4;
+            app.EffluxApplyAllButton.Text = 'Apply for all';
+
+            % Create EffluxApplyButton
+            app.EffluxApplyButton = uibutton(app.GridLayout15, 'push');
+            app.EffluxApplyButton.Layout.Row = 1;
+            app.EffluxApplyButton.Layout.Column = 3;
+            app.EffluxApplyButton.Text = 'Apply';
+
+            % Create GridLayout22
+            app.GridLayout22 = uigridlayout(app.GridLayout13);
+            app.GridLayout22.RowHeight = {'1x'};
+            app.GridLayout22.Padding = [0 0 0 0];
+            app.GridLayout22.Layout.Row = 1;
+            app.GridLayout22.Layout.Column = 1;
+
+            % Create EffluxUITable
+            app.EffluxUITable = uitable(app.GridLayout22);
+            app.EffluxUITable.ColumnName = '';
+            app.EffluxUITable.RowName = {};
+            app.EffluxUITable.Enable = 'off';
+            app.EffluxUITable.Layout.Row = 1;
+            app.EffluxUITable.Layout.Column = 1;
+
+            % Create TracersuggestionTab
+            app.TracersuggestionTab = uitab(app.TabGroup);
+            app.TracersuggestionTab.Title = 'Tracer suggestion';
+
+            % Create GridLayout14
+            app.GridLayout14 = uigridlayout(app.TracersuggestionTab);
+            app.GridLayout14.ColumnWidth = {'1x'};
+            app.GridLayout14.RowHeight = {'1x', 'fit'};
+
+            % Create GridLayout16
+            app.GridLayout16 = uigridlayout(app.GridLayout14);
+            app.GridLayout16.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout16.RowHeight = {'1x'};
+            app.GridLayout16.Padding = [0 0 0 0];
+            app.GridLayout16.Layout.Row = 2;
+            app.GridLayout16.Layout.Column = 1;
+
+            % Create SuggestionCloseButton
+            app.SuggestionCloseButton = uibutton(app.GridLayout16, 'push');
+            app.SuggestionCloseButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionCloseButtonPushed, true);
+            app.SuggestionCloseButton.Layout.Row = 1;
+            app.SuggestionCloseButton.Layout.Column = 5;
+            app.SuggestionCloseButton.Text = 'Close';
+
+            % Create SuggestionApplyForAllButton
+            app.SuggestionApplyForAllButton = uibutton(app.GridLayout16, 'push');
+            app.SuggestionApplyForAllButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionApplyForAllButtonPushed, true);
+            app.SuggestionApplyForAllButton.Layout.Row = 1;
+            app.SuggestionApplyForAllButton.Layout.Column = 4;
+            app.SuggestionApplyForAllButton.Text = 'Apply for all';
+
+            % Create SuggestionApplyButton
+            app.SuggestionApplyButton = uibutton(app.GridLayout16, 'push');
+            app.SuggestionApplyButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionApplyButtonPushed, true);
+            app.SuggestionApplyButton.Layout.Row = 1;
+            app.SuggestionApplyButton.Layout.Column = 3;
+            app.SuggestionApplyButton.Text = 'Apply';
+
+            % Create GridLayout17
+            app.GridLayout17 = uigridlayout(app.GridLayout14);
+            app.GridLayout17.RowHeight = {'1x'};
+            app.GridLayout17.Padding = [0 0 0 0];
+            app.GridLayout17.Layout.Row = 1;
+            app.GridLayout17.Layout.Column = 1;
+
+            % Create LabelTable
+            app.LabelTable = uitable(app.GridLayout17);
+            app.LabelTable.ColumnName = '';
+            app.LabelTable.RowName = {};
+            app.LabelTable.DoubleClickedFcn = createCallbackFcn(app, @LabelTableDoubleClicked, true);
+            app.LabelTable.Enable = 'off';
+            app.LabelTable.Layout.Row = 1;
+            app.LabelTable.Layout.Column = 1;
+
+            % Create GridLayout18
+            app.GridLayout18 = uigridlayout(app.GridLayout17);
+            app.GridLayout18.ColumnWidth = {'1x'};
+            app.GridLayout18.RowHeight = {'fit', '1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout18.Padding = [0 0 0 0];
+            app.GridLayout18.Layout.Row = 1;
+            app.GridLayout18.Layout.Column = 2;
+
+            % Create INSTMFATab
+            app.INSTMFATab = uitab(app.TabGroup);
+            app.INSTMFATab.Title = 'INST-MFA';
+
+            % Create GridLayout13_2
+            app.GridLayout13_2 = uigridlayout(app.INSTMFATab);
+            app.GridLayout13_2.ColumnWidth = {'1x'};
+            app.GridLayout13_2.RowHeight = {'1x', 'fit'};
+
+            % Create GridLayout15_2
+            app.GridLayout15_2 = uigridlayout(app.GridLayout13_2);
+            app.GridLayout15_2.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout15_2.RowHeight = {'1x'};
+            app.GridLayout15_2.Padding = [0 0 0 0];
+            app.GridLayout15_2.Layout.Row = 2;
+            app.GridLayout15_2.Layout.Column = 1;
+
+            % Create INSTMFACloseButton
+            app.INSTMFACloseButton = uibutton(app.GridLayout15_2, 'push');
+            app.INSTMFACloseButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFACloseButtonPushed, true);
+            app.INSTMFACloseButton.Layout.Row = 1;
+            app.INSTMFACloseButton.Layout.Column = 5;
+            app.INSTMFACloseButton.Text = 'Close';
+
+            % Create INSTMFAApplyButton
+            app.INSTMFAApplyButton = uibutton(app.GridLayout15_2, 'push');
+            app.INSTMFAApplyButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFAApplyButtonPushed, true);
+            app.INSTMFAApplyButton.Enable = 'off';
+            app.INSTMFAApplyButton.Layout.Row = 1;
+            app.INSTMFAApplyButton.Layout.Column = 3;
+            app.INSTMFAApplyButton.Text = 'Apply';
+
+            % Create INSTMFAReloadButton
+            app.INSTMFAReloadButton = uibutton(app.GridLayout15_2, 'push');
+            app.INSTMFAReloadButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFAReloadButtonPushed, true);
+            app.INSTMFAReloadButton.Layout.Row = 1;
+            app.INSTMFAReloadButton.Layout.Column = 4;
+            app.INSTMFAReloadButton.Text = 'Reload';
+
+            % Create GridLayout20
+            app.GridLayout20 = uigridlayout(app.GridLayout13_2);
+            app.GridLayout20.RowHeight = {'1x'};
+            app.GridLayout20.Padding = [0 0 0 0];
+            app.GridLayout20.Layout.Row = 1;
+            app.GridLayout20.Layout.Column = 1;
+
+            % Create GridLayout21
+            app.GridLayout21 = uigridlayout(app.GridLayout20);
+            app.GridLayout21.ColumnWidth = {'1x'};
+            app.GridLayout21.RowHeight = {'1x'};
+            app.GridLayout21.Padding = [0 0 0 0];
+            app.GridLayout21.Layout.Row = 1;
+            app.GridLayout21.Layout.Column = 1;
+
+            % Create INSTMFAPoolUITable
+            app.INSTMFAPoolUITable = uitable(app.GridLayout21);
+            app.INSTMFAPoolUITable.ColumnName = '';
+            app.INSTMFAPoolUITable.RowName = {};
+            app.INSTMFAPoolUITable.Enable = 'off';
+            app.INSTMFAPoolUITable.Layout.Row = 1;
+            app.INSTMFAPoolUITable.Layout.Column = 1;
+
+            % Create INSTMFATimeCourseUITable
+            app.INSTMFATimeCourseUITable = uitable(app.GridLayout20);
+            app.INSTMFATimeCourseUITable.ColumnName = '';
+            app.INSTMFATimeCourseUITable.RowName = {};
+            app.INSTMFATimeCourseUITable.Layout.Row = 1;
+            app.INSTMFATimeCourseUITable.Layout.Column = 2;
+
+            % Create ContextMenu
+            app.ContextMenu = uicontextmenu(app.BatchconfigUIFigure);
+
+            % Create AddnewpatternMenu
+            app.AddnewpatternMenu = uimenu(app.ContextMenu);
+            app.AddnewpatternMenu.MenuSelectedFcn = createCallbackFcn(app, @AddnewpatternMenuSelected, true);
+            app.AddnewpatternMenu.Text = 'Add new pattern';
+
+            % Create AddnewpatternsMenu
+            app.AddnewpatternsMenu = uimenu(app.ContextMenu);
+            app.AddnewpatternsMenu.MenuSelectedFcn = createCallbackFcn(app, @AddnewpatternsMenuSelected, true);
+            app.AddnewpatternsMenu.Text = 'Add new patterns';
+
+            % Create CopythistracerforallentriesMenu
+            app.CopythistracerforallentriesMenu = uimenu(app.ContextMenu);
+            app.CopythistracerforallentriesMenu.MenuSelectedFcn = createCallbackFcn(app, @CopythistracerforallentriesMenuSelected, true);
+            app.CopythistracerforallentriesMenu.Text = 'Copy this tracer for all entries';
+
+            % Assign app.ContextMenu
+            app.LabelTable.ContextMenu = app.ContextMenu;
+
+            % Create ContextMenuINST
+            app.ContextMenuINST = uicontextmenu(app.BatchconfigUIFigure);
+
+            % Create AddexperimentsMenu
+            app.AddexperimentsMenu = uimenu(app.ContextMenuINST);
+            app.AddexperimentsMenu.MenuSelectedFcn = createCallbackFcn(app, @AddexperimentsMenuSelected, true);
+            app.AddexperimentsMenu.Text = 'Add experiments';
+
+            % Create RemoveselectedexperimentMenu
+            app.RemoveselectedexperimentMenu = uimenu(app.ContextMenuINST);
+            app.RemoveselectedexperimentMenu.MenuSelectedFcn = createCallbackFcn(app, @RemoveselectedexperimentMenuSelected, true);
+            app.RemoveselectedexperimentMenu.Text = 'Remove selected experiment';
+
+            % Assign app.ContextMenuINST
+            app.INSTMFATimeCourseUITable.ContextMenu = app.ContextMenuINST;
+
+            % Show the figure after all components are created
+            app.BatchconfigUIFigure.Visible = 'on';
+        end
+
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = RunConfig_exported(varargin)
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.BatchconfigUIFigure)
+
+            % Execute the startup function
+            runStartupFcn(app, @(app)startupFcn(app, varargin{:}))
+
+            if nargout == 0
+                clear app
+            end
+
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.BatchconfigUIFigure)
+        end
+
+    end
+
+end
