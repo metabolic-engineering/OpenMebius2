@@ -32,7 +32,7 @@ To get started with OpenMebius2, please download the latest release from the [Re
 3. Launch OpenMebius2 from the Applications folder.
 
 ## Quick Start Guide
-For detailed instructions on how to use OpenMebius2, please refer to the [User Manual](docs/User_Manual.md) available in the documentation section.
+For detailed instructions on how to use OpenMebius2, please refer to the [Online documentation](https://metabolic-engineering.github.io/OpenMebius2/) available in the documentation section.
 Here, you will find step-by-step guides on how to reproduce the figures presented in the published paper.
 
 1. Open OpenMebius2.
