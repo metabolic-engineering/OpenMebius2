@@ -28,8 +28,19 @@ To get started with OpenMebius2, please download the latest release from the [Re
 
 ## MacOS Installation
 1. Download the DMG file from the releases page.
-2. Open the DMG file and drag the OpenMebius2 application to your Applications folder.
+2. Open the ```openmebius2-vx.x.x-macos-x86-64.dmg``` file and drag the OpenMebius2 application to your Applications folder.
 3. Launch OpenMebius2 from the Applications folder.
+
+# Linux Installation
+1. Download the installer from the releases page.
+2. Make the installer executable by running the following command in the terminal:
+   ```bash
+   chmod +x openmebius2-v2.0.0-linux-x86_64.install
+   ```
+3. Run the installer with the following command:
+   ```bash
+   bash ./openmebius2-v2.0.0-linux-x86_64.install
+   ```
 
 ## Quick Start Guide
 For detailed instructions on how to use OpenMebius2, please refer to the [Online documentation](https://metabolic-engineering.github.io/OpenMebius2/) available in the documentation section.
@@ -38,21 +49,32 @@ Here, you will find step-by-step guides on how to reproduce the figures presente
 1. Open OpenMebius2.
 2. Click `Browse` button and select the sample project directory `article_fig1` located in the `tutorial` directory.
 
-![browse](docs/assets/images_tutorials/result_sample_1.png)
+<p align="center">
+  <img src="docs/assets/images_tutorials/result_sample_1.png" alt="browse" width="640"/>
+</p>
 
 3. Click `Load` button to load the project.
 
-![browse](docs/assets/images_tutorials/result_sample_3.png)
+<p align="center">
+  <img src="docs/assets/images_tutorials/result_sample_3.png" alt="browse" width="640"/>
+</p>
 
-4. In this project, the required information such as specific growth rate, extracellular fluxes, and mass isotopomer distributions (MIDs) are already set. If you only want to see the results, click the `Result` tab to view the flux distribution results.
+1. In this project, the required information such as specific growth rate, extracellular fluxes, and mass distribution vectors (MDVs) are already set. If you only want to see the results, click the `Result` tab to view the flux distribution results.
 
-5. To visualize the tracer suggestion with low cost experiments, right-click on the result item and select `Suggest Tracers`.
+2. To visualize the tracer suggestion with low cost experiments, right-click on the result item and select `View Suggestion`.
 
-![browse](docs/assets/images_tutorials/label_suggestion.png)
+<p align="center">
+  <img src="docs/assets/images_tutorials/label_suggestion.png" alt="browse" width="640"/>
+</p>
 
 6. Selected items will be shown in the plot area.
 
-![browse](docs/assets/images_tutorials/label_suggestion2.png)
+<p align="center">
+  <img src="docs/assets/images_tutorials/label_suggestion2.png" alt="browse" width="640"/>
+</p>
+
+7. If you want to perform whole analysis from the beginning, go to the `Run` tab and click the `Auto` button to make a batch row.
+8. Select the created row and click the `config` button to open the configuration window.
 
 ## How to cite
 If you use OpenMebius2 in your research, please cite the following paper:
