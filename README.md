@@ -79,4 +79,4 @@ Here, you will find step-by-step guides on how to reproduce the figures presente
 ## How to cite
 If you use OpenMebius2 in your research, please cite the following paper:
 
-[1]: https://doi.org/10.1155/2014/627014
+1. Kajihata, S., Furusawa, C., Matsuda, F. & Shimizu, H. OpenMebius: An Open Source Software for Isotopically Nonstationary 13 C-Based Metabolic Flux Analysis. BioMed Research International 2014, 1–10 (2014).
