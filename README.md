@@ -21,17 +21,17 @@ Here, we have enhanced this software to enable analysis, visualization, and data
 ## Installation
 To get started with OpenMebius2, please download the latest release from the [Releases](https://github.com/metabolic-engineering/OpenMebius2/releases) page.
 
-## Windows Installation
+### Windows Installation
 1. Download the installer from the releases page.
 2. Run ```openmebius2-vx.x.x-windows-x86-64.exe``` and follow the installation instructions (administrator privileges may be required).
 3. After installation, launch OpenMebius2 from the Start Menu or desktop shortcut.
 
-## MacOS Installation
+### MacOS Installation
 1. Download the DMG file from the releases page.
 2. Open the ```openmebius2-vx.x.x-macos-x86-64.dmg``` file and drag the OpenMebius2 application to your Applications folder.
 3. Launch OpenMebius2 from the Applications folder.
 
-# Linux Installation
+### Linux Installation
 1. Download the installer from the releases page.
 2. Make the installer executable by running the following command in the terminal:
    ```bash
@@ -80,3 +80,6 @@ Here, you will find step-by-step guides on how to reproduce the figures presente
 If you use OpenMebius2 in your research, please cite the following paper:
 
 1. Kajihata, S., Furusawa, C., Matsuda, F. & Shimizu, H. OpenMebius: An Open Source Software for Isotopically Nonstationary 13 C-Based Metabolic Flux Analysis. BioMed Research International 2014, 1–10 (2014).
+2. Imada, T., Shimizu, H., Toya, Y., OpenMebius2: GUI-based software for 13C-metabolic flux analysis with tracer labeling pattern suggestions for accurate flux predictions. bioRxiv 2026, doi: 10.64898/2026.03.20.698926
+
+[1]: https://onlinelibrary.wiley.com/doi/10.1155/2014/627014
