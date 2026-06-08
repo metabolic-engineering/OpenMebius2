@@ -273,6 +273,85 @@ classdef Batch < handle
 
         end % getBatchCustomFragment
 
+        function [tableRtn, columnEditable] = getBatchEffluxSDTable(obj, ids)
+            % GETBATCHEFFLUXSDTABLE Get batch efflux standard deviation table
+            %
+            % tableRtn = getBatchEffluxSDTable(obj, ids)
+            %
+            % Parameters
+            % ----------
+            % obj: Batch
+            %     Batch
+            % ids: string
+            %     Batch ID
+            %
+            % Return
+            % ------
+            % tableRtn: table
+            %     Efflux standard deviation table
+            %     ColumnNames: Selection, SD
+            %     RowNames: Substrate
+            %     VariableTypes: logical, double
+
+            arguments
+                obj
+                ids (1, :) string
+            end
+
+            tableRtn = table( ...
+                'Size', [0, 2], ...
+                'VariableNames', {'Selection', 'SD'}, ...
+                'VariableTypes', {'logical', 'double'}, ...
+                'RowNames', string([]) ...
+            );
+            columnEditable = [true, true];
+
+            if length(ids) ~= 1
+                warning("Only one batch ID can be specified for efflux standard deviation table.");
+                return
+            end
+
+            idx = find(obj.tableBatch.id == ids(1), 1);
+
+            if isempty(idx)
+                warning("Batch ID not found: %s", ids(1));
+                return
+            end
+
+            config = obj.tableBatch.config(idx);
+
+            selection = config.efflux.selection(:);
+            substrates = config.efflux.substrate(:);
+            substrateSD = config.efflux.substrateSD(:);
+
+            if length(substrates) ~= length(substrateSD) || length(substrates) ~= length(selection)
+                warning("Length of substrates and substrateSD are not the same.");
+                return
+            end
+
+            substratesModel = obj.model.getMetaboliteTableSubstrate();
+            [~, iaModel, iaConfig] = intersect(substratesModel, substrates);
+
+            if length(iaModel) > length(iaConfig) || isempty(iaConfig)
+
+                substrateAdded = setdiff(substratesModel, substrates);
+                substrates = [substrates; substrateAdded];
+                substrates = sort(substrates);
+                selection = false(length(substrates), 1);
+                substrateSD = nan(length(substrates), 1);
+
+            end
+
+            tableRtn = table( ...
+                selection, ...
+                substrateSD, ...
+                'VariableNames', {'Selection', 'SD'}, ...
+                'RowNames', substrates ...
+            );
+            tableRtn.Properties.VariableTypes = {'logical', 'double'};
+
+        end % getBatchEffluxSDTable
+
         function tableRtn = getBatchSuggestionTable(obj, ids)
             % GETBATCHSUGGESTIONTABLE Get batch suggestion table
             %
@@ -594,6 +673,11 @@ classdef Batch < handle
             config.MS.expList = string([]);
             config.MS.customFragment = [];
 
+            config.efflux = struct;
+            config.efflux.selection = logical([]);
+            config.efflux.substrate = string([]);
+            config.efflux.substrateSD = [];
+
             % Confidence interval configuration
             config.isCalcCI = false;
             config.CIConf.algorithm = 'Monte Carlo';
@@ -771,6 +855,69 @@ classdef Batch < handle
             updateHash(obj, ids);
 
         end % updateBatchConfigFragment
+
+        function updateBatchConfigEffluxSD(obj, ids, tableEffluxSD)
+            % UPDATEBATCHCONFIGEFFLUXSD Update batch configuration efflux standard deviation
+            %
+            % Parameters
+            % ----------
+            % obj: Batch
+            %     Batch
+            % ids: string
+            %     Batch ID
+            % tableEffluxSD: table
+            %     Efflux standard deviation table
+            %     ColumnNames: Substrate, SD
+            %     VariableTypes: string, double
+
+            arguments
+                obj
+                ids (1, :) string
+                tableEffluxSD table
+            end
+
+            % Update batch configuration efflux standard deviation
+            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
+            idx = cell2mat(idx);
+
+            if length(idx) ~= length(ids)
+                error("Batch ID not found: %s", ids);
+            end
+
+            currentConfig = obj.tableBatch.config(idx(1));
+
+            newSelection = tableEffluxSD.Selection(:);
+            newSubstrate = string(tableEffluxSD.Properties.RowNames);
+            newSubstrateSD = tableEffluxSD.SD(:);
+            currentSelection = currentConfig.efflux.selection(:);
+            currentSubstrate = currentConfig.efflux.substrate(:);
+            currentSubstrateSD = currentConfig.efflux.substrateSD(:);
+
+            [~, iaNew, iaCurrent] = intersect(newSubstrate, currentSubstrate);
+
+            updatedSelection = currentSelection;
+            updatedSubstrateSD = currentSubstrateSD;
+
+            updatedSelection(iaCurrent) = newSelection(iaNew);
+            updatedSubstrateSD(iaCurrent) = newSubstrateSD(iaNew);
+
+            % Add new substrates
+            substrateToAdd = setdiff(newSubstrate, currentSubstrate);
+            mask = ismember(newSubstrate, substrateToAdd);
+            updatedSelection = [updatedSelection; newSelection(mask)];
+            updatedSubstrateSD = [updatedSubstrateSD; newSubstrateSD(mask)];
+            updatedSubstrate = [currentSubstrate; newSubstrate(mask)];
+
+            % Sort by substrate name
+            [updatedSubstrate, sortIdx] = sort(updatedSubstrate);
+            updatedSelection = updatedSelection(sortIdx);
+            updatedSubstrateSD = updatedSubstrateSD(sortIdx);
+
+            obj.tableBatch.config(idx(1)).efflux.selection = updatedSelection;
+            obj.tableBatch.config(idx(1)).efflux.substrate = updatedSubstrate;
+            obj.tableBatch.config(idx(1)).efflux.substrateSD = updatedSubstrateSD;
+
+        end % updateBatchConfigEffluxSD
 
         function updateBatchConfigSuggestionTable(obj, ids, suggestionTable)
             % UPDATEBATCHCONFIGSUGGESTIONTABLE Update batch configuration suggestion table

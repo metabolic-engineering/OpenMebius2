@@ -152,6 +152,8 @@ classdef EMUModel < Stoichiometry
                 saveEMUModelToFile(obj, fileDirectory);
             end % if
 
+            warning('off', 'MATLAB:nearlySingularMatrix');
+
         end % constructor
 
         function targetMetaboliteList = get.targetMetaboliteList(obj)

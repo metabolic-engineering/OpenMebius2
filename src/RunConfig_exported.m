@@ -141,9 +141,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function updateINSTMFATimeCourseTable(app)
 
-            currentID = app.MainApp.batch.getBatchForGUI().ID(app.selection);
+            [currentID, isSingle] = app.getCurrentIDs();
 
-            if length(currentID) ~= 1
+            if ~isSingle
                 return;
             end
 
@@ -177,6 +177,19 @@ classdef RunConfig_exported < matlab.apps.AppBase
             end
 
         end % setConfigValue
+
+        function [currentID, isSingle] = getCurrentIDs(app)
+
+            batch = app.MainApp.batch.getBatchForGUI();
+            currentID = batch.ID(app.selection);
+
+            if isscalar(currentID)
+                isSingle = true;
+            else
+                isSingle = false;
+            end
+
+        end % getCurrentIDs
 
         function fillConfigValueToUI(app)
             % FILLCONFIGVALUETOUTI Fill the configuration values into the UI components
@@ -404,6 +417,48 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % enabledisableGridSetting
 
+        function enabledisableEffluxPertubation(app)
+
+            isEnable = app.PerturbateEffluxCheckBox.Value;
+
+            [currentID, isSingle] = app.getCurrentIDs();
+
+            if ~isSingle
+                app.PerturbateEffluxCheckBox.Value = false;
+                app.EffluxUITable.Enable = 'off';
+                app.EffluxApplyButton.Enable = 'off';
+                return;
+            end
+
+            if isEnable
+
+                % Enable efflux perturbation components
+                app.EffluxUITable.Enable = 'on';
+                app.EffluxApplyButton.Enable = 'on';
+
+                [tableEffluxPerturbation, editable] = app.MainApp.batch.getBatchEffluxSDTable(currentID);
+
+                tableData = tableEffluxPerturbation;
+                app.EffluxUITable.Data = tableData;
+                app.EffluxUITable.ColumnName = tableData.Properties.VariableNames;
+                app.EffluxUITable.ColumnEditable = editable;
+                app.EffluxUITable.RowName = tableData.Properties.RowNames;
+
+            else
+
+                app.EffluxUITable.Data = [];
+                app.EffluxUITable.ColumnName = {};
+                app.EffluxUITable.ColumnEditable = [];
+                app.EffluxUITable.RowName = {};
+
+                % Disable efflux perturbation components
+                app.EffluxUITable.Enable = 'off';
+                app.EffluxApplyButton.Enable = 'off';
+
+            end
+
+        end % enabledisableEffluxPertubation
+
         function enabledisableSuggestion(app)
             % ENABLEDISABLESUGGESTION Enable or disable suggestion-related UI components
             % based on the SuggestionCheckBox value
@@ -525,8 +580,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % APPLYGENERAL Apply the general settings to the selected batch
 
             % Get the current configuration for the selected batch
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID(app.selection);
+            [batchID, ] = app.getCurrentIDs();
             config = app.MainApp.batch.getBatchConfig(batchID(1));
 
             % Update the configuration with values from the UI
@@ -542,6 +596,14 @@ classdef RunConfig_exported < matlab.apps.AppBase
             config.largeScale = app.LargeScaleCheckBox.Value;
             config.suggestNextFlux = app.SuggestionCheckBox.Value;
             config.perturbateEfflux = app.PerturbateEffluxCheckBox.Value;
+
+            if config.perturbateEfflux
+                % Update efflux perturbation settings
+                tableEffluxPerturbation = app.EffluxUITable.Data;
+                config.efflux.selection = tableEffluxPerturbation.Selection;
+                config.efflux.substrate = tableEffluxPerturbation.Properties.RowNames;
+                config.efflux.substrateSD = tableEffluxPerturbation.SD;
+            end
 
             % Update the confidence interval calculation settings
             config.isCalcCI = app.CalcCICheckBox.Value;
@@ -678,12 +740,13 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             selectionRow = selection(:, 1);
             app.selection = unique(selectionRow);
-            setConfigValue(app)
-            fillConfigValueToUI(app)
-            enabledisableCIUI(app, app.CalcCICheckBox.Value)
-            enabledisableSuggestion(app)
+            app.setConfigValue()
+            app.fillConfigValueToUI()
+            app.enabledisableCIUI(app.CalcCICheckBox.Value)
+            app.enabledisableEffluxPertubation()
+            app.enabledisableSuggestion()
             app.enabledisableINSTMFA(app.INSTMFACheckBox.Value)
-            loadMSFragmentTable(app)
+            app.loadMSFragmentTable()
 
         end
 
@@ -747,6 +810,13 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.MainApp.unlockAllFeatureForOtherGUI()
             pause(0.5)
             delete(app)
+
+        end
+
+        % Value changed function: PerturbateEffluxCheckBox
+        function PerturbateEffluxCheckBoxValueChanged(app, event)
+
+            app.enabledisableEffluxPertubation()
 
         end
 
@@ -1084,6 +1154,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             % Create PerturbateEffluxCheckBox
             app.PerturbateEffluxCheckBox = uicheckbox(app.GridLayout8);
+            app.PerturbateEffluxCheckBox.ValueChangedFcn = createCallbackFcn(app, @PerturbateEffluxCheckBoxValueChanged, true);
             app.PerturbateEffluxCheckBox.Text = 'Perturbate efflux';
             app.PerturbateEffluxCheckBox.Layout.Row = 5;
             app.PerturbateEffluxCheckBox.Layout.Column = 1;

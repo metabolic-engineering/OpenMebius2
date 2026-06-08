@@ -599,6 +599,17 @@ classdef IOModel < IO
 
         end % function getMetaboliteTableMetabolite
 
+        function substrate = getMetaboliteTableSubstrate(obj)
+
+            tableMetabolite = obj.modelMetabolite;
+            substrate = tableMetabolite.Metabolite;
+            isSubstrate = tableMetabolite.Type == "substrate";
+            substrate = substrate(isSubstrate);
+            substrate = string(sort(substrate));
+            substrate = substrate(:);
+
+        end % function getMetaboliteTableSubstrate
+
         function tableOut = getMSMetaboliteTable(obj)
 
             try

@@ -41,6 +41,8 @@ classdef FluxAnalysis < handle & IO
         % List of efflux
         % [6.2; 2.1];
         efflux = []
+        effluxSD = []
+        effluxFree = []
 
         % Flux bounds
         UB = []
@@ -111,6 +113,11 @@ classdef FluxAnalysis < handle & IO
 
             obj.model = model;
             obj.exps = experiments;
+
+            if obj.model.isError || obj.exps.isError
+                obj.isError = true;
+                return;
+            end
 
             val = expList;
 
@@ -2921,7 +2928,7 @@ classdef FluxAnalysis < handle & IO
         end % exportNextLabelPatternCIMC
 
         %% Notify functions
-        function notifyGeneralMessage(obj, status, msg)
+        function notifyGeneralMessage(obj, status, msg, dbstack)
             % NOTIFYINITIALFLUXEVENT Notify the initial flux event.
             %
             % Parameters:
@@ -2932,6 +2939,7 @@ classdef FluxAnalysis < handle & IO
                 obj (1, 1) FluxAnalysis
                 status (1, 1) string {mustBeMember(status, ["info", "warning", "error"])}
                 msg (1, 1) string
+                dbstack struct
             end % arguments
 
             % Event data
@@ -2941,7 +2949,7 @@ classdef FluxAnalysis < handle & IO
             ed.msg = msg;
 
             notify(obj, 'GeneralMsg', BatchProgressEventData(type, ed));
-            obj.status.updateMsg(msg, "Info", "Info");
+            logDisp(dbstack, msg, status);
 
         end % notifyInitialFluxEvent
 
@@ -3054,6 +3062,56 @@ classdef FluxAnalysis < handle & IO
 
             obj.efflux = effluxExtracted';
 
+            % Efflux free
+            isPerturbate = obj.config.perturbateEfflux;
+
+            if isPerturbate
+
+                perturbateSubstrateName = obj.config.efflux.substrate;
+                perturbateSubstrateSelection = obj.config.efflux.selection;
+                perturbateSubstrateSD = obj.config.efflux.substrateSD;
+
+                if isempty(perturbateSubstrateName)
+                    msg = "No substrate selected for efflux perturbation.";
+                    notifyGeneralMessage(obj, "error", msg);
+                    tf = false;
+                    return;
+                end % if
+
+                [~, ia, ib] = intersect(perturbateSubstrateName, obj.subsList);
+
+                if isempty(ia)
+                    msg = "No matching substrate found for efflux perturbation.";
+                    notifyGeneralMessage(obj, "error", msg);
+                    tf = false;
+                    return;
+                end % if
+
+                extractedPerturbateSelection = perturbateSubstrateSelection(ia);
+                extractedPerturbateSD = perturbateSubstrateSD(ia);
+                extractedPerturbateSelection = extractedPerturbateSelection(ib);
+                extractedPerturbateSD = extractedPerturbateSD(ib);
+
+                obj.effluxSD = extractedPerturbateSD;
+                obj.effluxFree = extractedPerturbateSelection;
+                effluxFree = obj.effluxSD(obj.effluxFree); %#ok<PROP>
+
+                if any(effluxFree <= 0) %#ok<PROP>
+                    msg = "Efflux standard deviation must be positive for perturbation.";
+                    notifyGeneralMessage(obj, "error", msg);
+                    tf = false;
+                    return;
+                end % if
+
+                if any(isnan(effluxFree)) %#ok<PROP>
+                    msg = "Efflux standard deviation contains NaN values for perturbation.";
+                    notifyGeneralMessage(obj, "error", msg);
+                    tf = false;
+                    return;
+                end % if
+
+            end % if isPerturbate
+
         end % function validateEfflux
 
         function tf = isValidateMDV(obj)
@@ -3104,12 +3162,12 @@ classdef FluxAnalysis < handle & IO
 
         function setINSTMFA(obj)
 
-            config = obj.config;
+            config = obj.config; %#ok<PROP>
 
-            obj.isInstationary = config.isINSTMFA;
-            poolSize = config.INSTMFA.poolSize;
+            obj.isInstationary = config.isINSTMFA; %#ok<PROP>
+            poolSize = config.INSTMFA.poolSize; %#ok<PROP>
             obj.poolsize = poolSize;
-            obj.timePoints = config.INSTMFA.timePoints;
+            obj.timePoints = config.INSTMFA.timePoints; %#ok<PROP>
 
         end % function setINSTMFA
 

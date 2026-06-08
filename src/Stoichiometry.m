@@ -30,6 +30,15 @@ classdef Stoichiometry < IOModel
                 return;
             end
 
+            obj.buildModel();
+
+        end
+
+        function buildModel(obj)
+            % BUILDMODEL Build the stoichiometry model
+            %
+            % buildModel(obj)
+
             obj.separateReversibleReaction();
             obj.generateReversivleReactionInfo();
 
@@ -38,7 +47,7 @@ classdef Stoichiometry < IOModel
 
             obj.validateS();
 
-        end
+        end % buildModel
 
         function tableModelRev = getModelTableRev(obj)
 
@@ -156,6 +165,53 @@ classdef Stoichiometry < IOModel
             metabolite = substrate(maskReact | maskProduct);
 
         end % findMetaboliteFromModelTable
+
+        function RxnID = findSubstrateRxnIDFromMetaboliteIrrev(obj, metabolite)
+            % FINDSUBSTRATERXNIDFROMMETABOLITE Return the reaction ID
+            % corresponding to the substrate metabolite
+            %
+            % Parameters
+            % ----------
+            % obj IOModel
+            %     The IOModel object
+            % metabolite (1, 1) string
+            %     The name of the metabolite
+            %
+            % Returns
+            % -------
+            % RxnID (1, 1) string
+            %     The reaction ID corresponding to the substrate metabolite
+            %
+            % Example
+            % --------
+            % >> RxnID = findSubstrateRxnIDFromMetabolite(obj, "Subs_Glc");
+            %    RxnID = "r1";
+            %
+            % >> RxnID = findSubstrateRxnIDFromMetabolite(obj, "Subs_Ace");
+            %    RxnID = "r29";
+
+            arguments
+                obj;
+                metabolite (1, 1) string;
+            end
+
+            rxnTable = obj.modelRxn;
+            numRxn = height(rxnTable);
+            RxnID = string().empty;
+
+            for i = 1:numRxn
+
+                reactants = rxnTable.Reactants{i};
+                products = rxnTable.Products{i};
+
+                if ismember(metabolite, reactants) || ismember(metabolite, products)
+                    RxnID = rxnTable.Properties.RowNames{i};
+                    break;
+                end
+
+            end % for
+
+        end % findSubstrateRxnIDFromMetabolite
 
         function idx = findCounterReaction(obj, rxnID)
 
@@ -279,6 +335,49 @@ classdef Stoichiometry < IOModel
 
         end % isSubstrate
 
+        function makeEffluxFree(obj, substrateName)
+            % MAKEEFFLUXFREE Make efflux reactions free
+            %
+            % makeEffluxFree(obj, substrateName)
+            %
+            % Parameters
+            % ----------
+            % substrateName: str (1xn)
+            %     List of substrate names (e.g. ["Subs_Glc", "Subs_Ace"])
+
+            arguments
+                obj;
+                substrateName (1, :) string;
+            end
+
+            rxnID = strings(length(substrateName));
+            idxSubs = nan(length(substrateName), 1);
+
+            for i = 1:length(substrateName)
+
+                iRxnID = obj.findSubstrateRxnIDFromMetaboliteIrrev(substrateName(i));
+
+                if isempty(iRxnID)
+                    msg = "No reaction found for substrate: " + substrateName(i) + ".";
+                    logDisp(dbstack, msg, "warning");
+                    msg = "Efflux free operation skipped for substrate: " + substrateName(i) + ".";
+                    logDisp(dbstack, msg, "info");
+                    return;
+                end
+
+                rxnID(i) = iRxnID;
+                idxSubs(i) = obj.findRxnIdxIrrev(iRxnID);
+
+            end % for i = 1:length(substrateName)
+
+            msg = "Making efflux reactions free for substrates: " + strjoin(substrateName, ", ") + ".";
+            logDisp(dbstack, msg, "info");
+
+            obj.modelRxn.Independent(idxSubs) = true;
+            obj.buildModel();
+
+        end % makeEffluxFree
+
     end % methods (Access = public)
 
     methods (Access = protected)
@@ -300,6 +399,27 @@ classdef Stoichiometry < IOModel
             %     If the reaction is not found, idx is NaN
 
             rxnIDs = obj.modelRxnRev.Properties.RowNames;
+            idx = find(strcmp(rxnIDs, rxnID));
+
+        end % findRxnIdx
+
+        function idx = findRxnIdxIrrev(obj, rxnID)
+            % FINDRXNIDX Find the index of a reaction
+            %
+            % idx = findRxnIdx(obj, rxnID)
+            %
+            % Parameters
+            % ----------
+            % rxnID: str (1x1)
+            %     Reaction ID (e.g. 'r1')
+            %
+            % Returns
+            % -------
+            % idx: double (1x1)
+            %     Index of the reaction
+            %     If the reaction is not found, idx is NaN
+
+            rxnIDs = obj.modelRxn.Properties.RowNames;
             idx = find(strcmp(rxnIDs, rxnID));
 
         end % findRxnIdx
