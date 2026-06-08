@@ -10,6 +10,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ImportMSdatafromtextfilesMenu matlab.ui.container.Menu
         ModelMenu matlab.ui.container.Menu
         ExperimentaldataMenu matlab.ui.container.Menu
+        ExporttemplateExcelfileMenu matlab.ui.container.Menu
         BatchMenu matlab.ui.container.Menu
         ViewMenu matlab.ui.container.Menu
         ViewReportMenu matlab.ui.container.Menu
@@ -3653,6 +3654,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end
 
+        % Menu selected function: ExporttemplateExcelfileMenu
+        function ExporttemplateExcelfileMenuSelected(app, event)
+
+        end
+
         % Menu selected function: ViewlogsMenu
         function ViewlogsMenuSelected(app, event)
 
@@ -3743,6 +3749,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % Create ExperimentaldataMenu
             app.ExperimentaldataMenu = uimenu(app.OpenMebius2UIFigure);
             app.ExperimentaldataMenu.Text = 'Experimental data';
+
+            % Create ExporttemplateExcelfileMenu
+            app.ExporttemplateExcelfileMenu = uimenu(app.ExperimentaldataMenu);
+            app.ExporttemplateExcelfileMenu.MenuSelectedFcn = createCallbackFcn(app, @ExporttemplateExcelfileMenuSelected, true);
+            app.ExporttemplateExcelfileMenu.Text = 'Export template Excel file';
 
             % Create BatchMenu
             app.BatchMenu = uimenu(app.OpenMebius2UIFigure);
