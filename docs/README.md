@@ -32,5 +32,9 @@ Here, we have enhanced this software to enable analysis, visualization, and data
 ## How to Get Started
 
 ## Citing OpenMebius2 in research and publications
+If you consider using OpenMebius2 in your research, please cite the original publication of OpenMebius as follows:
+
+1. Kajihata, S., Furusawa, C., Matsuda, F. & Shimizu, H. OpenMebius: An Open Source Software for Isotopically Nonstationary 13 C-Based Metabolic Flux Analysis. BioMed Research International 2014, 1–10 (2014).
+2. Imada, T., Shimizu, H., Toya, Y., OpenMebius2: GUI-based software for 13C-metabolic flux analysis with tracer labeling pattern suggestions for accurate flux predictions. bioRxiv 2026, doi: 10.64898/2026.03.20.698926
 
 [1]: https://doi.org/10.1155/2014/627014

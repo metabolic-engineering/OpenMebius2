@@ -109,7 +109,7 @@ Before we analyze your own data, you can try to reproduce the results of these e
 {: align="center"}
 <img src="../../assets/images_tutorials/template_model7.png" alt="new_project_loaded" width="640"/>
 
-# Impoting template data
+# Importing template data
 
 
 # 13C-metabolic flux analysis (13C-MFA)
