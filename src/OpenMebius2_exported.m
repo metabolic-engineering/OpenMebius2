@@ -1642,10 +1642,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 if ~isempty(sel) && size(sel, 2) >= 2
                     rows = sel(:, 1);
                     cols = sel(:, 2);
-                    r1 = max(1, min(rows));
-                    r2 = min(numRows, max(rows));
-                    c1 = max(1, min(cols));
-                    c2 = min(numCols, max(cols));
+                    r1 = double(max(1, min(rows, [], "all")));
+                    r2 = double(min(numRows, max(rows, [], "all")));
+                    c1 = double(max(1, min(cols, [], "all")));
+                    c2 = double(min(numCols, max(cols, [], "all")));
                 end
 
             end
@@ -1657,6 +1657,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             CRLF = char([13 10]);
 
             outRow = 0;
+
+            r1 = r1(1); r2 = r2(1);
+            c1 = c1(1); c2 = c2(1);
 
             for i = r1:r2
 
