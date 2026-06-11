@@ -845,6 +845,8 @@ classdef FluxAnalysis < handle & IO
             obj.maskIndependent = false(nRhs, 1);
             obj.maskIndependent(indIdx) = true;
 
+            obj.maskRxnForBoundary = maskIndCol;
+
             % --- Precompute affine map v(x) = v_base + B*x ---
             rhs_fixed = tmpRhs;
             rhs_fixed(indIdx) = 0;
