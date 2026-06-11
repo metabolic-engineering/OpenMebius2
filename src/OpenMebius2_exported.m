@@ -6,10 +6,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ApplicationMenu matlab.ui.container.Menu
         ReloadWindowMenu matlab.ui.container.Menu
         ClearcacheMenu matlab.ui.container.Menu
+        ExperimentaldataMenu matlab.ui.container.Menu
+        ExporttemplateExcelfileMenu matlab.ui.container.Menu
         FilesMenu matlab.ui.container.Menu
         ImportMSdatafromtextfilesMenu matlab.ui.container.Menu
         ModelMenu matlab.ui.container.Menu
-        ExperimentaldataMenu matlab.ui.container.Menu
         BatchMenu matlab.ui.container.Menu
         ViewMenu matlab.ui.container.Menu
         ViewReportMenu matlab.ui.container.Menu
@@ -535,69 +536,84 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % function uiGetDirWrap
 
         function [files, isOK] = uiGetFileWrap(~, options)
-            % uiGetFileWrap - uigetfile wrapper with flexible texts
-            %
-            % Usage:
-            %   [f,ok] = uiGetFileWrap(struct( ...
-            %       "Filter", "*.xlsx", ...
-            %       "Title",  "Select a file", ...
-            %       "StartPath", pwd));
-            %
-            % Multiple filter:
-            %   opt = struct;
-            %   opt.Filter = { ...
-            %       "*.xlsx;*.csv", "Data files (*.xlsx,*.csv)"; ...
-            %       "*.*",          "All files (*.*)" ...
-            %   };
-            %   opt.Title = "Select data";
-            %   [f,ok] = uiGetFileWrap(opt);
-            %
-            % Multi-select:
-            %   [fs,ok] = uiGetFileWrap(struct("Filter","*.txt","MultiSelect","on"));
+            % uiGetFileWrap - uigetfile/uiputfile wrapper with flexible texts
 
             arguments
                 ~
                 options.Parent = []
-                options.Filter = "*.*" % char|string|cell
+                options.Filter = "*.*"
                 options.Title (1, 1) string = "Select file"
-                options.StartPath (1, 1) string = string(pwd) % initial folder
+                options.StartPath (1, 1) string = string(pwd)
                 options.MultiSelect (1, 1) string {mustBeMember(options.MultiSelect, ["off", "on"])} = "off"
+                options.Save (1, 1) logical = false
+                options.DefaultName (1, 1) string = ""
             end
 
-            % ---- normalize filter spec for uigetfile ----
+            % ---- normalize filter spec ----
             filterSpec = options.Filter;
 
-            % allow string scalar like "*.xlsx" or "*.*"
             if isstring(filterSpec) && isscalar(filterSpec)
                 filterSpec = char(filterSpec);
             end
 
-            % allow (Nx2) cell or string for multiple filter lines
             if isstring(filterSpec) && ~isscalar(filterSpec)
-                % e.g., ["*.xlsx;*.csv","Data";"*.*","All"] is ambiguous -> force cell outside
                 filterSpec = cellstr(filterSpec);
             end
 
-            % ---- call uigetfile ----
             startPath0 = char(options.StartPath);
             title0 = char(options.Title);
 
+            % ---- save mode ----
+            if options.Save
+
+                if options.DefaultName ~= ""
+                    startPath0 = char(fullfile(options.StartPath, options.DefaultName));
+                end
+
+                [fname, fpath] = uiputfile(filterSpec, title0, startPath0);
+
+                if isequal(fname, 0) || isequal(fpath, 0)
+                    files = string.empty(0, 1);
+                    isOK = false;
+                    return;
+                end
+
+                file0 = string(fullfile(fpath, fname));
+
+                % ---- overwrite warning ----
+                if isfile(file0)
+                    answer = questdlg( ...
+                        "The file already exists. Do you want to overwrite it?", ...
+                        "File exists", ...
+                        "Yes", "No", "No");
+
+                    if ~strcmp(answer, "Yes")
+                        files = string.empty(0, 1);
+                        isOK = false;
+                        return;
+                    end
+
+                end
+
+                files = file0;
+                isOK = true;
+                return;
+            end
+
+            % ---- open mode ----
             if options.MultiSelect == "on"
                 [fname, fpath] = uigetfile(filterSpec, title0, startPath0, "MultiSelect", "on");
             else
                 [fname, fpath] = uigetfile(filterSpec, title0, startPath0);
             end
 
-            % ---- canceled ----
             if isequal(fname, 0) || isequal(fpath, 0)
                 files = string.empty(0, 1);
                 isOK = false;
                 return;
             end
 
-            % ---- build full path(s) ----
             if iscell(fname)
-                % multiselect returns cell array of char
                 files = strings(numel(fname), 1);
 
                 for i = 1:numel(fname)
@@ -609,6 +625,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             isOK = true;
+
         end
 
         function [answer, isOK] = uiInputDlgWrap(~, options)
@@ -1625,10 +1642,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 if ~isempty(sel) && size(sel, 2) >= 2
                     rows = sel(:, 1);
                     cols = sel(:, 2);
-                    r1 = max(1, min(rows));
-                    r2 = min(numRows, max(rows));
-                    c1 = max(1, min(cols));
-                    c2 = min(numCols, max(cols));
+                    r1 = double(max(1, min(rows, [], "all")));
+                    r2 = double(min(numRows, max(rows, [], "all")));
+                    c1 = double(max(1, min(cols, [], "all")));
+                    c2 = double(min(numCols, max(cols, [], "all")));
                 end
 
             end
@@ -1640,6 +1657,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             CRLF = char([13 10]);
 
             outRow = 0;
+
+            r1 = r1(1); r2 = r2(1);
+            c1 = c1(1); c2 = c2(1);
 
             for i = r1:r2
 
@@ -2063,7 +2083,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % Lock the menu items
             app.FilesMenu.Enable = 'off';
             app.ModelMenu.Enable = 'off';
-            app.ExperimentaldataMenu.Enable = 'off';
             app.BatchMenu.Enable = 'off';
             app.ViewMenu.Enable = 'off';
 
@@ -2074,7 +2093,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % Unlock the menu items
             app.FilesMenu.Enable = 'on';
             app.ModelMenu.Enable = 'on';
-            app.ExperimentaldataMenu.Enable = 'on';
             app.BatchMenu.Enable = 'on';
             app.ViewMenu.Enable = 'on';
 
@@ -3653,6 +3671,44 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end
 
+        % Menu selected function: ExporttemplateExcelfileMenu
+        function ExporttemplateExcelfileMenuSelected(app, event)
+
+            if isempty(app.model) || app.model.isError
+                msg = "Model is not loaded. Please load a model before exporting template Excel file.";
+                LogTextDate(app, msg, "Error");
+                return
+            end
+
+            cellData = getTemplateMSTable(app.model);
+
+            msg = "Exporting template Excel file. Please select the location to save the file.";
+            app.LogTextDate(msg, "Info");
+
+            [file, isOK] = app.uiGetFileWrap( ...
+                Filter = {'*.xlsx', 'Excel Files (*.xlsx)'}, ...
+                Title = 'Save Template Excel File', ...
+                MultiSelect = "off", ...
+                DefaultName = "Template_MS_Table.xlsx", ...
+                Save = true ...
+            );
+
+            if ~isOK
+                return; % User canceled the dialog
+            end
+
+            % Write cell data to Excel file
+            try
+                writematrix(cellData, file, 'Sheet', 'MS');
+                msg = "Template Excel file exported successfully: " + file;
+                app.LogTextDate(msg, "Info");
+            catch ME
+                msg = "Failed to export template Excel file. Error: " + ME.message;
+                app.LogTextDate(msg, "Error");
+            end
+
+        end
+
         % Menu selected function: ViewlogsMenu
         function ViewlogsMenuSelected(app, event)
 
@@ -3727,6 +3783,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ClearcacheMenu.MenuSelectedFcn = createCallbackFcn(app, @ClearcacheMenuSelected, true);
             app.ClearcacheMenu.Text = 'Clear cache';
 
+            % Create ExperimentaldataMenu
+            app.ExperimentaldataMenu = uimenu(app.OpenMebius2UIFigure);
+            app.ExperimentaldataMenu.Text = 'Experimental data';
+
+            % Create ExporttemplateExcelfileMenu
+            app.ExporttemplateExcelfileMenu = uimenu(app.ExperimentaldataMenu);
+            app.ExporttemplateExcelfileMenu.MenuSelectedFcn = createCallbackFcn(app, @ExporttemplateExcelfileMenuSelected, true);
+            app.ExporttemplateExcelfileMenu.Text = 'Export template Excel file';
+
             % Create FilesMenu
             app.FilesMenu = uimenu(app.OpenMebius2UIFigure);
             app.FilesMenu.Text = 'Files';
@@ -3739,10 +3804,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % Create ModelMenu
             app.ModelMenu = uimenu(app.OpenMebius2UIFigure);
             app.ModelMenu.Text = 'Model';
-
-            % Create ExperimentaldataMenu
-            app.ExperimentaldataMenu = uimenu(app.OpenMebius2UIFigure);
-            app.ExperimentaldataMenu.Text = 'Experimental data';
 
             % Create BatchMenu
             app.BatchMenu = uimenu(app.OpenMebius2UIFigure);

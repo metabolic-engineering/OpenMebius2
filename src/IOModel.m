@@ -657,6 +657,20 @@ classdef IOModel < IO
 
         end % function getLabelStructView
 
+        function stringRtn = getTemplateMSTable(obj)
+
+            MS = getMSTable(obj);
+            MSList = MS.Properties.RowNames;
+            IndexName = "Row";
+            Index = arrayfun(@(x) "M+" + x, 0:100);
+
+            stringRtn = strings(length(Index) + 1, length(MSList) + 1);
+            stringRtn(1, 2:end) = MSList';
+            stringRtn(2:end, 1) = Index';
+            stringRtn(1, 1) = IndexName;
+
+        end % method getTemplateMSTable
+
         % Reconstruct function
         function reconstructModel(obj)
 
