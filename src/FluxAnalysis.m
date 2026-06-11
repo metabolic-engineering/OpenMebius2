@@ -170,7 +170,7 @@ classdef FluxAnalysis < handle & IO
             if ~isValidateData(obj)
                 % Notify the initial flux event
                 msg = "Data validation failed.";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 obj.isError = true;
                 return;
             end % if
@@ -180,7 +180,7 @@ classdef FluxAnalysis < handle & IO
             if ~isValidateMDV(obj)
                 % Notify the initial flux event
                 msg = "Invalid MDV data (e.g. NaN values).";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 obj.isError = true;
                 return;
             end % if
@@ -200,7 +200,7 @@ classdef FluxAnalysis < handle & IO
             else
                 % Notify the initial flux event
                 msg = "Flux variability calculation completed.";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
             end % if
 
             obj.UB = fluxUB;
@@ -212,7 +212,7 @@ classdef FluxAnalysis < handle & IO
             fluxRange = obj.UB - obj.LB;
             averageFlux = mean(fluxRange);
             msg = "Average flux range: " + string(averageFlux) + " mmol/g/h";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
             % Construct the EMU of the substrate
             numExperiments = length(obj.expsList);
@@ -228,18 +228,18 @@ classdef FluxAnalysis < handle & IO
             if obj.isCanceled
                 % Notify the initial flux event
                 msg = "Initial flux distribution calculation canceled.";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
                 return;
             elseif err
                 % Notify the initial flux event
                 msg = "Initial flux distribution calculation failed.";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 obj.isError = true;
                 return;
             else
                 % Notify the initial flux event
                 msg = "Initial flux distribution calculation completed.";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
             end % if
 
             obj.initialFlux = flux;
@@ -259,7 +259,7 @@ classdef FluxAnalysis < handle & IO
 
                 % Notify the initial flux event
                 msg = "Calculating flux distribution (iteration " + string(i) + "/" + string(obj.config.iteration) + ")";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
 
                 % Define the initial values for the optimization
                 obj.RHSFmincon = tmpRhs(:, i);
@@ -282,7 +282,7 @@ classdef FluxAnalysis < handle & IO
                 % Calcel the calculation
                 if obj.isCanceled
                     msg = "Nonlinear optimization canceled.";
-                    notifyGeneralMessage(obj, "info", msg);
+                    notifyGeneralMessage(obj, "info", msg, dbstack());
                     return;
                 end % if isCanceled
 
@@ -305,7 +305,7 @@ classdef FluxAnalysis < handle & IO
             msg = "Flux calculation completed" + ...
                 " (Elapsed time: " + datetime + ", " + ...
                 "RSS: " + string(minRSS) + ")";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
         end % calculateFluxDistribution
 
@@ -327,7 +327,7 @@ classdef FluxAnalysis < handle & IO
             output = struct();
 
             msg = "Calculating confidence interval...";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
             % calculation conditions
             if ~obj.config.isCalcCI
@@ -349,11 +349,11 @@ classdef FluxAnalysis < handle & IO
                     end % if
 
                     msg = "Confidence interval calculated using Monte Carlo method.";
-                    notifyGeneralMessage(obj, "info", msg);
+                    notifyGeneralMessage(obj, "info", msg, dbstack());
 
                 otherwise
                     msg = "Unknown method for calculating confidence interval.";
-                    notifyGeneralMessage(obj, "error", msg);
+                    notifyGeneralMessage(obj, "error", msg, dbstack());
                     return;
 
             end % switch
@@ -376,7 +376,7 @@ classdef FluxAnalysis < handle & IO
 
             % Notify the initial flux event
             msg = "Calculating flux variability...";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
             err = false;
 
@@ -451,7 +451,7 @@ classdef FluxAnalysis < handle & IO
                             msg = "Unknown error.";
                     end % switch
 
-                    notifyGeneralMessage(obj, "error", msg);
+                    notifyGeneralMessage(obj, "error", msg, dbstack());
                     err = true;
                     break;
                 end % if
@@ -513,7 +513,7 @@ classdef FluxAnalysis < handle & IO
             err = false;
 
             msg = "Calculating initial flux distribution...";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
             switch options.method
 
@@ -524,14 +524,14 @@ classdef FluxAnalysis < handle & IO
                         whileIteration = options.whileIteration ...
                     );
                     msg = "Initial flux distribution calculated randomly.";
-                    notifyGeneralMessage(obj, "info", msg);
+                    notifyGeneralMessage(obj, "info", msg, dbstack());
 
                 case "hit-and-run"
                     [flux, rhs] = calculateInitialFluxDistributionHitAndRun( ...
                         obj ...
                     );
                     msg = "Initial flux distribution calculated using Hit-and-Run.";
-                    notifyGeneralMessage(obj, "info", msg);
+                    notifyGeneralMessage(obj, "info", msg, dbstack());
 
                 otherwise
                     error("Unknown method for initial flux distribution calculation.");
@@ -539,7 +539,7 @@ classdef FluxAnalysis < handle & IO
 
             if obj.isCanceled
                 msg = "Initial flux distribution calculation canceled.";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
                 err = true;
             end
 
@@ -573,7 +573,7 @@ classdef FluxAnalysis < handle & IO
 
             if obj.isCanceled
                 msg = "Next flux experiment suggestion canceled.";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
                 return;
             end % if
 
@@ -588,11 +588,11 @@ classdef FluxAnalysis < handle & IO
             fluxRange = obj.UB - obj.LB;
             averageFlux = mean(fluxRange);
             msg = "Average flux range: " + string(averageFlux) + " mmol/g/h";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
             % Notify the initial flux event
             msg = "Suggesting next flux experiment...";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
             suggestionTableCell = obj.config.suggestionTable;
             suggestionTableRowNames = obj.config.suggestionTableRowNames;
@@ -625,7 +625,7 @@ classdef FluxAnalysis < handle & IO
                 end % if
 
                 msg = "Evaluating pattern " + string(iPattern) + "/" + string(numPattern) + "...";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
 
                 [iFluxLB, iFluxUB, ~] = calculateNextLabelPattern(obj, cellstr(pattern));
 
@@ -633,14 +633,14 @@ classdef FluxAnalysis < handle & IO
 
                 if obj.isCanceled
                     msg = "Next flux experiment suggestion canceled.";
-                    notifyGeneralMessage(obj, "info", msg);
+                    notifyGeneralMessage(obj, "info", msg, dbstack());
                     return;
                 end % if
 
             end % for
 
             msg = "Next flux experiment suggested.";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
         end % suggestNextFluxExperiment
 
@@ -750,11 +750,11 @@ classdef FluxAnalysis < handle & IO
                 msg = "Calculating initial flux distribution randomly" + ...
                     " (Elapsed time: " + datetime + ", " + ...
                     "Found " + string(numInitialFlux) + " feasible flux distributions)";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
 
                 if obj.isCanceled
                     msg = "Initial flux distribution calculation canceled.";
-                    notifyGeneralMessage(obj, "info", msg);
+                    notifyGeneralMessage(obj, "info", msg, dbstack());
                     break;
                 end % if
 
@@ -818,7 +818,7 @@ classdef FluxAnalysis < handle & IO
                 maskIndCol = ismember(rxnName, rxnNameIndependent);
             else
                 notifyGeneralMessage(obj, "error", ...
-                "Chord sampling: getSType size mismatch. Cannot determine independent reactions.");
+                    "Chord sampling: getSType size mismatch. Cannot determine independent reactions.", dbstack());
                 err = true; flux = []; rhs = []; return;
             end
 
@@ -826,7 +826,7 @@ classdef FluxAnalysis < handle & IO
 
             if numInd <= 0
                 notifyGeneralMessage(obj, "error", ...
-                "Chord sampling: independent reactions are zero. Check getSType mapping / IDs.");
+                    "Chord sampling: independent reactions are zero. Check getSType mapping / IDs.", dbstack());
                 err = true; flux = []; rhs = []; return;
             end
 
@@ -834,7 +834,7 @@ classdef FluxAnalysis < handle & IO
 
             if nRhs < numInd
                 notifyGeneralMessage(obj, "error", ...
-                "Chord sampling: rhs dimension < #independent variables.");
+                    "Chord sampling: rhs dimension < #independent variables.", dbstack());
                 err = true; flux = []; rhs = []; return;
             end
 
@@ -865,7 +865,7 @@ classdef FluxAnalysis < handle & IO
             tStart = tic;
 
             notifyGeneralMessage(obj, "info", ...
-                "Chord sampling: start (target=" + string(numReq) + ").");
+                "Chord sampling: start (target=" + string(numReq) + ").", dbstack());
 
             while (toc(tStart) <= options.maxTime) && ~obj.isCanceled && (saved < numReq)
 
@@ -884,7 +884,7 @@ classdef FluxAnalysis < handle & IO
                     % could not get 2 points; continue trying
                     if mod(chordTried, 50) == 0
                         notifyGeneralMessage(obj, "warning", ...
-                            "Chord sampling: failed to find 2 feasible points (" + lpMsg + "), tried=" + string(chordTried));
+                            "Chord sampling: failed to find 2 feasible points (" + lpMsg + "), tried=" + string(chordTried), dbstack());
                     end
 
                     continue;
@@ -936,7 +936,7 @@ classdef FluxAnalysis < handle & IO
                         tStop = toc(tStart);
                         notifyGeneralMessage(obj, "info", ...
                             "Chord sampling: saved " + string(saved) + "/" + string(numReq) + ...
-                            " (chords=" + string(chordTried) + ", elapsed=" + string(seconds(tStop), "hh:mm:ss") + ")");
+                            " (chords=" + string(chordTried) + ", elapsed=" + string(seconds(tStop), "hh:mm:ss") + ")", dbstack());
                     end
 
                 end
@@ -944,14 +944,14 @@ classdef FluxAnalysis < handle & IO
             end
 
             if obj.isCanceled
-                notifyGeneralMessage(obj, "info", "Chord sampling: canceled.");
+                notifyGeneralMessage(obj, "info", "Chord sampling: canceled.", dbstack());
                 err = true;
                 return;
             end
 
             if saved == 0
                 notifyGeneralMessage(obj, "error", ...
-                "Chord sampling: no samples were generated. (Maybe infeasible region or LP failed repeatedly)");
+                    "Chord sampling: no samples were generated. (Maybe infeasible region or LP failed repeatedly)", dbstack());
                 err = true;
                 return;
             end
@@ -1164,7 +1164,7 @@ classdef FluxAnalysis < handle & IO
             output = struct();
 
             msg = "Generating EMU model for the pattern...";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
             EMU = getSubstrateEMU(obj, ...
                 "useCustomEMU", true, ...
@@ -1175,7 +1175,7 @@ classdef FluxAnalysis < handle & IO
 
             if obj.isCanceled
                 msg = "Next flux experiment suggestion canceled.";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
                 return;
             end % if
 
@@ -1190,7 +1190,7 @@ classdef FluxAnalysis < handle & IO
 
             if obj.isCanceled
                 msg = "Next flux experiment suggestion canceled.";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
                 return;
             end % if
 
@@ -1252,7 +1252,7 @@ classdef FluxAnalysis < handle & IO
             % Count the number of valid flux distributions
             numValidFlux = sum(RSS < RSSInvalid);
             msg = "Number of valid flux distributions: " + string(numValidFlux);
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
         end % calculateRSS
 
@@ -1605,14 +1605,14 @@ classdef FluxAnalysis < handle & IO
 
             if isnan(fval)
                 msg = "Nonlinear optimization failed.";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 return;
             else
                 msg = "Nonlinear optimization completed. " + ...
                     "RSS: " + string(fval) + ")";
             end % if
 
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
         end % calculateNonLinearOptimization
 
@@ -1678,12 +1678,12 @@ classdef FluxAnalysis < handle & IO
 
             if isnan(fval)
                 msg = "Nonlinear optimization for instationary MFA failed.";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 return;
             else
                 msg = "Nonlinear optimization for instationary MFA completed. " + ...
                     "RSS: " + string(fval) + ")";
-                notifyGeneralMessage(obj, "info", msg);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
             end % if
 
         end % calculateNonLinearOptimizationInstationary
@@ -1780,12 +1780,12 @@ classdef FluxAnalysis < handle & IO
             % Notify the initial flux event
             msg = "Calculating confidence interval using Monte Carlo method. " + ...
                 "It may take a while (Cancel button is not available).";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
             % If the flux distribution is not calculated, return
             if obj.statusFlag(2) ~= 1
                 msg = "Flux distribution is not calculated.";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 return;
             end % if
 
@@ -1840,7 +1840,7 @@ classdef FluxAnalysis < handle & IO
 
             msg = "Confidence interval calculated successfully." + ...
                 " (Elapsed time: " + string(seconds(output.time), "hh:mm:ss") + ")";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
         end % calculateCIMC
 
@@ -1875,7 +1875,7 @@ classdef FluxAnalysis < handle & IO
             method = obj.config.CIConf.MC.calculationMethod;
 
             msg = "Calculating confidence interval using " + method + " method.";
-            notifyGeneralMessage(obj, "info", msg);
+            notifyGeneralMessage(obj, "info", msg, dbstack());
 
             switch method
                 case "discarding"
@@ -1908,7 +1908,7 @@ classdef FluxAnalysis < handle & IO
                         % Cancel event
                         if obj.isCanceled
                             msg = "Confidence interval calculation canceled.";
-                            notifyGeneralMessage(obj, "info", msg);
+                            notifyGeneralMessage(obj, "info", msg, dbstack());
                             return;
                         end % if
 
@@ -1917,13 +1917,13 @@ classdef FluxAnalysis < handle & IO
                 case "mean-varianced"
 
                     msg = "Mean-varianced method is not implemented yet.";
-                    notifyGeneralMessage(obj, "error", msg);
+                    notifyGeneralMessage(obj, "error", msg, dbstack());
                     return;
 
                 otherwise
 
                     msg = "Unknown method for calculating confidence interval.";
-                    notifyGeneralMessage(obj, "error", msg);
+                    notifyGeneralMessage(obj, "error", msg, dbstack());
                     return;
 
             end % switch
@@ -3004,7 +3004,7 @@ classdef FluxAnalysis < handle & IO
 
             if isempty(info)
                 msg = "No information available for efflux validation.";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 tf = false;
                 return;
             end % if
@@ -3015,14 +3015,14 @@ classdef FluxAnalysis < handle & IO
                 obj.mu = tmpMu;
             catch
                 msg = "Information table is no valid";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 tf = false;
                 return;
             end
 
             if ~all(tmpMu > 0)
                 msg = "No growth rate available for efflux validation.";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 tf = false;
                 return;
             end % if
@@ -3041,7 +3041,7 @@ classdef FluxAnalysis < handle & IO
             % Check if each substrate is identical
             if length(unique(substrate)) ~= length(substrate)
                 msg = "Substrates was duplicated.";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 tf = false;
                 return;
             end % if
@@ -3055,7 +3055,7 @@ classdef FluxAnalysis < handle & IO
 
             if any(isnan(effluxExtracted))
                 msg = "Some efflux values are NaN. Please check the experimental data.";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 tf = false;
                 return;
             end % if
@@ -3073,7 +3073,7 @@ classdef FluxAnalysis < handle & IO
 
                 if isempty(perturbateSubstrateName)
                     msg = "No substrate selected for efflux perturbation.";
-                    notifyGeneralMessage(obj, "error", msg);
+                    notifyGeneralMessage(obj, "error", msg, dbstack());
                     tf = false;
                     return;
                 end % if
@@ -3082,7 +3082,7 @@ classdef FluxAnalysis < handle & IO
 
                 if isempty(ia)
                     msg = "No matching substrate found for efflux perturbation.";
-                    notifyGeneralMessage(obj, "error", msg);
+                    notifyGeneralMessage(obj, "error", msg, dbstack());
                     tf = false;
                     return;
                 end % if
@@ -3098,14 +3098,14 @@ classdef FluxAnalysis < handle & IO
 
                 if any(effluxFree <= 0) %#ok<PROP>
                     msg = "Efflux standard deviation must be positive for perturbation.";
-                    notifyGeneralMessage(obj, "error", msg);
+                    notifyGeneralMessage(obj, "error", msg, dbstack());
                     tf = false;
                     return;
                 end % if
 
                 if any(isnan(effluxFree)) %#ok<PROP>
                     msg = "Efflux standard deviation contains NaN values for perturbation.";
-                    notifyGeneralMessage(obj, "error", msg);
+                    notifyGeneralMessage(obj, "error", msg, dbstack());
                     tf = false;
                     return;
                 end % if
@@ -3133,7 +3133,7 @@ classdef FluxAnalysis < handle & IO
 
             if isempty(obj.MDVExp)
                 msg = "MDV experimental data is not available.";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 tf = false;
                 return;
             end % if
@@ -3153,7 +3153,7 @@ classdef FluxAnalysis < handle & IO
                 isnanListStr = strjoin(isnanListMDVNameList, ", ");
 
                 msg = "MDV experimental data contains NaN values in the following fragments: " + isnanListStr + ".";
-                notifyGeneralMessage(obj, "error", msg);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
                 tf = false;
                 return;
             end % if
