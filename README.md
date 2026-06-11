@@ -10,6 +10,7 @@ English | [日本語](README_ja.md)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/metabolic-engineering/OpenMebius2/total)
 ![Website](https://img.shields.io/website?url=https%3A%2F%2Fmetabolic-engineering.github.io%2FOpenMebius2%2F)
 ![GitHub License](https://img.shields.io/github/license/metabolic-engineering/OpenMebius2)
+[![Open in MATLAB Online](https://www.mathworks.com/images/responsive/global/open-in-matlab-online.svg)](https://matlab.mathworks.com/open/github/v1?repo=metabolic-engineering/OpenMebius2)
 
 13C-metabolic flux analysis (13C-MFA) is a technique that determine an intracellular metabolic flux distribution by using tracer information.
 OpenMebius was developed in 2014 as a integrated platform that can perform 13C-MFA by Mr. Kajihata when he was a PhD student and it was publishd to [BioMed Research International][1]
