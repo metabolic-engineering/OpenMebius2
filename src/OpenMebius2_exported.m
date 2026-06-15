@@ -2800,6 +2800,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ModelTableCellSelection(app, event)
 
             indices = event.Indices;
+
+            if isempty(indices)
+                return
+            end
+
             row = indices(1, 1);
 
             highlight = false(size(app.ModelTable.Data, 1), 1);
