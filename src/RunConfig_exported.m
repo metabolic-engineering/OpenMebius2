@@ -302,14 +302,20 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 end
 
                 % Pool size
-                app.INSTMFAPoolUITable.Data = table(INSTMFA.poolMetabolite', INSTMFA.poolSize', ...
-                    'VariableNames', {'Metabolite', 'PoolSize'});
+                app.INSTMFAPoolUITable.Data = table( ...
+                    string(INSTMFA.poolMetabolite(:)), ...
+                    double(INSTMFA.poolSize(:)), ...
+                    'VariableNames', {'Metabolite', 'PoolSize'} ...
+                );
                 app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
                 app.INSTMFAPoolUITable.RowName = {};
                 app.INSTMFAPoolUITable.ColumnEditable = [false, true];
                 % Time course
-                app.INSTMFATimeCourseUITable.Data = table(INSTMFA.timePointsExpName', INSTMFA.timePoints', ...
-                    'VariableNames', {'TimePointExpName', 'TimePoint'});
+                app.INSTMFATimeCourseUITable.Data = table( ...
+                    string(INSTMFA.timePointsExpName(:)), ...
+                    double(INSTMFA.timePoints(:)), ...
+                    'VariableNames', {'TimePointExpName', 'TimePoint'} ...
+                );
                 app.INSTMFATimeCourseUITable.ColumnName = {'TimePointExpName', 'TimePoint'};
                 app.INSTMFATimeCourseUITable.RowName = {};
                 app.INSTMFATimeCourseUITable.ColumnEditable = [false, true];
@@ -421,14 +427,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             isEnable = app.PerturbateEffluxCheckBox.Value;
 
-            [currentID, isSingle] = app.getCurrentIDs();
-
-            if ~isSingle
-                app.PerturbateEffluxCheckBox.Value = false;
-                app.EffluxUITable.Enable = 'off';
-                app.EffluxApplyButton.Enable = 'off';
-                return;
-            end
+            [currentID, ~] = app.getCurrentIDs();
+            currentID = currentID(1);
 
             if isEnable
 
@@ -453,7 +453,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
                 % Disable efflux perturbation components
                 app.EffluxUITable.Enable = 'off';
-                app.EffluxApplyButton.Enable = 'off';
 
             end
 
@@ -502,26 +501,35 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 batch = app.MainApp.batch.getBatchForGUI();
                 batchID = batch.ID(app.selection);
                 batchIDUnique = unique(batchID);
-                tablePoolSize = app.MainApp.batch.getBatchINSTMFAPoolTable(batchIDUnique);
 
                 if length(batchIDUnique) ~= 1
-                    uialert('INST-MFA settings can only be configured when a single batch is selected.', 'Error', 'Icon', 'error');
+                    uialert(app.BatchconfigUIFigure, ...
+                        'INST-MFA settings can only be configured when a single batch is selected.', ...
+                        'Error', ...
+                        'Icon', 'error');
+                    app.INSTMFACheckBox.Value = false;
                     return;
                 end
+
+                tablePoolSize = app.MainApp.batch.getBatchINSTMFAPoolTable(batchIDUnique);
+                [tableTimePoints, timePointColumnEditable] = ...
+                    app.MainApp.batch.getBatchINSTMFATimePoints(batchIDUnique);
 
                 app.INSTMFAPoolUITable.Data = tablePoolSize;
                 app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
                 app.INSTMFAPoolUITable.RowName = {};
-                app.INSTMFATimeCourseUITable.Data = [];
+                app.INSTMFAPoolUITable.ColumnEditable = [false, true];
+
+                app.INSTMFATimeCourseUITable.Data = tableTimePoints;
                 app.INSTMFATimeCourseUITable.ColumnName = {'TimePointExpName', 'TimePoint'};
                 app.INSTMFATimeCourseUITable.RowName = {};
+                app.INSTMFATimeCourseUITable.ColumnEditable = timePointColumnEditable;
 
-                % Enable INST-MFA-related components
                 app.INSTMFAApplyButton.Enable = 'on';
                 app.INSTMFAPoolUITable.Enable = 'on';
                 app.INSTMFATimeCourseUITable.Enable = 'on';
-            else
 
+            else
                 app.INSTMFAPoolUITable.Data = [];
                 app.INSTMFAPoolUITable.ColumnName = {};
                 app.INSTMFAPoolUITable.RowName = {};
@@ -654,18 +662,18 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
                 % Get pool size table
                 tablePoolSize = app.INSTMFAPoolUITable.Data;
-                config.INSTMFA.poolMetabolite = tablePoolSize.Metabolite';
-                config.INSTMFA.poolSize = tablePoolSize.PoolSize';
+                config.INSTMFA.poolMetabolite = string(tablePoolSize.Metabolite(:));
+                config.INSTMFA.poolSize = double(tablePoolSize.PoolSize(:));
 
                 % Get time course table
                 tableTimeCourse = app.INSTMFATimeCourseUITable.Data;
 
                 if isempty(tableTimeCourse)
-                    config.INSTMFA.timePointsExpName = {};
-                    config.INSTMFA.timePoints = [];
+                    config.INSTMFA.timePointsExpName = string.empty(0, 1);
+                    config.INSTMFA.timePoints = double.empty(0, 1);
                 else
-                    config.INSTMFA.timePointsExpName = tableTimeCourse.TimePointExpName';
-                    config.INSTMFA.timePoints = tableTimeCourse.TimePoint';
+                    config.INSTMFA.timePointsExpName = string(tableTimeCourse.TimePointExpName(:));
+                    config.INSTMFA.timePoints = double(tableTimeCourse.TimePoint(:));
                 end
 
             end % if config.isINSTMFA
@@ -706,18 +714,18 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
                 % Get pool size table
                 tablePoolSize = app.INSTMFAPoolUITable.Data;
-                config.INSTMFA.poolMetabolite = tablePoolSize.Metabolite';
-                config.INSTMFA.poolSize = tablePoolSize.PoolSize';
+                config.INSTMFA.poolMetabolite = string(tablePoolSize.Metabolite(:));
+                config.INSTMFA.poolSize = double(tablePoolSize.PoolSize(:));
 
                 % Get time course table
                 tableTimeCourse = app.INSTMFATimeCourseUITable.Data;
 
                 if isempty(tableTimeCourse)
-                    config.INSTMFA.timePointsExpName = {};
-                    config.INSTMFA.timePoints = [];
+                    config.INSTMFA.timePointsExpName = string.empty(0, 1);
+                    config.INSTMFA.timePoints = double.empty(0, 1);
                 else
-                    config.INSTMFA.timePointsExpName = tableTimeCourse.TimePointExpName';
-                    config.INSTMFA.timePoints = tableTimeCourse.TimePoint';
+                    config.INSTMFA.timePointsExpName = string(tableTimeCourse.TimePointExpName(:));
+                    config.INSTMFA.timePoints = double(tableTimeCourse.TimePoint(:));
                 end
 
             end % if config.isINSTMFA

@@ -806,6 +806,7 @@ classdef EMUModel < Stoichiometry
             CnBool = obj.globalCn;
             Cn = obj.globalCnDiag;
             numEMU = size(obj.tableEMUSizeInfo, 1);
+            poolsize = double(poolsize(:));
 
             for iEMU = 1:numEMU
 

@@ -1470,8 +1470,6 @@ classdef Batch < handle
         end % updateHash
 
         function config = fillMissingFields(obj, config, defaultConfig)
-            % Fill missing fields in config with default values from defaultConfig
-            % (recursively handles sub-fields)
 
             fields = fieldnames(defaultConfig);
 
@@ -1479,11 +1477,11 @@ classdef Batch < handle
                 fname = fields{i};
 
                 if ~isfield(config, fname)
-                    % フィールドが無ければ default を丸ごと入れる
+                    % If the field is missing, fill it with the default value
                     config.(fname) = defaultConfig.(fname);
 
                 else
-                    % 両方が struct のときだけサブフィールドを再帰的に補完
+                    % Fill missing sub-fields if both are structs
                     if isstruct(config.(fname)) && isstruct(defaultConfig.(fname))
                         config.(fname) = obj.fillMissingFields( ...
                             config.(fname), ...
@@ -1527,8 +1525,8 @@ classdef Batch < handle
 
             if currentConfig.isINSTMFA
 
-                currentTimeCourse = string(currentConfig.INSTMFA.timePointsExpName);
-                currentTimePoints = currentConfig.INSTMFA.timePoints;
+                currentTimeCourse = string(currentConfig.INSTMFA.timePointsExpName(:));
+                currentTimePoints = double(currentConfig.INSTMFA.timePoints(:));
 
                 % Find duplicated and added experiments
                 [duplicatedExp, idxCurrentTimeCourse, ~] = ...
@@ -1552,8 +1550,8 @@ classdef Batch < handle
                 updatedTimePoints = updatedTimePoints(sortIdx);
 
                 % Update configuration
-                updatedConfig.INSTMFA.timePointsExpName = updatedTimeCourse';
-                updatedConfig.INSTMFA.timePoints = updatedTimePoints';
+                updatedConfig.INSTMFA.timePointsExpName = string(updatedTimeCourse(:));
+                updatedConfig.INSTMFA.timePoints = double(updatedTimePoints(:));
 
             else
 
