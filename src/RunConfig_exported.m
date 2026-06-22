@@ -302,14 +302,20 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 end
 
                 % Pool size
-                app.INSTMFAPoolUITable.Data = table(INSTMFA.poolMetabolite', INSTMFA.poolSize', ...
-                    'VariableNames', {'Metabolite', 'PoolSize'});
+                app.INSTMFAPoolUITable.Data = table( ...
+                    string(INSTMFA.poolMetabolite(:)), ...
+                    double(INSTMFA.poolSize(:)), ...
+                    'VariableNames', {'Metabolite', 'PoolSize'} ...
+                );
                 app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
                 app.INSTMFAPoolUITable.RowName = {};
                 app.INSTMFAPoolUITable.ColumnEditable = [false, true];
                 % Time course
-                app.INSTMFATimeCourseUITable.Data = table(INSTMFA.timePointsExpName', INSTMFA.timePoints', ...
-                    'VariableNames', {'TimePointExpName', 'TimePoint'});
+                app.INSTMFATimeCourseUITable.Data = table( ...
+                    string(INSTMFA.timePointsExpName(:)), ...
+                    double(INSTMFA.timePoints(:)), ...
+                    'VariableNames', {'TimePointExpName', 'TimePoint'} ...
+                );
                 app.INSTMFATimeCourseUITable.ColumnName = {'TimePointExpName', 'TimePoint'};
                 app.INSTMFATimeCourseUITable.RowName = {};
                 app.INSTMFATimeCourseUITable.ColumnEditable = [false, true];
@@ -495,26 +501,35 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 batch = app.MainApp.batch.getBatchForGUI();
                 batchID = batch.ID(app.selection);
                 batchIDUnique = unique(batchID);
-                tablePoolSize = app.MainApp.batch.getBatchINSTMFAPoolTable(batchIDUnique);
 
                 if length(batchIDUnique) ~= 1
-                    uialert('INST-MFA settings can only be configured when a single batch is selected.', 'Error', 'Icon', 'error');
+                    uialert(app.BatchconfigUIFigure, ...
+                        'INST-MFA settings can only be configured when a single batch is selected.', ...
+                        'Error', ...
+                        'Icon', 'error');
+                    app.INSTMFACheckBox.Value = false;
                     return;
                 end
+
+                tablePoolSize = app.MainApp.batch.getBatchINSTMFAPoolTable(batchIDUnique);
+                [tableTimePoints, timePointColumnEditable] = ...
+                    app.MainApp.batch.getBatchINSTMFATimePoints(batchIDUnique);
 
                 app.INSTMFAPoolUITable.Data = tablePoolSize;
                 app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
                 app.INSTMFAPoolUITable.RowName = {};
-                app.INSTMFATimeCourseUITable.Data = [];
+                app.INSTMFAPoolUITable.ColumnEditable = [false, true];
+
+                app.INSTMFATimeCourseUITable.Data = tableTimePoints;
                 app.INSTMFATimeCourseUITable.ColumnName = {'TimePointExpName', 'TimePoint'};
                 app.INSTMFATimeCourseUITable.RowName = {};
+                app.INSTMFATimeCourseUITable.ColumnEditable = timePointColumnEditable;
 
-                % Enable INST-MFA-related components
                 app.INSTMFAApplyButton.Enable = 'on';
                 app.INSTMFAPoolUITable.Enable = 'on';
                 app.INSTMFATimeCourseUITable.Enable = 'on';
-            else
 
+            else
                 app.INSTMFAPoolUITable.Data = [];
                 app.INSTMFAPoolUITable.ColumnName = {};
                 app.INSTMFAPoolUITable.RowName = {};
