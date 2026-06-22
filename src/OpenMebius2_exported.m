@@ -1944,6 +1944,43 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function statusGeneralMsg
 
+        function checkLatestVersionOnStartup(app)
+            % CHECKLATESTVERSIONONSTARTUP Checks whether a newer version exists.
+            % Update failures must not prevent application startup.
+
+            try
+                currentVersion = System.getCurrentVersion();
+                [latestVersion, releaseURL] = System.getLatestOpenMebius2Version();
+
+                if System.isVersionNewer(latestVersion, currentVersion)
+                    msg = "A newer OpenMebius2 version is available: " + latestVersion + ...
+                        " (current: " + currentVersion + ").";
+                    app.LogTextDate(msg, "Warning");
+
+                    answer = uiconfirm(app.OpenMebius2UIFigure, ...
+                        char(msg + newline + "Open the GitHub releases page?"), ...
+                        'Update available', ...
+                        'Options', {'Open releases', 'Later'}, ...
+                        'DefaultOption', 1, ...
+                        'CancelOption', 2, ...
+                        'Icon', 'warning');
+
+                    if strcmp(answer, 'Open releases')
+                        web(char(releaseURL), '-browser');
+                    end
+
+                else
+                    msg = "OpenMebius2 is up to date: " + currentVersion + ".";
+                    app.LogTextDate(msg, "Info");
+                end
+
+            catch ME
+                msg = "Unable to check for OpenMebius2 updates: " + string(ME.message);
+                app.LogTextDate(msg, "Warning");
+            end
+
+        end % method checkLatestVersionOnStartup
+
         %% Private lock and unlock function
 
         function lockModelTab(app)
@@ -2247,6 +2284,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             lockAllFeature(app)
             initStatusTable(app);
+
+            checkLatestVersionOnStartup(app);
 
             if ~isempty(filepath)
 
