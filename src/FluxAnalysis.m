@@ -268,7 +268,16 @@ classdef FluxAnalysis < handle & IO
                     [fval, estimatedFlux, estimatedMDV, exitflag, ~] = ...
                         calculateNonLinearOptimization(obj, obj.MDVExpFmincon);
                 else
-                    obj.setINSTMFA();
+
+                    [err, msg] = obj.setINSTMFA();
+                    msg = "Instationary 13C-MFA: " + msg;
+
+                    if err
+                        notifyGeneralMessage(obj, "error", msg, dbstack());
+                        obj.isError = true;
+                        return;
+                    end
+
                     [fval, estimatedFlux, estimatedMDV, exitflag, ~] = ...
                         calculateNonLinearOptimizationInstationary(obj, obj.MDVExpFmincon);
                 end
@@ -527,9 +536,20 @@ classdef FluxAnalysis < handle & IO
                     notifyGeneralMessage(obj, "info", msg, dbstack());
 
                 case "hit-and-run"
-                    [flux, rhs] = calculateInitialFluxDistributionHitAndRun( ...
-                        obj ...
+                    [flux, rhs, err] = calculateInitialFluxDistributionHitAndRun( ...
+                        obj, ...
+                        iterationRate = options.iterationRate, ...
+                        burnin = options.burnin, ...
+                        thinning = options.thinning, ...
+                        maxTime = options.maxTime, ...
+                        seed = options.seed ...
                     );
+
+                    if err
+                        RSS = [];
+                        return;
+                    end
+
                     msg = "Initial flux distribution calculated using Hit-and-Run.";
                     notifyGeneralMessage(obj, "info", msg, dbstack());
 
@@ -773,24 +793,31 @@ classdef FluxAnalysis < handle & IO
         end % calculateInitialFluxDistributionRandom
 
         function [flux, rhs, err] = calculateInitialFluxDistributionHitAndRun(obj, options)
-            % CALCULATEINITIALFLUXDISTRIBUTIONHITANDRUN (Chord sampling version)
-            % - Find TWO feasible points by LP (FBA-like) with random objective.
-            % - Use the line (chord) through them as the sampling direction.
-            % - Sample uniformly along the feasible segment of that chord.
+            % CALCULATEINITIALFLUXDISTRIBUTIONHITANDRUN
+            % Standard Hit-and-Run in z-space.
+            %
+            % v = vBase + B*x
+            % x = x0 + N*z
+            % v = v0 + G*z
 
             arguments
                 obj (1, 1) FluxAnalysis
                 options.iterationRate (1, 1) double = 100
-                options.numChord (1, 1) double = 2000 % number of chords to try
-                options.samplePerChord (1, 1) double = 1 % samples generated per chord
+                options.burnin (1, 1) double = 2000
+                options.thinning (1, 1) double = 10
+                options.maxStep (1, 1) double = 1e7
                 options.maxTime (1, 1) double = 3600
                 options.seed (1, 1) double = 0
                 options.epsFeas (1, 1) double = 1e-8
-                options.maxLPTrials (1, 1) double = 30 % LP retries to get 2 distinct points
-                options.minChordNorm (1, 1) double = 1e-9 % avoid identical points
+                options.epsEq (1, 1) double = 1e-9
+                options.minDirectionNorm (1, 1) double = 1e-12
+                options.maxInvalidRange (1, 1) double = 100000
+                options.maxZeroWidth (1, 1) double = 100000
             end
 
             err = false;
+            flux = [];
+            rhs = [];
 
             if options.seed ~= 0
                 rng(options.seed);
@@ -799,337 +826,497 @@ classdef FluxAnalysis < handle & IO
             iteration = obj.config.iteration;
             numReq = iteration * options.iterationRate;
 
-            % Matrices / bounds
-            S = obj.model.getS(); % table
-            A = table2array(S); % numeric
+            S = obj.model.getS();
+            A = table2array(S);
+
             tmpUB = obj.UB;
             tmpLB = obj.LB;
             tmpRhs = obj.rhs;
 
-            % --- Determine independent reactions count (robust) ---
             tmpSType = obj.model.getSType();
             rxnName = string(S.Properties.VariableNames);
             rowName = string(S.Properties.RowNames);
 
             if numel(tmpSType) == numel(rxnName)
-                maskIndCol = (string(tmpSType(:)) == "independent");
+                maskIndCol = string(tmpSType(:)) == "independent";
             elseif numel(tmpSType) == numel(rowName)
                 rxnNameIndependent = rowName(string(tmpSType(:)) == "independent");
                 maskIndCol = ismember(rxnName, rxnNameIndependent);
             else
                 notifyGeneralMessage(obj, "error", ...
-                    "Chord sampling: getSType size mismatch. Cannot determine independent reactions.", dbstack());
-                err = true; flux = []; rhs = []; return;
+                    "Hit-and-Run: getSType size mismatch. Cannot determine independent reactions.", dbstack());
+                err = true;
+                return;
             end
 
             numInd = sum(maskIndCol);
-
-            if numInd <= 0
-                notifyGeneralMessage(obj, "error", ...
-                    "Chord sampling: independent reactions are zero. Check getSType mapping / IDs.", dbstack());
-                err = true; flux = []; rhs = []; return;
-            end
-
             nRhs = size(A, 2);
 
-            if nRhs < numInd
+            if numInd <= 0 || nRhs < numInd
                 notifyGeneralMessage(obj, "error", ...
-                    "Chord sampling: rhs dimension < #independent variables.", dbstack());
-                err = true; flux = []; rhs = []; return;
+                    "Hit-and-Run: invalid independent variable dimension.", dbstack());
+                err = true;
+                return;
             end
 
-            % independent part in rhs tail (your convention)
             indIdx = (nRhs - numInd + 1:nRhs)';
 
-            % mask for fmincon pipeline (rhs indices)
             obj.maskIndependent = false(nRhs, 1);
             obj.maskIndependent(indIdx) = true;
+            obj.maskRxnForBoundary = maskIndCol;
 
-            % --- Precompute affine map v(x) = v_base + B*x ---
-            rhs_fixed = tmpRhs;
-            rhs_fixed(indIdx) = 0;
+            rhsFixed = tmpRhs;
+            rhsFixed(indIdx) = 0;
 
-            v_base = A \ rhs_fixed;
+            vBase = A \ rhsFixed;
 
             E = zeros(nRhs, numInd);
             E(sub2ind([nRhs, numInd], indIdx, (1:numInd)')) = 1;
             B = A \ E;
 
-            % --- Sampling ---
-            flux = nan(nRhs, 0);
-            rhs = nan(nRhs, 0);
+            scaleFlux = max(1, max(abs([tmpUB; tmpLB])));
+            tolEq = max(options.epsEq, 1e-6 * scaleFlux);
 
-            saved = 0;
-            chordTried = 0;
+            maskEqFlux = abs(tmpUB - tmpLB) <= tolEq;
 
-            tStart = tic;
-
-            notifyGeneralMessage(obj, "info", ...
-                "Chord sampling: start (target=" + string(numReq) + ").", dbstack());
-
-            while (toc(tStart) <= options.maxTime) && ~obj.isCanceled && (saved < numReq)
-
-                chordTried = chordTried + 1;
-
-                if chordTried > options.numChord
-                    break;
-                end
-
-                % 1) Find two feasible points (x1, x2) by LP with random objective
-                [x1, x2, ok2, lpMsg] = obj.findTwoFeasibleXLP(tmpLB, tmpUB, v_base, B, ...
-                    maxTrials = options.maxLPTrials, ...
-                    minChordNorm = options.minChordNorm);
-
-                if ~ok2
-                    % could not get 2 points; continue trying
-                    if mod(chordTried, 50) == 0
-                        notifyGeneralMessage(obj, "warning", ...
-                            "Chord sampling: failed to find 2 feasible points (" + lpMsg + "), tried=" + string(chordTried), dbstack());
-                    end
-
-                    continue;
-                end
-
-                % 2) Use the chord direction
-                d = x2 - x1;
-                nd = norm(d);
-
-                if nd < options.minChordNorm
-                    continue;
-                end
-
-                d = d / nd;
-
-                % 3) Find feasible segment on this chord using x = x1 + t d
-                [tmin, tmax, okRange] = obj.localStepRange(tmpLB, tmpUB, v_base, B, x1, d);
-
-                if ~okRange || ~(tmax > tmin)
-                    continue;
-                end
-
-                % 4) Sample along the segment
-                for k = 1:options.samplePerChord
-
-                    if saved >= numReq || obj.isCanceled
-                        break;
-                    end
-
-                    t = tmin + (tmax - tmin) * rand();
-                    x = x1 + t * d;
-
-                    v = v_base + B * x;
-
-                    if ~all(v >= tmpLB - options.epsFeas & v <= tmpUB + options.epsFeas)
-                        % numerical safety
-                        continue;
-                    end
-
-                    iRhs = tmpRhs;
-                    iRhs(indIdx) = x;
-
-                    rhs = [rhs, iRhs]; %#ok<AGROW>
-                    flux = [flux, v]; %#ok<AGROW>
-
-                    saved = saved + 1;
-
-                    if saved == 1 || mod(saved, 10) == 0
-                        tStop = toc(tStart);
-                        notifyGeneralMessage(obj, "info", ...
-                            "Chord sampling: saved " + string(saved) + "/" + string(numReq) + ...
-                            " (chords=" + string(chordTried) + ", elapsed=" + string(seconds(tStop), "hh:mm:ss") + ")", dbstack());
-                    end
-
-                end
-
-            end
-
-            if obj.isCanceled
-                notifyGeneralMessage(obj, "info", "Chord sampling: canceled.", dbstack());
-                err = true;
-                return;
-            end
-
-            if saved == 0
-                notifyGeneralMessage(obj, "error", ...
-                    "Chord sampling: no samples were generated. (Maybe infeasible region or LP failed repeatedly)", dbstack());
-                err = true;
-                return;
-            end
-
-        end
-
-        function [x1, x2, ok, msg] = findTwoFeasibleXLP(obj, LB, UB, v_base, B, options)
-            % FINDTWOFEASIBLEXLP
-            % Find two distinct feasible points by solving two LPs with random objectives.
-            %
-            % Feasible set: LB <= v_base + Bx <= UB
-
-            arguments
-                obj
-                LB (:, 1) double
-                UB (:, 1) double
-                v_base (:, 1) double
-                B double
-                options.maxTrials (1, 1) double = 30
-                options.minChordNorm (1, 1) double = 1e-9
-            end
-
-            x1 = [];
-            x2 = [];
-            ok = false;
-            msg = "";
-
-            % Build inequalities:  Bx <= UB - v_base,  -Bx <= -(LB - v_base)
-            b1 = UB - v_base;
-            b2 =- (LB - v_base);
+            Aeq = B(maskEqFlux, :);
+            beq = tmpLB(maskEqFlux) - vBase(maskEqFlux);
 
             Aineq = [B; -B];
-            bineq = [b1; b2];
-
-            n = size(B, 2);
+            bineq = [tmpUB - vBase; - (tmpLB - vBase)];
 
             opts = optimoptions(@linprog, ...
                 "Display", "off", ...
                 "Algorithm", "dual-simplex-highs");
 
-            % Try multiple times to get two distinct solutions
-            for trial = 1:options.maxTrials
-
-                % random objective
-                f = randn(n, 1);
-
-                % LP1
-                [xA, okA, msgA] = obj.solveLPFeasible(Aineq, bineq, f, opts);
-
-                if ~okA
-                    msg = msgA;
-                    continue;
-                end
-
-                % another random objective
-                g = randn(n, 1);
-
-                % LP2
-                [xB, okB, msgB] = obj.solveLPFeasible(Aineq, bineq, g, opts);
-
-                if ~okB
-                    msg = msgB;
-                    continue;
-                end
-
-                if norm(xB - xA) >= options.minChordNorm
-                    x1 = xA;
-                    x2 = xB;
-                    ok = true;
-                    msg = "";
-                    return;
-                end
-
-                msg = "LP returned nearly identical points.";
+            try
+                [x0, ~, exitflag] = linprog( ...
+                    zeros(numInd, 1), ...
+                    Aineq, ...
+                    bineq, ...
+                    Aeq, ...
+                    beq, ...
+                    [], ...
+                    [], ...
+                    opts ...
+                );
+            catch ME
+                notifyGeneralMessage(obj, "error", ...
+                    "Hit-and-Run: failed to solve initial LP. " + string(ME.message), dbstack());
+                err = true;
+                return;
             end
 
-            if msg == ""
-                msg = "Failed to find two distinct feasible points.";
+            if exitflag ~= 1 || isempty(x0)
+                notifyGeneralMessage(obj, "error", ...
+                    "Hit-and-Run: no feasible initial point was found. exitflag=" + string(exitflag), dbstack());
+                err = true;
+                return;
+            end
+
+            v0 = vBase + B * x0;
+
+            if ~all(v0 >= tmpLB - options.epsFeas & v0 <= tmpUB + options.epsFeas)
+                notifyGeneralMessage(obj, "error", ...
+                    "Hit-and-Run: initial point is infeasible.", dbstack());
+                err = true;
+                return;
+            end
+
+            if isempty(Aeq)
+                N = eye(numInd);
+            else
+                N = null(Aeq, "r");
+            end
+
+            dimZ = size(N, 2);
+
+            notifyGeneralMessage(obj, "info", ...
+                "Hit-and-Run: z-space dimension=" + string(dimZ) + ...
+                "/" + string(numInd) + ...
+                ", equality flux count=" + string(sum(maskEqFlux)) + ...
+                ", initial min(v-LB)=" + string(min(v0 - tmpLB)) + ...
+                ", initial min(UB-v)=" + string(min(tmpUB - v0)) + ".", dbstack());
+
+            flux = nan(nRhs, 0);
+            rhs = nan(nRhs, 0);
+
+            if dimZ == 0
+                notifyGeneralMessage(obj, "warning", ...
+                    "Hit-and-Run: z-space dimension is zero. Reusing the feasible point.", dbstack());
+
+                for i = 1:numReq
+                    iRhs = tmpRhs;
+                    iRhs(indIdx) = x0;
+
+                    rhs = [rhs, iRhs]; %#ok<AGROW>
+                    flux = [flux, v0]; %#ok<AGROW>
+                end
+
+                return;
+            end
+
+            G = B * N;
+
+            [z, okZ, msgZ] = obj.findInitialZHitAndRun(tmpLB, tmpUB, v0, G, ...
+                epsFeas = options.epsFeas, ...
+                epsEq = tolEq, ...
+                minMargin = 1e-10);
+
+            if ~okZ
+                notifyGeneralMessage(obj, "error", ...
+                    "Hit-and-Run: failed to find initial z. " + msgZ, dbstack());
+                err = true;
+                return;
+            end
+
+            vZ = v0 + G * z;
+
+            notifyGeneralMessage(obj, "info", ...
+                "Hit-and-Run: initial z found. min(v-LB)=" + string(min(vZ - tmpLB)) + ...
+                ", min(UB-v)=" + string(min(tmpUB - vZ)) + ".", dbstack());
+
+            saved = 0;
+            step = 0;
+            invalidRangeStreak = 0;
+            zeroWidthStreak = 0;
+
+            tStart = tic;
+
+            notifyGeneralMessage(obj, "info", ...
+                "Hit-and-Run: start in z-space (target=" + string(numReq) + ").", dbstack());
+
+            while toc(tStart) <= options.maxTime && ~obj.isCanceled && saved < numReq
+
+                step = step + 1;
+
+                if step > options.maxStep
+                    break;
+                end
+
+                d = randn(dimZ, 1);
+                nd = norm(d);
+
+                if nd < options.minDirectionNorm
+                    continue;
+                end
+
+                d = d / nd;
+
+                [tmin, tmax, okRange] = obj.localStepRangeZ(tmpLB, tmpUB, v0, G, z, d, ...
+                    epsFeas = options.epsFeas);
+
+                if ~okRange || ~isfinite(tmin) || ~isfinite(tmax)
+                    invalidRangeStreak = invalidRangeStreak + 1;
+
+                    if invalidRangeStreak == 1 || mod(invalidRangeStreak, 10000) == 0
+                        vc = v0 + G * z;
+                        notifyGeneralMessage(obj, "warning", ...
+                            "Hit-and-Run: invalid range. streak=" + string(invalidRangeStreak) + ...
+                            ", step=" + string(step) + ...
+                            ", min(v-LB)=" + string(min(vc - tmpLB)) + ...
+                            ", min(UB-v)=" + string(min(tmpUB - vc)) + ".", dbstack());
+                    end
+
+                    if invalidRangeStreak >= options.maxInvalidRange
+                        notifyGeneralMessage(obj, "error", ...
+                            "Hit-and-Run: too many invalid ranges.", dbstack());
+                        err = true;
+                        return;
+                    end
+
+                    continue;
+                end
+
+                if tmax <= tmin
+                    zeroWidthStreak = zeroWidthStreak + 1;
+
+                    if zeroWidthStreak == 1 || mod(zeroWidthStreak, 10000) == 0
+                        vc = v0 + G * z;
+                        notifyGeneralMessage(obj, "warning", ...
+                            "Hit-and-Run: zero-width range. streak=" + string(zeroWidthStreak) + ...
+                            ", step=" + string(step) + ...
+                            ", min(v-LB)=" + string(min(vc - tmpLB)) + ...
+                            ", min(UB-v)=" + string(min(tmpUB - vc)) + ".", dbstack());
+                    end
+
+                    if zeroWidthStreak >= options.maxZeroWidth
+                        notifyGeneralMessage(obj, "error", ...
+                            "Hit-and-Run: too many zero-width ranges. Feasible region may be lower-dimensional than z-space.", dbstack());
+                        err = true;
+                        return;
+                    end
+
+                    continue;
+                end
+
+                invalidRangeStreak = 0;
+                zeroWidthStreak = 0;
+
+                t = tmin + (tmax - tmin) * rand();
+                z = z + t * d;
+
+                if step <= options.burnin
+                    continue;
+                end
+
+                if mod(step - options.burnin, options.thinning) ~= 0
+                    continue;
+                end
+
+                x = x0 + N * z;
+                v = vBase + B * x;
+
+                if ~all(v >= tmpLB - options.epsFeas & v <= tmpUB + options.epsFeas)
+                    continue;
+                end
+
+                iRhs = tmpRhs;
+                iRhs(indIdx) = x;
+
+                rhs = [rhs, iRhs]; %#ok<AGROW>
+                flux = [flux, v]; %#ok<AGROW>
+
+                saved = saved + 1;
+
+                if saved == 1 || mod(saved, 10) == 0
+                    tStop = toc(tStart);
+                    notifyGeneralMessage(obj, "info", ...
+                        "Hit-and-Run: saved " + string(saved) + "/" + string(numReq) + ...
+                        " (step=" + string(step) + ...
+                        ", elapsed=" + string(seconds(tStop), "hh:mm:ss") + ")", dbstack());
+                end
+
+            end
+
+            if obj.isCanceled
+                notifyGeneralMessage(obj, "info", "Hit-and-Run: canceled.", dbstack());
+                err = true;
+                return;
+            end
+
+            if saved < iteration
+                notifyGeneralMessage(obj, "error", ...
+                    "Hit-and-Run: insufficient samples. Required at least " + ...
+                    string(iteration) + ", but generated " + string(saved) + ".", dbstack());
+                err = true;
+                return;
+            end
+
+            if saved < numReq
+                notifyGeneralMessage(obj, "warning", ...
+                    "Hit-and-Run: generated fewer samples than target. Target=" + ...
+                    string(numReq) + ", generated=" + string(saved) + ".", dbstack());
             end
 
         end
 
-        function [x, ok, msg] = solveLPFeasible(~, Aineq, bineq, f, opts)
-            % SOLVELPFEASIBLE Solve LP: minimize f'*x subject to Aineq x <= bineq
+        function [z, ok, msg] = findInitialZHitAndRun(obj, LB, UB, v0, G, options)
+
+            arguments
+                obj (1, 1) FluxAnalysis
+                LB (:, 1) double
+                UB (:, 1) double
+                v0 (:, 1) double
+                G (:, :) double
+                options.epsFeas (1, 1) double = 1e-8
+                options.epsEq (1, 1) double = 1e-8
+                options.minMargin (1, 1) double = 1e-10
+            end
 
             ok = false;
             msg = "";
-            x = [];
+            z = [];
 
-            try
-                [xsol, ~, exitflag] = linprog(f, Aineq, bineq, [], [], [], [], opts);
-            catch ME
-                msg = "LP exception: " + string(ME.message);
+            dimZ = size(G, 2);
+            scaleFlux = max(1, max(abs([LB; UB])));
+            tolEq = max(options.epsEq, 1e-8 * scaleFlux);
+
+            maskMove = abs(UB - LB) > tolEq;
+
+            Gm = G(maskMove, :);
+            LBm = LB(maskMove);
+            UBm = UB(maskMove);
+            v0m = v0(maskMove);
+
+            if isempty(Gm)
+                z = zeros(dimZ, 1);
+                ok = true;
+                msg = "No movable flux constraints.";
                 return;
             end
 
-            if exitflag == 1 && ~isempty(xsol)
-                x = xsol;
+            numMove = size(Gm, 1);
+
+            Aineq = [
+                     Gm, ones(numMove, 1)
+                     -Gm, ones(numMove, 1)
+                     ];
+
+            bineq = [
+                     UBm - v0m
+                     - (LBm - v0m)
+                     ];
+
+            f = [zeros(dimZ, 1); -1];
+
+            lb = [-inf(dimZ, 1); 0];
+            ub = [inf(dimZ, 1); inf];
+
+            opts = optimoptions(@linprog, ...
+                "Display", "off", ...
+                "Algorithm", "dual-simplex-highs");
+
+            try
+                [zr, ~, exitflag] = linprog(f, Aineq, bineq, [], [], lb, ub, opts);
+            catch ME
+                msg = "Initial z LP exception: " + string(ME.message);
+                return;
+            end
+
+            if exitflag ~= 1 || isempty(zr)
+                msg = "Initial z LP failed. exitflag=" + string(exitflag);
+                return;
+            end
+
+            z = zr(1:dimZ);
+            r = zr(end);
+
+            vz = v0 + G * z;
+
+            if ~all(vz >= LB - options.epsFeas & vz <= UB + options.epsFeas)
+                msg = "Initial z is infeasible.";
+                z = [];
+                return;
+            end
+
+            if r <= options.minMargin
+                msg = "Initial z found on boundary. r=" + string(r);
                 ok = true;
                 return;
             end
 
-            msg = "LP failed (exitflag=" + string(exitflag) + ").";
+            msg = "Initial z found. r=" + string(r) + ...
+                ", movable constraint count=" + string(numMove);
+            ok = true;
         end
 
-        function [tmin, tmax, ok] = localStepRange(~, LB, UB, v_base, B, x, d)
-            % LOCALSTEPRANGE
-            % Compute feasible step range t for:
-            %   LB <= v_base + B*(x + t*d) <= UB
-            %
-            % Inputs
-            %   LB, UB : (nFlux x 1) bounds
-            %   v_base : base flux (A \ rhs_fixed)
-            %   B      : direction mapping matrix
-            %   x      : current point in independent space
-            %   d      : direction (unit vector, independent space)
-            %
-            % Outputs
-            %   tmin, tmax : feasible interval
-            %   ok         : true if feasible interval exists
+        function [tmin, tmax, ok] = localStepRangeZ(~, LB, UB, v0, G, z, d, options)
+            % LOCALSTEPRANGEZ
+            % Compute feasible t range in z-space:
+            %   LB <= v0 + G*(z + t*d) <= UB
+
+            arguments
+                ~
+                LB (:, 1) double
+                UB (:, 1) double
+                v0 (:, 1) double
+                G (:, :) double
+                z (:, 1) double
+                d (:, 1) double
+                options.epsA (1, 1) double = 1e-12
+                options.epsFeas (1, 1) double = 1e-8
+                options.epsWidth (1, 1) double = 1e-12
+            end
 
             ok = true;
 
-            % Current flux
-            v0 = v_base + B * x;
+            vc = v0 + G * z;
+            a = G * d;
 
-            % Direction in flux space
-            a = B * d;
+            tmin = -inf;
+            tmax = inf;
 
-            epsA = 1e-12;
-            epsFeas = 1e-10;
+            for i = 1:numel(vc)
 
-            % Components where direction is ~0
-            maskZero = abs(a) < epsA;
+                if abs(a(i)) <= options.epsA
 
-            % If stationary components violate bounds → infeasible
-            if any(v0(maskZero) < LB(maskZero) - epsFeas | ...
-                    v0(maskZero) > UB(maskZero) + epsFeas)
+                    if vc(i) < LB(i) - options.epsFeas || vc(i) > UB(i) + options.epsFeas
+                        ok = false;
+                        tmin = NaN;
+                        tmax = NaN;
+                        return;
+                    end
+
+                    continue;
+                end
+
+                t1 = (LB(i) - vc(i)) / a(i);
+                t2 = (UB(i) - vc(i)) / a(i);
+
+                lo = min(t1, t2);
+                hi = max(t1, t2);
+
+                tmin = max(tmin, lo);
+                tmax = min(tmax, hi);
+
+                if tmax < tmin - options.epsWidth
+                    ok = false;
+                    tmin = NaN;
+                    tmax = NaN;
+                    return;
+                end
+
+            end
+
+            if ~isfinite(tmin) || ~isfinite(tmax)
                 ok = false;
                 tmin = NaN;
                 tmax = NaN;
                 return;
             end
 
-            % Components that move with t
-            mask = ~maskZero;
+        end
 
-            if ~any(mask)
-                % Direction does not change flux → infinite step
-                tmin = -inf;
-                tmax = +inf;
-                return;
+        function [maskZeroRangeFlux, msg] = findZeroRangeFluxZ(~, LB, UB, v0, G, options)
+
+            arguments
+                ~
+                LB (:, 1) double
+                UB (:, 1) double
+                v0 (:, 1) double
+                G (:, :) double
+                options.epsRange (1, 1) double = 1e-8
             end
 
-            a2 = a(mask);
-            v02 = v0(mask);
-            LB2 = LB(mask);
-            UB2 = UB(mask);
+            numFlux = size(G, 1);
+            dimZ = size(G, 2);
 
-            % Solve inequalities
-            %   LB <= v02 + t*a2 <= UB
-            t1 = (LB2 - v02) ./ a2;
-            t2 = (UB2 - v02) ./ a2;
+            maskZeroRangeFlux = false(numFlux, 1);
 
-            lo = min(t1, t2);
-            hi = max(t1, t2);
+            Aineq = [G; -G];
+            bineq = [UB - v0; - (LB - v0)];
 
-            if any(isnan(lo)) || any(isnan(hi))
-                ok = false;
-                tmin = NaN;
-                tmax = NaN;
-                return;
+            opts = optimoptions(@linprog, ...
+                "Display", "off", ...
+                "Algorithm", "dual-simplex-highs");
+
+            for i = 1:numFlux
+                c = G(i, :)';
+
+                if norm(c) <= 1e-12
+                    maskZeroRangeFlux(i) = true;
+                    continue;
+                end
+
+                [~, fMin, exitMin] = linprog(c, Aineq, bineq, [], [], [], [], opts);
+                [~, fMaxNeg, exitMax] = linprog(-c, Aineq, bineq, [], [], [], [], opts);
+
+                if exitMin ~= 1 || exitMax ~= 1
+                    continue;
+                end
+
+                fMax = -fMaxNeg;
+
+                if abs(fMax - fMin) <= options.epsRange
+                    maskZeroRangeFlux(i) = true;
+                end
+
             end
 
-            tmin = max(lo);
-            tmax = min(hi);
-
-            ok = (tmax > tmin);
+            msg = "zero-range flux count=" + string(sum(maskZeroRangeFlux)) + ...
+                "/" + string(numFlux) + ...
+                ", dimZ=" + string(dimZ);
         end
 
         function [LB, UB, output] = calculateNextLabelPattern(obj, pattern)
@@ -3160,14 +3347,31 @@ classdef FluxAnalysis < handle & IO
 
         end % function isValidateMDV
 
-        function setINSTMFA(obj)
+        function [err, msg] = setINSTMFA(obj)
+
+            err = false;
+            msg = "";
 
             config = obj.config; %#ok<PROP>
 
             obj.isInstationary = config.isINSTMFA; %#ok<PROP>
-            poolSize = config.INSTMFA.poolSize; %#ok<PROP>
-            obj.poolsize = poolSize;
-            obj.timePoints = config.INSTMFA.timePoints; %#ok<PROP>
+            obj.poolsize = double(config.INSTMFA.poolSize(:)); %#ok<PROP>;
+            obj.timePoints = double(config.INSTMFA.timePoints(:)); %#ok<PROP>
+
+            if size(obj.poolsize, 1) < 2
+                msg = "At least two time points are required for instationary 13C-MFA.";
+                notifyGeneralMessage(obj, "error", msg, dbstack());
+                err = true;
+                return;
+            end % if
+
+            % NaN check
+            if any(isnan(obj.poolsize)) || any(isnan(obj.timePoints))
+                msg = "Pool sizes and time points must not contain NaN values.";
+                notifyGeneralMessage(obj, "error", msg, dbstack());
+                err = true;
+                return;
+            end % if
 
         end % function setINSTMFA
 
