@@ -268,7 +268,16 @@ classdef FluxAnalysis < handle & IO
                     [fval, estimatedFlux, estimatedMDV, exitflag, ~] = ...
                         calculateNonLinearOptimization(obj, obj.MDVExpFmincon);
                 else
-                    obj.setINSTMFA();
+
+                    [err, msg] = obj.setINSTMFA();
+                    msg = "Instationary 13C-MFA: " + msg;
+
+                    if err
+                        notifyGeneralMessage(obj, "error", msg, dbstack());
+                        obj.isError = true;
+                        return;
+                    end
+
                     [fval, estimatedFlux, estimatedMDV, exitflag, ~] = ...
                         calculateNonLinearOptimizationInstationary(obj, obj.MDVExpFmincon);
                 end
@@ -3338,14 +3347,31 @@ classdef FluxAnalysis < handle & IO
 
         end % function isValidateMDV
 
-        function setINSTMFA(obj)
+        function [err, msg] = setINSTMFA(obj)
+
+            err = false;
+            msg = "";
 
             config = obj.config; %#ok<PROP>
 
             obj.isInstationary = config.isINSTMFA; %#ok<PROP>
-            poolSize = config.INSTMFA.poolSize; %#ok<PROP>
-            obj.poolsize = poolSize;
-            obj.timePoints = config.INSTMFA.timePoints; %#ok<PROP>
+            obj.poolsize = double(config.INSTMFA.poolSize(:)); %#ok<PROP>;
+            obj.timePoints = double(config.INSTMFA.timePoints(:)); %#ok<PROP>
+
+            if size(obj.poolsize, 1) < 2
+                msg = "At least two time points are required for instationary 13C-MFA.";
+                notifyGeneralMessage(obj, "error", msg, dbstack());
+                err = true;
+                return;
+            end % if
+
+            % NaN check
+            if any(isnan(obj.poolsize)) || any(isnan(obj.timePoints))
+                msg = "Pool sizes and time points must not contain NaN values.";
+                notifyGeneralMessage(obj, "error", msg, dbstack());
+                err = true;
+                return;
+            end % if
 
         end % function setINSTMFA
 
