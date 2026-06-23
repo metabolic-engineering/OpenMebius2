@@ -43,6 +43,8 @@ classdef FluxAnalysis < handle & IO
         efflux = []
         effluxSD = []
         effluxFree = []
+        effluxFreeRxnID = string([])
+        effluxFreeOriginalIndependent = logical([])
 
         % Flux bounds
         UB = []
@@ -174,6 +176,8 @@ classdef FluxAnalysis < handle & IO
                 obj.isError = true;
                 return;
             end % if
+
+            cleanupEffluxFreeModel = onCleanup(@() restoreEffluxFreeModel(obj)); %#ok<NASGU>
 
             calculateLinearizedMDV(obj);
 
@@ -418,6 +422,25 @@ classdef FluxAnalysis < handle & IO
             maskRev = ~cellfun(@isempty, idxRev);
             SBefore{:, maskRev} = 0;
 
+            Aeq = table2array(SBefore);
+            beq = tmpRhs;
+
+            % Efflux-free reactions must not be fixed during FVA.  In some
+            % model states the efflux rows can still remain in SBefore even
+            % after the corresponding reactions have been promoted to
+            % independent variables; remove those equality constraints
+            % explicitly for the FVA LPs.
+            maskEffluxFreeRows = getEffluxFreeConstraintRowMask(obj, SBefore);
+
+            if any(maskEffluxFreeRows)
+                Aeq(maskEffluxFreeRows, :) = [];
+                beq(maskEffluxFreeRows) = [];
+
+                msg = "FVA will not fix efflux-free reactions: " + ...
+                    strjoin(string(SBefore.Properties.RowNames(maskEffluxFreeRows)), ", ") + ".";
+                notifyGeneralMessage(obj, "info", msg, dbstack());
+            end
+
             % Define the optimization problem
             options_lp = optimoptions( ...
                 @linprog, ...
@@ -434,8 +457,8 @@ classdef FluxAnalysis < handle & IO
                     iObj, ...
                     [], ...
                     [], ...
-                    table2array(SBefore), ...
-                    tmpRhs, ...
+                    Aeq, ...
+                    beq, ...
                     fluxLB, ...
                     fluxUB, ...
                     options_lp ...
@@ -471,8 +494,8 @@ classdef FluxAnalysis < handle & IO
                     -iObj, ...
                     [], ...
                     [], ...
-                    table2array(SBefore), ...
-                    tmpRhs, ...
+                    Aeq, ...
+                    beq, ...
                     fluxLB, ...
                     fluxUB, ...
                     options_lp ...
@@ -684,6 +707,46 @@ classdef FluxAnalysis < handle & IO
 
     methods (Access = private)
 
+        function maskEffluxFreeRows = getEffluxFreeConstraintRowMask(obj, SBefore)
+            % GETEFFLUXFREECONSTRAINTROWMASK Return efflux rows excluded from FVA.
+            %
+            % Efflux-free reactions are fitted through the objective function
+            % using their experimental values and standard deviations.  They
+            % must therefore not be fixed as equality constraints during FVA.
+
+            arguments
+                obj (1, 1) FluxAnalysis
+                SBefore table
+            end % arguments
+
+            nRow = size(SBefore, 1);
+            maskEffluxFreeRows = false(nRow, 1);
+
+            if isempty(obj.effluxFree) || ~any(obj.effluxFree)
+                return;
+            end % if
+
+            SType = string(obj.model.getSType());
+            rowName = string(SBefore.Properties.RowNames);
+            nType = min([nRow, length(SType)]);
+
+            idxEffluxRows = find(SType(1:nType) == "efflux");
+            freeSubstrate = obj.subsList(logical(obj.effluxFree(:)));
+
+            for i = 1:length(idxEffluxRows)
+
+                iRow = idxEffluxRows(i);
+                iRxnID = rowName(iRow);
+                iSubstrate = obj.model.getSubstrateNameFromRxnID(iRxnID);
+
+                if any(freeSubstrate == iSubstrate)
+                    maskEffluxFreeRows(iRow) = true;
+                end % if
+
+            end % for
+
+        end % getEffluxFreeConstraintRowMask
+
         function rhs = calculateRHS(obj)
             % CALCULATERHS Calculate the right-hand side.
             %
@@ -696,14 +759,34 @@ classdef FluxAnalysis < handle & IO
             end % arguments
 
             tmpS = obj.model.getSBefore();
-            RxnName = tmpS.Properties.RowNames;
-            SType = obj.model.getSType();
+            RxnName = string(tmpS.Properties.RowNames);
+            SType = string(obj.model.getSType());
 
-            idxBiomass = find(strcmp(RxnName, "biomass"), 1);
+            idxBiomass = find(RxnName == "biomass", 1);
 
             tmpRhs = zeros(size(tmpS, 2), 1);
             tmpRhs(idxBiomass) = obj.mu;
-            tmpRhs(strcmp(SType, "efflux")) = obj.efflux;
+
+            % Fixed effluxes are written to the RHS by matching the
+            % efflux-row reaction ID to the substrate name. Effluxes selected
+            % as free variables are removed from the efflux rows by
+            % makeEffluxFree and are therefore left as independent variables.
+            idxEffluxRows = find(SType(1:length(RxnName)) == "efflux");
+
+            for i = 1:length(idxEffluxRows)
+
+                iRow = idxEffluxRows(i);
+                iRxnID = RxnName(iRow);
+                iSubstrate = obj.model.getSubstrateNameFromRxnID(iRxnID);
+                idxSubstrate = find(obj.subsList == iSubstrate, 1);
+
+                if isempty(idxSubstrate)
+                    continue;
+                end
+
+                tmpRhs(iRow) = obj.efflux(idxSubstrate);
+
+            end
 
             obj.rhs = tmpRhs;
             rhs = obj.rhs;
@@ -1429,7 +1512,7 @@ classdef FluxAnalysis < handle & IO
                 % Calculate the RSS
                 iRSS = ((iMDV(obj.MDVFragMask) - MDVExpTemp(obj.MDVFragMask)) / ...
                     0.01) .^ 2;
-                RSS(i) = sum(iRSS, 1);
+                RSS(i) = sum(iRSS, 1) + calculateEffluxRSS(obj, fluxes(:, i));
 
             end % for
 
@@ -1664,6 +1747,8 @@ classdef FluxAnalysis < handle & IO
 
             end % for
 
+            SSR = SSR + calculateEffluxRSS(obj, tmpFlux);
+
         end % calculateObjectiveFunction
 
         function SSR = calculateObjectiveFunctionInstationary( ...
@@ -1710,6 +1795,7 @@ classdef FluxAnalysis < handle & IO
 
             SSR = ((MDVExp(MDVMask) - MDVExpTemp(MDVMask)) / 0.01) .^ 2; %#ok<PROPLC>
             SSR = sum(SSR, 1);
+            SSR = SSR + calculateEffluxRSS(obj, tmpFlux);
 
         end % calculateObjectiveFunctionInstationary
 
@@ -1739,6 +1825,48 @@ classdef FluxAnalysis < handle & IO
             ceq = [];
 
         end % calculateConstraints
+
+        function RSS = calculateEffluxRSS(obj, flux)
+            % CALCULATEEFFLUXRSS Calculate the RSS contribution of free effluxes.
+
+            arguments
+                obj (1, 1) FluxAnalysis
+                flux (:, :) double
+            end
+
+            numFlux = size(flux, 2);
+            RSS = zeros(1, numFlux);
+
+            if isempty(obj.effluxFree) || ~any(obj.effluxFree)
+                return;
+            end
+
+            selectedIdx = find(logical(obj.effluxFree(:)));
+            rxnNames = string(obj.model.getSBefore().Properties.VariableNames);
+            rxnIdx = nan(length(selectedIdx), 1);
+
+            for i = 1:length(selectedIdx)
+
+                iSubstrate = obj.subsList(selectedIdx(i));
+                iRxnID = obj.model.findSubstrateRxnIDFromMetaboliteIrrev(iSubstrate);
+                iRxnIdx = find(rxnNames == iRxnID, 1);
+
+                if isempty(iRxnIdx)
+                    error("Selected efflux reaction was not found in the stoichiometry matrix: %s.", iRxnID);
+                end
+
+                rxnIdx(i) = iRxnIdx;
+
+            end
+
+            effluxExp = obj.efflux(selectedIdx);
+            effluxSDSelected = obj.effluxSD(selectedIdx);
+            effluxSimulated = flux(rxnIdx, :);
+
+            iRSS = ((effluxSimulated - effluxExp) ./ effluxSDSelected) .^ 2;
+            RSS = sum(iRSS, 1);
+
+        end % calculateEffluxRSS
 
         function [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
                 calculateNonLinearOptimization(obj, MDVExpTemp)
@@ -3114,6 +3242,31 @@ classdef FluxAnalysis < handle & IO
 
         end % exportNextLabelPatternCIMC
 
+        function restoreEffluxFreeModel(obj)
+            % RESTOREEFFLUXFREEMODEL Restore reaction independence changed for efflux fitting.
+
+            if isempty(obj.effluxFreeRxnID)
+                return;
+            end
+
+            try
+
+                for i = 1:length(obj.effluxFreeRxnID)
+                    obj.model.setReactionIndependent( ...
+                        obj.effluxFreeRxnID(i), ...
+                        obj.effluxFreeOriginalIndependent(i) ...
+                    );
+                end
+
+                obj.model.buildModel();
+
+            catch ME
+                msg = "Failed to restore efflux free model state: " + string(ME.message);
+                logDisp(dbstack(), msg, "warning");
+            end
+
+        end % restoreEffluxFreeModel
+
         %% Notify functions
         function notifyGeneralMessage(obj, status, msg, dbstack)
             % NOTIFYINITIALFLUXEVENT Notify the initial flux event.
@@ -3165,12 +3318,28 @@ classdef FluxAnalysis < handle & IO
 
             tf = isValidateEfflux(obj);
 
-            tmpS = obj.model.getS();
-            obj.SFmincon = table2array(tmpS);
-
             if ~tf
                 return;
             end % if
+
+            if isfield(obj.config, "perturbateEfflux") && obj.config.perturbateEfflux && any(obj.effluxFree)
+                substrateFree = obj.subsList(logical(obj.effluxFree));
+                obj.effluxFreeRxnID = strings(length(substrateFree), 1);
+                obj.effluxFreeOriginalIndependent = false(length(substrateFree), 1);
+
+                for i = 1:length(substrateFree)
+                    iRxnID = obj.model.findSubstrateRxnIDFromMetaboliteIrrev(substrateFree(i));
+                    obj.effluxFreeRxnID(i) = iRxnID;
+                    obj.effluxFreeOriginalIndependent(i) = obj.model.getReactionIndependent(iRxnID);
+                end
+
+                obj.model.makeEffluxFree(substrateFree');
+                msg = "Efflux reactions were set as free variables: " + strjoin(substrateFree, ", ") + ".";
+                notifyGeneralMessage(obj, "info", msg, dbstack());
+            end
+
+            tmpS = obj.model.getS();
+            obj.SFmincon = table2array(tmpS);
 
         end % validateData
 
