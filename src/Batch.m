@@ -320,31 +320,40 @@ classdef Batch < handle
 
             config = obj.tableBatch.config(idx);
 
-            selection = config.efflux.selection(:);
-            substrates = config.efflux.substrate(:);
-            substrateSD = config.efflux.substrateSD(:);
+            currentSelection = logical(config.efflux.selection(:));
+            currentSubstrate = string(config.efflux.substrate(:));
+            currentSubstrateSD = double(config.efflux.substrateSD(:));
 
-            if length(substrates) ~= length(substrateSD) || length(substrates) ~= length(selection)
-                warning("Length of substrates and substrateSD are not the same.");
-                return
+            nConfig = min([length(currentSubstrate), length(currentSelection), length(currentSubstrateSD)]);
+
+            if nConfig < length(currentSubstrate) || nConfig < length(currentSelection) || nConfig < length(currentSubstrateSD)
+                warning("Length of substrates, selection, and substrateSD are not the same. Extra entries are ignored.");
+                currentSubstrate = currentSubstrate(1:nConfig);
+                currentSelection = currentSelection(1:nConfig);
+                currentSubstrateSD = currentSubstrateSD(1:nConfig);
             end
 
-            substratesModel = obj.model.getMetaboliteTableSubstrate();
-            [~, iaModel, iaConfig] = intersect(substratesModel, substrates);
+            substratesModel = string(obj.model.getMetaboliteTableSubstrate());
 
-            if length(iaModel) > length(iaConfig) || isempty(iaConfig)
+            % Rebuild the UI table on the current model substrate list while
+            % preserving values already stored in the batch configuration.
+            % The previous implementation reset the whole table to false/NaN
+            % whenever a model substrate was missing from config.efflux, which
+            % made saved Selection/SD values appear to be ignored.
+            substrates = sort(substratesModel(:));
+            selectionUpdated = false(length(substrates), 1);
+            substrateSDUpdated = nan(length(substrates), 1);
 
-                substrateAdded = setdiff(substratesModel, substrates);
-                substrates = [substrates; substrateAdded];
-                substrates = sort(substrates);
-                selection = false(length(substrates), 1);
-                substrateSD = nan(length(substrates), 1);
+            [tfConfig, idxConfig] = ismember(substrates, currentSubstrate);
 
+            if any(tfConfig)
+                selectionUpdated(tfConfig) = currentSelection(idxConfig(tfConfig));
+                substrateSDUpdated(tfConfig) = currentSubstrateSD(idxConfig(tfConfig));
             end
 
             tableRtn = table( ...
-                selection, ...
-                substrateSD, ...
+                selectionUpdated, ...
+                substrateSDUpdated, ...
                 'VariableNames', {'Selection', 'SD'}, ...
                 'RowNames', substrates ...
             );
@@ -884,38 +893,44 @@ classdef Batch < handle
                 error("Batch ID not found: %s", ids);
             end
 
-            currentConfig = obj.tableBatch.config(idx(1));
-
-            newSelection = tableEffluxSD.Selection(:);
+            newSelection = logical(tableEffluxSD.Selection(:));
             newSubstrate = string(tableEffluxSD.Properties.RowNames);
-            newSubstrateSD = tableEffluxSD.SD(:);
-            currentSelection = currentConfig.efflux.selection(:);
-            currentSubstrate = currentConfig.efflux.substrate(:);
-            currentSubstrateSD = currentConfig.efflux.substrateSD(:);
+            newSubstrateSD = double(tableEffluxSD.SD(:));
 
-            [~, iaNew, iaCurrent] = intersect(newSubstrate, currentSubstrate);
+            for i = 1:length(idx)
 
-            updatedSelection = currentSelection;
-            updatedSubstrateSD = currentSubstrateSD;
+                currentConfig = obj.tableBatch.config(idx(i));
+                currentSelection = currentConfig.efflux.selection(:);
+                currentSubstrate = string(currentConfig.efflux.substrate(:));
+                currentSubstrateSD = currentConfig.efflux.substrateSD(:);
 
-            updatedSelection(iaCurrent) = newSelection(iaNew);
-            updatedSubstrateSD(iaCurrent) = newSubstrateSD(iaNew);
+                [~, iaNew, iaCurrent] = intersect(newSubstrate, currentSubstrate);
 
-            % Add new substrates
-            substrateToAdd = setdiff(newSubstrate, currentSubstrate);
-            mask = ismember(newSubstrate, substrateToAdd);
-            updatedSelection = [updatedSelection; newSelection(mask)];
-            updatedSubstrateSD = [updatedSubstrateSD; newSubstrateSD(mask)];
-            updatedSubstrate = [currentSubstrate; newSubstrate(mask)];
+                updatedSelection = currentSelection;
+                updatedSubstrateSD = currentSubstrateSD;
 
-            % Sort by substrate name
-            [updatedSubstrate, sortIdx] = sort(updatedSubstrate);
-            updatedSelection = updatedSelection(sortIdx);
-            updatedSubstrateSD = updatedSubstrateSD(sortIdx);
+                updatedSelection(iaCurrent) = newSelection(iaNew);
+                updatedSubstrateSD(iaCurrent) = newSubstrateSD(iaNew);
 
-            obj.tableBatch.config(idx(1)).efflux.selection = updatedSelection;
-            obj.tableBatch.config(idx(1)).efflux.substrate = updatedSubstrate;
-            obj.tableBatch.config(idx(1)).efflux.substrateSD = updatedSubstrateSD;
+                % Add new substrates
+                substrateToAdd = setdiff(newSubstrate, currentSubstrate);
+                mask = ismember(newSubstrate, substrateToAdd);
+                updatedSelection = [updatedSelection; newSelection(mask)];
+                updatedSubstrateSD = [updatedSubstrateSD; newSubstrateSD(mask)];
+                updatedSubstrate = [currentSubstrate; newSubstrate(mask)];
+
+                % Sort by substrate name
+                [updatedSubstrate, sortIdx] = sort(updatedSubstrate);
+                updatedSelection = updatedSelection(sortIdx);
+                updatedSubstrateSD = updatedSubstrateSD(sortIdx);
+
+                obj.tableBatch.config(idx(i)).efflux.selection = updatedSelection;
+                obj.tableBatch.config(idx(i)).efflux.substrate = updatedSubstrate;
+                obj.tableBatch.config(idx(i)).efflux.substrateSD = updatedSubstrateSD;
+
+            end % for i
+
+            updateHash(obj, ids);
 
         end % updateBatchConfigEffluxSD
 
