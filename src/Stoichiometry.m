@@ -99,6 +99,39 @@ classdef Stoichiometry < IOModel
             idx = obj.idxRev;
         end % getIdxRev
 
+        function tf = getReactionIndependent(obj, rxnID)
+            % GETREACTIONINDEPENDENT Return the Independent flag of a reaction.
+
+            arguments
+                obj
+                rxnID (1, 1) string
+            end
+
+            if ~ismember(rxnID, string(obj.modelRxn.Properties.RowNames))
+                error("Reaction ID was not found: %s.", rxnID);
+            end
+
+            tf = obj.modelRxn{rxnID, "Independent"};
+
+        end % getReactionIndependent
+
+        function setReactionIndependent(obj, rxnID, independent)
+            % SETREACTIONINDEPENDENT Set the Independent flag of a reaction.
+
+            arguments
+                obj
+                rxnID (1, 1) string
+                independent (1, 1) logical
+            end
+
+            if ~ismember(rxnID, string(obj.modelRxn.Properties.RowNames))
+                error("Reaction ID was not found: %s.", rxnID);
+            end
+
+            obj.modelRxn{rxnID, "Independent"} = independent;
+
+        end % setReactionIndependent
+
         function dof = getDOF(obj)
             % getDOF Get the degree of freedom
             %

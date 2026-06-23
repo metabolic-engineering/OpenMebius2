@@ -435,6 +435,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 % Enable efflux perturbation components
                 app.EffluxUITable.Enable = 'on';
                 app.EffluxApplyButton.Enable = 'on';
+                app.EffluxApplyAllButton.Enable = 'on';
 
                 [tableEffluxPerturbation, editable] = app.MainApp.batch.getBatchEffluxSDTable(currentID);
 
@@ -453,6 +454,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
                 % Disable efflux perturbation components
                 app.EffluxUITable.Enable = 'off';
+                app.EffluxApplyButton.Enable = 'off';
+                app.EffluxApplyAllButton.Enable = 'off';
 
             end
 
@@ -606,11 +609,19 @@ classdef RunConfig_exported < matlab.apps.AppBase
             config.perturbateEfflux = app.PerturbateEffluxCheckBox.Value;
 
             if config.perturbateEfflux
-                % Update efflux perturbation settings
+                % Update efflux perturbation settings only when the UI table
+                % contains the table data. When the efflux panel has not been
+                % opened yet, UITable.Data can still be the default [] double.
+                % In that case, preserve the existing batch configuration.
                 tableEffluxPerturbation = app.EffluxUITable.Data;
-                config.efflux.selection = tableEffluxPerturbation.Selection;
-                config.efflux.substrate = tableEffluxPerturbation.Properties.RowNames;
-                config.efflux.substrateSD = tableEffluxPerturbation.SD;
+
+                if istable(tableEffluxPerturbation) && ...
+                        all(ismember(["Selection", "SD"], string(tableEffluxPerturbation.Properties.VariableNames)))
+                    config.efflux.selection = logical(tableEffluxPerturbation.Selection(:));
+                    config.efflux.substrate = string(tableEffluxPerturbation.Properties.RowNames(:));
+                    config.efflux.substrateSD = double(tableEffluxPerturbation.SD(:));
+                end
+
             end
 
             % Update the confidence interval calculation settings
@@ -700,6 +711,44 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.MainApp.batch.updateBatchConfigFragment(batchID, data)
 
         end % applyMSFragment
+
+        function applyEffluxPerturbation(app, batchID)
+            % APPLYEFFLUXPERTURBATION Save efflux-free Selection/SD table to batch config.
+
+            arguments
+                app
+                batchID (:, 1) string
+            end
+
+            tableEffluxPerturbation = app.EffluxUITable.Data;
+
+            if isempty(tableEffluxPerturbation)
+                return
+            end
+
+            if ~istable(tableEffluxPerturbation)
+                error("Efflux perturbation table is invalid.");
+            end
+
+            if ~all(ismember(["Selection", "SD"], string(tableEffluxPerturbation.Properties.VariableNames)))
+                error("Efflux perturbation table must contain Selection and SD columns.");
+            end
+
+            tableEffluxPerturbation.Selection = logical(tableEffluxPerturbation.Selection(:));
+            tableEffluxPerturbation.SD = double(tableEffluxPerturbation.SD(:));
+
+            app.MainApp.batch.updateBatchConfigEffluxSD(batchID, tableEffluxPerturbation);
+
+            % The efflux tab has its own Apply button. Therefore the
+            % enable/disable flag must be persisted here as well, not only
+            % when the General tab Apply button is pressed.
+            for i = 1:length(batchID)
+                config = app.MainApp.batch.getBatchConfig(batchID(i));
+                config.perturbateEfflux = app.PerturbateEffluxCheckBox.Value;
+                app.MainApp.batch.updateBatchConfig(batchID(i), config);
+            end % for i
+
+        end % applyEffluxPerturbation
 
         function applyINSTMFA(app)
 
@@ -828,8 +877,23 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end
 
+        % Button pushed function: EffluxApplyButton
+        function EffluxApplyButtonPushed(app, event)
+
+            batch = app.MainApp.batch.getBatchForGUI();
+            batchID = batch.ID;
+            applyEffluxPerturbation(app, batchID(:));
+            app.MainApp.updateBatchTable();
+
+        end
+
         % Button pushed function: EffluxApplyAllButton
         function EffluxApplyAllButtonPushed(app, event)
+
+            batch = app.MainApp.batch.getBatchForGUI();
+            batchID = batch.ID;
+            applyEffluxPerturbation(app, batchID(:));
+            app.MainApp.updateBatchTable();
 
         end
 
@@ -1630,6 +1694,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             % Create EffluxApplyButton
             app.EffluxApplyButton = uibutton(app.GridLayout15, 'push');
+            app.EffluxApplyButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxApplyButtonPushed, true);
             app.EffluxApplyButton.Layout.Row = 1;
             app.EffluxApplyButton.Layout.Column = 3;
             app.EffluxApplyButton.Text = 'Apply';
