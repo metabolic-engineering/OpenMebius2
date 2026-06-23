@@ -328,7 +328,7 @@ classdef IO < handle & Status
 
         end % pasteDataFromClipboard
 
-        function hash = getHashFromFile(~, pathFile, options)
+        function hash = getHashFromFile(obj, pathFile, options)
             % GETHASHFROMFILE Get the hash from the file
             %
             % getHashFromFile(obj, pathFile)
@@ -352,7 +352,7 @@ classdef IO < handle & Status
             % "8b1b6f8b1252e1a29b1a8120aa5fd3f4b6361f378052f9303fab52983a523f6a"
 
             arguments
-                ~;
+                obj;
                 pathFile (1, 1) string;
                 options.Algorithm (1, 1) string {mustBeMember(options.Algorithm, ["SHA256", "SHA1", "MD5"])} = "SHA256";
             end
@@ -363,20 +363,32 @@ classdef IO < handle & Status
                 return
             end
 
-            % Get the hash of the file
-            if ispc
-                cmd = "CertUtil -hashfile " + pathFile + " " + options.Algorithm;
-                [~, hashraw] = system(cmd);
+            data = readBinaryFile(obj, pathFile);
 
-                % Extract the hash from the raw hash
-                hashraw = split(hashraw, newline);
-                hash = hashraw{2};
-                hash = string(hash);
-            else
-                error("The function is not supported on this platform.");
-            end
+            hash = utils.sha256_uint8(data);
 
         end % getHashFromFile
+
+        function data = readBinaryFile(~, filepath)
+            %READBINARYFILE Reads a binary file and returns its contents as a uint8 array.
+            %  data = readBinaryFile(filepath)
+            %
+            %  Input:
+            %   filepath - A string specifying the path to the binary file to be read.
+            %
+            %  Output:
+            %   data - A uint8 array containing the contents of the binary file.
+
+            fid = fopen(filepath, 'rb');
+
+            if fid == -1
+                error('Unable to open file: %s', filepath);
+            end
+
+            cleanupObj = onCleanup(@() fclose(fid));
+
+            data = fread(fid, Inf, '*uint8');
+        end
 
         function saveHashFile(obj, pathFile)
             % SAVEHASHFILE Save the hash of the file to the file
