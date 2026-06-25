@@ -4,7 +4,6 @@ classdef MainActivity
         Idle
         Busy
         Running
-        Completed
     end
 
 end
