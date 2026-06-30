@@ -401,6 +401,8 @@ classdef FluxAnalysis < handle & IO
 
             if isempty(maxEfflux) || maxEfflux <= 0
                 maxEfflux = 1000;
+                msg = "Maximum efflux is not set or non-positive. Using default value: " + string(maxEfflux) + ".";
+                notifyGeneralMessage(obj, "warning", msg, dbstack());
             end
 
             fluxUB = repmat(maxEfflux * 3, numFlux, 1);
