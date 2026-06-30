@@ -55,7 +55,66 @@ classdef MDVCorrection < handle
 
         end % getCorrectedMatrix
 
-        function MDVNormalized = correctNaturalIsotopoper(obj, MDV, nC, nH, nO, nN, nS, nSi)
+        function CM = getCorrectedMatrixSkew(obj, nC, nH, nO, nN, nS, nSi, options)
+            % GETCORRECTEDMATRIXSKEW returns the skewed natural isotope correction matrix.
+            % CM = getCorrectedMatrixSkew(obj, nC, nH, nO, nN, nS, nSi, options)
+            %
+            %  Inputs:
+            %   obj - MDVCorrection object
+            %   nC - Number of carbon atoms in the molecule
+            %   nH - Number of hydrogen atoms in the molecule
+            %   nO - Number of oxygen atoms in the molecule
+            %   nN - Number of nitrogen atoms in the molecule
+            %   nS - Number of sulfur atoms in the molecule
+            %   nSi - Number of silicon atoms in the molecule
+            %   options.numObservedMDV - Number of observed MDV (default: getSizeMatrix(obj, nC, nH, nO, nN, nS, nSi))
+            %   options.numTracerCarbon - Number of carbon atoms that can be labeled by the tracer in the fragment (default: nC)
+
+            arguments
+                obj (1, 1) MDVCorrection
+                nC (1, 1) {mustBeInteger, mustBeNonnegative}
+                nH (1, 1) {mustBeInteger, mustBeNonnegative}
+                nO (1, 1) {mustBeInteger, mustBeNonnegative}
+                nN (1, 1) {mustBeInteger, mustBeNonnegative}
+                nS (1, 1) {mustBeInteger, mustBeNonnegative}
+                nSi (1, 1) {mustBeInteger, mustBeNonnegative}
+                options.numObservedMDV (1, 1) {mustBeInteger, mustBePositive} = getSizeMatrix(obj, nC, nH, nO, nN, nS, nSi)
+                options.numTracerCarbon (1, 1) {mustBeInteger, mustBeNonnegative} = nC
+            end % arguments
+
+            numObservedMDV = options.numObservedMDV;
+            numTracerCarbon = min(options.numTracerCarbon, nC);
+            numCorrectedMDV = numTracerCarbon + 1;
+
+            CM = zeros(numObservedMDV, numCorrectedMDV);
+            nonCarbonVector = getNaturalIsotopeDistribution(obj, 0, nH, nO, nN, nS, nSi);
+
+            for iTracerCarbon = 0:numTracerCarbon
+
+                carbonVector = getNaturalIsotopeDistributionAtom(obj, obj.rC, nC - iTracerCarbon);
+                isotopeVector = conv(carbonVector, nonCarbonVector);
+                rowStart = iTracerCarbon + 1;
+                rowEnd = min(numObservedMDV, rowStart + length(isotopeVector) - 1);
+
+                if rowStart > numObservedMDV
+                    continue
+                end % if
+
+                numRows = rowEnd - rowStart + 1;
+                CM(rowStart:rowEnd, iTracerCarbon + 1) = isotopeVector(1:numRows)';
+
+            end % for iTracerCarbon
+
+        end % getCorrectedMatrixSkew
+
+        function methodList = getCorrectionMethodList(~)
+            % GETCORRECTIONMETHODLIST returns supported natural isotope correction methods.
+
+            methodList = ["matrix", "skew", "least-squares"];
+
+        end % getCorrectionMethodList
+
+        function MDVNormalized = correctNaturalIsotopoper(obj, MDV, nC, nH, nO, nN, nS, nSi, options)
             % CORRECTNATURALISOTOPOPER returns the corrected matrix of the molecule
             %
             % Parameters:
@@ -74,11 +133,54 @@ classdef MDVCorrection < handle
             %     Number of sulfur atoms in the molecule
             % nSi: (int)
             %     Number of silicon atoms in the molecule
+            % method: (string)
+            %     Natural isotope correction method: "matrix", "skew", or "least-squares"
+            % numTracerCarbon: (int)
+            %     Number of carbon atoms that can be labeled by the tracer in the fragment
             %
             % Returns:
             % --------
-            % MDVNormalized: (:, 1) double
+            % MDVNormalized: (1, :) double
             %     Corrected matrix of the molecule
+
+            arguments
+                obj (1, 1) MDVCorrection
+                MDV (:, 1) double {mustBeNonNan, mustBeFinite}
+                nC (1, 1) {mustBeInteger, mustBeNonnegative}
+                nH (1, 1) {mustBeInteger, mustBeNonnegative}
+                nO (1, 1) {mustBeInteger, mustBeNonnegative}
+                nN (1, 1) {mustBeInteger, mustBeNonnegative}
+                nS (1, 1) {mustBeInteger, mustBeNonnegative}
+                nSi (1, 1) {mustBeInteger, mustBeNonnegative}
+                options.method (1, 1) string = "matrix"
+                options.numTracerCarbon (1, 1) {mustBeInteger, mustBeNonnegative} = max(0, length(MDV) - 1)
+            end % arguments
+
+            method = normalizeCorrectionMethod(obj, options.method);
+
+            switch method
+                case "matrix"
+                    MDVNormalized = correctNaturalIsotopoperByMatrix( ...
+                        obj, MDV, nC, nH, nO, nN, nS, nSi ...
+                    );
+
+                case "skew"
+                    MDVNormalized = correctNaturalIsotopoperBySkew( ...
+                        obj, MDV, nC, nH, nO, nN, nS, nSi, ...
+                        numTracerCarbon = options.numTracerCarbon ...
+                    );
+
+                case "least-squares"
+                    MDVNormalized = correctNaturalIsotopoperByLeastSquares( ...
+                        obj, MDV, nC, nH, nO, nN, nS, nSi, ...
+                        numTracerCarbon = options.numTracerCarbon ...
+                    );
+            end % switch
+
+        end % correctNaturalIsotopoper
+
+        function MDVNormalized = correctNaturalIsotopoperByMatrix(obj, MDV, nC, nH, nO, nN, nS, nSi)
+            % CORRECTNATURALISOTOPOPERBYMATRIX applies the existing matrix inverse correction.
 
             arguments
                 obj (1, 1) MDVCorrection
@@ -94,10 +196,72 @@ classdef MDVCorrection < handle
             matrix = getCorrectedMatrix(obj, nC, nH, nO, nN, nS, nSi);
             numMDV = length(MDV);
             matrix = matrix(1:numMDV, 1:numMDV);
-            MDVCorrected(1:numMDV) = matrix \ MDV;
-            MDVNormalized = MDVCorrected / sum(MDVCorrected);
+            MDVCorrected = matrix \ MDV;
+            MDVNormalized = normalizeCorrectedMDV(obj, MDVCorrected, numMDV);
 
-        end % correctNaturalIsotopoper
+        end % correctNaturalIsotopoperByMatrix
+
+        function MDVNormalized = correctNaturalIsotopoperBySkew(obj, MDV, nC, nH, nO, nN, nS, nSi, options)
+            % CORRECTNATURALISOTOPOPERBYSKEW applies the skewed matrix correction.
+
+            arguments
+                obj (1, 1) MDVCorrection
+                MDV (:, 1) double {mustBeNonNan, mustBeFinite}
+                nC (1, 1) {mustBeInteger, mustBeNonnegative}
+                nH (1, 1) {mustBeInteger, mustBeNonnegative}
+                nO (1, 1) {mustBeInteger, mustBeNonnegative}
+                nN (1, 1) {mustBeInteger, mustBeNonnegative}
+                nS (1, 1) {mustBeInteger, mustBeNonnegative}
+                nSi (1, 1) {mustBeInteger, mustBeNonnegative}
+                options.numTracerCarbon (1, 1) {mustBeInteger, mustBeNonnegative} = max(0, length(MDV) - 1)
+            end % arguments
+
+            numMDV = length(MDV);
+            numTracerCarbon = min([options.numTracerCarbon, nC, numMDV - 1]);
+            numCorrectedMDV = numTracerCarbon + 1;
+
+            matrix = getCorrectedMatrixSkew( ...
+                obj, nC, nH, nO, nN, nS, nSi, ...
+                numObservedMDV = numCorrectedMDV, ...
+                numTracerCarbon = numTracerCarbon ...
+            );
+
+            MDVCorrected = zeros(numMDV, 1);
+            MDVCorrected(1:numCorrectedMDV) = matrix \ MDV(1:numCorrectedMDV);
+            MDVNormalized = normalizeCorrectedMDV(obj, MDVCorrected, numMDV);
+
+        end % correctNaturalIsotopoperBySkew
+
+        function MDVNormalized = correctNaturalIsotopoperByLeastSquares(obj, MDV, nC, nH, nO, nN, nS, nSi, options)
+            % CORRECTNATURALISOTOPOPERBYLEASTSQUARES applies non-negative least-squares correction.
+
+            arguments
+                obj (1, 1) MDVCorrection
+                MDV (:, 1) double {mustBeNonNan, mustBeFinite}
+                nC (1, 1) {mustBeInteger, mustBeNonnegative}
+                nH (1, 1) {mustBeInteger, mustBeNonnegative}
+                nO (1, 1) {mustBeInteger, mustBeNonnegative}
+                nN (1, 1) {mustBeInteger, mustBeNonnegative}
+                nS (1, 1) {mustBeInteger, mustBeNonnegative}
+                nSi (1, 1) {mustBeInteger, mustBeNonnegative}
+                options.numTracerCarbon (1, 1) {mustBeInteger, mustBeNonnegative} = max(0, length(MDV) - 1)
+            end % arguments
+
+            numMDV = length(MDV);
+            numTracerCarbon = min([options.numTracerCarbon, nC, numMDV - 1]);
+            numCorrectedMDV = numTracerCarbon + 1;
+
+            matrix = getCorrectedMatrixSkew( ...
+                obj, nC, nH, nO, nN, nS, nSi, ...
+                numObservedMDV = numMDV, ...
+                numTracerCarbon = numTracerCarbon ...
+            );
+
+            MDVCorrected = zeros(numMDV, 1);
+            MDVCorrected(1:numCorrectedMDV) = solveLeastSquares(obj, matrix, MDV);
+            MDVNormalized = normalizeCorrectedMDV(obj, MDVCorrected, numMDV);
+
+        end % correctNaturalIsotopoperByLeastSquares
 
         function MDVCorrected = correctBiomass(~, MDVInitial, MDVFinal, fraction)
             % CORRECTBIOMASS returns the corrected matrix of the molecule
@@ -228,6 +392,115 @@ classdef MDVCorrection < handle
             end % for i
 
         end % getCorrectedMatrixAtom
+
+        function distribution = getNaturalIsotopeDistribution(obj, nC, nH, nO, nN, nS, nSi)
+            % GETNATURALISOTOPEDISTRIBUTION returns the mass-shift distribution of a molecule.
+
+            arguments
+                obj (1, 1) MDVCorrection
+                nC (1, 1) {mustBeInteger, mustBeNonnegative}
+                nH (1, 1) {mustBeInteger, mustBeNonnegative}
+                nO (1, 1) {mustBeInteger, mustBeNonnegative}
+                nN (1, 1) {mustBeInteger, mustBeNonnegative}
+                nS (1, 1) {mustBeInteger, mustBeNonnegative}
+                nSi (1, 1) {mustBeInteger, mustBeNonnegative}
+            end % arguments
+
+            distribution = getNaturalIsotopeDistributionAtom(obj, obj.rC, nC);
+            distribution = conv(distribution, getNaturalIsotopeDistributionAtom(obj, obj.rH, nH));
+            distribution = conv(distribution, getNaturalIsotopeDistributionAtom(obj, obj.rO, nO));
+            distribution = conv(distribution, getNaturalIsotopeDistributionAtom(obj, obj.rN, nN));
+            distribution = conv(distribution, getNaturalIsotopeDistributionAtom(obj, obj.rS, nS));
+            distribution = conv(distribution, getNaturalIsotopeDistributionAtom(obj, obj.rSi, nSi));
+
+        end % getNaturalIsotopeDistribution
+
+        function distribution = getNaturalIsotopeDistributionAtom(~, ratio, numAtom)
+            % GETNATURALISOTOPEDISTRIBUTIONATOM returns the mass-shift distribution of atoms.
+
+            arguments
+                ~
+                ratio (1, :) double {mustBeNonnegative}
+                numAtom (1, 1) {mustBeInteger, mustBeNonnegative}
+            end % arguments
+
+            distribution = 1;
+
+            for i = 1:numAtom
+                distribution = conv(distribution, ratio);
+            end % for i
+
+        end % getNaturalIsotopeDistributionAtom
+
+        function MDVNormalized = normalizeCorrectedMDV(~, MDVCorrected, numMDV)
+            % NORMALIZECORRECTEDMDV normalizes an MDV and keeps the legacy row-vector output.
+
+            arguments
+                ~
+                MDVCorrected (:, 1) double
+                numMDV (1, 1) {mustBeInteger, mustBePositive}
+            end % arguments
+
+            MDVCorrected = MDVCorrected(1:numMDV);
+            totalMDV = sum(MDVCorrected);
+
+            if abs(totalMDV) <= eps
+                MDVNormalized = nan(1, numMDV);
+                return
+            end % if
+
+            MDVNormalized = transpose(MDVCorrected / totalMDV);
+
+        end % normalizeCorrectedMDV
+
+        function MDVCorrected = solveLeastSquares(~, matrix, MDV)
+            % SOLVELEASTSQUARES solves a non-negative least-squares correction problem.
+
+            arguments
+                ~
+                matrix (:, :) double {mustBeFinite}
+                MDV (:, 1) double {mustBeNonNan, mustBeFinite}
+            end % arguments
+
+            if exist('lsqnonneg', 'file') == 2
+                MDVCorrected = lsqnonneg(matrix, MDV);
+                return
+            end % if
+
+            MDVCorrected = matrix \ MDV;
+            MDVCorrected(MDVCorrected < 0) = 0;
+
+        end % solveLeastSquares
+
+        function method = normalizeCorrectionMethod(obj, method)
+            % NORMALIZECORRECTIONMETHOD validates and canonicalizes correction method names.
+
+            arguments
+                obj (1, 1) MDVCorrection
+                method (1, 1) string
+            end % arguments
+
+            method = lower(strtrim(method));
+
+            switch method
+                case {"matrix", "inverse", "legacy"}
+                    method = "matrix";
+
+                case {"skew", "skewed", "skewed-matrix", "skewed_matrix"}
+                    method = "skew";
+
+                case {"least-squares", "least_squares", "least squares", "ls", "lsq", "lsc", "nnls", "least-squares-skew"}
+                    method = "least-squares";
+
+                otherwise
+                    methodList = strjoin(getCorrectionMethodList(obj), '", "');
+                    error( ...
+                        "MDVCorrection:InvalidCorrectionMethod", ...
+                        "Unknown natural isotope correction method '%s'. Use one of: \", char(method), char(methodList) ...
+                    );
+            end % switch
+
+        end % normalizeCorrectionMethod
 
     end % methods (Access = private)
 

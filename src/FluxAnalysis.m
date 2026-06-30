@@ -399,6 +399,12 @@ classdef FluxAnalysis < handle & IO
             % Get maximum efflux of the flux
             maxEfflux = max(obj.efflux);
 
+            if isempty(maxEfflux) || maxEfflux <= 0
+                maxEfflux = 1000;
+                msg = "Maximum efflux is not set or non-positive. Using default value: " + string(maxEfflux) + ".";
+                notifyGeneralMessage(obj, "warning", msg, dbstack());
+            end
+
             fluxUB = repmat(maxEfflux * 3, numFlux, 1);
             fluxLB = repmat(-maxEfflux * 3, numFlux, 1);
 
@@ -408,8 +414,8 @@ classdef FluxAnalysis < handle & IO
             end % if
 
             idxRevTable = obj.model.getIdxRev();
-            masIrrev = ~ismember(1:numFlux, idxRevTable);
-            fluxLB(masIrrev) = max(fluxLB(masIrrev), 0);
+            maskIrrev = ~ismember(1:numFlux, idxRevTable);
+            fluxLB(maskIrrev) = max(fluxLB(maskIrrev), 0);
 
             UB = nan(numFlux, 1);
             LB = nan(numFlux, 1);
