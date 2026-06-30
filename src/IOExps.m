@@ -22,6 +22,7 @@ classdef IOExps < IO
 
         % MDV
         MDVTolelrance (1, 1) double = -1e-2;
+        naturalIsotopeCorrectionMethod (1, 1) string = "skew";
 
         defaultVariableNamesListSubstrate string;
         defaultVariableTypesListSubstrate string;
@@ -1133,6 +1134,7 @@ classdef IOExps < IO
             tableMS = getMSNormalizedTable(obj, expName);
             numFragments = width(tableMS);
             atomList = obj.tableAtom.Properties.RowNames;
+            tableMSMetabolite = obj.objModel.getMSMetaboliteTable();
 
             MDVCalc = MDVCorrection();
 
@@ -1154,6 +1156,7 @@ classdef IOExps < IO
                 end
 
                 iAtomListRow = obj.tableAtom(idx, :);
+                numTracerCarbon = getNumTracerCarbon(obj, tableMSMetabolite, iFragmentName, length(iFragment));
 
                 MDV = MDVCalc.correctNaturalIsotopoper( ...
                     iFragment, ...
@@ -1162,7 +1165,9 @@ classdef IOExps < IO
                     iAtomListRow.O, ...
                     iAtomListRow.N, ...
                     iAtomListRow.S, ...
-                    iAtomListRow.Si ...
+                    iAtomListRow.Si, ...
+                    method = obj.naturalIsotopeCorrectionMethod, ...
+                    numTracerCarbon = numTracerCarbon ...
                 );
 
                 tableMS{:, i} = MDV';
@@ -1170,6 +1175,47 @@ classdef IOExps < IO
             end
 
         end % getMDV
+
+        function numTracerCarbon = getNumTracerCarbon(~, tableMSMetabolite, fragmentName, numMDV)
+            % GETNUMTRACERCARBON returns the number of tracer-labelable carbons in a fragment.
+            % numTracerCarbon = getNumTracerCarbon(tableMSMetabolite, fragmentName, numMDV)
+            %
+            %  Inputs:
+            %   tableMSMetabolite (table): A table containing metabolite information, including the number of carbons.
+            %   fragmentName (char): The name of the fragment for which to determine the number of tracer-labelable carbons.
+            %   numMDV (integer): The number of mass distribution vector (MDV) entries for the fragment.
+            %
+            %  Outputs:
+            %   numTracerCarbon (integer): The number of tracer-labelable carbons in the specified fragment.
+
+            arguments
+                ~
+                tableMSMetabolite table
+                fragmentName (1, :) char
+                numMDV (1, 1) {mustBeInteger, mustBePositive}
+            end % arguments
+
+            numTracerCarbon = max(0, numMDV - 1);
+
+            if isempty(tableMSMetabolite) || ~any(strcmp(tableMSMetabolite.Properties.VariableNames, "Metabolite"))
+                return
+            end % if
+
+            idx = find(ismember(string(tableMSMetabolite.Metabolite), string(fragmentName)), 1);
+
+            if isempty(idx) || ~any(strcmp(tableMSMetabolite.Properties.VariableNames, "Carbon"))
+                return
+            end % if
+
+            iNumTracerCarbon = tableMSMetabolite.Carbon{idx};
+
+            if isempty(iNumTracerCarbon) || isnan(iNumTracerCarbon)
+                return
+            end % if
+
+            numTracerCarbon = iNumTracerCarbon;
+
+        end % getNumTracerCarbon
 
         function MDVBiomass = getMDVBiomass(obj, expName)
             % GETMDVBIOMASS: Get the MDV (Mass Distribution Vector) of the biomass

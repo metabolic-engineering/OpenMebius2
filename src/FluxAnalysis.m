@@ -408,8 +408,8 @@ classdef FluxAnalysis < handle & IO
             end % if
 
             idxRevTable = obj.model.getIdxRev();
-            masIrrev = ~ismember(1:numFlux, idxRevTable);
-            fluxLB(masIrrev) = max(fluxLB(masIrrev), 0);
+            maskIrrev = ~ismember(1:numFlux, idxRevTable);
+            fluxLB(maskIrrev) = max(fluxLB(maskIrrev), 0);
 
             UB = nan(numFlux, 1);
             LB = nan(numFlux, 1);
