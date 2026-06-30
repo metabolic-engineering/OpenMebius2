@@ -399,6 +399,10 @@ classdef FluxAnalysis < handle & IO
             % Get maximum efflux of the flux
             maxEfflux = max(obj.efflux);
 
+            if isempty(maxEfflux) || maxEfflux <= 0
+                maxEfflux = 1000;
+            end
+
             fluxUB = repmat(maxEfflux * 3, numFlux, 1);
             fluxLB = repmat(-maxEfflux * 3, numFlux, 1);
 
