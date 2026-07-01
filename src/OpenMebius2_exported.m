@@ -187,6 +187,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
     end % properties (Access=private)
 
+    properties (Access = private)
+
+        Presenter openmebius.presentation.main.MainPresenter
+
+    end % properties (Access=private)
+
     methods (Access = public)
 
         %% Public check methods
@@ -685,6 +691,831 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     end % methods (Access = protected)
 
     methods (Access = private)
+
+        %% Private presentation adapter functions
+        function renderMainViewModel(app, viewModel)
+            % RENDERMAINVIEWMODEL Render the main view model
+            % renderMainViewModel(app, viewModel)
+            %
+            %  Input:
+            %   viewModel: An object of class MainViewModel
+
+            if isempty(viewModel)
+                return
+            end
+
+            if isprop(viewModel, "UiState")
+                app.renderUiState(viewModel.UiState);
+                return
+            end
+
+            % For transitional versions where viewModel may be a struct.
+            if isstruct(viewModel) && isfield(viewModel, "UiState")
+                app.renderUiState(viewModel.UiState);
+                return
+            end
+
+            error( ...
+                "OpenMebius2:Presentation:InvalidViewModel", ...
+            "MainViewModel must contain UiState.");
+
+        end % method renderMainViewModel
+
+        function renderUiState(app, ui)
+            % RENDERUISTATE Render the UI state
+            % renderUiState(app, ui)
+            %
+            %  Input:
+            %   ui: An object of class UiState
+
+            if isempty(ui)
+                return
+            end
+
+            % Project panel
+            % ---------------------------------------------------------------------
+            if isfield(ui, "ProjectPanelEnabled")
+                app.ProjectPanel.Enable = app.onOff(ui.ProjectPanelEnabled);
+            end
+
+            if isfield(ui, "ProjectBrowseEnabled")
+                app.ProjectBrowseButton.Enable = app.onOff(ui.ProjectBrowseEnabled);
+            end
+
+            if isfield(ui, "ProjectDirectoryEnabled")
+                app.ProjectDirectoryDropDown.Enable = ...
+                    app.onOff(ui.ProjectDirectoryEnabled);
+            end
+
+            if isfield(ui, "ProjectLoadEnabled")
+                app.ProjectLoadButton.Enable = app.onOff(ui.ProjectLoadEnabled);
+            end
+
+            if isfield(ui, "ProjectMetadataEditable")
+                value = app.onOff(ui.ProjectMetadataEditable);
+                app.ProjectNameEditField.Enable = value;
+                app.ProjectAuthorEditField.Enable = value;
+                app.OrganismEditField.Enable = value;
+            end
+
+            if isfield(ui, "ProjectSaveEnabled")
+                app.ProjectSaveButton.Enable = app.onOff(ui.ProjectSaveEnabled);
+            end
+
+            if isfield(ui, "TemplateModelBrowseEnabled")
+                app.TemplateModelBrowseButton.Enable = ...
+                    app.onOff(ui.TemplateModelBrowseEnabled);
+            end
+
+            if isfield(ui, "TemplateModelDirectoryEnabled")
+                app.TemplateModelDirectoryDropDown.Enable = ...
+                    app.onOff(ui.TemplateModelDirectoryEnabled);
+            end
+
+            if isfield(ui, "TemplateModelLoadEnabled")
+                app.TemplateModelLoadButton.Enable = ...
+                    app.onOff(ui.TemplateModelLoadEnabled);
+            end
+
+            if isfield(ui, "TemplateModelSaveEnabled")
+                app.TemplateModelSaveButton.Enable = ...
+                    app.onOff(ui.TemplateModelSaveEnabled);
+            end
+
+            if isfield(ui, "ProjectCreateEnabled")
+                app.ProjectCreateButton.Enable = ...
+                    app.onOff(ui.ProjectCreateEnabled);
+            end
+
+            % Stoichiometry tab
+            if isfield(ui, "ModelEnabled")
+                value = app.onOff(ui.ModelEnabled);
+                app.ModelTable.Enable = value;
+                app.ModelReloadButton.Enable = value;
+            end
+
+            if isfield(ui, "ModelEditEnabled")
+                app.ModelEditButton.Enable = app.onOff(ui.ModelEditEnabled);
+            end
+
+            if isfield(ui, "ModelSaveEnabled")
+                app.ModelSaveButton.Enable = app.onOff(ui.ModelSaveEnabled);
+            end
+
+            if isfield(ui, "ModelTableEditable")
+                app.applyTableEditable(app.ModelTable, ui.ModelTableEditable);
+            end
+
+            % MS tab
+            if isfield(ui, "MsEnabled")
+                value = app.onOff(ui.MsEnabled);
+                app.MSTable.Enable = value;
+                app.AtomTable.Enable = value;
+                app.MSReloadButton.Enable = value;
+            end
+
+            if isfield(ui, "MsEditEnabled")
+                app.MSEditButton.Enable = app.onOff(ui.MsEditEnabled);
+            end
+
+            if isfield(ui, "MsSaveEnabled")
+                app.MSSaveButton.Enable = app.onOff(ui.MsSaveEnabled);
+            end
+
+            if isfield(ui, "MsTableEditable")
+                app.applyTableEditable(app.MSTable, ui.MsTableEditable);
+            end
+
+            if isfield(ui, "AtomTableEditable")
+                app.applyTableEditable(app.AtomTable, ui.AtomTableEditable);
+            end
+
+            % Experiment tab
+            if isfield(ui, "ExperimentEnabled")
+                value = app.onOff(ui.ExperimentEnabled);
+                app.ExpTable.Enable = value;
+                app.BiomassTable.Enable = value;
+                app.ExpImportButton.Enable = value;
+                app.ExpReloadButton.Enable = value;
+                app.ExpSaveButton.Enable = value;
+
+                app.applyContextMenu( ...
+                    app.ExpTable, ...
+                    app.ExperimentContextMenu, ...
+                    ui.ExperimentEnabled);
+            end
+
+            if isfield(ui, "ExperimentTableEditable")
+                app.applyTableEditable(app.ExpTable, ui.ExperimentTableEditable);
+            end
+
+            if isfield(ui, "BiomassTableEditable")
+                app.applyTableEditable(app.BiomassTable, ui.BiomassTableEditable);
+            end
+
+            % Tracer tab
+            if isfield(ui, "TracerEnabled")
+                value = app.onOff(ui.TracerEnabled);
+                app.UptakeTable.Enable = value;
+                app.LabelTable.Enable = value;
+                app.TracerConfigButton.Enable = value;
+                app.TracerReloadButton.Enable = value;
+                app.TracerSaveButton.Enable = value;
+
+                app.applyContextMenu( ...
+                    app.LabelTable, ...
+                    app.ContextMenu3, ...
+                    ui.TracerEnabled);
+            end
+
+            if isfield(ui, "TracerTableEditable")
+                app.applyTableEditable(app.LabelTable, ui.TracerTableEditable);
+            end
+
+            if isfield(ui, "UptakeTableEditable")
+                app.applyTableEditable(app.UptakeTable, ui.UptakeTableEditable);
+            end
+
+            % Run tab
+            if isfield(ui, "RunConfigurationEnabled")
+                value = app.onOff(ui.RunConfigurationEnabled);
+                app.RunAutoButton.Enable = value;
+                app.RunConfigButton.Enable = value;
+                app.RunReloadButton.Enable = value;
+                app.RunSaveButton.Enable = value;
+            end
+
+            if isfield(ui, "RunTableEnabled")
+                app.RunTable.Enable = app.onOff(ui.RunTableEnabled);
+
+                app.applyContextMenu( ...
+                    app.RunTable, ...
+                    app.ContextMenuRun, ...
+                    ui.RunTableEnabled);
+            end
+
+            if isfield(ui, "RunTableEditable")
+                app.applyTableEditable(app.RunTable, ui.RunTableEditable);
+            end
+
+            if isfield(ui, "RunButtonEnabled")
+                app.RunRunButton.Enable = app.onOff(ui.RunButtonEnabled);
+            end
+
+            if isfield(ui, "RunButtonText")
+                app.RunRunButton.Text = char(ui.RunButtonText);
+            end
+
+            % Result tab
+            if isfield(ui, "ResultEnabled")
+                value = app.onOff(ui.ResultEnabled);
+                app.ResultDropDown.Enable = value;
+                app.ResultMainTable.Enable = value;
+                app.ResultSubTable.Enable = value;
+                app.ResultReportButton.Enable = value;
+                app.ResultReloadButton.Enable = value;
+                app.ResultSaveButton.Enable = value;
+
+                app.applyContextMenu( ...
+                    app.ResultMainTable, ...
+                    app.ContextMenu2, ...
+                    ui.ResultEnabled);
+
+                app.applyContextMenu( ...
+                    app.ResultSubTable, ...
+                    app.ContextMenuResultSelect, ...
+                    ui.ResultEnabled);
+            end
+
+            if isfield(ui, "ResultMainTableEditable")
+                app.applyTableEditable(app.ResultMainTable, ...
+                    ui.ResultMainTableEditable);
+            end
+
+            if isfield(ui, "ResultSubTableEditable")
+                app.applyTableEditable(app.ResultSubTable, ...
+                    ui.ResultSubTableEditable);
+            end
+
+            % Menu
+            if isfield(ui, "MenuEnabled")
+                value = app.onOff(ui.MenuEnabled);
+                app.FilesMenu.Enable = value;
+                app.ModelMenu.Enable = value;
+                app.BatchMenu.Enable = value;
+                app.ViewMenu.Enable = value;
+            end
+
+            % Pathway context menu
+            if isfield(ui, "PathwayContextMenuEnabled")
+                app.applyContextMenu( ...
+                    app.MainUIAxes, ...
+                    app.ContextMenu, ...
+                    ui.PathwayContextMenuEnabled);
+            end
+
+        end % method renderUiState
+
+        function value = onOff(~, enabled)
+
+            if enabled
+                value = 'on';
+            else
+                value = 'off';
+            end
+
+        end
+
+        function applyContextMenu(~, component, contextMenu, enabled)
+
+            if enabled
+                component.ContextMenu = contextMenu;
+            else
+                component.ContextMenu = [];
+            end
+
+        end
+
+        function applyTableEditable(~, tableObject, editable)
+            % APPLYTABLEEDITABLE
+            % Applies a scalar or vector editable flag to a UITable.
+
+            if isempty(tableObject)
+                return
+            end
+
+            if isempty(tableObject.Data)
+                tableObject.ColumnEditable = false;
+                return
+            end
+
+            if isscalar(editable)
+                n = 1;
+
+                try
+
+                    if istable(tableObject.Data)
+                        n = width(tableObject.Data);
+                    else
+                        n = size(tableObject.Data, 2);
+                    end
+
+                catch
+                    n = 1;
+                end
+
+                tableObject.ColumnEditable = repmat(logical(editable), 1, n);
+                return
+            end
+
+            tableObject.ColumnEditable = logical(editable);
+        end
+
+        function context = capturePresentationContext(app)
+
+            context = struct();
+
+            % ---------------------------------------------------------------------
+            % Project paths
+            % ---------------------------------------------------------------------
+
+            context.ProjectDirectory = ...
+                app.safeStringScalar(app.ProjectDirectoryDropDown.Value);
+
+            context.TemplateModelDirectory = ...
+                app.safeStringScalar(app.TemplateModelDirectoryDropDown.Value);
+
+            context.DirectoryModel = app.safeStringScalar(app.directoryModel);
+            context.DirectoryExp = app.safeStringScalar(app.directoryExp);
+            context.DirectoryResult = app.safeStringScalar(app.directoryResult);
+
+            context.ProjectDirectoryExists = ...
+                context.ProjectDirectory ~= "" && isfolder(context.ProjectDirectory);
+
+            context.TemplateModelDirectoryExists = ...
+                context.TemplateModelDirectory ~= "" && ...
+                isfolder(context.TemplateModelDirectory);
+
+            context.DirectoryModelExists = ...
+                context.DirectoryModel ~= "" && isfolder(context.DirectoryModel);
+
+            context.DirectoryExpExists = ...
+                context.DirectoryExp ~= "" && isfolder(context.DirectoryExp);
+
+            context.DirectoryResultExists = ...
+                context.DirectoryResult ~= "" && isfolder(context.DirectoryResult);
+
+            % ---------------------------------------------------------------------
+            % Project metadata fields
+            % ---------------------------------------------------------------------
+            context.ProjectName = ...
+                app.safeStringScalar(app.ProjectNameEditField.Value);
+
+            context.ProjectAuthor = ...
+                app.safeStringScalar(app.ProjectAuthorEditField.Value);
+
+            context.Organism = ...
+                app.safeStringScalar(app.OrganismEditField.Value);
+
+            context.HasProjectMetadata = ...
+                context.ProjectName ~= "" || ...
+                context.ProjectAuthor ~= "" || ...
+                context.Organism ~= "";
+
+            % ---------------------------------------------------------------------
+            % Legacy domain objects
+            % ---------------------------------------------------------------------
+            context.HasModelObject = app.isLoadedObject(app.model);
+            context.HasExperimentObject = app.isLoadedObject(app.exp);
+            context.HasBatchObject = app.isLoadedObject(app.batch);
+            context.HasResultObject = app.isLoadedObject(app.result);
+
+            context.HasModelError = app.objectHasError(app.model);
+            context.HasExperimentError = app.objectHasError(app.exp);
+            context.HasBatchError = app.objectHasError(app.batch);
+            context.HasResultError = app.objectHasError(app.result);
+
+            context.HasModel = ...
+                context.HasModelObject && ~context.HasModelError;
+
+            context.HasExperiments = ...
+                context.HasExperimentObject && ~context.HasExperimentError;
+
+            context.HasBatches = ...
+                context.HasBatchObject && ~context.HasBatchError;
+
+            % In the current GUI, the Result tab can be useful as soon as IOResult
+            % exists, even if no result rows are displayed yet.
+            context.HasResults = ...
+                context.HasResultObject && ~context.HasResultError;
+
+            % A project is considered fully loaded only when the project directories
+            % and the four major legacy objects are available.
+            context.HasProject = ...
+                context.ProjectDirectoryExists && ...
+                context.DirectoryModelExists && ...
+                context.DirectoryExpExists && ...
+                context.DirectoryResultExists && ...
+                context.HasModel && ...
+                context.HasExperiments && ...
+                context.HasBatches && ...
+                context.HasResults;
+
+            % Template mode is used after loading a template model but before
+            % creating a full project.
+            context.IsTemplateMode = ...
+                ~context.HasProject && ...
+                context.TemplateModelDirectoryExists && ...
+                context.HasModel;
+
+            context.CanCreateProjectFromTemplate = context.IsTemplateMode;
+
+            % ---------------------------------------------------------------------
+            % Status table state
+            % ---------------------------------------------------------------------
+            calcStatus = strings(4, 1);
+            calcStatus(:) = "init";
+
+            try
+                n = min(4, numel(app.calcStatus));
+                calcStatus(1:n) = string(app.calcStatus(1:n));
+            catch
+                % Keep default "init" values.
+            end
+
+            context.Status = struct();
+            context.Status.Model = calcStatus(1);
+            context.Status.Experiment = calcStatus(2);
+            context.Status.Batch = calcStatus(3);
+            context.Status.Result = calcStatus(4);
+
+            % ---------------------------------------------------------------------
+            % Table contents
+            % ---------------------------------------------------------------------
+            context.ModelTableRowCount = app.tableRowCount(app.ModelTable.Data);
+            context.MSTableRowCount = app.tableRowCount(app.MSTable.Data);
+            context.AtomTableRowCount = app.tableRowCount(app.AtomTable.Data);
+            context.ExpTableRowCount = app.tableRowCount(app.ExpTable.Data);
+            context.BiomassTableRowCount = app.tableRowCount(app.BiomassTable.Data);
+            context.UptakeTableRowCount = app.tableRowCount(app.UptakeTable.Data);
+            context.LabelTableRowCount = app.tableRowCount(app.LabelTable.Data);
+            context.RunTableRowCount = app.tableRowCount(app.RunTable.Data);
+            context.ResultSubTableRowCount = app.tableRowCount(app.ResultSubTable.Data);
+            context.ResultMainTableRowCount = app.tableRowCount(app.ResultMainTable.Data);
+
+            context.HasModelRows = context.ModelTableRowCount > 0;
+            context.HasMSRows = context.MSTableRowCount > 0;
+            context.HasExperimentRows = context.ExpTableRowCount > 0;
+            context.HasTracerRows = context.LabelTableRowCount > 0 || ...
+                context.UptakeTableRowCount > 0;
+            context.HasBatchRows = context.RunTableRowCount > 0;
+            context.HasResultRows = context.ResultSubTableRowCount > 0;
+
+            % For the first Presenter / UiPolicy step, this should approximate the
+            % current GUI behavior without changing domain logic.
+            context.CanRun = ...
+                context.HasProject && ...
+                context.HasModel && ...
+                context.HasExperiments && ...
+                context.HasBatches && ...
+                context.HasBatchRows && ...
+                context.DirectoryResultExists;
+
+            % ---------------------------------------------------------------------
+            % Current edit states inferred from existing UI
+            % ---------------------------------------------------------------------
+            context.IsModelEditing = ...
+                app.isEnabled(app.ModelSaveButton) && ...
+                app.hasEditableColumn(app.ModelTable.ColumnEditable);
+
+            context.IsMSEditing = ...
+                app.isEnabled(app.MSSaveButton) && ...
+                (app.hasEditableColumn(app.MSTable.ColumnEditable) || ...
+                app.hasEditableColumn(app.AtomTable.ColumnEditable));
+
+            % Current implementation has no explicit Experiment / Tracer edit mode.
+            % Their tables are edited directly when the tab is unlocked.
+            context.IsExperimentEditing = false;
+            context.IsTracerEditing = false;
+
+            context.IsAnyTableEditing = ...
+                context.IsModelEditing || ...
+                context.IsMSEditing || ...
+                context.IsExperimentEditing || ...
+                context.IsTracerEditing;
+
+            % ---------------------------------------------------------------------
+            % Running / child-window states
+            % ---------------------------------------------------------------------
+            context.IsBatchRunning = ...
+                app.safeStringScalar(app.RunRunButton.Text) == "Cancel";
+
+            context.IsProjectPanelLocked = ...
+                ~app.isEnabled(app.ProjectPanel);
+
+            context.HasOpenChildApp = any([
+                                           app.isLoadedObject(app.LabelConfigApp)
+                                           app.isLoadedObject(app.TracerConfigApp)
+                                           app.isLoadedObject(app.RunConfigApp)
+                                           app.isLoadedObject(app.MSViewApp)
+                                           app.isLoadedObject(app.RunAddBatchApp)
+                                           app.isLoadedObject(app.ViewSuggestionApp)
+                                           app.isLoadedObject(app.LogApp)
+                                           ]);
+
+            context.HasProgressBar = app.isLoadedObject(app.ProgressBar);
+
+            % ---------------------------------------------------------------------
+            % Current selections
+            % ---------------------------------------------------------------------
+            context.SelectedRunRows = app.selectedRows(app.RunTable);
+            context.SelectedResultRows = app.selectedRows(app.ResultSubTable);
+            context.SelectedResultDetailRows = app.selectedRows(app.ResultMainTable);
+            context.SelectedModelRows = app.selectedRows(app.ModelTable);
+            context.SelectedExperimentRows = app.selectedRows(app.ExpTable);
+            context.SelectedTracerRows = app.selectedRows(app.LabelTable);
+
+            context.HasSelectedRunRows = ~isempty(context.SelectedRunRows);
+            context.HasSelectedResultRows = ~isempty(context.SelectedResultRows);
+            context.HasSelectedModelRows = ~isempty(context.SelectedModelRows);
+            context.HasSelectedExperimentRows = ~isempty(context.SelectedExperimentRows);
+            context.HasSelectedTracerRows = ~isempty(context.SelectedTracerRows);
+
+            % ---------------------------------------------------------------------
+            % Current view mode
+            % ---------------------------------------------------------------------
+            context.CurrentTab = "";
+
+            try
+
+                if ~isempty(app.TabGroup.SelectedTab)
+                    context.CurrentTab = ...
+                        app.safeStringScalar(app.TabGroup.SelectedTab.Title);
+                end
+
+            catch
+                context.CurrentTab = "";
+            end
+
+            context.ResultMode = ...
+                app.safeStringScalar(app.ResultDropDown.Value);
+
+            if context.ResultMode == ""
+                context.ResultMode = "Overview";
+            end
+
+            context.TypeSimulation = ...
+                app.safeStringScalar(app.typeSimulation);
+
+            if context.TypeSimulation == ""
+                context.TypeSimulation = "Flux";
+            end
+
+            % ---------------------------------------------------------------------
+            % Current enabled state, useful during migration only.
+            % Do not let MainUiPolicy depend on all of these permanently.
+            % ---------------------------------------------------------------------
+            context.LegacyUi = struct();
+
+            context.LegacyUi.ProjectLoadEnabled = ...
+                app.isEnabled(app.ProjectLoadButton);
+
+            context.LegacyUi.TemplateModelLoadEnabled = ...
+                app.isEnabled(app.TemplateModelLoadButton);
+
+            context.LegacyUi.ProjectCreateEnabled = ...
+                app.isEnabled(app.ProjectCreateButton);
+
+            context.LegacyUi.TemplateModelSaveEnabled = ...
+                app.isEnabled(app.TemplateModelSaveButton);
+
+            context.LegacyUi.ModelEditEnabled = ...
+                app.isEnabled(app.ModelEditButton);
+
+            context.LegacyUi.ModelSaveEnabled = ...
+                app.isEnabled(app.ModelSaveButton);
+
+            context.LegacyUi.MSEditEnabled = ...
+                app.isEnabled(app.MSEditButton);
+
+            context.LegacyUi.MSSaveEnabled = ...
+                app.isEnabled(app.MSSaveButton);
+
+            context.LegacyUi.RunButtonEnabled = ...
+                app.isEnabled(app.RunRunButton);
+
+            context.LegacyUi.RunButtonText = ...
+                app.safeStringScalar(app.RunRunButton.Text);
+
+            context.LegacyUi.ResultReloadEnabled = ...
+                app.isEnabled(app.ResultReloadButton);
+
+        end % method capturePresentationContext
+
+        function tf = isLoadedObject(app, value)
+            % ISLOADEDOBJECT
+            % True when the value exists and, if it is a handle object, is valid.
+            % This method intentionally does not inspect UI components.
+
+            tf = false;
+
+            if isempty(value)
+                return
+            end
+
+            try
+
+                if isobject(value)
+
+                    try
+
+                        if any(~isvalid(value), "all")
+                            return
+                        end
+
+                    catch
+                        % Some value objects do not support isvalid.
+                        % In that case, non-empty is treated as loaded.
+                    end
+
+                end
+
+                if app.objectHasError(value)
+                    return
+                end
+
+                tf = true;
+
+            catch
+                tf = false;
+            end
+
+        end % function isLoadedObject
+
+        function tf = objectHasError(~, value)
+            % OBJECTHASERROR
+            % Checks common legacy isError property without throwing.
+
+            tf = false;
+
+            if isempty(value)
+                return
+            end
+
+            try
+
+                if isobject(value) && isprop(value, "isError")
+                    raw = value.isError;
+
+                    if isempty(raw)
+                        tf = false;
+                    elseif islogical(raw)
+                        tf = any(raw(:));
+                    elseif isnumeric(raw)
+                        tf = any(logical(raw(:)));
+                    elseif isstring(raw) || ischar(raw)
+                        raw = string(raw);
+                        tf = any(raw == "true" | raw == "1" | raw == "error");
+                    else
+                        tf = false;
+                    end
+
+                end
+
+            catch
+                % If error state cannot be inspected, do not mark it as error.
+                tf = false;
+            end
+
+        end % function objectHasError
+
+        function n = tableRowCount(~, data)
+            % TABLEROWCOUNT
+            % Returns row count for table, cell, numeric array, string array, etc.
+
+            n = 0;
+
+            if isempty(data)
+                return
+            end
+
+            try
+
+                if istable(data)
+                    n = height(data);
+                else
+                    n = size(data, 1);
+                end
+
+            catch
+                n = 0;
+            end
+
+        end % function tableRowCount
+
+        function n = tableWidthCount(~, data)
+            % TABLEWIDTHCOUNT
+            % Returns column count for table-like data.
+
+            n = 0;
+
+            if isempty(data)
+                return
+            end
+
+            try
+
+                if istable(data)
+                    n = width(data);
+                else
+                    n = size(data, 2);
+                end
+
+            catch
+                n = 0;
+            end
+
+        end % function tableWidthCount
+
+        function tf = isEnabled(~, componentOrValue)
+            % ISENABLED
+            % Accepts either a UI component with Enable property or the Enable value.
+
+            tf = false;
+
+            try
+
+                if ischar(componentOrValue) || isstring(componentOrValue)
+                    value = string(componentOrValue);
+                else
+                    value = string(componentOrValue.Enable);
+                end
+
+                if isempty(value)
+                    return
+                end
+
+                value = lower(value(1));
+
+                tf = value == "on" || value == "true" || value == "1";
+
+            catch
+                tf = false;
+            end
+
+        end % function isEnabled
+
+        function tf = hasEditableColumn(~, columnEditable)
+            % HASEDITABLECOLUMN
+            % True if any column is editable.
+
+            tf = false;
+
+            if isempty(columnEditable)
+                return
+            end
+
+            try
+                tf = any(logical(columnEditable(:)));
+            catch
+                tf = false;
+            end
+
+        end % function hasEditableColumn
+
+        function rows = selectedRows(~, tableObject)
+            % SELECTEDROWS
+            % Extracts unique selected row indices from a UITable.
+
+            rows = zeros(0, 1);
+
+            try
+                selection = tableObject.Selection;
+
+                if isempty(selection)
+                    return
+                end
+
+                if size(selection, 2) >= 1
+                    rows = unique(selection(:, 1));
+                    rows = rows(:);
+                end
+
+            catch
+                rows = zeros(0, 1);
+            end
+
+        end % function selectedRows
+
+        function value = safeStringScalar(~, raw)
+            % SAFESTRINGSCALAR
+            % Converts raw UI or property value to a non-missing scalar string.
+
+            value = "";
+
+            if isempty(raw)
+                return
+            end
+
+            try
+                value = string(raw);
+
+                if isempty(value)
+                    value = "";
+                    return
+                end
+
+                value = value(1);
+
+                if ismissing(value)
+                    value = "";
+                end
+
+            catch
+                value = "";
+            end
+
+        end % function safeStringScalar
 
         %% Private initialization function
         function initLog(app)
@@ -2277,6 +3108,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             else
                 filepath = string(filepath);
             end
+
+            app.Presenter = ...
+                openmebius2.presentation.main.MainPresenter();
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.initialize(context);
+
+            app.renderMainViewModel(viewModel);
 
             loadHistory(app)
 
