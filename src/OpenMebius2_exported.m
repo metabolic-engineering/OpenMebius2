@@ -1011,6 +1011,83 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             tableObject.ColumnEditable = logical(editable);
         end
 
+        function initializePresentation(app)
+
+            if isempty(app.Presenter)
+                app.Presenter = ...
+                    openmebius.presentation.main.MainPresenter();
+            end
+
+            app.refreshPresentation();
+
+        end % method initializePresentation
+
+        function refreshPresentation(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.refresh(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method refreshPresentation
+
+        function cleanup = beginPresentationOperation(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.beginOperation(context);
+            app.renderMainViewModel(viewModel);
+
+            cleanup = onCleanup(@() app.finishPresentationOperation());
+
+        end % method beginPresentationOperation
+
+        function finishPresentationOperation(app)
+
+            if isempty(app.Presenter)
+                return
+            end
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.finishOperation(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method finishPresentationOperation
+
+        function beginPresentationRun(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.beginRun(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method beginPresentationRun
+
+        function finishPresentationRun(app)
+
+            if isempty(app.Presenter)
+                return
+            end
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.finishRun(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method finishPresentationRun
+
+        function beginPresentationEdit(app, target)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.beginEdit(target, context);
+            app.renderMainViewModel(viewModel);
+
+        end % method beginPresentationEdit
+
+        function finishPresentationEdit(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.finishEdit(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method finishPresentationEdit
+
         function context = capturePresentationContext(app)
 
             context = struct();
