@@ -1052,6 +1052,46 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method finishPresentationOperation
 
+        function beginPresentationEditCommit(app)
+
+            context = app.capturePresentationContext();
+
+            viewModel = app.Presenter.beginEditCommit(context);
+
+            app.renderMainViewModel(viewModel);
+
+        end
+
+        function finishPresentationEditCommit(app, success)
+
+            arguments
+                app
+                success (1, 1) logical
+            end
+
+            context = app.capturePresentationContext();
+
+            viewModel = app.Presenter.finishEditCommit(context, success);
+
+            app.renderMainViewModel(viewModel);
+
+        end
+
+        function resetPresentation(app)
+
+            if isempty(app.Presenter)
+                app.Presenter = ...
+                    openmebius.presentation.main.MainPresenter();
+            end
+
+            context = app.capturePresentationContext();
+
+            viewModel = app.Presenter.reset(context);
+
+            app.renderMainViewModel(viewModel);
+
+        end
+
         function beginPresentationRun(app)
 
             context = app.capturePresentationContext();
@@ -3186,20 +3226,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 filepath = string(filepath);
             end
 
-            app.Presenter = ...
-                openmebius2.presentation.main.MainPresenter();
-
-            context = app.capturePresentationContext();
-            viewModel = app.Presenter.initialize(context);
-
-            app.renderMainViewModel(viewModel);
-
             loadHistory(app)
 
             initLog(app)
 
             lockAllFeature(app)
             initStatusTable(app);
+
+            app.initializePresentation();
 
             checkLatestVersionOnStartup(app);
 
@@ -3250,10 +3284,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             unlockProject(app);
 
+            app.refreshPresentation();
+
         end
 
         % Button pushed function: ProjectLoadButton
         function ProjectLoadButtonPushed(app, event)
+
+            cleanupPresentation = app.beginPresentationOperation();
 
             % Update status
             updateStatus(app, "model", "running");
@@ -3603,6 +3641,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TemplateModelLoadButton
         function TemplateModelLoadButtonPushed(app, event)
 
+            cleanupPresentation = app.beginPresentationOperation();
+
             % Update status
             updateStatus(app, "model", "running");
 
@@ -3715,9 +3755,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ModelEditButton
         function ModelEditButtonPushed(app, event)
 
-            lockForModelEdit(app, "edit");
+            import openmebius.presentation.main.EditTarget
 
-            app.updateStatus("model", "info");
+            app.beginPresentationEdit(EditTarget.Model);
 
             app.LogTextDate("Model table is now editable", "Info");
 
@@ -3726,28 +3766,39 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ModelSaveButton
         function ModelSaveButtonPushed(app, event)
 
-            app.updateStatus("model", "running");
+            app.beginPresentationEditCommit();
 
-            tableIn = app.ModelTable.Data;
-            app.model.updateModelTableGUI(tableIn);
+            try
+                app.updateStatus("model", "running");
 
-            errorRows = app.model.getInvalidModelRowIdx();
+                tableIn = app.ModelTable.Data;
+                app.model.updateModelTableGUI(tableIn);
 
-            resetModelTableColorFormat(app);
+                errorRows = app.model.getInvalidModelRowIdx();
 
-            if ~isempty(errorRows)
-                addStyle(app.ModelTable, app.styleError, 'row', errorRows);
-            end
+                resetModelTableColorFormat(app);
 
-            if app.model.isError
-                app.LogTextDate(app.model.statusMsg, "Error");
-                app.updateStatus("model", "error");
-            else
+                if ~isempty(errorRows)
+                    addStyle(app.ModelTable, app.styleError, 'row', errorRows);
+                end
+
+                if app.model.isError
+                    app.LogTextDate(app.model.statusMsg, "Error");
+                    app.updateStatus("model", "error");
+
+                    app.finishPresentationEditCommit(false);
+                    return
+                end
+
                 app.LogTextDate(app.model.statusMsg, "Info");
-                app.updateStatus("model", "complete");
-            end
+                app.updateStatus("model", "finished");
 
-            lockForModelEdit(app, "save");
+                app.finishPresentationEditCommit(true);
+
+            catch ME
+                app.finishPresentationEditCommit(false);
+                rethrow(ME)
+            end
 
         end
 
@@ -3834,9 +3885,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: MSEditButton
         function MSEditButtonPushed(app, event)
 
-            lockForMSEdit(app, "edit");
+            import openmebius.presentation.main.EditTarget
 
-            app.updateStatus("model", "info");
+            app.beginPresentationEdit(EditTarget.MassSpectrometry);
 
             app.LogTextDate("MS table is now editable", "Info");
 
@@ -3845,38 +3896,49 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: MSSaveButton
         function MSSaveButtonPushed(app, event)
 
-            app.updateStatus("model", "running");
+            app.beginPresentationEditCommit();
 
-            tableMS = app.MSTable.Data;
-            tableAtom = app.AtomTable.Data;
+            try
+                app.updateStatus("model", "running");
 
-            lockForMSEdit(app, "save");
+                tableMS = app.MSTable.Data;
+                tableAtom = app.AtomTable.Data;
 
-            app.model.updateMSTable(tableMS)
-            resetMSTableColorFormat(app)
+                app.model.updateMSTable(tableMS)
+                resetMSTableColorFormat(app)
 
-            errorRows = app.model.getInvalidMSRowIdx();
+                errorRows = app.model.getInvalidMSRowIdx();
 
-            if ~isempty(errorRows)
-                addStyle(app.MSTable, app.styleError, 'row', errorRows);
-            end
+                if ~isempty(errorRows)
+                    addStyle(app.MSTable, app.styleError, 'row', errorRows);
+                end
 
-            app.model.updateAtomTable(tableAtom)
-            errorRows = app.model.getInvalidAtomRowIdx();
+                app.model.updateAtomTable(tableAtom)
+                errorRows = app.model.getInvalidAtomRowIdx();
 
-            if ~isempty(errorRows)
-                addStyle(app.AtomTable, app.styleError, 'row', errorRows);
-            end
+                if ~isempty(errorRows)
+                    addStyle(app.AtomTable, app.styleError, 'row', errorRows);
+                end
 
-            if app.model.isError
+                if app.model.isError
+                    app.LogText(app.model.statusMsg);
+                    app.updateStatus("model", "error");
+
+                    app.finishPresentationEditCommit(false);
+                    return
+                end
+
                 app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-            else
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "complete");
-            end
+                app.updateStatus("model", "finished");
 
-            app.LogTextDate("MS table saved", "Info");
+                app.LogTextDate("MS table saved", "Info");
+
+                app.finishPresentationEditCommit(true);
+
+            catch ME
+                app.finishPresentationEditCommit(false);
+                rethrow(ME)
+            end
 
         end
 
@@ -4214,30 +4276,25 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Button pushed function: RunRunButton
         function RunRunButtonPushed(app, event)
-            % Run batch jobs
 
-            lockAllFeatureForBatchRun(app)
-
-            % Toggle button text between "Run" and "Cancel"
-            if strcmp(app.RunRunButton.Text, "Cancel")
+            if app.Presenter.isRunning()
 
                 msg = "Canceling batch jobs. It may take several minutes...";
                 app.LogTextDate(msg, "Info");
+
                 app.RunRunButton.Enable = 'off';
+                drawnow
 
                 cancelBatch(app.batch)
 
-                app.RunRunButton.Text = "Run";
-                app.RunRunButton.Enable = 'on';
-                unlockAllFeatureForBatchRun(app);
+                app.finishPresentationRun();
 
                 return
 
-            else
+            end % if app.Presenter.isRunning()
 
-                app.RunRunButton.Text = "Cancel";
-
-            end
+            app.beginPresentationRun();
+            cleanupPresentation = onCleanup(@() app.finishPresentationRun());
 
             msg = "Batch jobs are running...";
             app.LogTextDate(msg, "Info");
@@ -4250,15 +4307,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 msg = "Batch jobs are canceled.";
                 app.LogTextDate(msg, "Info");
                 app.RunRunButton.Text = "Run";
-                unlockAllFeatureForBatchRun(app);
                 return
             end % if
 
             msg = "All batch jobs are completed.";
             app.LogTextDate(msg, "Info");
             app.RunRunButton.Text = "Run";
-
-            unlockAllFeatureForBatchRun(app);
 
         end
 

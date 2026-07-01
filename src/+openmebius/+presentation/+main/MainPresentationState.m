@@ -16,9 +16,15 @@ classdef MainPresentationState < handle
 
         function beginBusy(obj)
 
-            if obj.Activity ~= openmebius.presentation.main.MainActivity.Busy
+            if obj.Activity == openmebius.presentation.main.MainActivity.Busy
                 error("OpenMebius2:Presentation:InvalidTransition", ...
                 "Another activity is already in progress.")
+            end
+
+            if obj.Activity == openmebius.presentation.main.MainActivity.Running
+                error( ...
+                    "OpenMebius2:Presentation:AnalysisAlreadyRunning", ...
+                "Analysis is already running.");
             end
 
             obj.Activity = openmebius.presentation.main.MainActivity.Busy;
@@ -54,6 +60,12 @@ classdef MainPresentationState < handle
             end
 
             obj.EditTarget = target;
+
+        end
+
+        function finishActivity(obj)
+
+            obj.Activity = openmebius.presentation.main.MainActivity.Idle;
 
         end
 
