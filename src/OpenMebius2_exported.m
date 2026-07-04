@@ -3230,7 +3230,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             initLog(app)
 
-            lockAllFeature(app)
             initStatusTable(app);
 
             app.initializePresentation();
@@ -3281,8 +3280,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             % Update the status
             updateStatus(app, "model", "init");
-
-            unlockProject(app);
 
             app.refreshPresentation();
 
@@ -3412,9 +3409,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % Load results if available
             loadResult(app)
 
-            lockProject(app)
-            unlockAllFeature(app)
-
         end
 
         % Button pushed function: ProjectSaveButton
@@ -3447,6 +3441,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Button pushed function: ProjectCreateButton
         function ProjectCreateButtonPushed(app, event)
+
+            cleanupPresentation = app.beginPresentationOperation();
 
             [answ, ok] = app.uiInputDlgWrap( ...
                 Prompt = "Enter the name of the new project directory:", ...
@@ -3587,9 +3583,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.batch = Batch(app.exp);
             app.result = IOResult(app.directoryResult);
 
-            lockProject(app);
-            unlockAllFeature(app);
-
         end
 
         % Value changed function: ProjectDirectoryDropDown
@@ -3634,7 +3627,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.TemplateModelDirectoryDropDown.Items{end + 1} = templateModelDirectory;
             end
 
-            unlockProject(app);
+            app.refreshPresentation();
 
         end
 
@@ -3703,8 +3696,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             loadPathway(app)
-
-            lockProject(app, template = true);
 
             msg = "EMU network was successfully constructed.";
             LogTextDate(app, msg, "Info");
@@ -4036,11 +4027,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ExpSaveButton
         function ExpSaveButtonPushed(app, event)
 
+            cleanupPresentation = app.beginPresentationOperation();
+
             updateStatus(app, "experiment", "running");
 
             updateModel(app)
-
-            lockAllFeatureForOtherGUI(app)
 
             tableExp = app.ExpTable.Data;
             tableBiomass = app.BiomassTable.Data;
@@ -4063,7 +4054,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             saveExpData(app.exp);
             LogText(app, app.exp.statusMsg);
 
-            unlockAllFeatureForOtherGUI(app)
             updateStatus(app, "experiment", "finished");
 
         end
@@ -4105,7 +4095,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             idxRow = idx(1, 1);
 
-            lockAllFeatureForOtherGUI(app)
+            cleanupPresentation = app.beginPresentationOperation();
 
             app.MSViewApp = MSView(app, idxRow);
 
@@ -4114,7 +4104,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TracerConfigButton
         function LabelConfigButtonPushed(app, event)
 
-            lockAllFeature(app)
+            cleanupPresentation = app.beginPresentationOperation();
             app.LabelConfigApp = LabelConfig(app, app.model.tableLabelView, app.model.structLabelView);
 
         end
@@ -4131,9 +4121,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TracerSaveButton
         function TracerSaveButtonPushed(app, event)
 
-            lockAllFeatureForOtherGUI(app)
-            updateStatus(app, "experiment", "running");
+            cleanupPresentation = app.beginPresentationOperation();
 
+            updateStatus(app, "experiment", "running");
             updateModel(app)
 
             tableUptake = app.UptakeTable.Data;
@@ -4144,7 +4134,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if err
 
                 app.LogText(app.exp.statusMsg);
-                unlockAllFeatureForOtherGUI(app)
                 updateStatus(app, "experiment", "error");
                 return
 
@@ -4157,7 +4146,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if err
 
                 app.LogText(app.exp.statusMsg);
-                unlockAllFeatureForOtherGUI(app)
                 updateStatus(app, "experiment", "error");
                 return
 
@@ -4169,7 +4157,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             saveExpData(app.exp);
             LogText(app, app.exp.statusMsg);
 
-            unlockAllFeatureForOtherGUI(app)
             updateStatus(app, "experiment", "finished");
 
         end
@@ -4193,7 +4180,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            lockAllFeature(app)
+            cleanupPresentation = app.beginPresentationOperation();
 
             app.TracerConfigApp = ...
                 TracerConfig( ...
@@ -4246,7 +4233,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             updateBatchTable(app);
 
-            lockAllFeatureForOtherGUI(app)
+            cleanupPresentation = app.beginPresentationOperation();
 
             app.RunConfigApp = RunConfig(app, selection);
 
@@ -4514,7 +4501,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadHistory(app)
             initLog(app)
-            unlockProject(app);
+            cleanupPresentation = app.beginPresentationOperation();
 
             % Reset all components
             resetAllComponents(app);
@@ -4524,8 +4511,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             updateStatus(app, "experiment", "init");
             updateStatus(app, "batch", "init");
             updateStatus(app, "result", "init");
-
-            unlockAllFeature(app);
 
         end
 
