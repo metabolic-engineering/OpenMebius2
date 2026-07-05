@@ -2895,27 +2895,30 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             ID = data.id;
             status = data.status;
             rate = data.rate;
+
             msg = "Batch " + ID + " is completed.";
             idx = find(app.RunTable.Data.ID == ID, 1);
+
+            notification = ...
+                openmebius.presentation.notification.Notification.fromBatchStatus( ...
+                msg, ...
+                status);
+
+            app.showNotification(notification);
 
             switch status
 
                 case "finished"
-                    LogTextDate(app, msg, "Info");
                     addStyle(app.RunTable, app.styleSuccessIcon, 'cell', [idx 1]);
 
                 case "warning"
-                    LogTextDate(app, msg, "Warning");
                     addStyle(app.RunTable, app.styleWarningIcon, 'cell', [idx 1]);
 
                 case "error"
-                    LogTextDate(app, msg, "Error");
                     addStyle(app.RunTable, app.styleErrorIcon, 'cell', [idx 1]);
 
                 case "question"
-                    LogTextDate(app, msg, "Error");
                     addStyle(app.RunTable, app.styleQuestionIcon, 'cell', [idx 1]);
-
             end
 
             app.ProgressBar.setProgress(rate, msg);
@@ -2926,20 +2929,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function statusGeneralMsg(app, data)
 
             data = data.data;
-            msg = data.msg;
-            status = data.status;
 
-            switch status
+            notification = ...
+                openmebius.presentation.notification.Notification( ...
+                string(data.msg), ...
+                string(data.status));
 
-                case "info"
-                    LogTextDate(app, msg, "Info");
-
-                case "warning"
-                    LogTextDate(app, msg, "Warning");
-
-                case "error"
-                    LogTextDate(app, msg, "Error");
-            end
+            app.showNotification(notification);
 
         end % function statusGeneralMsg
 
