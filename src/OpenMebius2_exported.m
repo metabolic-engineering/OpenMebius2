@@ -2971,11 +2971,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ProjectBrowseButton
         function ProjectBrowseButtonPushed(app, event)
 
-            % Open a dialog to select the project directory
-            projectDirectory = uigetdir(app.ProjectDirectoryDropDown.Value, "Select Project Directory");
+            [projectDirectory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Project Directory", ...
+                StartPath = app.ProjectDirectoryDropDown.Value);
 
-            if isequal(projectDirectory, 0)
-                return; % User canceled the dialog
+            if ~isOK
+                return
             end
 
             % If the directory is equal to the current directory, do nothing
@@ -3320,11 +3321,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TemplateModelBrowseButton
         function TemplateModelBrowseButtonPushed(app, event)
 
-            % Open a dialog to select the template model directory
-            templateModelDirectory = uigetdir(app.TemplateModelDirectoryDropDown.Value, "Select Template Model Directory");
+            [templateModelDirectory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Template Model Directory", ...
+                StartPath = app.TemplateModelDirectoryDropDown.Value);
 
-            if isequal(templateModelDirectory, 0)
-                return; % User canceled the dialog
+            if ~isOK
+                return
             end
 
             % If the directory is equal to the current directory, do nothing
@@ -4046,15 +4048,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             selectedRows = unique(selectedRows); % Ensure unique selection
             batchIDs = app.RunTable.Data.ID(selectedRows);
 
-            % Confirm deletion
-            answer = uiconfirm(app.OpenMebius2UIFigure, ...
+            [answer, isOK] = app.uiConfirmWrap( ...
                 "Are you sure you want to remove the selected batch?", ...
                 "Remove Batch", ...
-                'Options', {'Yes', 'No'}, ...
-                'DefaultOption', 'No', ...
-                'CancelOption', 'No');
+                Options = ["Yes", "No"], ...
+                DefaultOption = "No", ...
+                CancelOption = "No", ...
+                Icon = "warning");
 
-            if strcmp(answer, 'Yes')
+            if isOK && answer == "Yes"
 
                 for i = 1:length(batchIDs)
                     batchID = batchIDs(i);
@@ -4335,10 +4337,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: ImportMSdatafromtextfilesMenu
         function ImportMSdatafromtextfilesMenuSelected(app, event)
 
-            importDirectory = uigetdir(app.directoryExp, "Select Directory Containing MS Data Text Files");
+            [importDirectory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Directory Containing MS Data Text Files", ...
+                StartPath = app.directoryExp);
 
-            if isequal(importDirectory, 0)
-                return; % User canceled the dialog
+            if ~isOK
+                return
             end
 
             % Check model is loaded
