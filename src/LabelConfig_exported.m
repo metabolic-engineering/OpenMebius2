@@ -243,7 +243,6 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
             app.MainApp.updateModel()
 
-            app.MainApp.unlockAllFeature()
             delete(app)
 
         end
@@ -273,12 +272,8 @@ classdef LabelConfig_exported < matlab.apps.AppBase
         % Key press function: LabelconfigUIFigure
         function LabelconfigUIFigureKeyPress(app, event)
 
-            % Set escape key to close the app
-            key = event.Key;
+            if strcmp(event.Key, 'escape')
 
-            if strcmp(key, 'escape')
-
-                app.MainApp.unlockAllFeature()
                 delete(app)
 
             end

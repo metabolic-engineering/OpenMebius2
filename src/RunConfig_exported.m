@@ -129,14 +129,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
         exp
     end
 
-    %% Public methods
-    methods (Access = public)
-
-        function unlockAllFeature(app)
-        end % unlockAllFeature
-
-    end
-
     methods (Access = protected)
 
         function updateINSTMFATimeCourseTable(app)
@@ -810,8 +802,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Close request function: BatchconfigUIFigure
         function BatchconfigUIFigureCloseRequest(app, event)
 
-            app.MainApp.unlockAllFeatureForOtherGUI()
-            pause(0.5)
             delete(app)
 
         end
@@ -837,8 +827,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Button pushed function: GeneralCloseButton
         function GeneralCloseButtonPushed(app, event)
 
-            app.MainApp.unlockAllFeatureForOtherGUI()
-            pause(0.5)
             delete(app)
 
         end
@@ -864,8 +852,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Button pushed function: MSCloseButton
         function MSCloseButtonPushed(app, event)
 
-            app.MainApp.unlockAllFeatureForOtherGUI()
-            pause(0.5)
             delete(app)
 
         end
@@ -900,8 +886,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Button pushed function: EffluxCloseButton
         function EffluxCloseButtonPushed(app, event)
 
-            app.MainApp.unlockAllFeatureForOtherGUI()
-            pause(0.5)
             delete(app)
 
         end
@@ -927,8 +911,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Button pushed function: SuggestionCloseButton
         function SuggestionCloseButtonPushed(app, event)
 
-            app.MainApp.unlockAllFeatureForOtherGUI()
-            pause(0.5)
             delete(app)
 
         end
@@ -1084,8 +1066,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             % Esc
             if strcmp(key, 'escape')
-                app.MainApp.unlockAllFeatureForOtherGUI()
-                pause(0.5)
                 delete(app)
             end
 
@@ -1109,8 +1089,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Button pushed function: INSTMFACloseButton
         function INSTMFACloseButtonPushed(app, event)
 
-            app.MainApp.unlockAllFeatureForOtherGUI()
-            pause(0.5)
             delete(app)
 
         end
