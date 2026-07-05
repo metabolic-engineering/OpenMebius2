@@ -1565,6 +1565,132 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function safeStringScalar
 
+        %% Private notification function
+        function showNotification(app, notification)
+            % SHOWNOTIFICATION
+            % Central notification sink for OpenMebius2.mlapp.
+            % showNotification(notification)
+
+            if isempty(notification)
+                return
+            end
+
+            if numel(notification) > 1
+
+                for i = 1:numel(notification)
+                    app.showNotification(notification(i));
+                end
+
+                return
+            end
+
+            if ~isa(notification, ...
+                "openmebius.presentation.notification.Notification")
+
+                notification = ...
+                    openmebius.presentation.notification.Notification.info( ...
+                    string(notification));
+
+            end
+
+            app.appendLogText(notification.toLogText());
+
+            if notification.ShowAlert
+
+                uialert( ...
+                    app.OpenMebius2UIFigure, ...
+                    char(notification.Message), ...
+                    char(notification.Title), ...
+                    "Icon", char(notification.alertIcon()), ...
+                    "Interpreter", "none");
+
+            end
+
+        end % method showNotification
+
+        function appendLogText(app, text)
+            % APPENDLOGTEXT
+            % Raw append operation for LogTextArea.
+
+            text = string(text);
+
+            before = app.LogTextArea.Value;
+            app.LogTextArea.Value = [before; text(:)];
+
+            scroll(app.LogTextArea, "bottom");
+
+            drawnow limitrate
+
+        end % method appendLogText
+
+        function notifyInfo(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = ""
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.info( ...
+                message, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyInfo
+
+        function notifyWarning(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = ""
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.warning( ...
+                message, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyWarning
+
+        function notifyError(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = ""
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.error( ...
+                message, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyError
+
+        function notifyException(app, exception, options)
+
+            arguments
+                app
+                exception
+                options.Title (1, 1) string = "Error"
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.fromException( ...
+                exception, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyException
+
         %% Private initialization function
         function initLog(app)
 
