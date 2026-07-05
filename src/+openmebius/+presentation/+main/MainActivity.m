@@ -4,7 +4,7 @@ classdef MainActivity
         Idle
         Busy
         Running
-        Cancelling
+        Canceling
     end
 
 end

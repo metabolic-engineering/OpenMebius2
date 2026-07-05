@@ -58,15 +58,15 @@ classdef MainPresenter < handle
             import openmebius.presentation.main.MainActivity
 
             tf = obj.State.Activity == MainActivity.Running || ...
-                obj.State.Activity == MainActivity.Cancelling;
+                obj.State.Activity == MainActivity.Canceling;
 
         end
 
-        function tf = isCancelling(obj)
+        function tf = isCanceling(obj)
 
             import openmebius.presentation.main.MainActivity
 
-            tf = obj.State.Activity == MainActivity.Cancelling;
+            tf = obj.State.Activity == MainActivity.Canceling;
 
         end
 

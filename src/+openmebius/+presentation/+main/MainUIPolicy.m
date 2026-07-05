@@ -15,6 +15,8 @@ classdef MainUIPolicy
             isIdle = state.Activity == MainActivity.Idle;
             isBusy = state.Activity == MainActivity.Busy;
             isRunning = state.Activity == MainActivity.Running;
+            isCanceling = state.Activity == MainActivity.Canceling;
+            isRunActive = isRunning || isCanceling;
 
             isEditing = state.EditTarget ~= EditTarget.None;
 
@@ -88,8 +90,14 @@ classdef MainUIPolicy
 
             if isRunning
                 ui.RunButtonText = "Cancel";
+            elseif isCanceling
+                ui.RunButtonText = "Canceling...";
             else
                 ui.RunButtonText = "Run";
+            end
+
+            if isCanceling
+                ui.RunButtonEnabled = false;
             end
 
             % Result

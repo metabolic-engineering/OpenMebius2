@@ -1072,6 +1072,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             context = app.capturePresentationContext();
             viewModel = app.Presenter.beginRun(context);
             app.renderMainViewModel(viewModel);
+            drawnow;
 
         end % method beginPresentationRun
 
@@ -1086,6 +1087,41 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderMainViewModel(viewModel);
 
         end % method finishPresentationRun
+
+        function finishPresentationRunSafely(app)
+
+            try
+
+                if isempty(app.Presenter)
+                    return
+                end
+
+                context = app.capturePresentationContext();
+                viewModel = app.Presenter.finishRun(context);
+                app.renderMainViewModel(viewModel);
+                drawnow;
+
+            catch ME
+
+                try
+                    app.LogTextDate( ...
+                        "Failed to restore run UI state: " + string(ME.message), ...
+                    "Error");
+                catch
+                end
+
+            end
+
+        end % method finishPresentationRunSafely
+
+        function requestPresentationCancelRun(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.requestCancelRun(context);
+            app.renderMainViewModel(viewModel);
+            drawnow;
+
+        end % method requestPresentationCancelRun
 
         function beginPresentationEdit(app, target)
 
@@ -4282,40 +4318,49 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             if app.Presenter.isRunning()
 
+                app.requestPresentationCancelRun();
+
                 msg = "Canceling batch jobs. It may take several minutes...";
                 app.LogTextDate(msg, "Info");
 
-                app.RunRunButton.Enable = 'off';
-                drawnow
-
                 cancelBatch(app.batch)
 
-                app.finishPresentationRun();
-
                 return
-
-            end % if app.Presenter.isRunning()
+            end
 
             app.beginPresentationRun();
-            cleanupPresentation = onCleanup(@() app.finishPresentationRun());
+            cleanupPresentation = onCleanup( ...
+                @() app.finishPresentationRunSafely());
 
-            msg = "Batch jobs are running...";
-            app.LogTextDate(msg, "Info");
+            try
+                app.updateStatus("batch", "running");
 
-            updateBatchTable(app);
-
-            status = runBatch(app.batch, app.directoryResult);
-
-            if strcmp(status, "canceled")
-                msg = "Batch jobs are canceled.";
+                msg = "Batch jobs are running...";
                 app.LogTextDate(msg, "Info");
-                app.RunRunButton.Text = "Run";
-                return
-            end % if
 
-            msg = "All batch jobs are completed.";
-            app.LogTextDate(msg, "Info");
-            app.RunRunButton.Text = "Run";
+                updateBatchTable(app);
+
+                % updateBatchTable may reset RunTable.ColumnEditable.
+                app.refreshPresentation();
+
+                status = runBatch(app.batch, app.directoryResult);
+
+                if strcmp(status, "canceled")
+                    msg = "Batch jobs are canceled.";
+                    app.LogTextDate(msg, "Info");
+                    app.updateStatus("batch", "finished");
+                    return
+                end
+
+                msg = "All batch jobs are completed.";
+                app.LogTextDate(msg, "Info");
+                app.updateStatus("batch", "finished");
+
+            catch ME
+                app.updateStatus("batch", "error");
+                app.LogTextDate(string(ME.message), "Error");
+                rethrow(ME)
+            end
 
         end
 
