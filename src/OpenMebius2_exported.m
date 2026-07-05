@@ -338,47 +338,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     methods (Access = protected)
 
         %% Protected wrapper functions
-        function [folder, isOK] = uiGetDirWrap(~, options)
-            % uiGetDirWrap - uigetdir wrapper with flexible texts
-            %
-            % Usage:
-            %   [folder,isOK] = uiGetDirWrap(struct("Title","保存先を選択","StartPath",pwd));
-            %   [folder,isOK] = uiGetDirWrap(struct("Parent",app.UIFigure,"Title","Select folder"));
-            %
-            % options (struct)
-            %   Parent    : (optional) uifigure handle for App Designer
-            %   Title     : dialog title (string)
-            %   StartPath : initial folder (string)
+        function [folder, isOK] = uiGetDirWrap(app, options)
 
             arguments
-                ~
+                app
                 options.Parent = []
                 options.Title (1, 1) string = "Select folder"
                 options.StartPath (1, 1) string = string(pwd)
             end
 
-            % uigetdir does not accept Parent in older MATLAB versions.
-            % So we keep interface but call uigetdir with (startPath,title).
-            folder0 = char(options.StartPath);
-            title0 = char(options.Title);
+            app.ensureDialogService();
 
-            out = uigetdir(folder0, title0);
-
-            if isequal(out, 0)
-                folder = "";
-                isOK = false;
-            else
-                folder = string(out);
-                isOK = true;
-            end
+            [folder, isOK] = app.DialogService.selectFolder( ...
+                Title = options.Title, ...
+                StartPath = options.StartPath);
 
         end % function uiGetDirWrap
 
-        function [files, isOK] = uiGetFileWrap(~, options)
-            % uiGetFileWrap - uigetfile/uiputfile wrapper with flexible texts
+        function [files, isOK] = uiGetFileWrap(app, options)
 
             arguments
-                ~
+                app
                 options.Parent = []
                 options.Filter = "*.*"
                 options.Title (1, 1) string = "Select file"
@@ -388,138 +368,81 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.DefaultName (1, 1) string = ""
             end
 
-            % ---- normalize filter spec ----
-            filterSpec = options.Filter;
+            app.ensureDialogService();
 
-            if isstring(filterSpec) && isscalar(filterSpec)
-                filterSpec = char(filterSpec);
-            end
+            [files, isOK] = app.DialogService.selectFile( ...
+                Filter = options.Filter, ...
+                Title = options.Title, ...
+                StartPath = options.StartPath, ...
+                MultiSelect = options.MultiSelect, ...
+                Save = options.Save, ...
+                DefaultName = options.DefaultName);
 
-            if isstring(filterSpec) && ~isscalar(filterSpec)
-                filterSpec = cellstr(filterSpec);
-            end
+        end % function uiGetFileWrap
 
-            startPath0 = char(options.StartPath);
-            title0 = char(options.Title);
-
-            % ---- save mode ----
-            if options.Save
-
-                if options.DefaultName ~= ""
-                    startPath0 = char(fullfile(options.StartPath, options.DefaultName));
-                end
-
-                [fname, fpath] = uiputfile(filterSpec, title0, startPath0);
-
-                if isequal(fname, 0) || isequal(fpath, 0)
-                    files = string.empty(0, 1);
-                    isOK = false;
-                    return;
-                end
-
-                file0 = string(fullfile(fpath, fname));
-
-                % ---- overwrite warning ----
-                if isfile(file0)
-                    answer = questdlg( ...
-                        "The file already exists. Do you want to overwrite it?", ...
-                        "File exists", ...
-                        "Yes", "No", "No");
-
-                    if ~strcmp(answer, "Yes")
-                        files = string.empty(0, 1);
-                        isOK = false;
-                        return;
-                    end
-
-                end
-
-                files = file0;
-                isOK = true;
-                return;
-            end
-
-            % ---- open mode ----
-            if options.MultiSelect == "on"
-                [fname, fpath] = uigetfile(filterSpec, title0, startPath0, "MultiSelect", "on");
-            else
-                [fname, fpath] = uigetfile(filterSpec, title0, startPath0);
-            end
-
-            if isequal(fname, 0) || isequal(fpath, 0)
-                files = string.empty(0, 1);
-                isOK = false;
-                return;
-            end
-
-            if iscell(fname)
-                files = strings(numel(fname), 1);
-
-                for i = 1:numel(fname)
-                    files(i) = string(fullfile(fpath, fname{i}));
-                end
-
-            else
-                files = string(fullfile(fpath, fname));
-            end
-
-            isOK = true;
-
-        end
-
-        function [answer, isOK] = uiInputDlgWrap(~, options)
-            % uiInputDlgWrap - inputdlg wrapper with flexible texts and defaults
-            %
-            % Usage:
-            %   [answ,isOK] = uiInputDlgWrap(struct( ...
-            %       "Prompt","半径rを入力", ...
-            %       "Title","Parameter", ...
-            %       "Default","50"));
-            %
-            % Multiple fields:
-            %   opt = struct;
-            %   opt.Prompt  = ["x crop"; "y crop"];
-            %   opt.Title   = "Crop size";
-            %   opt.Default = ["300"; "200"];
-            %   [a,isOK] = uiInputDlgWrap(opt);
+        function [answer, isOK] = uiInputDlgWrap(app, options)
 
             arguments
-                ~
+                app
                 options.Prompt (1, :) string = "Input"
                 options.Title (1, 1) string = "Input dialog"
                 options.Default (1, :) string = ""
-                options.Dims (1, 2) double = [1 50] % [rows cols] for each field
+                options.Dims (1, 2) double = [1 50]
             end
 
-            prompt = cellstr(options.Prompt(:));
-            title0 = char(options.Title);
+            app.ensureDialogService();
 
-            % Default: ensure same length as prompt
-            n = numel(prompt);
-            def = options.Default(:);
-
-            if numel(def) == 0
-                def = repmat("", n, 1);
-            elseif isscalar(def) && n > 1
-                def = repmat(def, n, 1);
-            elseif numel(def) ~= n
-                error("uiInputDlgWrap:DefaultSizeMismatch", ...
-                "Default must be length 0, 1, or equal to number of prompts.");
-            end
-
-            def = cellstr(def);
-
-            out = inputdlg(prompt, title0, options.Dims, def);
-
-            if isempty(out)
-                answer = strings(n, 1);
-                isOK = false;
-            else
-                answer = string(out);
-                isOK = true;
-            end
+            [answer, isOK] = app.DialogService.inputText( ...
+                Prompt = options.Prompt, ...
+                Title = options.Title, ...
+                Default = options.Default, ...
+                Dims = options.Dims);
 
         end % function uiInputDlgWrap
+
+        function [answer, isOK] = uiConfirmWrap(app, message, title, options)
+
+            arguments
+                app
+                message (1, 1) string
+                title (1, 1) string = "Confirm"
+                options.Options (1, :) string = ["OK", "Cancel"]
+                options.DefaultOption (1, 1) string = "OK"
+                options.CancelOption (1, 1) string = "Cancel"
+                options.Icon (1, 1) string = "question"
+            end
+
+            app.ensureDialogService();
+
+            [answer, isOK] = app.DialogService.confirm( ...
+                message, ...
+                title, ...
+                Options = options.Options, ...
+                DefaultOption = options.DefaultOption, ...
+                CancelOption = options.CancelOption, ...
+                Icon = options.Icon);
+
+        end % function uiConfirmWrap
+
+        function uiAlertWrap(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = "Message"
+                options.Icon (1, 1) string = "info"
+                options.Interpreter (1, 1) string = "none"
+            end
+
+            app.ensureDialogService();
+
+            app.DialogService.alert( ...
+                message, ...
+                Title = options.Title, ...
+                Icon = options.Icon, ...
+                Interpreter = options.Interpreter);
+
+        end % function uiAlertWrap
 
     end % methods (Access = protected)
 
@@ -1684,6 +1607,25 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 ShowAlert = options.Alert));
 
         end % method notifyException
+
+        function ensureDialogService(app)
+
+            if isempty(app.DialogService)
+                app.DialogService = ...
+                    openmebius.presentation.dialog.AppDialogService( ...
+                    app.OpenMebius2UIFigure);
+                return
+            end
+
+            try
+                app.DialogService.setParent(app.OpenMebius2UIFigure);
+            catch
+                app.DialogService = ...
+                    openmebius.presentation.dialog.AppDialogService( ...
+                    app.OpenMebius2UIFigure);
+            end
+
+        end % method ensureDialogService
 
         %% Private initialization function
         function initLog(app)
@@ -2986,6 +2928,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function startupFcn(app, filepath)
 
             app.setLogFile();
+
+            app.DialogService = ...
+                openmebius.presentation.dialog.AppDialogService( ...
+                app.OpenMebius2UIFigure);
 
             if nargin < 2
                 filepath = "";
