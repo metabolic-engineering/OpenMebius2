@@ -2137,6 +2137,87 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureResultPresenter
 
+        function rows = selectedTableRows(~, tableObject)
+
+            rows = zeros(0, 1);
+
+            try
+                selection = tableObject.Selection;
+
+                if isempty(selection)
+                    return
+                end
+
+                if isvector(selection)
+                    rows = selection(:);
+                else
+                    rows = selection(:, 1);
+                end
+
+                rows = double(rows(:));
+                rows = rows(~isnan(rows));
+                rows = rows(rows >= 1);
+                rows = unique(rows, "stable");
+
+                data = tableObject.Data;
+
+                if isempty(data)
+                    rows = zeros(0, 1);
+                    return
+                end
+
+                if istable(data)
+                    maxRow = height(data);
+                else
+                    maxRow = size(data, 1);
+                end
+
+                rows = rows(rows <= maxRow);
+
+            catch
+                rows = zeros(0, 1);
+            end
+
+        end % method selectedTableRows
+
+        function fluxCells = toFluxLabelCell(~, values)
+
+            if isempty(values)
+                fluxCells = {};
+                return
+            end
+
+            if iscell(values)
+                fluxCells = values(:);
+                return
+            end
+
+            if isnumeric(values)
+                fluxCells = arrayfun( ...
+                    @(x) sprintf('%.2f', x), ...
+                    values(:), ...
+                    'UniformOutput', false);
+                return
+            end
+
+            if isstring(values)
+                fluxCells = cellstr(values(:));
+                return
+            end
+
+            if ischar(values)
+                fluxCells = cellstr(string(values));
+                return
+            end
+
+            try
+                fluxCells = cellstr(string(values(:)));
+            catch
+                fluxCells = {};
+            end
+
+        end % method toFluxLabelCell
+
         %% Private initialization function
         function initLog(app)
 
@@ -2583,34 +2664,57 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.relativeTo = ""
             end
 
-            app.ensureResultPresenter();
+            type = string(app.ResultDropDown.Value);
+            rows = app.selectedTableRows(app.ResultSubTable);
 
-            selection = app.ResultSubTable.Selection;
-
-            if isempty(selection)
+            if isempty(rows)
                 return
             end
 
-            mode = ...
-                openmebius.presentation.result.ResultViewMode.normalize( ...
-                app.ResultDropDown.Value);
+            switch type
 
-            rows = selection(:, 1);
-            rows = unique(rows, "stable");
+                case "Overview"
 
-            batchIDs = string(app.ResultSubTable.Data.ID(rows));
-            names = string(app.ResultSubTable.Data.Name(rows));
+                    row = rows(1);
+                    batchID = string(app.ResultSubTable.Data.ID(row));
 
-            viewModel = app.ResultPresenter.presentMain( ...
-                app.result, ...
-                mode, ...
-                batchIDs, ...
-                names, ...
-                Relative = options.relative, ...
-                RelativeTo = options.relativeTo, ...
-                IsDarkTheme = app.isDarkTheme());
+                    loadResultOverView( ...
+                        app, ...
+                        batchID, ...
+                        relative = options.relative, ...
+                        relativeTo = options.relativeTo);
 
-            app.renderResultMainTable(viewModel);
+                case {"Details", "Detailed"}
+
+                    row = rows(1);
+                    batchID = string(app.ResultSubTable.Data.ID(row));
+
+                    loadResultDetailed(app, batchID);
+
+                case "Comparison"
+
+                    if numel(rows) < 2
+                        msg = "Please select at least two results for comparison.";
+                        LogTextDate(app, msg, "Warning");
+                        return
+                    end
+
+                    batchIDs = string(app.ResultSubTable.Data.ID(rows));
+                    names = string(app.ResultSubTable.Data.Name(rows));
+
+                    loadResultComparison( ...
+                        app, ...
+                        batchIDs, ...
+                        names, ...
+                        relative = options.relative, ...
+                        relativeTo = options.relativeTo);
+
+                otherwise
+
+                    error( ...
+                        "OpenMebius2:Result:InvalidViewMode", ...
+                        "Unknown result view mode: %s", type);
+            end
 
         end % method loadMainResultTable
 
@@ -2918,61 +3022,97 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function updateResultPlot(app)
 
-            type = app.ResultDropDown.Value;
-            selectedFlux = app.ResultMainTable.Selection;
-            selectedID = app.ResultSubTable.Selection;
+            type = string(app.ResultDropDown.Value);
 
-            if isempty(selectedFlux) || isempty(selectedID)
+            % During the migration period, plotting is only supported for Overview.
+            % Details / Comparison plotting will be moved to ResultPlotPresenter later.
+            if type == "Details" || type == "Detailed" || type == "Comparison"
+                cla(app.MainUIAxes);
+                cla(app.SubUIAxes);
                 return
             end
 
-            switch type
+            if type ~= "Overview"
+                return
+            end
 
-                case "Overview"
+            selectedFluxRows = app.selectedTableRows(app.ResultMainTable);
+            selectedResultRows = app.selectedTableRows(app.ResultSubTable);
 
-                    selectedFlux = selectedFlux(1);
-                    selectedID = selectedID(1);
-                    % Reaction ID
-                    RxnIDs = app.ResultMainTable.RowName;
-                    batchIDs = app.ResultSubTable.Data.ID;
-                    RxnID = string(RxnIDs(selectedFlux));
-                    Fluxes = app.ResultMainTable.Data.Flux(1:end - 1);
-                    batchID = batchIDs(selectedID);
+            if isempty(selectedFluxRows) || isempty(selectedResultRows)
+                return
+            end
 
-                    % Reaction highlight mask
-                    modelTable = getModelTable(app.model);
-                    highlightMask = strcmp(modelTable.Properties.RowNames, RxnID);
+            selectedFlux = selectedFluxRows(1);
+            selectedID = selectedResultRows(1);
 
-                    drawFluxLabel( ...
-                        app.model, ...
-                        app.MainUIAxes, ...
-                        Fluxes, ...
-                        highlight = highlightMask, ...
-                        darkmode = isDarkTheme(app) ...
-                    );
+            if isempty(app.ResultMainTable.Data)
+                return
+            end
 
-                    % Confidence interval plot
-                    data = getCIReaction(app.result, batchID, RxnID);
+            if ~istable(app.ResultMainTable.Data)
+                return
+            end
 
-                    if isempty(data) || ~isfield(data, 'CI')
-                        % Clear the axes
-                        cla(app.SubUIAxes);
-                        return
-                    end
+            if ~any(app.ResultMainTable.Data.Properties.VariableNames == "Flux")
+                return
+            end
 
-                    % Clear the axes
-                    cla(app.SubUIAxes);
-                    drawCIReaction( ...
-                        app.result, app.SubUIAxes, data ...
-                    )
+            RxnIDs = app.ResultMainTable.RowName;
 
-                case "Detailed"
+            if isempty(RxnIDs)
+                return
+            end
 
-                case "Comparison"
+            if selectedFlux > numel(RxnIDs)
+                return
+            end
 
-            end % switch type
+            batchIDs = string(app.ResultSubTable.Data.ID);
 
-        end % function updateBatchTable
+            if selectedID > numel(batchIDs)
+                return
+            end
+
+            RxnID = string(RxnIDs(selectedFlux));
+            batchID = batchIDs(selectedID);
+
+            fluxColumn = app.ResultMainTable.Data.Flux;
+
+            if numel(fluxColumn) > 1
+                fluxColumn = fluxColumn(1:end - 1);
+            end
+
+            Fluxes = app.toFluxLabelCell(fluxColumn);
+
+            modelTable = getModelTable(app.model);
+            highlightMask = strcmp(modelTable.Properties.RowNames, RxnID);
+
+            app.MainUIAxes.Visible = 'on';
+            app.SubUIAxes.Visible = 'on';
+
+            drawFluxLabel( ...
+                app.model, ...
+                app.MainUIAxes, ...
+                Fluxes, ...
+                highlight = highlightMask, ...
+                darkmode = isDarkTheme(app));
+
+            data = getCIReaction(app.result, batchID, RxnID);
+
+            if isempty(data) || ~isfield(data, 'CI')
+                cla(app.SubUIAxes);
+                return
+            end
+
+            cla(app.SubUIAxes);
+
+            drawCIReaction( ...
+                app.result, ...
+                app.SubUIAxes, ...
+                data);
+
+        end % method updateResultPlot
 
         %% Private clipboard function
         function clipboardText = copyTableToClipboard(~, tableObject)
@@ -4409,7 +4549,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Value changed function: ResultDropDown
         function ResultDropDownValueChanged(app, event)
 
-            updateResult(app);
+            loadMainResultTable(app);
+            updateResultPlot(app);
 
         end
 
