@@ -2092,6 +2092,38 @@ classdef FluxAnalysis < handle & IO
                 config (1, 1) struct
             end % arguments
 
+            if isfield(config, "procedure")
+                procedure = config.procedure;
+            else
+                procedure = "Single run";
+            end
+
+            switch procedure
+                case "Single run"
+                    [fluxLB, fluxUB, output] = ...
+                        calculateCIMCSingleRun(obj, config);
+                case "Multiple run"
+                    [fluxLB, fluxUB, output] = ...
+                        calculateCIMCMultiRun(obj, config);
+                otherwise
+                    msg = "Unknown procedure: " + string(procedure) + ...
+                        ". Use 'Single' or 'Multi'.";
+                    notifyGeneralMessage(obj, "error", msg, dbstack());
+                    return;
+            end % switch
+
+        end % calculateCIMC
+
+        function [fluxLB, fluxUB, output] = calculateCIMCSingleRun(obj, config)
+            % CALCULATECIMCMULTIRUN Calculate the confidence interval using Monte Carlo method with multiple runs.
+            %
+            % Parameters
+            % ----------
+            %   obj: FluxAnalysis
+            %       The FluxAnalysis object.
+            %   config: (1, 1) struct
+            %       The configuration for the Monte Carlo method.
+
             tStart = tic;
 
             fluxLB = [];
@@ -2163,7 +2195,152 @@ classdef FluxAnalysis < handle & IO
                 " (Elapsed time: " + string(seconds(output.time), "hh:mm:ss") + ")";
             notifyGeneralMessage(obj, "info", msg, dbstack());
 
-        end % calculateCIMC
+        end % calculateCIMCSingleRun
+
+        function [fluxLB, fluxUB, output] = calculateCIMCMultiRun(obj, config)
+            % CALCULATECIMCMULTIRUN Calculate the confidence interval using Monte Carlo method with multiple runs.
+            %
+            % Parameters
+            % ----------
+            %   obj: FluxAnalysis
+            %       The FluxAnalysis object.
+            %   config: (1, 1) struct
+            %       The configuration for the Monte Carlo method.
+
+            tStart = tic;
+
+            fluxLB = [];
+            fluxUB = [];
+            output = struct();
+
+            % Notify the initial flux event
+            msg = "Calculating confidence interval using Monte Carlo method. " + ...
+                "It may take a while (Cancel button is not available).";
+            notifyGeneralMessage(obj, "info", msg, dbstack());
+
+            % If the flux distribution is not calculated, return
+            if obj.statusFlag(2) ~= 1
+                msg = "Flux distribution is not calculated.";
+                notifyGeneralMessage(obj, "error", msg, dbstack());
+                return;
+            end % if
+
+            % Set up the experimental conditions
+            Lmax = config.iteration;
+            SD = config.MIDSD;
+
+            % MDV calculation
+            numFlux = size(obj.resultFlux, 1);
+            MDVExpTemp = obj.MDVExpFmincon;
+
+            resultFluxBest = obj.resultFlux(:, 1);
+            RHSTemp = obj.RHSFmincon;
+            RHSTemp(obj.maskIndependent) = resultFluxBest(obj.maskRxnForBoundary);
+            obj.RHSFmincon = RHSTemp;
+
+            numMDVTemp = size(MDVExpTemp, 1);
+            numLabelingTemp = size(MDVExpTemp, 2);
+            MCMDV = nan(numMDVTemp, numLabelingTemp, Lmax);
+            MCFlux = nan(numFlux, Lmax);
+
+            trials = config.theNumberOfRuns;
+            certainThreshold = config.certainThreshold;
+            proximityThreshold = config.proximityThreshold;
+
+            parfor i = 1:Lmax
+
+                % Corruppt randomly the MDV
+                iMDV = MDVExpTemp + ...
+                    randn(numMDVTemp, numLabelingTemp) * SD;
+
+                % Save the MDV
+                MCMDV(:, :, i) = iMDV;
+
+                msg = "Monte Carlo iteration: " + string(i) + "/" + string(Lmax);
+                notifyGeneralMessage(obj, "info", msg, dbstack());
+
+                temporaryFlux = [];
+                temporaryRSS = [];
+                numTrials = 1;
+                bestRSS = inf;
+
+                while numTrials <= trials || length(temporaryRSS) < certainThreshold
+
+                    msg = "Monte Carlo iteration: " + string(i) + "/" + string(Lmax) + ...
+                        ", Trial: " + string(numTrials) + "/" + string(trials);
+                    notifyGeneralMessage(obj, "info", msg, dbstack());
+
+                    % Calculate the flux distribution
+                    [fval, estimatedFlux, ~, ~, ~] = ...
+                        calculateNonLinearOptimization(obj, iMDV);
+
+                    temporaryFlux = [temporaryFlux, estimatedFlux];
+                    temporaryRSS = [temporaryRSS, fval];
+
+                    proximity = calculateProximity(obj, bestRSS, fval);
+
+                    if proximity < proximityThreshold || bestRSS == inf
+                        temporaryFlux = [temporaryFlux, estimatedFlux];
+                        temporaryRSS = [temporaryRSS, fval];
+                        bestRSS = min(temporaryRSS);
+                    end
+
+                    numTrials = numTrials + 1;
+
+                end % while
+
+                minIdx = find(temporaryRSS == min(temporaryRSS), 1);
+                MCFlux(:, i) = temporaryFlux(:, minIdx);
+
+            end % for
+
+            idxRev = obj.model.getIdxRev();
+            fluxFwd = MCFlux;
+            fluxFwd(idxRev(:, 1), :) = fluxFwd(idxRev(:, 1), :) - fluxFwd(idxRev(:, 2), :);
+            fluxFwd(idxRev(:, 2), :) = [];
+
+            % Change the sign of the fluxes for reversible reactions
+
+            [fluxLB, fluxUB] = ...
+                calculateConfidenceIntervalFromMonteCarlo(obj, fluxFwd, 0.95);
+
+            output.MDV = MCMDV;
+            output.flux = fluxFwd;
+            output.iteration = Lmax;
+            output.time = toc(tStart);
+
+            msg = "Confidence interval calculated successfully." + ...
+                " (Elapsed time: " + string(seconds(output.time), "hh:mm:ss") + ")";
+            notifyGeneralMessage(obj, "info", msg, dbstack());
+
+        end % calculateCIMCMultiRun
+
+        function epsilon = calculateProximity(~, rssOld, rssNew)
+            % CALCULATEPROXIMITY Calculate the proximity threshold.
+            %
+            % Parameters
+            % ----------
+            %   obj: FluxAnalysis
+            %       The FluxAnalysis object.
+            %   rssOld: (1, 1) double
+            %       The RSS of the previous iteration.
+            %   rssNew: (1, 1) double
+            %       The RSS of the current iteration.
+            %
+            % Returns
+            % -------
+            %   epsilon: (1, 1) double
+            %       The proximity.
+
+            arguments
+                ~
+                rssOld (1, 1) double
+                rssNew (1, 1) double
+            end
+
+            epsilon = abs(rssNew - rssOld) / rssOld;
+
+        end % method calculateProximity
 
         function [LB, UB] = calculateConfidenceIntervalFromMonteCarlo(obj, flux, gamma)
             % CALCULATECIMC Calculate the confidence interval.
