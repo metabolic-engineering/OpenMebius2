@@ -190,6 +190,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     properties (Access = private)
 
         Presenter openmebius.presentation.main.MainPresenter
+        DialogService openmebius.presentation.dialog.AppDialogService
 
     end % properties (Access=private)
 
@@ -210,12 +211,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 text string
             end
 
-            text_before = app.LogTextArea.Value;
-            app.LogTextArea.Value = [text_before; text];
-
-            scroll(app.LogTextArea, 'bottom')
-
-            drawnow
+            app.appendLogText(text);
 
         end % function LogText
 
@@ -227,14 +223,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 level string
             end
 
-            % if model is not defined, just log the text
-            if isempty(app.model) || ~isvalid(app.model)
-                app.LogText(text)
-                return
-            end
+            notification = ...
+                openmebius.presentation.notification.Notification( ...
+                text, ...
+                level);
 
-            msg = app.model.returnDateMsg(text, level);
-            app.LogText(msg)
+            app.showNotification(notification);
 
         end % function LogTextDate
 
@@ -344,47 +338,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     methods (Access = protected)
 
         %% Protected wrapper functions
-        function [folder, isOK] = uiGetDirWrap(~, options)
-            % uiGetDirWrap - uigetdir wrapper with flexible texts
-            %
-            % Usage:
-            %   [folder,isOK] = uiGetDirWrap(struct("Title","保存先を選択","StartPath",pwd));
-            %   [folder,isOK] = uiGetDirWrap(struct("Parent",app.UIFigure,"Title","Select folder"));
-            %
-            % options (struct)
-            %   Parent    : (optional) uifigure handle for App Designer
-            %   Title     : dialog title (string)
-            %   StartPath : initial folder (string)
+        function [folder, isOK] = uiGetDirWrap(app, options)
 
             arguments
-                ~
+                app
                 options.Parent = []
                 options.Title (1, 1) string = "Select folder"
                 options.StartPath (1, 1) string = string(pwd)
             end
 
-            % uigetdir does not accept Parent in older MATLAB versions.
-            % So we keep interface but call uigetdir with (startPath,title).
-            folder0 = char(options.StartPath);
-            title0 = char(options.Title);
+            app.ensureDialogService();
 
-            out = uigetdir(folder0, title0);
-
-            if isequal(out, 0)
-                folder = "";
-                isOK = false;
-            else
-                folder = string(out);
-                isOK = true;
-            end
+            [folder, isOK] = app.DialogService.selectFolder( ...
+                Title = options.Title, ...
+                StartPath = options.StartPath);
 
         end % function uiGetDirWrap
 
-        function [files, isOK] = uiGetFileWrap(~, options)
-            % uiGetFileWrap - uigetfile/uiputfile wrapper with flexible texts
+        function [files, isOK] = uiGetFileWrap(app, options)
 
             arguments
-                ~
+                app
                 options.Parent = []
                 options.Filter = "*.*"
                 options.Title (1, 1) string = "Select file"
@@ -394,138 +368,81 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.DefaultName (1, 1) string = ""
             end
 
-            % ---- normalize filter spec ----
-            filterSpec = options.Filter;
+            app.ensureDialogService();
 
-            if isstring(filterSpec) && isscalar(filterSpec)
-                filterSpec = char(filterSpec);
-            end
+            [files, isOK] = app.DialogService.selectFile( ...
+                Filter = options.Filter, ...
+                Title = options.Title, ...
+                StartPath = options.StartPath, ...
+                MultiSelect = options.MultiSelect, ...
+                Save = options.Save, ...
+                DefaultName = options.DefaultName);
 
-            if isstring(filterSpec) && ~isscalar(filterSpec)
-                filterSpec = cellstr(filterSpec);
-            end
+        end % function uiGetFileWrap
 
-            startPath0 = char(options.StartPath);
-            title0 = char(options.Title);
-
-            % ---- save mode ----
-            if options.Save
-
-                if options.DefaultName ~= ""
-                    startPath0 = char(fullfile(options.StartPath, options.DefaultName));
-                end
-
-                [fname, fpath] = uiputfile(filterSpec, title0, startPath0);
-
-                if isequal(fname, 0) || isequal(fpath, 0)
-                    files = string.empty(0, 1);
-                    isOK = false;
-                    return;
-                end
-
-                file0 = string(fullfile(fpath, fname));
-
-                % ---- overwrite warning ----
-                if isfile(file0)
-                    answer = questdlg( ...
-                        "The file already exists. Do you want to overwrite it?", ...
-                        "File exists", ...
-                        "Yes", "No", "No");
-
-                    if ~strcmp(answer, "Yes")
-                        files = string.empty(0, 1);
-                        isOK = false;
-                        return;
-                    end
-
-                end
-
-                files = file0;
-                isOK = true;
-                return;
-            end
-
-            % ---- open mode ----
-            if options.MultiSelect == "on"
-                [fname, fpath] = uigetfile(filterSpec, title0, startPath0, "MultiSelect", "on");
-            else
-                [fname, fpath] = uigetfile(filterSpec, title0, startPath0);
-            end
-
-            if isequal(fname, 0) || isequal(fpath, 0)
-                files = string.empty(0, 1);
-                isOK = false;
-                return;
-            end
-
-            if iscell(fname)
-                files = strings(numel(fname), 1);
-
-                for i = 1:numel(fname)
-                    files(i) = string(fullfile(fpath, fname{i}));
-                end
-
-            else
-                files = string(fullfile(fpath, fname));
-            end
-
-            isOK = true;
-
-        end
-
-        function [answer, isOK] = uiInputDlgWrap(~, options)
-            % uiInputDlgWrap - inputdlg wrapper with flexible texts and defaults
-            %
-            % Usage:
-            %   [answ,isOK] = uiInputDlgWrap(struct( ...
-            %       "Prompt","半径rを入力", ...
-            %       "Title","Parameter", ...
-            %       "Default","50"));
-            %
-            % Multiple fields:
-            %   opt = struct;
-            %   opt.Prompt  = ["x crop"; "y crop"];
-            %   opt.Title   = "Crop size";
-            %   opt.Default = ["300"; "200"];
-            %   [a,isOK] = uiInputDlgWrap(opt);
+        function [answer, isOK] = uiInputDlgWrap(app, options)
 
             arguments
-                ~
+                app
                 options.Prompt (1, :) string = "Input"
                 options.Title (1, 1) string = "Input dialog"
                 options.Default (1, :) string = ""
-                options.Dims (1, 2) double = [1 50] % [rows cols] for each field
+                options.Dims (1, 2) double = [1 50]
             end
 
-            prompt = cellstr(options.Prompt(:));
-            title0 = char(options.Title);
+            app.ensureDialogService();
 
-            % Default: ensure same length as prompt
-            n = numel(prompt);
-            def = options.Default(:);
-
-            if numel(def) == 0
-                def = repmat("", n, 1);
-            elseif isscalar(def) && n > 1
-                def = repmat(def, n, 1);
-            elseif numel(def) ~= n
-                error("uiInputDlgWrap:DefaultSizeMismatch", ...
-                "Default must be length 0, 1, or equal to number of prompts.");
-            end
-
-            def = cellstr(def);
-
-            out = inputdlg(prompt, title0, options.Dims, def);
-
-            if isempty(out)
-                answer = strings(n, 1);
-                isOK = false;
-            else
-                answer = string(out);
-                isOK = true;
-            end
+            [answer, isOK] = app.DialogService.inputText( ...
+                Prompt = options.Prompt, ...
+                Title = options.Title, ...
+                Default = options.Default, ...
+                Dims = options.Dims);
 
         end % function uiInputDlgWrap
+
+        function [answer, isOK] = uiConfirmWrap(app, message, title, options)
+
+            arguments
+                app
+                message (1, 1) string
+                title (1, 1) string = "Confirm"
+                options.Options (1, :) string = ["OK", "Cancel"]
+                options.DefaultOption (1, 1) string = "OK"
+                options.CancelOption (1, 1) string = "Cancel"
+                options.Icon (1, 1) string = "question"
+            end
+
+            app.ensureDialogService();
+
+            [answer, isOK] = app.DialogService.confirm( ...
+                message, ...
+                title, ...
+                Options = options.Options, ...
+                DefaultOption = options.DefaultOption, ...
+                CancelOption = options.CancelOption, ...
+                Icon = options.Icon);
+
+        end % function uiConfirmWrap
+
+        function uiAlertWrap(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = "Message"
+                options.Icon (1, 1) string = "info"
+                options.Interpreter (1, 1) string = "none"
+            end
+
+            app.ensureDialogService();
+
+            app.DialogService.alert( ...
+                message, ...
+                Title = options.Title, ...
+                Icon = options.Icon, ...
+                Interpreter = options.Interpreter);
+
+        end % function uiAlertWrap
 
     end % methods (Access = protected)
 
@@ -1564,6 +1481,151 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % function safeStringScalar
+
+        %% Private notification function
+        function showNotification(app, notification)
+            % SHOWNOTIFICATION
+            % Central notification sink for OpenMebius2.mlapp.
+            % showNotification(notification)
+
+            if isempty(notification)
+                return
+            end
+
+            if numel(notification) > 1
+
+                for i = 1:numel(notification)
+                    app.showNotification(notification(i));
+                end
+
+                return
+            end
+
+            if ~isa(notification, ...
+                "openmebius.presentation.notification.Notification")
+
+                notification = ...
+                    openmebius.presentation.notification.Notification.info( ...
+                    string(notification));
+
+            end
+
+            app.appendLogText(notification.toLogText());
+
+            if notification.ShowAlert
+
+                uialert( ...
+                    app.OpenMebius2UIFigure, ...
+                    char(notification.Message), ...
+                    char(notification.Title), ...
+                    "Icon", char(notification.alertIcon()), ...
+                    "Interpreter", "none");
+
+            end
+
+        end % method showNotification
+
+        function appendLogText(app, text)
+            % APPENDLOGTEXT
+            % Raw append operation for LogTextArea.
+
+            text = string(text);
+
+            before = app.LogTextArea.Value;
+            app.LogTextArea.Value = [before; text(:)];
+
+            scroll(app.LogTextArea, "bottom");
+
+            drawnow limitrate
+
+        end % method appendLogText
+
+        function notifyInfo(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = ""
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.info( ...
+                message, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyInfo
+
+        function notifyWarning(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = ""
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.warning( ...
+                message, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyWarning
+
+        function notifyError(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = ""
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.error( ...
+                message, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyError
+
+        function notifyException(app, exception, options)
+
+            arguments
+                app
+                exception
+                options.Title (1, 1) string = "Error"
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.fromException( ...
+                exception, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyException
+
+        function ensureDialogService(app)
+
+            if isempty(app.DialogService)
+                app.DialogService = ...
+                    openmebius.presentation.dialog.AppDialogService( ...
+                    app.OpenMebius2UIFigure);
+                return
+            end
+
+            try
+                app.DialogService.setParent(app.OpenMebius2UIFigure);
+            catch
+                app.DialogService = ...
+                    openmebius.presentation.dialog.AppDialogService( ...
+                    app.OpenMebius2UIFigure);
+            end
+
+        end % method ensureDialogService
 
         %% Private initialization function
         function initLog(app)
@@ -2776,27 +2838,30 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             ID = data.id;
             status = data.status;
             rate = data.rate;
+
             msg = "Batch " + ID + " is completed.";
             idx = find(app.RunTable.Data.ID == ID, 1);
+
+            notification = ...
+                openmebius.presentation.notification.Notification.fromBatchStatus( ...
+                msg, ...
+                status);
+
+            app.showNotification(notification);
 
             switch status
 
                 case "finished"
-                    LogTextDate(app, msg, "Info");
                     addStyle(app.RunTable, app.styleSuccessIcon, 'cell', [idx 1]);
 
                 case "warning"
-                    LogTextDate(app, msg, "Warning");
                     addStyle(app.RunTable, app.styleWarningIcon, 'cell', [idx 1]);
 
                 case "error"
-                    LogTextDate(app, msg, "Error");
                     addStyle(app.RunTable, app.styleErrorIcon, 'cell', [idx 1]);
 
                 case "question"
-                    LogTextDate(app, msg, "Error");
                     addStyle(app.RunTable, app.styleQuestionIcon, 'cell', [idx 1]);
-
             end
 
             app.ProgressBar.setProgress(rate, msg);
@@ -2807,20 +2872,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function statusGeneralMsg(app, data)
 
             data = data.data;
-            msg = data.msg;
-            status = data.status;
 
-            switch status
+            notification = ...
+                openmebius.presentation.notification.Notification( ...
+                string(data.msg), ...
+                string(data.status));
 
-                case "info"
-                    LogTextDate(app, msg, "Info");
-
-                case "warning"
-                    LogTextDate(app, msg, "Warning");
-
-                case "error"
-                    LogTextDate(app, msg, "Error");
-            end
+            app.showNotification(notification);
 
         end % function statusGeneralMsg
 
@@ -2871,6 +2929,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.setLogFile();
 
+            app.DialogService = ...
+                openmebius.presentation.dialog.AppDialogService( ...
+                app.OpenMebius2UIFigure);
+
             if nargin < 2
                 filepath = "";
             else
@@ -2909,11 +2971,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ProjectBrowseButton
         function ProjectBrowseButtonPushed(app, event)
 
-            % Open a dialog to select the project directory
-            projectDirectory = uigetdir(app.ProjectDirectoryDropDown.Value, "Select Project Directory");
+            [projectDirectory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Project Directory", ...
+                StartPath = app.ProjectDirectoryDropDown.Value);
 
-            if isequal(projectDirectory, 0)
-                return; % User canceled the dialog
+            if ~isOK
+                return
             end
 
             % If the directory is equal to the current directory, do nothing
@@ -3258,11 +3321,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TemplateModelBrowseButton
         function TemplateModelBrowseButtonPushed(app, event)
 
-            % Open a dialog to select the template model directory
-            templateModelDirectory = uigetdir(app.TemplateModelDirectoryDropDown.Value, "Select Template Model Directory");
+            [templateModelDirectory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Template Model Directory", ...
+                StartPath = app.TemplateModelDirectoryDropDown.Value);
 
-            if isequal(templateModelDirectory, 0)
-                return; % User canceled the dialog
+            if ~isOK
+                return
             end
 
             % If the directory is equal to the current directory, do nothing
@@ -3984,15 +4048,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             selectedRows = unique(selectedRows); % Ensure unique selection
             batchIDs = app.RunTable.Data.ID(selectedRows);
 
-            % Confirm deletion
-            answer = uiconfirm(app.OpenMebius2UIFigure, ...
+            [answer, isOK] = app.uiConfirmWrap( ...
                 "Are you sure you want to remove the selected batch?", ...
                 "Remove Batch", ...
-                'Options', {'Yes', 'No'}, ...
-                'DefaultOption', 'No', ...
-                'CancelOption', 'No');
+                Options = ["Yes", "No"], ...
+                DefaultOption = "No", ...
+                CancelOption = "No", ...
+                Icon = "warning");
 
-            if strcmp(answer, 'Yes')
+            if isOK && answer == "Yes"
 
                 for i = 1:length(batchIDs)
                     batchID = batchIDs(i);
@@ -4273,10 +4337,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: ImportMSdatafromtextfilesMenu
         function ImportMSdatafromtextfilesMenuSelected(app, event)
 
-            importDirectory = uigetdir(app.directoryExp, "Select Directory Containing MS Data Text Files");
+            [importDirectory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Directory Containing MS Data Text Files", ...
+                StartPath = app.directoryExp);
 
-            if isequal(importDirectory, 0)
-                return; % User canceled the dialog
+            if ~isOK
+                return
             end
 
             % Check model is loaded
@@ -4312,12 +4378,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: AboutOpenMebius2Menu
         function AboutOpenMebius2MenuSelected(app, event)
 
-            % Show about dialog
-            msg = "test";
-            uialert(app.OpenMebius2UIFigure, msg, "About OpenMebius2", ...
-                'Icon', 'info', ...
-                'Interpreter', 'none' ...
-            );
+            msg = "This is a test message";
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.info( ...
+                msg, ...
+                Title = "About OpenMebius2", ...
+                ShowAlert = true));
 
         end
 
