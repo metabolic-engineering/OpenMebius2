@@ -210,12 +210,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 text string
             end
 
-            text_before = app.LogTextArea.Value;
-            app.LogTextArea.Value = [text_before; text];
-
-            scroll(app.LogTextArea, 'bottom')
-
-            drawnow
+            app.appendLogText(text);
 
         end % function LogText
 
@@ -227,14 +222,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 level string
             end
 
-            % if model is not defined, just log the text
-            if isempty(app.model) || ~isvalid(app.model)
-                app.LogText(text)
-                return
-            end
+            notification = ...
+                openmebius.presentation.notification.Notification( ...
+                text, ...
+                level);
 
-            msg = app.model.returnDateMsg(text, level);
-            app.LogText(msg)
+            app.showNotification(notification);
 
         end % function LogTextDate
 
