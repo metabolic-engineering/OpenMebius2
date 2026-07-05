@@ -70,9 +70,18 @@ classdef MainUIPolicy
                 isIdle && ...
                 state.EditTarget == EditTarget.Tracer;
 
-            % Run
+            % Batch
+            ui.RunTableEnabled = ...
+                context.HasBatches && ~isBusy;
+
             ui.RunConfigurationEnabled = ...
                 isIdle && context.HasBatches && ~isEditing;
+
+            ui.RunTableEditable = ...
+                isIdle && context.HasBatches && ~isEditing;
+
+            ui.RunContextMenuEnabled = ...
+                ui.RunTableEnabled && ui.RunConfigurationEnabled;
 
             ui.RunButtonEnabled = ...
                 (isIdle && context.CanRun && ~isEditing) || isRunning;

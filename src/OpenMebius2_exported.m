@@ -129,7 +129,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
     properties (Access = public)
 
-        calcStatus (5, 1) string {mustBeMember(calcStatus, ["init", "running", "finished", "error"])} = "init";
+        calcStatus (4, 1) string {mustBeMember(calcStatus, ["init", "running", "finished", "error"])} = "init";
         typeSimulation (1, 1) string {mustBeMember(typeSimulation, ["MDV", "Flux", "Label"])} = "Flux";
         model;
         exp;
@@ -399,53 +399,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 status string {mustBeMember(status, ["init", "running", "finished", "error"])}
             end
 
-            sectionList = ["model", "experiment", "batch", "result"];
-            sectionIdx = find(sectionList == section, 1);
-            sectionLabel = ["Model", "Experiment", "Batch", "Result"];
-
-            icon = cell(length(sectionList), 1);
-            text = cell(length(sectionList), 1);
-
-            switch section
-
-                case "model"
-                    [icon{1}, text{1}] = updateStatusModel(app, status);
-                    [icon{2}, text{2}] = updateStatusExperiment(app, app.calcStatus(2));
-                    [icon{3}, text{3}] = updateStatusBatch(app, app.calcStatus(3));
-                    [icon{4}, text{4}] = updateStatusResult(app, app.calcStatus(4));
-
-                case "experiment"
-                    [icon{1}, text{1}] = updateStatusModel(app, app.calcStatus(1));
-                    [icon{2}, text{2}] = updateStatusExperiment(app, status);
-                    [icon{3}, text{3}] = updateStatusBatch(app, app.calcStatus(3));
-                    [icon{4}, text{4}] = updateStatusResult(app, app.calcStatus(4));
-
-                case "batch"
-                    [icon{1}, text{1}] = updateStatusModel(app, app.calcStatus(1));
-                    [icon{2}, text{2}] = updateStatusExperiment(app, app.calcStatus(2));
-                    [icon{3}, text{3}] = updateStatusBatch(app, status);
-                    [icon{4}, text{4}] = updateStatusResult(app, app.calcStatus(4));
-
-                case "result"
-                    [icon{1}, text{1}] = updateStatusModel(app, app.calcStatus(1));
-                    [icon{2}, text{2}] = updateStatusExperiment(app, app.calcStatus(2));
-                    [icon{3}, text{3}] = updateStatusBatch(app, app.calcStatus(3));
-                    [icon{4}, text{4}] = updateStatusResult(app, status);
-
-            end % switch section
-
-            % Update the HTML table
-            rows = {
-                    sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', icon{1}, sectionLabel(1), text{1}), ...
-                        sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', icon{2}, sectionLabel(2), text{2}), ...
-                        sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', icon{3}, sectionLabel(3), text{3}), ...
-                        sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', icon{4}, sectionLabel(4), text{4}), ...
-                    };
+            [app.calcStatus, rows] = ...
+                openmebius.presentation.status.StatusPresenter.update( ...
+                app.calcStatus, ...
+                section, ...
+                status);
 
             initStatusTable(app, update = true, rows = rows);
-
-            % Update the calcStatus property
-            app.calcStatus(sectionIdx) = status;
 
         end % method updateStatus
 
@@ -887,7 +847,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             if isfield(ui, "RunTableEnabled")
                 app.RunTable.Enable = app.onOff(ui.RunTableEnabled);
+            end
 
+            if isfield(ui, "RunContextMenuEnabled")
+                app.applyContextMenu( ...
+                    app.RunTable, ...
+                    app.ContextMenuRun, ...
+                    ui.RunContextMenuEnabled);
+
+            elseif isfield(ui, "RunTableEnabled")
                 app.applyContextMenu( ...
                     app.RunTable, ...
                     app.ContextMenuRun, ...
@@ -895,7 +863,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             if isfield(ui, "RunTableEditable")
-                app.applyTableEditable(app.RunTable, ui.RunTableEditable);
+
+                if ui.RunTableEditable
+                    app.restoreRunTableEditable();
+                else
+                    app.rememberRunTableEditable();
+                    app.applyTableEditable(app.RunTable, false);
+                end
+
             end
 
             if isfield(ui, "RunButtonEnabled")
@@ -1127,6 +1102,47 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderMainViewModel(viewModel);
 
         end % method finishPresentationEdit
+
+        function rememberRunTableEditable(app)
+
+            if isempty(app.RunTable)
+                return
+            end
+
+            if isempty(app.RunTable.Data)
+                return
+            end
+
+            try
+                current = app.RunTable.ColumnEditable;
+
+                if isempty(current)
+                    return
+                end
+
+                app.RunTableEditable = logical(current);
+
+            catch
+                % Do not fail rendering due to transient UITable state.
+            end
+
+        end % method rememberRunTableEditable
+
+        function restoreRunTableEditable(app)
+
+            try
+
+                if isempty(app.RunTableEditable)
+                    return
+                end
+
+                app.RunTable.ColumnEditable = app.RunTableEditable;
+
+            catch
+                % If the table shape has changed, keep current ColumnEditable.
+            end
+
+        end % method restoreRunTableEditable
 
         function context = capturePresentationContext(app)
 
@@ -1748,9 +1764,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if ~options.update
 
                 % Set the initial status
-                app.calcStatus = ["init", "init", "init", "init", "init"];
+                app.calcStatus = ...
+                    openmebius.presentation.status.StatusPresenter.initial();
 
-            end % if ~options.update
+            end
 
         end % function initStatusTable
 
@@ -2041,14 +2058,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if isempty(app.result) || ~isvalid(app.result)
                 msg = "Result object is not valid.";
                 app.LogTextDate(msg, "Error");
-                app.updateStatus(app, "result", "error");
+                app.updateStatus("result", "error");
                 return
             end % if isempty(app.result) || ~isvalid(app.result)
 
             if app.result.isError
 
                 app.LogText(app.result.statusMsg);
-                app.updateStatus(app, "result", "error");
+                app.updateStatus("result", "error");
                 return
 
             end % if app.result.isError
@@ -4041,7 +4058,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if err
 
                 LogText(app, app.exp.statusMsg);
-                unlockAllFeatureForOtherGUI(app)
                 updateStatus(app, "experiment", "error");
 
                 return

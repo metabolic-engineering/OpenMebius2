@@ -43,7 +43,7 @@ classdef MainPresentationState < handle
                 "Cannot run while a table is being edited.")
             end
 
-            obj.Activity = openmebius.presentation.main.MainActivity.Run;
+            obj.Activity = openmebius.presentation.main.MainActivity.Running;
 
         end
 
