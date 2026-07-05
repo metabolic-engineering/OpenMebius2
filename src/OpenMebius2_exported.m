@@ -191,6 +191,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         Presenter openmebius.presentation.main.MainPresenter
         BatchPresenter openmebius.presentation.batch.BatchPresenter
+        ResultPresenter openmebius.presentation.result.ResultPresenter
         DialogService openmebius.presentation.dialog.AppDialogService
         ProjectRepository openmebius.infrastructure.project.FileProjectRepository
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
@@ -591,6 +592,70 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             drawnow limitrate
 
         end % method renderBatchProgress
+
+        function renderResultSubTable(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            removeStyle(app.ResultSubTable);
+
+            app.ResultSubTable.Data = viewModel.Data;
+
+            if isempty(viewModel.Data)
+                app.ResultSubTable.ColumnName = [];
+                app.ResultSubTable.RowName = [];
+                app.ResultSubTable.ColumnEditable = false;
+                return
+            end
+
+            app.ResultSubTable.ColumnName = ...
+                viewModel.Data.Properties.VariableNames;
+
+            app.ResultSubTable.RowName = ...
+                viewModel.Data.Properties.RowNames;
+
+            app.ResultSubTable.ColumnEditable = ...
+                viewModel.ColumnEditable;
+
+            app.applyResultStyleRules( ...
+                app.ResultSubTable, ...
+                viewModel.StyleRules);
+
+        end % method renderResultSubTable
+
+        function renderResultMainTable(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            removeStyle(app.ResultMainTable);
+
+            app.ResultMainTable.Data = viewModel.Data;
+
+            if isempty(viewModel.Data)
+                app.ResultMainTable.ColumnName = [];
+                app.ResultMainTable.RowName = [];
+                app.ResultMainTable.ColumnEditable = false;
+                return
+            end
+
+            app.ResultMainTable.ColumnName = ...
+                viewModel.Data.Properties.VariableNames;
+
+            app.ResultMainTable.RowName = ...
+                viewModel.Data.Properties.RowNames;
+
+            app.ResultMainTable.ColumnEditable = ...
+                viewModel.ColumnEditable;
+
+            app.applyResultStyleRules( ...
+                app.ResultMainTable, ...
+                viewModel.StyleRules);
+
+        end % method renderResultMainTable
 
         function renderUiState(app, ui)
             % RENDERUISTATE Render the UI state
@@ -1898,6 +1963,87 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method batchStyleFromKey
 
+        function style = resultStyleFromRule(app, rule)
+
+            key = lower(string(rule.StyleKey));
+
+            switch key
+
+                case "chi2-passed"
+
+                    if app.isDarkTheme()
+                        style = app.styleIsPassedDark;
+                    else
+                        style = app.styleIsPassed;
+                    end
+
+                case "chi2-failed"
+
+                    if app.isDarkTheme()
+                        style = app.styleIsNotPassedDark;
+                    else
+                        style = app.styleIsNotPassed;
+                    end
+
+                case "align-right"
+                    style = uistyle("HorizontalAlignment", "right");
+
+                case "background"
+                    style = uistyle("BackgroundColor", char(rule.Value));
+
+                otherwise
+                    error( ...
+                        "OpenMebius2:Result:UnknownStyleKey", ...
+                        "Unknown result style key: %s", key);
+            end
+
+        end % method resultStyleFromRule
+
+        function applyResultStyleRules(app, tableObject, styleRules)
+
+            if isempty(styleRules)
+                return
+            end
+
+            for i = 1:numel(styleRules)
+
+                style = app.resultStyleFromRule(styleRules(i));
+
+                target = char(styleRules(i).Target);
+
+                switch string(styleRules(i).Target)
+
+                    case "cell"
+                        addStyle( ...
+                            tableObject, ...
+                            style, ...
+                            target, ...
+                            [styleRules(i).Rows, styleRules(i).Columns]);
+
+                    case "column"
+                        addStyle( ...
+                            tableObject, ...
+                            style, ...
+                            target, ...
+                            styleRules(i).Columns);
+
+                    case "row"
+                        addStyle( ...
+                            tableObject, ...
+                            style, ...
+                            target, ...
+                            styleRules(i).Rows);
+
+                    otherwise
+                        error( ...
+                            "OpenMebius2:Result:InvalidStyleTarget", ...
+                            "Unknown style target: %s", string(styleRules(i).Target));
+                end
+
+            end
+
+        end % method applyResultStyleRules
+
         function loadLegacyProjectObjects(app)
 
             app.updateStatus("model", "running");
@@ -1981,6 +2127,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method ensureProgressBar
+
+        function ensureResultPresenter(app)
+
+            if isempty(app.ResultPresenter)
+                app.ResultPresenter = ...
+                    openmebius.presentation.result.ResultPresenter();
+            end
+
+        end % method ensureResultPresenter
 
         %% Private initialization function
         function initLog(app)
@@ -2364,76 +2519,61 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             arguments
                 app
                 options.reload = false
-            end % arguments
+            end
 
-            % Create the result object
+            app.ensureResultPresenter();
+
             if ~options.reload
 
                 app.updateStatus("result", "running");
-                app.result = IOResult(app.directoryResult);
-                addlistener(app.result, 'GeneralMsg', @(src, event) statusGeneralMsg(app, event));
 
-            end % if ~options.reload
+                app.result = IOResult(app.directoryResult);
+
+                addlistener( ...
+                    app.result, ...
+                    'GeneralMsg', ...
+                    @(src, event) statusGeneralMsg(app, event));
+
+            end
 
             if isempty(app.result) || ~isvalid(app.result)
                 msg = "Result object is not valid.";
-                app.LogTextDate(msg, "Error");
+                app.notifyError(msg);
                 app.updateStatus("result", "error");
                 return
-            end % if isempty(app.result) || ~isvalid(app.result)
+            end
 
             if app.result.isError
-
                 app.LogText(app.result.statusMsg);
                 app.updateStatus("result", "error");
                 return
+            end
 
-            end % if app.result.isError
+            viewModel = app.ResultPresenter.presentIndex( ...
+                app.result, ...
+                app.batch);
 
-            % Load the result files
-            % Get the selected batch ID
-            batchGUI = getBatchForGUI(app.batch);
-            batchID = batchGUI.ID;
-            batchStatus = getBatchStatus(app.batch, batchID);
-            batchID = batchID(batchStatus == "finished");
-            [data, dataMask] = loadResultFiles(app.result, batchID);
+            app.renderResultSubTable(viewModel);
 
-            if isempty(data(dataMask))
+            app.renderResultMainTable( ...
+                openmebius.presentation.result.ResultTableViewModel());
+
+            if isempty(viewModel.Data)
 
                 if ~options.reload
-
-                    updateStatus(app, "result", "init");
-                    msg = "No result files found in the results directory.";
-                    LogTextDate(app, msg, "Info");
-
+                    app.updateStatus("result", "init");
+                    app.notifyInfo("No result files found in the results directory.");
                 end
 
                 return
+            end
 
-            end % if isempty(data(dataMask))
-
-            % SubTable
-            loadSubResultTable(app, batchGUI, batchID, data, dataMask);
-
-            % Delete MainTable
-            if ~isempty(app.ResultMainTable.Data)
-
-                app.ResultMainTable.Data = [];
-                app.ResultMainTable.ColumnName = [];
-                app.ResultMainTable.RowName = [];
-
-            end % if ~isempty(app.ResultMainTable.Data)
-
-            % Set the status as complete
             if ~options.reload
+                app.updateStatus("result", "finished");
+                app.notifyInfo("Result files loaded successfully.");
+            end
 
-                updateStatus(app, "result", "finished");
-                msg = "Result files loaded successfully.";
-                LogTextDate(app, msg, "Info");
-
-            end % if ~options.reload
-
-        end % function loadResult
+        end % method loadResult
 
         function loadMainResultTable(app, options)
 
@@ -2443,36 +2583,36 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.relativeTo = ""
             end
 
-            type = app.ResultDropDown.Value;
+            app.ensureResultPresenter();
+
             selection = app.ResultSubTable.Selection;
 
             if isempty(selection)
                 return
             end
 
-            switch type
+            mode = ...
+                openmebius.presentation.result.ResultViewMode.normalize( ...
+                app.ResultDropDown.Value);
 
-                case "Overview"
+            rows = selection(:, 1);
+            rows = unique(rows, "stable");
 
-                    selection = selection(1);
-                    batchID = app.ResultSubTable.Data.ID(selection);
-                    loadResultOverView(app, batchID, relative = options.relative, relativeTo = options.relativeTo);
+            batchIDs = string(app.ResultSubTable.Data.ID(rows));
+            names = string(app.ResultSubTable.Data.Name(rows));
 
-                case "Details"
+            viewModel = app.ResultPresenter.presentMain( ...
+                app.result, ...
+                mode, ...
+                batchIDs, ...
+                names, ...
+                Relative = options.relative, ...
+                RelativeTo = options.relativeTo, ...
+                IsDarkTheme = app.isDarkTheme());
 
-                    selection = selection(1);
-                    batchID = app.ResultSubTable.Data.ID(selection);
-                    loadResultDetailed(app, batchID);
+            app.renderResultMainTable(viewModel);
 
-                case "Comparison"
-
-                    batchIDs = app.ResultSubTable.Data.ID(selection);
-                    Names = app.ResultSubTable.Data.Name(selection);
-                    loadResultComparison(app, batchIDs, Names, relative = options.relative, relativeTo = options.relativeTo);
-
-            end % switch type
-
-        end % function loadMainResultTable
+        end % method loadMainResultTable
 
         function loadResultOverView(app, batchID, options)
 
@@ -2483,74 +2623,35 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.relativeTo = ""
             end
 
-            if ~options.relative
-                tableData = getFluxOverView(app.result, batchID);
-            else
-                tableData = getFluxOverView( ...
-                    app.result, batchID, relative = options.relative, relativeTo = options.relativeTo);
-            end
+            app.ensureResultPresenter();
 
-            formattedData = arrayfun(@(x) sprintf('%.2f', x), tableData{:, 2:end}, 'UniformOutput', false);
-            formattedData = [tableData(:, 1), cell2table(formattedData)];
-            formattedData.Properties.VariableNames = tableData.Properties.VariableNames;
+            viewModel = app.ResultPresenter.presentMain( ...
+                app.result, ...
+                "Overview", ...
+                batchID, ...
+                "", ...
+                Relative = options.relative, ...
+                RelativeTo = options.relativeTo, ...
+                IsDarkTheme = app.isDarkTheme());
 
-            app.ResultMainTable.Data = formattedData;
-            app.ResultMainTable.ColumnName = tableData.Properties.VariableNames;
-            app.ResultMainTable.RowName = tableData.Properties.RowNames;
-            app.ResultMainTable.ColumnEditable = false(1, size(tableData, 2));
+            app.renderResultMainTable(viewModel);
 
-            uiRight = uistyle("HorizontalAlignment", "right");
-            addStyle(app.ResultMainTable, uiRight, "column", 2:size(tableData, 2));
-
-        end % function loadResultOverView
+        end % method loadResultOverView
 
         function loadResultDetailed(app, batchID)
 
-            tableRtn = getFluxDetailed(app.result, batchID);
-            formattedData = arrayfun(@(x) sprintf('%.4f', x), tableRtn{:, 3:end}, 'UniformOutput', false);
-            formattedData = [tableRtn(:, 1:2), cell2table(formattedData)];
-            formattedData.Properties.VariableNames = tableRtn.Properties.VariableNames;
+            app.ensureResultPresenter();
 
-            app.ResultMainTable.Data = formattedData;
-            app.ResultMainTable.ColumnName = tableRtn.Properties.VariableNames;
-            app.ResultMainTable.RowName = tableRtn.Properties.RowNames;
-            app.ResultMainTable.ColumnEditable = false(1, size(tableRtn, 2));
+            viewModel = app.ResultPresenter.presentMain( ...
+                app.result, ...
+                "Details", ...
+                batchID, ...
+                "", ...
+                IsDarkTheme = app.isDarkTheme());
 
-            % Right align the table
-            uiRight = uistyle("HorizontalAlignment", "right");
-            addStyle(app.ResultMainTable, uiRight, "column", 3:size(tableRtn, 2));
+            app.renderResultMainTable(viewModel);
 
-            drawnow();
-
-            color = Color();
-
-            for i = 3:size(tableRtn, 2)
-
-                if mod(i, 3) ~= 2
-                    continue
-                end
-
-                % Get the data for the current column
-                data = tableRtn{:, i};
-
-                % Normalize the data
-                data = 0.99 * (data - min(data)) / (max(data) - min(data));
-
-                isDark = isDarkTheme(app);
-
-                % Get the color value for the current column
-                hex = getColorValue(color, data, "color", "cmthermallight", "isDark", isDark);
-
-                for j = 1:length(data)
-
-                    % Set the color for the current cell
-                    addStyle(app.ResultMainTable, uistyle("BackgroundColor", hex(j, :)), 'cell', [j i]);
-
-                end % for j
-
-            end % for i
-
-        end % function loadResultDetailed
+        end % method loadResultDetailed
 
         function loadResultComparison(app, batchIDs, names, options)
 
@@ -2562,69 +2663,32 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.relativeTo = ""
             end
 
-            tableData = getFluxComparison( ...
-                app.result, batchIDs, names, ...
-                relative = options.relative, relativeTo = options.relativeTo);
+            app.ensureResultPresenter();
 
-            if isempty(tableData)
-                return
-            end
+            viewModel = app.ResultPresenter.presentMain( ...
+                app.result, ...
+                "Comparison", ...
+                batchIDs, ...
+                names, ...
+                Relative = options.relative, ...
+                RelativeTo = options.relativeTo, ...
+                IsDarkTheme = app.isDarkTheme());
 
-            formattedData = arrayfun(@(x) sprintf('%.2f', x), tableData{:, 2:end}, 'UniformOutput', false);
-            formattedData = [tableData(:, 1), cell2table(formattedData)];
-            formattedData.Properties.VariableNames = tableData.Properties.VariableNames;
+            app.renderResultMainTable(viewModel);
 
-            app.ResultMainTable.Data = formattedData;
-            app.ResultMainTable.ColumnName = tableData.Properties.VariableNames;
-            app.ResultMainTable.RowName = tableData.Properties.RowNames;
-            app.ResultMainTable.ColumnEditable = false(1, size(tableData, 2));
+        end % method loadResultComparison
 
-        end % function loadResultComparison
+        function loadSubResultTable(app, ~, ~, ~, ~)
 
-        function loadSubResultTable(app, batchGUI, batchID, data, dataMask)
+            app.ensureResultPresenter();
 
-            data = data(dataMask);
-            batchID = batchID(dataMask);
-            batchExpList = batchGUI.Name(dataMask);
-            RSS = getRSS(app.result, data);
-            isPassed = getIsPassedChi2Test(app.result, data);
+            viewModel = app.ResultPresenter.presentIndex( ...
+                app.result, ...
+                app.batch);
 
-            % Update the result table
-            expListTable = table( ...
-                batchID, ...
-                batchExpList, ...
-                RSS, ...
-                'VariableNames', ["ID", "Name", "RSS"] ...
-            );
+            app.renderResultSubTable(viewModel);
 
-            app.ResultSubTable.Data = expListTable;
-            app.ResultSubTable.ColumnName = expListTable.Properties.VariableNames;
-            app.ResultSubTable.RowName = expListTable.Properties.RowNames;
-            app.ResultSubTable.ColumnEditable = false(1, size(expListTable, 2));
-
-            % Apply color format
-            resetResultTableColorFormat(app);
-
-            if ~isempty(data)
-
-                isPassedIdx = find(isPassed);
-                isNotPassedIdx = find(~isPassed);
-
-                for i = 1:length(isPassedIdx)
-
-                    addStyle(app.ResultSubTable, app.styleIsPassed, 'cell', [isPassedIdx(i) 3]);
-
-                end % isPassedIdx
-
-                for i = 1:length(isNotPassedIdx)
-
-                    addStyle(app.ResultSubTable, app.styleIsNotPassed, 'cell', [isNotPassedIdx(i) 3]);
-
-                end % isNotPassedIdx
-
-            end % if ~isempty(data)
-
-        end % function loadSubResultTable
+        end % method loadSubResultTable
 
         %% Private reset function
         function resetAllComponents(app)
@@ -3245,6 +3309,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.BatchPresenter = ...
                 openmebius.presentation.batch.BatchPresenter();
+            app.ResultPresenter = ...
+                openmebius.presentation.result.ResultPresenter();
 
             if nargin < 2
                 filepath = "";
