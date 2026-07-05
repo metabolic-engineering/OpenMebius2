@@ -190,6 +190,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     properties (Access = private)
 
         Presenter openmebius.presentation.main.MainPresenter
+        DialogService openmebius.presentation.dialog.AppDialogService
 
     end % properties (Access=private)
 
