@@ -54,9 +54,20 @@ classdef MainPresenter < handle
         end
 
         function tf = isRunning(obj)
+
             import openmebius.presentation.main.MainActivity
 
-            tf = obj.State.Activity == MainActivity.Running;
+            tf = obj.State.Activity == MainActivity.Running || ...
+                obj.State.Activity == MainActivity.Canceling;
+
+        end
+
+        function tf = isCanceling(obj)
+
+            import openmebius.presentation.main.MainActivity
+
+            tf = obj.State.Activity == MainActivity.Canceling;
+
         end
 
         function viewModel = beginEdit(obj, target, context)
@@ -134,6 +145,13 @@ classdef MainPresenter < handle
             % Activity is returned to Idle, and EditTarget is cleared.
 
             viewModel = obj.finishEditCommit(context, true);
+
+        end
+
+        function viewModel = requestCancelRun(obj, context)
+
+            obj.State.requestCancelRun();
+            viewModel = obj.present(context);
 
         end
 

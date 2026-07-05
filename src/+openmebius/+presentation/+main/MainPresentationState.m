@@ -63,6 +63,18 @@ classdef MainPresentationState < handle
 
         end
 
+        function requestCancelRun(obj)
+
+            import openmebius.presentation.main.MainActivity
+
+            if obj.Activity ~= MainActivity.Running
+                return
+            end
+
+            obj.Activity = MainActivity.Canceling;
+
+        end % method requestCancelRun
+
         function finishActivity(obj)
 
             obj.Activity = openmebius.presentation.main.MainActivity.Idle;
@@ -74,6 +86,19 @@ classdef MainPresentationState < handle
             obj.EditTarget = openmebius.presentation.main.EditTarget.None;
 
         end
+
+        function finishRun(obj)
+
+            import openmebius.presentation.main.MainActivity
+
+            if obj.Activity == MainActivity.Canceling || ...
+                    obj.Activity == MainActivity.Running
+
+                obj.Activity = MainActivity.Idle;
+
+            end
+
+        end % method finishRun
 
         function setResultMode(obj, mode)
 
