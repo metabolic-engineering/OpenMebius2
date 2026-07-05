@@ -195,6 +195,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
         ProjectSession openmebius.domain.project.ProjectSession
 
+        LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
+        LegacyListeners event.listener = event.listener.empty(0, 1)
+
     end % properties (Access=private)
 
     methods (Access = public)
@@ -479,6 +482,70 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             "MainViewModel must contain UiState.");
 
         end % method renderMainViewModel
+
+        function renderLegacyProjectArtifacts(app)
+
+            % -------------------------------------------------------------
+            % Model UI
+            % -------------------------------------------------------------
+            app.updateStatus("model", "running");
+
+            app.notifyInfo("Constructing EMU network...");
+
+            loadEMUModel(app)
+
+            if app.model.isError
+                app.LogText(app.model.statusMsg);
+                app.updateStatus("model", "error");
+                return
+            end
+
+            loadPathway(app)
+
+            app.notifyInfo("EMU network was successfully constructed.");
+            app.updateStatus("model", "finished");
+
+            % -------------------------------------------------------------
+            % Experiment UI
+            % -------------------------------------------------------------
+            app.updateStatus("experiment", "running");
+
+            loadExpData(app)
+
+            if app.exp.isError
+                app.LogText(app.exp.statusMsg);
+                app.updateStatus("experiment", "error");
+                return
+            end
+
+            app.updateStatus("experiment", "finished");
+
+            % -------------------------------------------------------------
+            % Batch UI
+            % -------------------------------------------------------------
+            app.updateStatus("batch", "running");
+
+            loadBatchTable(app, reload = true)
+
+            app.updateStatus("batch", "finished");
+            app.notifyInfo("Batch table loaded successfully.");
+
+            % -------------------------------------------------------------
+            % Result UI
+            % -------------------------------------------------------------
+            app.updateStatus("result", "running");
+
+            loadResult(app, reload = true)
+
+            if isempty(app.ResultSubTable.Data)
+                app.updateStatus("result", "init");
+                app.notifyInfo("No result files found in the results directory.");
+            else
+                app.updateStatus("result", "finished");
+                app.notifyInfo("Result files loaded successfully.");
+            end
+
+        end % method renderLegacyProjectArtifacts
 
         function renderUiState(app, ui)
             % RENDERUISTATE Render the UI state
@@ -1630,6 +1697,64 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureDialogService
 
+        function attachLegacyListeners(app)
+
+            app.LegacyListeners = event.listener.empty(0, 1);
+
+            if ~isempty(app.batch) && isvalid(app.batch)
+
+                app.LegacyListeners(end + 1, 1) = addlistener( ...
+                    app.batch, ...
+                    'ProgressUpdate', ...
+                    @(src, event) statusBatch(app, event));
+
+                app.LegacyListeners(end + 1, 1) = addlistener( ...
+                    app.batch, ...
+                    'GeneralMsg', ...
+                    @(src, event) statusGeneralMsg(app, event));
+
+                app.LegacyListeners(end + 1, 1) = addlistener( ...
+                    app.batch, ...
+                    'FluxResult', ...
+                    @(src, event) updateResult(app, event));
+
+            end
+
+            if ~isempty(app.result) && isvalid(app.result)
+
+                app.LegacyListeners(end + 1, 1) = addlistener( ...
+                    app.result, ...
+                    'GeneralMsg', ...
+                    @(src, event) statusGeneralMsg(app, event));
+
+            end
+
+        end % method attachLegacyListeners
+
+        function detachLegacyListeners(app)
+
+            if isempty(app.LegacyListeners)
+                return
+            end
+
+            for i = 1:numel(app.LegacyListeners)
+
+                try
+
+                    if isvalid(app.LegacyListeners(i))
+                        delete(app.LegacyListeners(i));
+                    end
+
+                catch
+                    % Ignore listener cleanup errors.
+                end
+
+            end
+
+            app.LegacyListeners = event.listener.empty(0, 1);
+
+        end % method detachLegacyListeners
+
         %% Apply Session
         function applyProjectSession(app, session)
 
@@ -1662,6 +1787,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 session.Paths.ResultDirectory;
 
         end % method applyProjectSession
+
+        function applyLegacyProjectArtifacts(app, artifacts)
+
+            arguments
+                app
+                artifacts openmebius.infrastructure.legacy.LegacyProjectArtifacts
+            end
+
+            app.detachLegacyListeners();
+
+            app.model = artifacts.Model;
+            app.exp = artifacts.Experiments;
+            app.batch = artifacts.Batch;
+            app.result = artifacts.Result;
+
+            app.attachLegacyListeners();
+
+        end % method applyLegacyProjectArtifacts
 
         function loadLegacyProjectObjects(app)
 
@@ -2074,18 +2217,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app
                 options.reload = false
             end % arguments
-
-            if ~options.reload
-
-                updateStatus(app, "batch", "running");
-
-                app.batch = Batch(app.exp);
-
-                addlistener(app.batch, 'ProgressUpdate', @(src, event) statusBatch(app, event));
-                addlistener(app.batch, 'GeneralMsg', @(src, event) statusGeneralMsg(app, event));
-                addlistener(app.batch, 'FluxResult', @(src, event) updateResult(app, event));
-
-            end % if ~options.reload
 
             if isempty(app.batch) || ~isvalid(app.batch)
                 msg = "Batch object is not valid.";
@@ -2941,30 +3072,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             ID = data.id;
             status = data.status;
             rate = data.rate;
-
             msg = "Batch " + ID + " is completed.";
             idx = find(app.RunTable.Data.ID == ID, 1);
-
-            notification = ...
-                openmebius.presentation.notification.Notification.fromBatchStatus( ...
-                msg, ...
-                status);
-
-            app.showNotification(notification);
 
             switch status
 
                 case "finished"
+                    LogTextDate(app, msg, "Info");
                     addStyle(app.RunTable, app.styleSuccessIcon, 'cell', [idx 1]);
 
                 case "warning"
+                    LogTextDate(app, msg, "Warning");
                     addStyle(app.RunTable, app.styleWarningIcon, 'cell', [idx 1]);
 
                 case "error"
+                    LogTextDate(app, msg, "Error");
                     addStyle(app.RunTable, app.styleErrorIcon, 'cell', [idx 1]);
 
                 case "question"
+                    LogTextDate(app, msg, "Error");
                     addStyle(app.RunTable, app.styleQuestionIcon, 'cell', [idx 1]);
+
             end
 
             app.ProgressBar.setProgress(rate, msg);
@@ -3043,6 +3171,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.project.OpenProjectUseCase( ...
                 app.ProjectRepository);
 
+            app.LegacyProjectLoader = ...
+                openmebius.infrastructure.legacy.LegacyProjectLoader();
+
             if nargin < 2
                 filepath = "";
             else
@@ -3119,9 +3250,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 session = app.OpenProjectUseCase.execute(projectDirectory);
 
-                app.applyProjectSession(session);
+                artifacts = app.LegacyProjectLoader.load(session);
 
-                app.loadLegacyProjectObjects();
+                app.applyProjectSession(session);
+                app.applyLegacyProjectArtifacts(artifacts);
+
+                for i = 1:numel(artifacts.Messages)
+                    app.notifyInfo(artifacts.Messages(i));
+                end
+
+                app.renderLegacyProjectArtifacts();
 
                 app.refreshPresentation();
 
