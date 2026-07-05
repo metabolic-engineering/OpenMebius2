@@ -192,6 +192,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         Presenter openmebius.presentation.main.MainPresenter
         BatchPresenter openmebius.presentation.batch.BatchPresenter
         ResultPresenter openmebius.presentation.result.ResultPresenter
+        ResultPlotPresenter openmebius.presentation.result.ResultPlotPresenter
         DialogService openmebius.presentation.dialog.AppDialogService
         ProjectRepository openmebius.infrastructure.project.FileProjectRepository
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
@@ -593,6 +594,46 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method renderBatchProgress
 
+        function renderResultMainTable(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            removeStyle(app.ResultMainTable);
+
+            app.ResultMainTable.Data = viewModel.Data;
+
+            try
+                app.ResultMainTable.UserData = struct( ...
+                    "RawData", viewModel.RawData);
+            catch
+                % If UserData is unavailable for some MATLAB release,
+                % updateResultPlot will fall back to ResultMainTable.Data.
+            end
+
+            if isempty(viewModel.Data)
+                app.ResultMainTable.ColumnName = [];
+                app.ResultMainTable.RowName = [];
+                app.ResultMainTable.ColumnEditable = false;
+                return
+            end
+
+            app.ResultMainTable.ColumnName = ...
+                viewModel.Data.Properties.VariableNames;
+
+            app.ResultMainTable.RowName = ...
+                viewModel.Data.Properties.RowNames;
+
+            app.ResultMainTable.ColumnEditable = ...
+                viewModel.ColumnEditable;
+
+            app.applyResultStyleRules( ...
+                app.ResultMainTable, ...
+                viewModel.StyleRules);
+
+        end % method renderResultMainTable
+
         function renderResultSubTable(app, viewModel)
 
             if isempty(viewModel)
@@ -625,37 +666,80 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method renderResultSubTable
 
-        function renderResultMainTable(app, viewModel)
+        function renderResultPlot(app, viewModel)
 
             if isempty(viewModel)
                 return
             end
 
-            removeStyle(app.ResultMainTable);
-
-            app.ResultMainTable.Data = viewModel.Data;
-
-            if isempty(viewModel.Data)
-                app.ResultMainTable.ColumnName = [];
-                app.ResultMainTable.RowName = [];
-                app.ResultMainTable.ColumnEditable = false;
-                return
+            if ~isempty(viewModel.Notification)
+                app.showNotification(viewModel.Notification);
             end
 
-            app.ResultMainTable.ColumnName = ...
-                viewModel.Data.Properties.VariableNames;
+            switch viewModel.Kind
 
-            app.ResultMainTable.RowName = ...
-                viewModel.Data.Properties.RowNames;
+                case openmebius.presentation.result.ResultPlotKind.None
+                    app.clearResultPlots();
 
-            app.ResultMainTable.ColumnEditable = ...
-                viewModel.ColumnEditable;
+                case openmebius.presentation.result.ResultPlotKind.OverviewFlux
+                    app.renderOverviewResultPlot(viewModel);
 
-            app.applyResultStyleRules( ...
-                app.ResultMainTable, ...
-                viewModel.StyleRules);
+                otherwise
+                    app.clearResultPlots();
+            end
 
-        end % method renderResultMainTable
+        end % method renderResultPlot
+
+        function renderOverviewResultPlot(app, viewModel)
+
+            mainPlot = viewModel.MainPlot;
+            subPlot = viewModel.SubPlot;
+
+            app.MainUIAxes.Visible = 'on';
+            app.SubUIAxes.Visible = 'on';
+
+            if isfield(mainPlot, "Kind") && mainPlot.Kind == "legacy-flux-pathway"
+
+                drawFluxLabel( ...
+                    mainPlot.Model, ...
+                    app.MainUIAxes, ...
+                    mainPlot.FluxLabels, ...
+                    highlight = mainPlot.HighlightMask, ...
+                    darkmode = mainPlot.IsDarkTheme);
+
+            else
+                cla(app.MainUIAxes);
+            end
+
+            if isfield(subPlot, "Kind") && subPlot.Kind == "legacy-ci-reaction"
+
+                if isempty(subPlot.Data) || ~isfield(subPlot.Data, "CI")
+                    cla(app.SubUIAxes);
+                    return
+                end
+
+                cla(app.SubUIAxes);
+
+                drawCIReaction( ...
+                    subPlot.Result, ...
+                    app.SubUIAxes, ...
+                    subPlot.Data);
+
+            else
+                cla(app.SubUIAxes);
+            end
+
+        end % method renderOverviewResultPlot
+
+        function clearResultPlots(app)
+
+            cla(app.MainUIAxes);
+            cla(app.SubUIAxes);
+
+            app.MainUIAxes.Visible = 'on';
+            app.SubUIAxes.Visible = 'on';
+
+        end % method clearResultPlots
 
         function renderUiState(app, ui)
             % RENDERUISTATE Render the UI state
@@ -2137,6 +2221,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureResultPresenter
 
+        function ensureResultPlotPresenter(app)
+
+            if isempty(app.ResultPlotPresenter)
+                app.ResultPlotPresenter = ...
+                    openmebius.presentation.result.ResultPlotPresenter();
+            end
+
+        end % method ensureResultPlotPresenter
+
         function rows = selectedTableRows(~, tableObject)
 
             rows = zeros(0, 1);
@@ -2217,6 +2310,38 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method toFluxLabelCell
+
+        function context = captureResultPlotContext(app)
+
+            context = struct();
+
+            context.Mode = string(app.ResultDropDown.Value);
+
+            context.SelectedMainRows = ...
+                app.selectedTableRows(app.ResultMainTable);
+
+            context.SelectedSubRows = ...
+                app.selectedTableRows(app.ResultSubTable);
+
+            context.MainTableData = app.ResultMainTable.Data;
+            context.SubTableData = app.ResultSubTable.Data;
+
+            context.MainTableRowNames = string.empty(0, 1);
+            context.SubTableRowNames = string.empty(0, 1);
+
+            try
+                context.MainTableRowNames = string(app.ResultMainTable.RowName);
+            catch
+                context.MainTableRowNames = string.empty(0, 1);
+            end
+
+            try
+                context.SubTableRowNames = string(app.ResultSubTable.RowName);
+            catch
+                context.SubTableRowNames = string.empty(0, 1);
+            end
+
+        end % method captureResultPlotContext
 
         %% Private initialization function
         function initLog(app)
@@ -3024,11 +3149,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             type = string(app.ResultDropDown.Value);
 
-            % During the migration period, plotting is only supported for Overview.
-            % Details / Comparison plotting will be moved to ResultPlotPresenter later.
+            % During the migration period, pathway plot is supported only for
+            % Overview. Details / Comparison will be handled later by
+            % ResultPlotPresenter.
             if type == "Details" || type == "Detailed" || type == "Comparison"
-                cla(app.MainUIAxes);
                 cla(app.SubUIAxes);
+
+                % Main pathway should not be overwritten by unsupported plots.
+                % If you prefer clearing both axes, uncomment the next line.
+                % cla(app.MainUIAxes);
+
                 return
             end
 
@@ -3036,57 +3166,61 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            selectedFluxRows = app.selectedTableRows(app.ResultMainTable);
             selectedResultRows = app.selectedTableRows(app.ResultSubTable);
+            selectedFluxRows = app.selectedTableRows(app.ResultMainTable);
 
-            if isempty(selectedFluxRows) || isempty(selectedResultRows)
+            if isempty(selectedResultRows)
                 return
             end
 
-            selectedFlux = selectedFluxRows(1);
-            selectedID = selectedResultRows(1);
-
-            if isempty(app.ResultMainTable.Data)
+            if isempty(app.ResultSubTable.Data) || ~istable(app.ResultSubTable.Data)
                 return
             end
 
-            if ~istable(app.ResultMainTable.Data)
+            tableData = app.getResultMainRawData();
+
+            if isempty(tableData) || ~istable(tableData)
                 return
             end
 
-            if ~any(app.ResultMainTable.Data.Properties.VariableNames == "Flux")
+            if ~any(string(tableData.Properties.VariableNames) == "Flux")
                 return
             end
 
-            RxnIDs = app.ResultMainTable.RowName;
+            rxnIDs = app.getResultReactionIds(tableData);
 
-            if isempty(RxnIDs)
+            if isempty(rxnIDs)
                 return
             end
 
-            if selectedFlux > numel(RxnIDs)
-                return
-            end
-
-            batchIDs = string(app.ResultSubTable.Data.ID);
-
-            if selectedID > numel(batchIDs)
-                return
-            end
-
-            RxnID = string(RxnIDs(selectedFlux));
-            batchID = batchIDs(selectedID);
-
-            fluxColumn = app.ResultMainTable.Data.Flux;
+            % -------------------------------------------------------------
+            % Draw metabolic pathway with flux labels.
+            % This should work even when no flux row is selected.
+            % -------------------------------------------------------------
+            fluxColumn = tableData.Flux;
 
             if numel(fluxColumn) > 1
                 fluxColumn = fluxColumn(1:end - 1);
             end
 
-            Fluxes = app.toFluxLabelCell(fluxColumn);
+            fluxLabels = app.toFluxLabelCell(fluxColumn);
 
             modelTable = getModelTable(app.model);
-            highlightMask = strcmp(modelTable.Properties.RowNames, RxnID);
+            highlightMask = false(height(modelTable), 1);
+
+            hasSelectedFlux = ~isempty(selectedFluxRows);
+
+            if hasSelectedFlux
+                selectedFluxRow = selectedFluxRows(1);
+
+                if selectedFluxRow <= numel(rxnIDs)
+                    rxnID = string(rxnIDs(selectedFluxRow));
+                    highlightMask = strcmp(modelTable.Properties.RowNames, rxnID);
+                else
+                    hasSelectedFlux = false;
+                end
+
+            end
 
             app.MainUIAxes.Visible = 'on';
             app.SubUIAxes.Visible = 'on';
@@ -3094,11 +3228,32 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             drawFluxLabel( ...
                 app.model, ...
                 app.MainUIAxes, ...
-                Fluxes, ...
+                fluxLabels, ...
                 highlight = highlightMask, ...
                 darkmode = isDarkTheme(app));
 
-            data = getCIReaction(app.result, batchID, RxnID);
+            app.MainUIAxes.ContextMenu = app.ContextMenu;
+
+            % -------------------------------------------------------------
+            % CI plot requires a selected reaction.
+            % If no reaction is selected, keep pathway and clear only SubUIAxes.
+            % -------------------------------------------------------------
+            if ~hasSelectedFlux
+                cla(app.SubUIAxes);
+                return
+            end
+
+            selectedResultRow = selectedResultRows(1);
+
+            if selectedResultRow > height(app.ResultSubTable.Data)
+                cla(app.SubUIAxes);
+                return
+            end
+
+            batchID = string(app.ResultSubTable.Data.ID(selectedResultRow));
+            rxnID = string(rxnIDs(selectedFluxRows(1)));
+
+            data = getCIReaction(app.result, batchID, rxnID);
 
             if isempty(data) || ~isfield(data, 'CI')
                 cla(app.SubUIAxes);
@@ -3353,6 +3508,73 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end
 
+        function data = getResultMainRawData(app)
+
+            data = app.ResultMainTable.Data;
+
+            try
+                userData = app.ResultMainTable.UserData;
+
+                if isstruct(userData) && ...
+                        isfield(userData, "RawData") && ...
+                        ~isempty(userData.RawData)
+
+                    data = userData.RawData;
+                end
+
+            catch
+                data = app.ResultMainTable.Data;
+            end
+
+        end % method getResultMainRawData
+
+        function rxnIDs = getResultReactionIds(app, tableData)
+
+            rxnIDs = strings(0, 1);
+
+            try
+                rxnIDs = string(app.ResultMainTable.RowName);
+                rxnIDs = rxnIDs(:);
+
+                if ~isempty(rxnIDs) && any(rxnIDs ~= "")
+                    return
+                end
+
+            catch
+            end
+
+            try
+                rxnIDs = string(tableData.Properties.RowNames);
+                rxnIDs = rxnIDs(:);
+
+                if ~isempty(rxnIDs) && any(rxnIDs ~= "")
+                    return
+                end
+
+            catch
+            end
+
+            candidates = ["ID", "RxnID", "Reaction", "ReactionID"];
+
+            try
+                names = string(tableData.Properties.VariableNames);
+
+                for i = 1:numel(candidates)
+                    idx = find(names == candidates(i), 1);
+
+                    if ~isempty(idx)
+                        rxnIDs = string(tableData{:, idx});
+                        rxnIDs = rxnIDs(:);
+                        return
+                    end
+
+                end
+
+            catch
+            end
+
+        end % method getResultReactionIds
+
         %% Status function
         function statusBatch(app, data)
 
@@ -3451,6 +3673,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.presentation.batch.BatchPresenter();
             app.ResultPresenter = ...
                 openmebius.presentation.result.ResultPresenter();
+            app.ResultPlotPresenter = ...
+                openmebius.presentation.result.ResultPlotPresenter();
 
             if nargin < 2
                 filepath = "";
