@@ -191,6 +191,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         Presenter openmebius.presentation.main.MainPresenter
         DialogService openmebius.presentation.dialog.AppDialogService
+        ProjectRepository openmebius.infrastructure.project.FileProjectRepository
+        OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
+        ProjectSession openmebius.domain.project.ProjectSession
 
     end % properties (Access=private)
 
@@ -1627,6 +1630,106 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureDialogService
 
+        %% Apply Session
+        function applyProjectSession(app, session)
+
+            arguments
+                app
+                session openmebius.domain.project.ProjectSession
+            end
+
+            app.ProjectSession = session;
+
+            app.ProjectDirectoryDropDown.Value = ...
+                session.Paths.RootDirectory;
+
+            app.ProjectNameEditField.Value = ...
+                session.Metadata.Name;
+
+            app.ProjectAuthorEditField.Value = ...
+                session.Metadata.Author;
+
+            app.OrganismEditField.Value = ...
+                session.Metadata.Organism;
+
+            app.directoryModel = ...
+                session.Paths.ModelDirectory;
+
+            app.directoryExp = ...
+                session.Paths.ExperimentDirectory;
+
+            app.directoryResult = ...
+                session.Paths.ResultDirectory;
+
+        end % method applyProjectSession
+
+        function loadLegacyProjectObjects(app)
+
+            app.updateStatus("model", "running");
+
+            app.model = EMUModel(app.directoryModel);
+
+            if app.model.isError
+                app.LogText(app.model.statusMsg);
+                app.updateStatus("model", "error");
+                return
+            end
+
+            IOStatus = app.model.getIOStatus();
+
+            if strcmp(IOStatus, "completed")
+                app.notifyInfo("Model loaded successfully.");
+            else
+                app.LogText(app.model.statusMsg);
+                app.updateStatus("model", "error");
+                return
+            end
+
+            app.notifyInfo("Constructing EMU network...");
+
+            pause(0.5)
+
+            loadEMUModel(app)
+
+            if app.model.isError
+                app.LogText(app.model.statusMsg);
+                app.updateStatus("model", "error");
+                return
+            end
+
+            loadPathway(app)
+
+            app.notifyInfo("EMU network was successfully constructed.");
+            app.updateStatus("model", "finished");
+
+            app.updateStatus("experiment", "running");
+
+            app.exp = IOExps( ...
+                app.directoryExp, ...
+                app.directoryModel);
+
+            if app.exp.isError
+                app.LogText(app.exp.statusMsg);
+                app.updateStatus("experiment", "error");
+                return
+            end
+
+            loadExpData(app)
+
+            if app.exp.isError
+                app.LogText(app.exp.statusMsg);
+                app.updateStatus("experiment", "error");
+                return
+            end
+
+            app.updateStatus("experiment", "finished");
+            app.LogText(app.exp.statusMsg);
+
+            loadBatchTable(app)
+            loadResult(app)
+
+        end % method loadLegacyProjectObjects
+
         %% Private initialization function
         function initLog(app)
 
@@ -2933,6 +3036,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.presentation.dialog.AppDialogService( ...
                 app.OpenMebius2UIFigure);
 
+            app.ProjectRepository = ...
+                openmebius.infrastructure.project.FileProjectRepository();
+
+            app.OpenProjectUseCase = ...
+                openmebius.application.project.OpenProjectUseCase( ...
+                app.ProjectRepository);
+
             if nargin < 2
                 filepath = "";
             else
@@ -3002,126 +3112,25 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ProjectLoadButton
         function ProjectLoadButtonPushed(app, event)
 
-            cleanupPresentation = app.beginPresentationOperation();
-
-            % Update status
-            updateStatus(app, "model", "running");
-
-            projectDirectory = app.ProjectDirectoryDropDown.Value;
-            objProjectDirectory = IO(projectDirectory);
-
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
-
-            % If the project directory is not empty, load the project
-            if objProjectDirectory.isEmpty
-                msg = objProjectDirectory.returnDateMsg("Project directory is empty", "Info");
-                app.LogText(msg);
-                app.updateStatus("model", "error");
-                return
-            end
-
-            % Load JSON file
-            json = objProjectDirectory.importJSONFile(fullfile(projectDirectory, "setting.json"));
-
-            if objProjectDirectory.isError
-                app.LogText(objProjectDirectory.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
 
             try
-                app.ProjectNameEditField.Value = json.Name;
-                app.ProjectAuthorEditField.Value = json.Author;
-                app.OrganismEditField.Value = json.Organism;
-            catch
-                msg = "Error loading project setting.json file. Please check the file format.";
-                LogTextDate(app, msg, "Error");
-                updateStatus(app, "model", "error");
-                return
+                projectDirectory = string(app.ProjectDirectoryDropDown.Value);
+
+                session = app.OpenProjectUseCase.execute(projectDirectory);
+
+                app.applyProjectSession(session);
+
+                app.loadLegacyProjectObjects();
+
+                app.refreshPresentation();
+
+            catch ME
+                app.updateStatus("model", "error");
+                app.notifyException( ...
+                    ME ...
+                );
             end
-
-            % Initialize the directory
-            initDirectory(app, projectDirectory);
-
-            LogText(app, objProjectDirectory.statusMsg);
-
-            clear objProjectDirectory;
-
-            app.model = EMUModel(app.directoryModel);
-
-            if app.model.isError
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            else
-                msg = "Model folder found in " + projectDirectory;
-                LogTextDate(app, msg, "Info");
-            end
-
-            IOStatus = app.model.getIOStatus();
-
-            if strcmp(IOStatus, "completed")
-                msg = "Model loaded successfully.";
-                LogTextDate(app, msg, "Info");
-            else
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            end
-
-            msg = "Constructing EMU network...";
-            LogTextDate(app, msg, "Info");
-
-            pause(0.5)
-
-            loadEMUModel(app)
-
-            if app.model.isError
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            end
-
-            loadPathway(app)
-
-            msg = "EMU network was successfully constructed.";
-            LogTextDate(app, msg, "Info");
-            updateStatus(app, "model", "finished");
-
-            % Load experimental data
-            updateStatus(app, "experiment", "running");
-
-            app.exp = IOExps( ...
-                app.directoryExp, ...
-                app.directoryModel ...
-            );
-
-            if app.exp.isError
-                LogText(app, app.exp.statusMsg);
-                updateStatus(app, "experiment", "error");
-                return
-            end
-
-            loadExpData(app)
-
-            if app.exp.isError
-                LogText(app, app.exp.statusMsg);
-                updateStatus(app, "experiment", "error");
-                return
-            end
-
-            updateStatus(app, "experiment", "finished");
-            LogText(app, app.exp.statusMsg);
-
-            % Load batch table
-            loadBatchTable(app)
-
-            % Load results if available
-            loadResult(app)
 
         end
 
