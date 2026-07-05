@@ -1,0 +1,210 @@
+classdef BatchPresenter < handle
+
+    methods
+
+        function viewModel = presentTable(obj, batch)
+
+            if obj.isInvalidHandle(batch)
+                error( ...
+                    "OpenMebius2:Batch:InvalidBatchObject", ...
+                "Batch object is not valid.");
+            end
+
+            [batchGUI, columnEditable] = getBatchForGUI(batch);
+
+            if isempty(batchGUI)
+                viewModel = ...
+                    openmebius.presentation.batch.BatchTableViewModel( ...
+                    Data = table(), ...
+                    ColumnEditable = false(1, 0));
+                return
+            end
+
+            if any(batchGUI.Properties.VariableNames == "Experiment")
+                batchGUI.Experiment = string(batchGUI.Experiment);
+            end
+
+            ids = batchGUI.ID;
+            status = getBatchStatus(batch, ids);
+
+            styleRules = obj.styleRulesForStatus(batchGUI, status);
+
+            viewModel = ...
+                openmebius.presentation.batch.BatchTableViewModel( ...
+                Data = batchGUI, ...
+                ColumnEditable = columnEditable, ...
+                StyleRules = styleRules);
+
+        end
+
+        function styleRules = styleRulesForStatus(obj, tableData, status)
+
+            if isempty(tableData)
+                styleRules = struct( ...
+                    "Rows", {}, ...
+                    "Columns", {}, ...
+                    "StyleKey", {});
+                return
+            end
+
+            status = string(status);
+            status = status(:);
+
+            n = min(height(tableData), numel(status));
+
+            styleRules = struct( ...
+                "Rows", {}, ...
+                "Columns", {}, ...
+                "StyleKey", {});
+
+            for i = 1:n
+
+                styleRules(end + 1, 1) = struct( ...
+                    "Rows", i, ...
+                    "Columns", 1, ...
+                    "StyleKey", obj.statusToStyleKey(status(i))); %#ok<AGROW>
+
+            end
+
+        end
+
+        function viewModel = presentProgress(obj, eventData, currentTableData)
+
+            payload = eventData.data;
+
+            batchId = string(payload.id);
+            status = lower(string(payload.status));
+            rate = double(payload.rate);
+
+            message = obj.progressMessage(batchId, status);
+
+            row = obj.findBatchRow(currentTableData, batchId);
+
+            if isempty(row)
+                styleRules = struct( ...
+                    "Rows", {}, ...
+                    "Columns", {}, ...
+                    "StyleKey", {});
+            else
+                styleRules = struct( ...
+                    "Rows", row, ...
+                    "Columns", 1, ...
+                    "StyleKey", obj.statusToStyleKey(status));
+            end
+
+            notification = ...
+                openmebius.presentation.notification.Notification.fromBatchStatus( ...
+                message, ...
+                status);
+
+            viewModel = ...
+                openmebius.presentation.batch.BatchProgressViewModel( ...
+                BatchId = batchId, ...
+                Status = status, ...
+                Rate = rate, ...
+                Message = message, ...
+                StyleRules = styleRules, ...
+                Notification = notification);
+
+        end
+
+    end
+
+    methods (Access = private)
+
+        function tf = isInvalidHandle(~, value)
+
+            tf = isempty(value);
+
+            if tf
+                return
+            end
+
+            try
+                tf = ~isvalid(value);
+            catch
+                tf = false;
+            end
+
+        end
+
+        function key = statusToStyleKey(~, status)
+
+            status = lower(string(status));
+
+            switch status
+
+                case "ready"
+                    key = "info";
+
+                case "running"
+                    key = "info";
+
+                case "finished"
+                    key = "success";
+
+                case "warning"
+                    key = "warning";
+
+                case "error"
+                    key = "error";
+
+                case "question"
+                    key = "question";
+
+                otherwise
+                    error( ...
+                        "OpenMebius2:Batch:UnknownStatus", ...
+                        "Unknown batch status: %s", status);
+            end
+
+        end
+
+        function row = findBatchRow(~, tableData, batchId)
+
+            row = [];
+
+            if isempty(tableData)
+                return
+            end
+
+            if ~istable(tableData)
+                return
+            end
+
+            if ~any(tableData.Properties.VariableNames == "ID")
+                return
+            end
+
+            row = find(string(tableData.ID) == batchId, 1);
+
+        end
+
+        function message = progressMessage(~, batchId, status)
+
+            switch lower(string(status))
+
+                case "finished"
+                    message = "Batch " + batchId + " is completed.";
+
+                case "warning"
+                    message = "Batch " + batchId + " completed with warnings.";
+
+                case "error"
+                    message = "Batch " + batchId + " failed.";
+
+                case "question"
+                    message = "Batch " + batchId + " requires attention.";
+
+                case "running"
+                    message = "Batch " + batchId + " is running.";
+
+                otherwise
+                    message = "Batch " + batchId + " status: " + status;
+            end
+
+        end
+
+    end
+
+end

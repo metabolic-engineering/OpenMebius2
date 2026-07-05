@@ -190,6 +190,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     properties (Access = private)
 
         Presenter openmebius.presentation.main.MainPresenter
+        BatchPresenter openmebius.presentation.batch.BatchPresenter
         DialogService openmebius.presentation.dialog.AppDialogService
         ProjectRepository openmebius.infrastructure.project.FileProjectRepository
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
@@ -308,11 +309,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method updateModel
 
         function updateBatchTable(app)
-            % UPDATEBATCHTABLE Update the batch table with the current batch data
 
-            % Update the batch table with the new data
-            removeStyle(app.RunTable);
             loadBatchTable(app, reload = true);
+            app.refreshPresentation();
 
         end % function updateBatchTable
 
@@ -546,6 +545,52 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method renderLegacyProjectArtifacts
+
+        function renderBatchTable(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            removeStyle(app.RunTable);
+
+            app.RunTable.Data = viewModel.Data;
+
+            if isempty(viewModel.Data)
+                app.RunTable.ColumnName = [];
+                app.RunTable.RowName = [];
+                app.RunTable.ColumnEditable = false;
+                return
+            end
+
+            app.RunTable.ColumnName = ...
+                viewModel.Data.Properties.VariableNames;
+
+            app.RunTable.RowName = ...
+                viewModel.Data.Properties.RowNames;
+
+            app.RunTable.ColumnEditable = ...
+                viewModel.ColumnEditable;
+
+            app.applyBatchStyleRules(viewModel.StyleRules);
+
+        end % method renderBatchTable
+
+        function renderBatchProgress(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            app.ensureProgressBar();
+
+            app.ProgressBar.setProgress( ...
+                viewModel.Rate, ...
+                viewModel.Message);
+
+            drawnow limitrate
+
+        end % method renderBatchProgress
 
         function renderUiState(app, ui)
             % RENDERUISTATE Render the UI state
@@ -1806,6 +1851,53 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method applyLegacyProjectArtifacts
 
+        function applyBatchStyleRules(app, styleRules)
+
+            if isempty(styleRules)
+                return
+            end
+
+            for i = 1:numel(styleRules)
+
+                style = app.batchStyleFromKey(styleRules(i).StyleKey);
+
+                addStyle( ...
+                    app.RunTable, ...
+                    style, ...
+                    'cell', ...
+                    [styleRules(i).Rows, styleRules(i).Columns]);
+
+            end
+
+        end % method applyBatchStyleRules
+
+        function style = batchStyleFromKey(app, styleKey)
+
+            switch lower(string(styleKey))
+
+                case "info"
+                    style = app.styleInfoIcon;
+
+                case "success"
+                    style = app.styleSuccessIcon;
+
+                case "warning"
+                    style = app.styleWarningIcon;
+
+                case "error"
+                    style = app.styleErrorIcon;
+
+                case "question"
+                    style = app.styleQuestionIcon;
+
+                otherwise
+                    error( ...
+                        "OpenMebius2:Batch:UnknownStyleKey", ...
+                        "Unknown batch style key: %s", string(styleKey));
+            end
+
+        end % method batchStyleFromKey
+
         function loadLegacyProjectObjects(app)
 
             app.updateStatus("model", "running");
@@ -1872,6 +1964,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             loadResult(app)
 
         end % method loadLegacyProjectObjects
+
+        function ensureBatchPresenter(app)
+
+            if isempty(app.BatchPresenter)
+                app.BatchPresenter = ...
+                    openmebius.presentation.batch.BatchPresenter();
+            end
+
+        end % method ensureBatchPresenter
+
+        function ensureProgressBar(app)
+
+            if isempty(app.ProgressBar) || ~isvalid(app.ProgressBar)
+                app.ProgressBar = CustomProgressBar(app.GridLayout2, 3, 1);
+            end
+
+        end % method ensureProgressBar
 
         %% Private initialization function
         function initLog(app)
@@ -2216,37 +2325,37 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             arguments
                 app
                 options.reload = false
-            end % arguments
-
-            if isempty(app.batch) || ~isvalid(app.batch)
-                msg = "Batch object is not valid.";
-                app.LogTextDate(msg, "Error");
-                app.updateStatus("batch", "error");
-                return
-            end % if isempty(app.batch) || ~isvalid(app.batch)
-
-            if isempty(app.ProgressBar) || ~isvalid(app.ProgressBar)
-                app.ProgressBar = CustomProgressBar(app.GridLayout2, 3, 1);
             end
 
-            [batchGUI, columnEditable] = getBatchForGUI(app.batch);
-            batchGUI.Experiment = string(batchGUI.Experiment);
-
-            IDs = batchGUI.ID;
-            status = getBatchStatus(app.batch, IDs);
-            app.RunTable.Data = batchGUI;
-            app.RunTable.ColumnName = batchGUI.Properties.VariableNames;
-            setBatchInitialStyle(app, status);
-
-            app.RunTable.ColumnEditable = columnEditable;
+            app.ensureBatchPresenter();
 
             if ~options.reload
 
-                app.updateStatus("batch", "finished");
-                msg = "Batch table loaded successfully.";
-                LogTextDate(app, msg, "Info");
+                updateStatus(app, "batch", "running");
 
-            end % if ~options.reload
+                app.batch = Batch(app.exp);
+
+                app.attachLegacyListeners();
+
+            end
+
+            if isempty(app.batch) || ~isvalid(app.batch)
+                msg = "Batch object is not valid.";
+                app.notifyError(msg);
+                app.updateStatus("batch", "error");
+                return
+            end
+
+            app.ensureProgressBar();
+
+            viewModel = app.BatchPresenter.presentTable(app.batch);
+
+            app.renderBatchTable(viewModel);
+
+            if ~options.reload
+                app.updateStatus("batch", "finished");
+                app.notifyInfo("Batch table loaded successfully.");
+            end
 
         end % function loadBatchTable
 
@@ -3023,80 +3132,40 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % function pasteClipboardToTable
 
         %% Style functions
-
         function setBatchInitialStyle(app, status)
-            % Set the initial style for the batch table
-            % depending on the status of the batch
-            %
-            % status: "ready", "finished", "warning", "error"
 
-            numBatch = length(status);
-            IDs = app.RunTable.Data.ID;
+            app.ensureBatchPresenter();
 
-            for i = 1:numBatch
+            if isempty(app.RunTable.Data)
+                return
+            end
 
-                ID = IDs(i);
-                iStatus = status(i);
+            styleRules = ...
+                app.BatchPresenter.styleRulesForStatus( ...
+                app.RunTable.Data, ...
+                status);
 
-                idx = find(app.RunTable.Data.ID == ID, 1);
+            app.applyBatchStyleRules(styleRules);
 
-                switch iStatus
-
-                    case "ready"
-                        addStyle(app.RunTable, app.styleInfoIcon, 'cell', [idx 1]);
-
-                    case "finished"
-                        addStyle(app.RunTable, app.styleSuccessIcon, 'cell', [idx 1]);
-
-                    case "warning"
-                        addStyle(app.RunTable, app.styleWarningIcon, 'cell', [idx 1]);
-
-                    case "error"
-                        addStyle(app.RunTable, app.styleErrorIcon, 'cell', [idx 1]);
-
-                    case "question"
-                        addStyle(app.RunTable, app.styleQuestionIcon, 'cell', [idx 1]);
-                    otherwise
-                        error("Unknown status: " + iStatus);
-
-                end
-
-            end % for i
-
-        end % function setBatchInitialStyle
+        end
 
         %% Status function
         function statusBatch(app, data)
 
-            data = data.data;
-            ID = data.id;
-            status = data.status;
-            rate = data.rate;
-            msg = "Batch " + ID + " is completed.";
-            idx = find(app.RunTable.Data.ID == ID, 1);
+            app.ensureBatchPresenter();
 
-            switch status
+            viewModel = ...
+                app.BatchPresenter.presentProgress( ...
+                data, ...
+                app.RunTable.Data);
 
-                case "finished"
-                    LogTextDate(app, msg, "Info");
-                    addStyle(app.RunTable, app.styleSuccessIcon, 'cell', [idx 1]);
-
-                case "warning"
-                    LogTextDate(app, msg, "Warning");
-                    addStyle(app.RunTable, app.styleWarningIcon, 'cell', [idx 1]);
-
-                case "error"
-                    LogTextDate(app, msg, "Error");
-                    addStyle(app.RunTable, app.styleErrorIcon, 'cell', [idx 1]);
-
-                case "question"
-                    LogTextDate(app, msg, "Error");
-                    addStyle(app.RunTable, app.styleQuestionIcon, 'cell', [idx 1]);
-
+            if ~isempty(viewModel.Notification)
+                app.showNotification(viewModel.Notification);
             end
 
-            app.ProgressBar.setProgress(rate, msg);
-            drawnow();
+            app.applyBatchStyleRules(viewModel.StyleRules);
+
+            app.renderBatchProgress(viewModel);
 
         end % function statusBatch
 
@@ -3173,6 +3242,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.LegacyProjectLoader = ...
                 openmebius.infrastructure.legacy.LegacyProjectLoader();
+
+            app.BatchPresenter = ...
+                openmebius.presentation.batch.BatchPresenter();
 
             if nargin < 2
                 filepath = "";
