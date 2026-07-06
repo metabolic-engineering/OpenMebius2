@@ -200,8 +200,6 @@ classdef MSView_exported < matlab.apps.AppBase
         % Close request function: MSViewerUIFigure
         function MSViewerUIFigureCloseRequest(app, event)
 
-            app.MainApp.unlockAllFeatureForOtherGUI()
-            pause(0.5)
             delete(app)
 
         end

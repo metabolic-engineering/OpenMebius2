@@ -129,7 +129,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
     properties (Access = public)
 
-        calcStatus (5, 1) string {mustBeMember(calcStatus, ["init", "running", "finished", "error"])} = "init";
+        calcStatus (4, 1) string {mustBeMember(calcStatus, ["init", "running", "finished", "error"])} = "init";
         typeSimulation (1, 1) string {mustBeMember(typeSimulation, ["MDV", "Flux", "Label"])} = "Flux";
         model;
         exp;
@@ -187,6 +187,22 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
     end % properties (Access=private)
 
+    properties (Access = private)
+
+        Presenter openmebius.presentation.main.MainPresenter
+        BatchPresenter openmebius.presentation.batch.BatchPresenter
+        ResultPresenter openmebius.presentation.result.ResultPresenter
+        ResultPlotPresenter openmebius.presentation.result.ResultPlotPresenter
+        DialogService openmebius.presentation.dialog.AppDialogService
+        ProjectRepository openmebius.infrastructure.project.FileProjectRepository
+        OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
+        ProjectSession openmebius.domain.project.ProjectSession
+
+        LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
+        LegacyListeners event.listener = event.listener.empty(0, 1)
+
+    end % properties (Access=private)
+
     methods (Access = public)
 
         %% Public check methods
@@ -204,12 +220,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 text string
             end
 
-            text_before = app.LogTextArea.Value;
-            app.LogTextArea.Value = [text_before; text];
-
-            scroll(app.LogTextArea, 'bottom')
-
-            drawnow
+            app.appendLogText(text);
 
         end % function LogText
 
@@ -221,14 +232,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 level string
             end
 
-            % if model is not defined, just log the text
-            if isempty(app.model) || ~isvalid(app.model)
-                app.LogText(text)
-                return
-            end
+            notification = ...
+                openmebius.presentation.notification.Notification( ...
+                text, ...
+                level);
 
-            msg = app.model.returnDateMsg(text, level);
-            app.LogText(msg)
+            app.showNotification(notification);
 
         end % function LogTextDate
 
@@ -262,127 +271,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function clearHistory
 
-        %% Lock functions
-        function lockProject(app, options)
-
-            arguments
-                app
-                options.template (1, 1) logical = false
-            end % arguments
-
-            % Disable all project related components
-            app.ProjectLoadButton.Enable = 'off';
-            app.TemplateModelLoadButton.Enable = 'off';
-
-            app.ProjectDirectoryDropDown.Enable = 'off';
-            app.TemplateModelDirectoryDropDown.Enable = 'off';
-
-            if options.template
-                app.ProjectCreateButton.Enable = 'on';
-                app.TemplateModelSaveButton.Enable = 'off';
-            else
-                app.ProjectCreateButton.Enable = 'off';
-                app.TemplateModelSaveButton.Enable = 'on';
-            end % if options.template
-
-        end % function lockProject
-
-        function unlockProject(app)
-
-            arguments
-                app
-            end % arguments
-
-            % Disable all project related components
-            app.ProjectLoadButton.Enable = 'on';
-            app.TemplateModelLoadButton.Enable = 'on';
-
-            app.ProjectDirectoryDropDown.Enable = 'on';
-            app.TemplateModelDirectoryDropDown.Enable = 'on';
-
-            app.ProjectCreateButton.Enable = 'off';
-            app.TemplateModelSaveButton.Enable = 'off';
-
-            lockAllFeature(app)
-
-        end % function unlockProject
-
-        function lockAllFeatureForOtherGUI(app)
-
-            % Lock project related components
-            lockAllFeature(app)
-            lockAllProjectFeature(app)
-
-        end % lockAllFeatureForOtherGUI
-
-        function unlockAllFeatureForOtherGUI(app)
-
-            % Unlock project related components
-            unlockAllFeature(app)
-            unlockAllProjectFeature(app)
-
-        end % unlockAllFeatureForOtherGUI
-
-        function lockAllFeatureForBatchRun(app)
-            % LOCKALLFEATUREFORBATCHRUN Lock all features for batch run
-            % This method is used to lock all features for batch run
-            % and prevent any changes to the model, MS, experiment, tracer,
-            % run, and result tabs.
-
-            % Lock other tabs
-            lockModelTab(app)
-            lockMSTab(app)
-            lockExpTab(app)
-            lockTracerTab(app)
-            lockRunTabForBatchRun(app)
-
-            % Lock project related components
-            lockAllProjectFeature(app)
-
-        end % method lockAllFeatureForBatchRun
-
-        function unlockAllFeatureForBatchRun(app)
-            % UNLOCKALLFEATUREFORBATCHRUN Unlock all features for batch run
-            % This method is used to unlock all features for batch run
-            % and allow changes to the model, MS, experiment, tracer,
-            % run, and result tabs.
-
-            % Unlock other tabs
-            unlockModelTab(app)
-            unlockMSTab(app)
-            unlockExpTab(app)
-            unlockTracerTab(app)
-            unlockRunTabForBatchRun(app)
-
-            % Unlock project related components
-            unlockAllProjectFeature(app)
-
-        end % method unlockAllFeatureForBatchRun
-
-        function lockAllFeature(app)
-
-            lockModelTab(app)
-            lockMSTab(app)
-            lockExpTab(app)
-            lockTracerTab(app)
-            lockRunTab(app)
-            lockResultTab(app)
-            lockMenu(app)
-
-        end % function lockAllFeature
-
-        function unlockAllFeature(app)
-
-            unlockModelTab(app)
-            unlockMSTab(app)
-            unlockExpTab(app)
-            unlockTracerTab(app)
-            unlockRunTab(app)
-            unlockResultTab(app)
-            unlockMenu(app)
-
-        end % function unlockAllFeature
-
         %% Public update functions
         function updateStatus(app, section, status)
             % UPDATESTATUS Update the status table with the current status
@@ -393,53 +281,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 status string {mustBeMember(status, ["init", "running", "finished", "error"])}
             end
 
-            sectionList = ["model", "experiment", "batch", "result"];
-            sectionIdx = find(sectionList == section, 1);
-            sectionLabel = ["Model", "Experiment", "Batch", "Result"];
-
-            icon = cell(length(sectionList), 1);
-            text = cell(length(sectionList), 1);
-
-            switch section
-
-                case "model"
-                    [icon{1}, text{1}] = updateStatusModel(app, status);
-                    [icon{2}, text{2}] = updateStatusExperiment(app, app.calcStatus(2));
-                    [icon{3}, text{3}] = updateStatusBatch(app, app.calcStatus(3));
-                    [icon{4}, text{4}] = updateStatusResult(app, app.calcStatus(4));
-
-                case "experiment"
-                    [icon{1}, text{1}] = updateStatusModel(app, app.calcStatus(1));
-                    [icon{2}, text{2}] = updateStatusExperiment(app, status);
-                    [icon{3}, text{3}] = updateStatusBatch(app, app.calcStatus(3));
-                    [icon{4}, text{4}] = updateStatusResult(app, app.calcStatus(4));
-
-                case "batch"
-                    [icon{1}, text{1}] = updateStatusModel(app, app.calcStatus(1));
-                    [icon{2}, text{2}] = updateStatusExperiment(app, app.calcStatus(2));
-                    [icon{3}, text{3}] = updateStatusBatch(app, status);
-                    [icon{4}, text{4}] = updateStatusResult(app, app.calcStatus(4));
-
-                case "result"
-                    [icon{1}, text{1}] = updateStatusModel(app, app.calcStatus(1));
-                    [icon{2}, text{2}] = updateStatusExperiment(app, app.calcStatus(2));
-                    [icon{3}, text{3}] = updateStatusBatch(app, app.calcStatus(3));
-                    [icon{4}, text{4}] = updateStatusResult(app, status);
-
-            end % switch section
-
-            % Update the HTML table
-            rows = {
-                    sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', icon{1}, sectionLabel(1), text{1}), ...
-                        sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', icon{2}, sectionLabel(2), text{2}), ...
-                        sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', icon{3}, sectionLabel(3), text{3}), ...
-                        sprintf('<tr><td>%s</td><td>%s</td><td>%s</td></tr>', icon{4}, sectionLabel(4), text{4}), ...
-                    };
+            [app.calcStatus, rows] = ...
+                openmebius.presentation.status.StatusPresenter.update( ...
+                app.calcStatus, ...
+                section, ...
+                status);
 
             initStatusTable(app, update = true, rows = rows);
-
-            % Update the calcStatus property
-            app.calcStatus(sectionIdx) = status;
 
         end % method updateStatus
 
@@ -463,11 +311,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method updateModel
 
         function updateBatchTable(app)
-            % UPDATEBATCHTABLE Update the batch table with the current batch data
 
-            % Update the batch table with the new data
-            removeStyle(app.RunTable);
             loadBatchTable(app, reload = true);
+            app.refreshPresentation();
 
         end % function updateBatchTable
 
@@ -499,47 +345,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     methods (Access = protected)
 
         %% Protected wrapper functions
-        function [folder, isOK] = uiGetDirWrap(~, options)
-            % uiGetDirWrap - uigetdir wrapper with flexible texts
-            %
-            % Usage:
-            %   [folder,isOK] = uiGetDirWrap(struct("Title","保存先を選択","StartPath",pwd));
-            %   [folder,isOK] = uiGetDirWrap(struct("Parent",app.UIFigure,"Title","Select folder"));
-            %
-            % options (struct)
-            %   Parent    : (optional) uifigure handle for App Designer
-            %   Title     : dialog title (string)
-            %   StartPath : initial folder (string)
+        function [folder, isOK] = uiGetDirWrap(app, options)
 
             arguments
-                ~
+                app
                 options.Parent = []
                 options.Title (1, 1) string = "Select folder"
                 options.StartPath (1, 1) string = string(pwd)
             end
 
-            % uigetdir does not accept Parent in older MATLAB versions.
-            % So we keep interface but call uigetdir with (startPath,title).
-            folder0 = char(options.StartPath);
-            title0 = char(options.Title);
+            app.ensureDialogService();
 
-            out = uigetdir(folder0, title0);
-
-            if isequal(out, 0)
-                folder = "";
-                isOK = false;
-            else
-                folder = string(out);
-                isOK = true;
-            end
+            [folder, isOK] = app.DialogService.selectFolder( ...
+                Title = options.Title, ...
+                StartPath = options.StartPath);
 
         end % function uiGetDirWrap
 
-        function [files, isOK] = uiGetFileWrap(~, options)
-            % uiGetFileWrap - uigetfile/uiputfile wrapper with flexible texts
+        function [files, isOK] = uiGetFileWrap(app, options)
 
             arguments
-                ~
+                app
                 options.Parent = []
                 options.Filter = "*.*"
                 options.Title (1, 1) string = "Select file"
@@ -549,142 +375,1973 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.DefaultName (1, 1) string = ""
             end
 
-            % ---- normalize filter spec ----
-            filterSpec = options.Filter;
+            app.ensureDialogService();
 
-            if isstring(filterSpec) && isscalar(filterSpec)
-                filterSpec = char(filterSpec);
-            end
+            [files, isOK] = app.DialogService.selectFile( ...
+                Filter = options.Filter, ...
+                Title = options.Title, ...
+                StartPath = options.StartPath, ...
+                MultiSelect = options.MultiSelect, ...
+                Save = options.Save, ...
+                DefaultName = options.DefaultName);
 
-            if isstring(filterSpec) && ~isscalar(filterSpec)
-                filterSpec = cellstr(filterSpec);
-            end
+        end % function uiGetFileWrap
 
-            startPath0 = char(options.StartPath);
-            title0 = char(options.Title);
-
-            % ---- save mode ----
-            if options.Save
-
-                if options.DefaultName ~= ""
-                    startPath0 = char(fullfile(options.StartPath, options.DefaultName));
-                end
-
-                [fname, fpath] = uiputfile(filterSpec, title0, startPath0);
-
-                if isequal(fname, 0) || isequal(fpath, 0)
-                    files = string.empty(0, 1);
-                    isOK = false;
-                    return;
-                end
-
-                file0 = string(fullfile(fpath, fname));
-
-                % ---- overwrite warning ----
-                if isfile(file0)
-                    answer = questdlg( ...
-                        "The file already exists. Do you want to overwrite it?", ...
-                        "File exists", ...
-                        "Yes", "No", "No");
-
-                    if ~strcmp(answer, "Yes")
-                        files = string.empty(0, 1);
-                        isOK = false;
-                        return;
-                    end
-
-                end
-
-                files = file0;
-                isOK = true;
-                return;
-            end
-
-            % ---- open mode ----
-            if options.MultiSelect == "on"
-                [fname, fpath] = uigetfile(filterSpec, title0, startPath0, "MultiSelect", "on");
-            else
-                [fname, fpath] = uigetfile(filterSpec, title0, startPath0);
-            end
-
-            if isequal(fname, 0) || isequal(fpath, 0)
-                files = string.empty(0, 1);
-                isOK = false;
-                return;
-            end
-
-            if iscell(fname)
-                files = strings(numel(fname), 1);
-
-                for i = 1:numel(fname)
-                    files(i) = string(fullfile(fpath, fname{i}));
-                end
-
-            else
-                files = string(fullfile(fpath, fname));
-            end
-
-            isOK = true;
-
-        end
-
-        function [answer, isOK] = uiInputDlgWrap(~, options)
-            % uiInputDlgWrap - inputdlg wrapper with flexible texts and defaults
-            %
-            % Usage:
-            %   [answ,isOK] = uiInputDlgWrap(struct( ...
-            %       "Prompt","半径rを入力", ...
-            %       "Title","Parameter", ...
-            %       "Default","50"));
-            %
-            % Multiple fields:
-            %   opt = struct;
-            %   opt.Prompt  = ["x crop"; "y crop"];
-            %   opt.Title   = "Crop size";
-            %   opt.Default = ["300"; "200"];
-            %   [a,isOK] = uiInputDlgWrap(opt);
+        function [answer, isOK] = uiInputDlgWrap(app, options)
 
             arguments
-                ~
+                app
                 options.Prompt (1, :) string = "Input"
                 options.Title (1, 1) string = "Input dialog"
                 options.Default (1, :) string = ""
-                options.Dims (1, 2) double = [1 50] % [rows cols] for each field
+                options.Dims (1, 2) double = [1 50]
             end
 
-            prompt = cellstr(options.Prompt(:));
-            title0 = char(options.Title);
+            app.ensureDialogService();
 
-            % Default: ensure same length as prompt
-            n = numel(prompt);
-            def = options.Default(:);
-
-            if numel(def) == 0
-                def = repmat("", n, 1);
-            elseif isscalar(def) && n > 1
-                def = repmat(def, n, 1);
-            elseif numel(def) ~= n
-                error("uiInputDlgWrap:DefaultSizeMismatch", ...
-                "Default must be length 0, 1, or equal to number of prompts.");
-            end
-
-            def = cellstr(def);
-
-            out = inputdlg(prompt, title0, options.Dims, def);
-
-            if isempty(out)
-                answer = strings(n, 1);
-                isOK = false;
-            else
-                answer = string(out);
-                isOK = true;
-            end
+            [answer, isOK] = app.DialogService.inputText( ...
+                Prompt = options.Prompt, ...
+                Title = options.Title, ...
+                Default = options.Default, ...
+                Dims = options.Dims);
 
         end % function uiInputDlgWrap
+
+        function [answer, isOK] = uiConfirmWrap(app, message, title, options)
+
+            arguments
+                app
+                message (1, 1) string
+                title (1, 1) string = "Confirm"
+                options.Options (1, :) string = ["OK", "Cancel"]
+                options.DefaultOption (1, 1) string = "OK"
+                options.CancelOption (1, 1) string = "Cancel"
+                options.Icon (1, 1) string = "question"
+            end
+
+            app.ensureDialogService();
+
+            [answer, isOK] = app.DialogService.confirm( ...
+                message, ...
+                title, ...
+                Options = options.Options, ...
+                DefaultOption = options.DefaultOption, ...
+                CancelOption = options.CancelOption, ...
+                Icon = options.Icon);
+
+        end % function uiConfirmWrap
+
+        function uiAlertWrap(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = "Message"
+                options.Icon (1, 1) string = "info"
+                options.Interpreter (1, 1) string = "none"
+            end
+
+            app.ensureDialogService();
+
+            app.DialogService.alert( ...
+                message, ...
+                Title = options.Title, ...
+                Icon = options.Icon, ...
+                Interpreter = options.Interpreter);
+
+        end % function uiAlertWrap
 
     end % methods (Access = protected)
 
     methods (Access = private)
+
+        %% Private presentation adapter functions
+        function renderMainViewModel(app, viewModel)
+            % RENDERMAINVIEWMODEL Render the main view model
+            % renderMainViewModel(app, viewModel)
+            %
+            %  Input:
+            %   viewModel: An object of class MainViewModel
+
+            if isempty(viewModel)
+                return
+            end
+
+            if isprop(viewModel, "UiState")
+                app.renderUiState(viewModel.UiState);
+                return
+            end
+
+            % For transitional versions where viewModel may be a struct.
+            if isstruct(viewModel) && isfield(viewModel, "UiState")
+                app.renderUiState(viewModel.UiState);
+                return
+            end
+
+            error( ...
+                "OpenMebius2:Presentation:InvalidViewModel", ...
+            "MainViewModel must contain UiState.");
+
+        end % method renderMainViewModel
+
+        function renderLegacyProjectArtifacts(app)
+
+            % -------------------------------------------------------------
+            % Model UI
+            % -------------------------------------------------------------
+            app.updateStatus("model", "running");
+
+            app.notifyInfo("Constructing EMU network...");
+
+            loadEMUModel(app)
+
+            if app.model.isError
+                app.LogText(app.model.statusMsg);
+                app.updateStatus("model", "error");
+                return
+            end
+
+            loadPathway(app)
+
+            app.notifyInfo("EMU network was successfully constructed.");
+            app.updateStatus("model", "finished");
+
+            % -------------------------------------------------------------
+            % Experiment UI
+            % -------------------------------------------------------------
+            app.updateStatus("experiment", "running");
+
+            loadExpData(app)
+
+            if app.exp.isError
+                app.LogText(app.exp.statusMsg);
+                app.updateStatus("experiment", "error");
+                return
+            end
+
+            app.updateStatus("experiment", "finished");
+
+            % -------------------------------------------------------------
+            % Batch UI
+            % -------------------------------------------------------------
+            app.updateStatus("batch", "running");
+
+            loadBatchTable(app, reload = true)
+
+            app.updateStatus("batch", "finished");
+            app.notifyInfo("Batch table loaded successfully.");
+
+            % -------------------------------------------------------------
+            % Result UI
+            % -------------------------------------------------------------
+            app.updateStatus("result", "running");
+
+            loadResult(app, reload = true)
+
+            if isempty(app.ResultSubTable.Data)
+                app.updateStatus("result", "init");
+                app.notifyInfo("No result files found in the results directory.");
+            else
+                app.updateStatus("result", "finished");
+                app.notifyInfo("Result files loaded successfully.");
+            end
+
+        end % method renderLegacyProjectArtifacts
+
+        function renderBatchTable(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            removeStyle(app.RunTable);
+
+            app.RunTable.Data = viewModel.Data;
+
+            if isempty(viewModel.Data)
+                app.RunTable.ColumnName = [];
+                app.RunTable.RowName = [];
+                app.RunTable.ColumnEditable = false;
+                return
+            end
+
+            app.RunTable.ColumnName = ...
+                viewModel.Data.Properties.VariableNames;
+
+            app.RunTable.RowName = ...
+                viewModel.Data.Properties.RowNames;
+
+            app.RunTable.ColumnEditable = ...
+                viewModel.ColumnEditable;
+
+            app.applyBatchStyleRules(viewModel.StyleRules);
+
+        end % method renderBatchTable
+
+        function renderBatchProgress(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            app.ensureProgressBar();
+
+            app.ProgressBar.setProgress( ...
+                viewModel.Rate, ...
+                viewModel.Message);
+
+            drawnow limitrate
+
+        end % method renderBatchProgress
+
+        function renderResultMainTable(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            removeStyle(app.ResultMainTable);
+
+            app.ResultMainTable.Data = viewModel.Data;
+
+            try
+                app.ResultMainTable.UserData = struct( ...
+                    "RawData", viewModel.RawData);
+            catch
+                % If UserData is unavailable for some MATLAB release,
+                % updateResultPlot will fall back to ResultMainTable.Data.
+            end
+
+            if isempty(viewModel.Data)
+                app.ResultMainTable.ColumnName = [];
+                app.ResultMainTable.RowName = [];
+                app.ResultMainTable.ColumnEditable = false;
+                return
+            end
+
+            app.ResultMainTable.ColumnName = ...
+                viewModel.Data.Properties.VariableNames;
+
+            app.ResultMainTable.RowName = ...
+                viewModel.Data.Properties.RowNames;
+
+            app.ResultMainTable.ColumnEditable = ...
+                viewModel.ColumnEditable;
+
+            app.applyResultStyleRules( ...
+                app.ResultMainTable, ...
+                viewModel.StyleRules);
+
+        end % method renderResultMainTable
+
+        function renderResultSubTable(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            removeStyle(app.ResultSubTable);
+
+            app.ResultSubTable.Data = viewModel.Data;
+
+            if isempty(viewModel.Data)
+                app.ResultSubTable.ColumnName = [];
+                app.ResultSubTable.RowName = [];
+                app.ResultSubTable.ColumnEditable = false;
+                return
+            end
+
+            app.ResultSubTable.ColumnName = ...
+                viewModel.Data.Properties.VariableNames;
+
+            app.ResultSubTable.RowName = ...
+                viewModel.Data.Properties.RowNames;
+
+            app.ResultSubTable.ColumnEditable = ...
+                viewModel.ColumnEditable;
+
+            app.applyResultStyleRules( ...
+                app.ResultSubTable, ...
+                viewModel.StyleRules);
+
+        end % method renderResultSubTable
+
+        function renderResultPlot(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            if ~isempty(viewModel.Notification)
+                app.showNotification(viewModel.Notification);
+            end
+
+            switch viewModel.Kind
+
+                case openmebius.presentation.result.ResultPlotKind.None
+                    app.clearResultPlots();
+
+                case openmebius.presentation.result.ResultPlotKind.OverviewFlux
+                    app.renderOverviewResultPlot(viewModel);
+
+                otherwise
+                    app.clearResultPlots();
+            end
+
+        end % method renderResultPlot
+
+        function renderOverviewResultPlot(app, viewModel)
+
+            mainPlot = viewModel.MainPlot;
+            subPlot = viewModel.SubPlot;
+
+            app.MainUIAxes.Visible = 'on';
+            app.SubUIAxes.Visible = 'on';
+
+            if isfield(mainPlot, "Kind") && mainPlot.Kind == "legacy-flux-pathway"
+
+                drawFluxLabel( ...
+                    mainPlot.Model, ...
+                    app.MainUIAxes, ...
+                    mainPlot.FluxLabels, ...
+                    highlight = mainPlot.HighlightMask, ...
+                    darkmode = mainPlot.IsDarkTheme);
+
+            else
+                cla(app.MainUIAxes);
+            end
+
+            if isfield(subPlot, "Kind") && subPlot.Kind == "legacy-ci-reaction"
+
+                if isempty(subPlot.Data) || ~isfield(subPlot.Data, "CI")
+                    cla(app.SubUIAxes);
+                    return
+                end
+
+                cla(app.SubUIAxes);
+
+                drawCIReaction( ...
+                    subPlot.Result, ...
+                    app.SubUIAxes, ...
+                    subPlot.Data);
+
+            else
+                cla(app.SubUIAxes);
+            end
+
+        end % method renderOverviewResultPlot
+
+        function clearResultPlots(app)
+
+            cla(app.MainUIAxes);
+            cla(app.SubUIAxes);
+
+            app.MainUIAxes.Visible = 'on';
+            app.SubUIAxes.Visible = 'on';
+
+        end % method clearResultPlots
+
+        function renderUiState(app, ui)
+            % RENDERUISTATE Render the UI state
+            % renderUiState(app, ui)
+            %
+            %  Input:
+            %   ui: An object of class UiState
+
+            if isempty(ui)
+                return
+            end
+
+            % Project panel
+            % ---------------------------------------------------------------------
+            if isfield(ui, "ProjectPanelEnabled")
+                app.ProjectPanel.Enable = app.onOff(ui.ProjectPanelEnabled);
+            end
+
+            if isfield(ui, "ProjectBrowseEnabled")
+                app.ProjectBrowseButton.Enable = app.onOff(ui.ProjectBrowseEnabled);
+            end
+
+            if isfield(ui, "ProjectDirectoryEnabled")
+                app.ProjectDirectoryDropDown.Enable = ...
+                    app.onOff(ui.ProjectDirectoryEnabled);
+            end
+
+            if isfield(ui, "ProjectLoadEnabled")
+                app.ProjectLoadButton.Enable = app.onOff(ui.ProjectLoadEnabled);
+            end
+
+            if isfield(ui, "ProjectMetadataEditable")
+                value = app.onOff(ui.ProjectMetadataEditable);
+                app.ProjectNameEditField.Enable = value;
+                app.ProjectAuthorEditField.Enable = value;
+                app.OrganismEditField.Enable = value;
+            end
+
+            if isfield(ui, "ProjectSaveEnabled")
+                app.ProjectSaveButton.Enable = app.onOff(ui.ProjectSaveEnabled);
+            end
+
+            if isfield(ui, "TemplateModelBrowseEnabled")
+                app.TemplateModelBrowseButton.Enable = ...
+                    app.onOff(ui.TemplateModelBrowseEnabled);
+            end
+
+            if isfield(ui, "TemplateModelDirectoryEnabled")
+                app.TemplateModelDirectoryDropDown.Enable = ...
+                    app.onOff(ui.TemplateModelDirectoryEnabled);
+            end
+
+            if isfield(ui, "TemplateModelLoadEnabled")
+                app.TemplateModelLoadButton.Enable = ...
+                    app.onOff(ui.TemplateModelLoadEnabled);
+            end
+
+            if isfield(ui, "TemplateModelSaveEnabled")
+                app.TemplateModelSaveButton.Enable = ...
+                    app.onOff(ui.TemplateModelSaveEnabled);
+            end
+
+            if isfield(ui, "ProjectCreateEnabled")
+                app.ProjectCreateButton.Enable = ...
+                    app.onOff(ui.ProjectCreateEnabled);
+            end
+
+            % Stoichiometry tab
+            if isfield(ui, "ModelEnabled")
+                value = app.onOff(ui.ModelEnabled);
+                app.ModelTable.Enable = value;
+                app.ModelReloadButton.Enable = value;
+            end
+
+            if isfield(ui, "ModelEditEnabled")
+                app.ModelEditButton.Enable = app.onOff(ui.ModelEditEnabled);
+            end
+
+            if isfield(ui, "ModelSaveEnabled")
+                app.ModelSaveButton.Enable = app.onOff(ui.ModelSaveEnabled);
+            end
+
+            if isfield(ui, "ModelTableEditable")
+                app.applyTableEditable(app.ModelTable, ui.ModelTableEditable);
+            end
+
+            % MS tab
+            if isfield(ui, "MsEnabled")
+                value = app.onOff(ui.MsEnabled);
+                app.MSTable.Enable = value;
+                app.AtomTable.Enable = value;
+                app.MSReloadButton.Enable = value;
+            end
+
+            if isfield(ui, "MsEditEnabled")
+                app.MSEditButton.Enable = app.onOff(ui.MsEditEnabled);
+            end
+
+            if isfield(ui, "MsSaveEnabled")
+                app.MSSaveButton.Enable = app.onOff(ui.MsSaveEnabled);
+            end
+
+            if isfield(ui, "MsTableEditable")
+                app.applyTableEditable(app.MSTable, ui.MsTableEditable);
+            end
+
+            if isfield(ui, "AtomTableEditable")
+                app.applyTableEditable(app.AtomTable, ui.AtomTableEditable);
+            end
+
+            % Experiment tab
+            if isfield(ui, "ExperimentEnabled")
+                value = app.onOff(ui.ExperimentEnabled);
+                app.ExpTable.Enable = value;
+                app.BiomassTable.Enable = value;
+                app.ExpImportButton.Enable = value;
+                app.ExpReloadButton.Enable = value;
+                app.ExpSaveButton.Enable = value;
+
+                app.applyContextMenu( ...
+                    app.ExpTable, ...
+                    app.ExperimentContextMenu, ...
+                    ui.ExperimentEnabled);
+            end
+
+            if isfield(ui, "ExperimentTableEditable")
+                app.applyTableEditable(app.ExpTable, ui.ExperimentTableEditable);
+            end
+
+            if isfield(ui, "BiomassTableEditable")
+                app.applyTableEditable(app.BiomassTable, ui.BiomassTableEditable);
+            end
+
+            % Tracer tab
+            if isfield(ui, "TracerEnabled")
+                value = app.onOff(ui.TracerEnabled);
+                app.UptakeTable.Enable = value;
+                app.LabelTable.Enable = value;
+                app.TracerConfigButton.Enable = value;
+                app.TracerReloadButton.Enable = value;
+                app.TracerSaveButton.Enable = value;
+
+                app.applyContextMenu( ...
+                    app.LabelTable, ...
+                    app.ContextMenu3, ...
+                    ui.TracerEnabled);
+            end
+
+            if isfield(ui, "TracerTableEditable")
+                app.applyTableEditable(app.LabelTable, ui.TracerTableEditable);
+            end
+
+            if isfield(ui, "UptakeTableEditable")
+                app.applyTableEditable(app.UptakeTable, ui.UptakeTableEditable);
+            end
+
+            % Run tab
+            if isfield(ui, "RunConfigurationEnabled")
+                value = app.onOff(ui.RunConfigurationEnabled);
+                app.RunAutoButton.Enable = value;
+                app.RunConfigButton.Enable = value;
+                app.RunReloadButton.Enable = value;
+                app.RunSaveButton.Enable = value;
+            end
+
+            if isfield(ui, "RunTableEnabled")
+                app.RunTable.Enable = app.onOff(ui.RunTableEnabled);
+            end
+
+            if isfield(ui, "RunContextMenuEnabled")
+                app.applyContextMenu( ...
+                    app.RunTable, ...
+                    app.ContextMenuRun, ...
+                    ui.RunContextMenuEnabled);
+
+            elseif isfield(ui, "RunTableEnabled")
+                app.applyContextMenu( ...
+                    app.RunTable, ...
+                    app.ContextMenuRun, ...
+                    ui.RunTableEnabled);
+            end
+
+            if isfield(ui, "RunTableEditable")
+
+                if ui.RunTableEditable
+                    app.restoreRunTableEditable();
+                else
+                    app.rememberRunTableEditable();
+                    app.applyTableEditable(app.RunTable, false);
+                end
+
+            end
+
+            if isfield(ui, "RunButtonEnabled")
+                app.RunRunButton.Enable = app.onOff(ui.RunButtonEnabled);
+            end
+
+            if isfield(ui, "RunButtonText")
+                app.RunRunButton.Text = char(ui.RunButtonText);
+            end
+
+            % Result tab
+            if isfield(ui, "ResultEnabled")
+                value = app.onOff(ui.ResultEnabled);
+                app.ResultDropDown.Enable = value;
+                app.ResultMainTable.Enable = value;
+                app.ResultSubTable.Enable = value;
+                app.ResultReportButton.Enable = value;
+                app.ResultReloadButton.Enable = value;
+                app.ResultSaveButton.Enable = value;
+
+                app.applyContextMenu( ...
+                    app.ResultMainTable, ...
+                    app.ContextMenu2, ...
+                    ui.ResultEnabled);
+
+                app.applyContextMenu( ...
+                    app.ResultSubTable, ...
+                    app.ContextMenuResultSelect, ...
+                    ui.ResultEnabled);
+            end
+
+            if isfield(ui, "ResultMainTableEditable")
+                app.applyTableEditable(app.ResultMainTable, ...
+                    ui.ResultMainTableEditable);
+            end
+
+            if isfield(ui, "ResultSubTableEditable")
+                app.applyTableEditable(app.ResultSubTable, ...
+                    ui.ResultSubTableEditable);
+            end
+
+            % Menu
+            if isfield(ui, "MenuEnabled")
+                value = app.onOff(ui.MenuEnabled);
+                app.FilesMenu.Enable = value;
+                app.ModelMenu.Enable = value;
+                app.BatchMenu.Enable = value;
+                app.ViewMenu.Enable = value;
+            end
+
+            % Pathway context menu
+            if isfield(ui, "PathwayContextMenuEnabled")
+                app.applyContextMenu( ...
+                    app.MainUIAxes, ...
+                    app.ContextMenu, ...
+                    ui.PathwayContextMenuEnabled);
+            end
+
+        end % method renderUiState
+
+        function value = onOff(~, enabled)
+
+            if enabled
+                value = 'on';
+            else
+                value = 'off';
+            end
+
+        end
+
+        function applyContextMenu(~, component, contextMenu, enabled)
+
+            if enabled
+                component.ContextMenu = contextMenu;
+            else
+                component.ContextMenu = [];
+            end
+
+        end
+
+        function applyTableEditable(~, tableObject, editable)
+            % APPLYTABLEEDITABLE
+            % Applies a scalar or vector editable flag to a UITable.
+
+            if isempty(tableObject)
+                return
+            end
+
+            if isempty(tableObject.Data)
+                tableObject.ColumnEditable = false;
+                return
+            end
+
+            if isscalar(editable)
+                n = 1;
+
+                try
+
+                    if istable(tableObject.Data)
+                        n = width(tableObject.Data);
+                    else
+                        n = size(tableObject.Data, 2);
+                    end
+
+                catch
+                    n = 1;
+                end
+
+                tableObject.ColumnEditable = repmat(logical(editable), 1, n);
+                return
+            end
+
+            tableObject.ColumnEditable = logical(editable);
+        end
+
+        function initializePresentation(app)
+
+            if isempty(app.Presenter)
+                app.Presenter = ...
+                    openmebius.presentation.main.MainPresenter();
+            end
+
+            app.refreshPresentation();
+
+        end % method initializePresentation
+
+        function refreshPresentation(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.refresh(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method refreshPresentation
+
+        function cleanup = beginPresentationOperation(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.beginOperation(context);
+            app.renderMainViewModel(viewModel);
+
+            cleanup = onCleanup(@() app.finishPresentationOperation());
+
+        end % method beginPresentationOperation
+
+        function finishPresentationOperation(app)
+
+            if isempty(app.Presenter)
+                return
+            end
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.finishOperation(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method finishPresentationOperation
+
+        function beginPresentationEditCommit(app)
+
+            context = app.capturePresentationContext();
+
+            viewModel = app.Presenter.beginEditCommit(context);
+
+            app.renderMainViewModel(viewModel);
+
+        end
+
+        function finishPresentationEditCommit(app, success)
+
+            arguments
+                app
+                success (1, 1) logical
+            end
+
+            context = app.capturePresentationContext();
+
+            viewModel = app.Presenter.finishEditCommit(context, success);
+
+            app.renderMainViewModel(viewModel);
+
+        end
+
+        function resetPresentation(app)
+
+            if isempty(app.Presenter)
+                app.Presenter = ...
+                    openmebius.presentation.main.MainPresenter();
+            end
+
+            context = app.capturePresentationContext();
+
+            viewModel = app.Presenter.reset(context);
+
+            app.renderMainViewModel(viewModel);
+
+        end
+
+        function beginPresentationRun(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.beginRun(context);
+            app.renderMainViewModel(viewModel);
+            drawnow;
+
+        end % method beginPresentationRun
+
+        function finishPresentationRun(app)
+
+            if isempty(app.Presenter)
+                return
+            end
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.finishRun(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method finishPresentationRun
+
+        function finishPresentationRunSafely(app)
+
+            try
+
+                if isempty(app.Presenter)
+                    return
+                end
+
+                context = app.capturePresentationContext();
+                viewModel = app.Presenter.finishRun(context);
+                app.renderMainViewModel(viewModel);
+                drawnow;
+
+            catch ME
+
+                try
+                    app.LogTextDate( ...
+                        "Failed to restore run UI state: " + string(ME.message), ...
+                    "Error");
+                catch
+                end
+
+            end
+
+        end % method finishPresentationRunSafely
+
+        function requestPresentationCancelRun(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.requestCancelRun(context);
+            app.renderMainViewModel(viewModel);
+            drawnow;
+
+        end % method requestPresentationCancelRun
+
+        function beginPresentationEdit(app, target)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.beginEdit(target, context);
+            app.renderMainViewModel(viewModel);
+
+        end % method beginPresentationEdit
+
+        function finishPresentationEdit(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.finishEdit(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method finishPresentationEdit
+
+        function rememberRunTableEditable(app)
+
+            if isempty(app.RunTable)
+                return
+            end
+
+            if isempty(app.RunTable.Data)
+                return
+            end
+
+            try
+                current = app.RunTable.ColumnEditable;
+
+                if isempty(current)
+                    return
+                end
+
+                app.RunTableEditable = logical(current);
+
+            catch
+                % Do not fail rendering due to transient UITable state.
+            end
+
+        end % method rememberRunTableEditable
+
+        function restoreRunTableEditable(app)
+
+            try
+
+                if isempty(app.RunTableEditable)
+                    return
+                end
+
+                app.RunTable.ColumnEditable = app.RunTableEditable;
+
+            catch
+                % If the table shape has changed, keep current ColumnEditable.
+            end
+
+        end % method restoreRunTableEditable
+
+        function context = capturePresentationContext(app)
+
+            context = struct();
+
+            % ---------------------------------------------------------------------
+            % Project paths
+            % ---------------------------------------------------------------------
+
+            context.ProjectDirectory = ...
+                app.safeStringScalar(app.ProjectDirectoryDropDown.Value);
+
+            context.TemplateModelDirectory = ...
+                app.safeStringScalar(app.TemplateModelDirectoryDropDown.Value);
+
+            context.DirectoryModel = app.safeStringScalar(app.directoryModel);
+            context.DirectoryExp = app.safeStringScalar(app.directoryExp);
+            context.DirectoryResult = app.safeStringScalar(app.directoryResult);
+
+            context.ProjectDirectoryExists = ...
+                context.ProjectDirectory ~= "" && isfolder(context.ProjectDirectory);
+
+            context.TemplateModelDirectoryExists = ...
+                context.TemplateModelDirectory ~= "" && ...
+                isfolder(context.TemplateModelDirectory);
+
+            context.DirectoryModelExists = ...
+                context.DirectoryModel ~= "" && isfolder(context.DirectoryModel);
+
+            context.DirectoryExpExists = ...
+                context.DirectoryExp ~= "" && isfolder(context.DirectoryExp);
+
+            context.DirectoryResultExists = ...
+                context.DirectoryResult ~= "" && isfolder(context.DirectoryResult);
+
+            % ---------------------------------------------------------------------
+            % Project metadata fields
+            % ---------------------------------------------------------------------
+            context.ProjectName = ...
+                app.safeStringScalar(app.ProjectNameEditField.Value);
+
+            context.ProjectAuthor = ...
+                app.safeStringScalar(app.ProjectAuthorEditField.Value);
+
+            context.Organism = ...
+                app.safeStringScalar(app.OrganismEditField.Value);
+
+            context.HasProjectMetadata = ...
+                context.ProjectName ~= "" || ...
+                context.ProjectAuthor ~= "" || ...
+                context.Organism ~= "";
+
+            % ---------------------------------------------------------------------
+            % Legacy domain objects
+            % ---------------------------------------------------------------------
+            context.HasModelObject = app.isLoadedObject(app.model);
+            context.HasExperimentObject = app.isLoadedObject(app.exp);
+            context.HasBatchObject = app.isLoadedObject(app.batch);
+            context.HasResultObject = app.isLoadedObject(app.result);
+
+            context.HasModelError = app.objectHasError(app.model);
+            context.HasExperimentError = app.objectHasError(app.exp);
+            context.HasBatchError = app.objectHasError(app.batch);
+            context.HasResultError = app.objectHasError(app.result);
+
+            context.HasModel = ...
+                context.HasModelObject && ~context.HasModelError;
+
+            context.HasExperiments = ...
+                context.HasExperimentObject && ~context.HasExperimentError;
+
+            context.HasBatches = ...
+                context.HasBatchObject && ~context.HasBatchError;
+
+            % In the current GUI, the Result tab can be useful as soon as IOResult
+            % exists, even if no result rows are displayed yet.
+            context.HasResults = ...
+                context.HasResultObject && ~context.HasResultError;
+
+            % A project is considered fully loaded only when the project directories
+            % and the four major legacy objects are available.
+            context.HasProject = ...
+                context.ProjectDirectoryExists && ...
+                context.DirectoryModelExists && ...
+                context.DirectoryExpExists && ...
+                context.DirectoryResultExists && ...
+                context.HasModel && ...
+                context.HasExperiments && ...
+                context.HasBatches && ...
+                context.HasResults;
+
+            % Template mode is used after loading a template model but before
+            % creating a full project.
+            context.IsTemplateMode = ...
+                ~context.HasProject && ...
+                context.TemplateModelDirectoryExists && ...
+                context.HasModel;
+
+            context.CanCreateProjectFromTemplate = context.IsTemplateMode;
+
+            % ---------------------------------------------------------------------
+            % Status table state
+            % ---------------------------------------------------------------------
+            calcStatus = strings(4, 1);
+            calcStatus(:) = "init";
+
+            try
+                n = min(4, numel(app.calcStatus));
+                calcStatus(1:n) = string(app.calcStatus(1:n));
+            catch
+                % Keep default "init" values.
+            end
+
+            context.Status = struct();
+            context.Status.Model = calcStatus(1);
+            context.Status.Experiment = calcStatus(2);
+            context.Status.Batch = calcStatus(3);
+            context.Status.Result = calcStatus(4);
+
+            % ---------------------------------------------------------------------
+            % Table contents
+            % ---------------------------------------------------------------------
+            context.ModelTableRowCount = app.tableRowCount(app.ModelTable.Data);
+            context.MSTableRowCount = app.tableRowCount(app.MSTable.Data);
+            context.AtomTableRowCount = app.tableRowCount(app.AtomTable.Data);
+            context.ExpTableRowCount = app.tableRowCount(app.ExpTable.Data);
+            context.BiomassTableRowCount = app.tableRowCount(app.BiomassTable.Data);
+            context.UptakeTableRowCount = app.tableRowCount(app.UptakeTable.Data);
+            context.LabelTableRowCount = app.tableRowCount(app.LabelTable.Data);
+            context.RunTableRowCount = app.tableRowCount(app.RunTable.Data);
+            context.ResultSubTableRowCount = app.tableRowCount(app.ResultSubTable.Data);
+            context.ResultMainTableRowCount = app.tableRowCount(app.ResultMainTable.Data);
+
+            context.HasModelRows = context.ModelTableRowCount > 0;
+            context.HasMSRows = context.MSTableRowCount > 0;
+            context.HasExperimentRows = context.ExpTableRowCount > 0;
+            context.HasTracerRows = context.LabelTableRowCount > 0 || ...
+                context.UptakeTableRowCount > 0;
+            context.HasBatchRows = context.RunTableRowCount > 0;
+            context.HasResultRows = context.ResultSubTableRowCount > 0;
+
+            % For the first Presenter / UiPolicy step, this should approximate the
+            % current GUI behavior without changing domain logic.
+            context.CanRun = ...
+                context.HasProject && ...
+                context.HasModel && ...
+                context.HasExperiments && ...
+                context.HasBatches && ...
+                context.HasBatchRows && ...
+                context.DirectoryResultExists;
+
+            % ---------------------------------------------------------------------
+            % Current edit states inferred from existing UI
+            % ---------------------------------------------------------------------
+            context.IsModelEditing = ...
+                app.isEnabled(app.ModelSaveButton) && ...
+                app.hasEditableColumn(app.ModelTable.ColumnEditable);
+
+            context.IsMSEditing = ...
+                app.isEnabled(app.MSSaveButton) && ...
+                (app.hasEditableColumn(app.MSTable.ColumnEditable) || ...
+                app.hasEditableColumn(app.AtomTable.ColumnEditable));
+
+            % Current implementation has no explicit Experiment / Tracer edit mode.
+            % Their tables are edited directly when the tab is unlocked.
+            context.IsExperimentEditing = false;
+            context.IsTracerEditing = false;
+
+            context.IsAnyTableEditing = ...
+                context.IsModelEditing || ...
+                context.IsMSEditing || ...
+                context.IsExperimentEditing || ...
+                context.IsTracerEditing;
+
+            % ---------------------------------------------------------------------
+            % Running / child-window states
+            % ---------------------------------------------------------------------
+            context.IsBatchRunning = ...
+                app.safeStringScalar(app.RunRunButton.Text) == "Cancel";
+
+            context.IsProjectPanelLocked = ...
+                ~app.isEnabled(app.ProjectPanel);
+
+            context.HasOpenChildApp = any([
+                                           app.isLoadedObject(app.LabelConfigApp)
+                                           app.isLoadedObject(app.TracerConfigApp)
+                                           app.isLoadedObject(app.RunConfigApp)
+                                           app.isLoadedObject(app.MSViewApp)
+                                           app.isLoadedObject(app.RunAddBatchApp)
+                                           app.isLoadedObject(app.ViewSuggestionApp)
+                                           app.isLoadedObject(app.LogApp)
+                                           ]);
+
+            context.HasProgressBar = app.isLoadedObject(app.ProgressBar);
+
+            % ---------------------------------------------------------------------
+            % Current selections
+            % ---------------------------------------------------------------------
+            context.SelectedRunRows = app.selectedRows(app.RunTable);
+            context.SelectedResultRows = app.selectedRows(app.ResultSubTable);
+            context.SelectedResultDetailRows = app.selectedRows(app.ResultMainTable);
+            context.SelectedModelRows = app.selectedRows(app.ModelTable);
+            context.SelectedExperimentRows = app.selectedRows(app.ExpTable);
+            context.SelectedTracerRows = app.selectedRows(app.LabelTable);
+
+            context.HasSelectedRunRows = ~isempty(context.SelectedRunRows);
+            context.HasSelectedResultRows = ~isempty(context.SelectedResultRows);
+            context.HasSelectedModelRows = ~isempty(context.SelectedModelRows);
+            context.HasSelectedExperimentRows = ~isempty(context.SelectedExperimentRows);
+            context.HasSelectedTracerRows = ~isempty(context.SelectedTracerRows);
+
+            % ---------------------------------------------------------------------
+            % Current view mode
+            % ---------------------------------------------------------------------
+            context.CurrentTab = "";
+
+            try
+
+                if ~isempty(app.TabGroup.SelectedTab)
+                    context.CurrentTab = ...
+                        app.safeStringScalar(app.TabGroup.SelectedTab.Title);
+                end
+
+            catch
+                context.CurrentTab = "";
+            end
+
+            context.ResultMode = ...
+                app.safeStringScalar(app.ResultDropDown.Value);
+
+            if context.ResultMode == ""
+                context.ResultMode = "Overview";
+            end
+
+            context.TypeSimulation = ...
+                app.safeStringScalar(app.typeSimulation);
+
+            if context.TypeSimulation == ""
+                context.TypeSimulation = "Flux";
+            end
+
+            % ---------------------------------------------------------------------
+            % Current enabled state, useful during migration only.
+            % Do not let MainUiPolicy depend on all of these permanently.
+            % ---------------------------------------------------------------------
+            context.LegacyUi = struct();
+
+            context.LegacyUi.ProjectLoadEnabled = ...
+                app.isEnabled(app.ProjectLoadButton);
+
+            context.LegacyUi.TemplateModelLoadEnabled = ...
+                app.isEnabled(app.TemplateModelLoadButton);
+
+            context.LegacyUi.ProjectCreateEnabled = ...
+                app.isEnabled(app.ProjectCreateButton);
+
+            context.LegacyUi.TemplateModelSaveEnabled = ...
+                app.isEnabled(app.TemplateModelSaveButton);
+
+            context.LegacyUi.ModelEditEnabled = ...
+                app.isEnabled(app.ModelEditButton);
+
+            context.LegacyUi.ModelSaveEnabled = ...
+                app.isEnabled(app.ModelSaveButton);
+
+            context.LegacyUi.MSEditEnabled = ...
+                app.isEnabled(app.MSEditButton);
+
+            context.LegacyUi.MSSaveEnabled = ...
+                app.isEnabled(app.MSSaveButton);
+
+            context.LegacyUi.RunButtonEnabled = ...
+                app.isEnabled(app.RunRunButton);
+
+            context.LegacyUi.RunButtonText = ...
+                app.safeStringScalar(app.RunRunButton.Text);
+
+            context.LegacyUi.ResultReloadEnabled = ...
+                app.isEnabled(app.ResultReloadButton);
+
+        end % method capturePresentationContext
+
+        function tf = isLoadedObject(app, value)
+            % ISLOADEDOBJECT
+            % True when the value exists and, if it is a handle object, is valid.
+            % This method intentionally does not inspect UI components.
+
+            tf = false;
+
+            if isempty(value)
+                return
+            end
+
+            try
+
+                if isobject(value)
+
+                    try
+
+                        if any(~isvalid(value), "all")
+                            return
+                        end
+
+                    catch
+                        % Some value objects do not support isvalid.
+                        % In that case, non-empty is treated as loaded.
+                    end
+
+                end
+
+                if app.objectHasError(value)
+                    return
+                end
+
+                tf = true;
+
+            catch
+                tf = false;
+            end
+
+        end % function isLoadedObject
+
+        function tf = objectHasError(~, value)
+            % OBJECTHASERROR
+            % Checks common legacy isError property without throwing.
+
+            tf = false;
+
+            if isempty(value)
+                return
+            end
+
+            try
+
+                if isobject(value) && isprop(value, "isError")
+                    raw = value.isError;
+
+                    if isempty(raw)
+                        tf = false;
+                    elseif islogical(raw)
+                        tf = any(raw(:));
+                    elseif isnumeric(raw)
+                        tf = any(logical(raw(:)));
+                    elseif isstring(raw) || ischar(raw)
+                        raw = string(raw);
+                        tf = any(raw == "true" | raw == "1" | raw == "error");
+                    else
+                        tf = false;
+                    end
+
+                end
+
+            catch
+                % If error state cannot be inspected, do not mark it as error.
+                tf = false;
+            end
+
+        end % function objectHasError
+
+        function n = tableRowCount(~, data)
+            % TABLEROWCOUNT
+            % Returns row count for table, cell, numeric array, string array, etc.
+
+            n = 0;
+
+            if isempty(data)
+                return
+            end
+
+            try
+
+                if istable(data)
+                    n = height(data);
+                else
+                    n = size(data, 1);
+                end
+
+            catch
+                n = 0;
+            end
+
+        end % function tableRowCount
+
+        function n = tableWidthCount(~, data)
+            % TABLEWIDTHCOUNT
+            % Returns column count for table-like data.
+
+            n = 0;
+
+            if isempty(data)
+                return
+            end
+
+            try
+
+                if istable(data)
+                    n = width(data);
+                else
+                    n = size(data, 2);
+                end
+
+            catch
+                n = 0;
+            end
+
+        end % function tableWidthCount
+
+        function tf = isEnabled(~, componentOrValue)
+            % ISENABLED
+            % Accepts either a UI component with Enable property or the Enable value.
+
+            tf = false;
+
+            try
+
+                if ischar(componentOrValue) || isstring(componentOrValue)
+                    value = string(componentOrValue);
+                else
+                    value = string(componentOrValue.Enable);
+                end
+
+                if isempty(value)
+                    return
+                end
+
+                value = lower(value(1));
+
+                tf = value == "on" || value == "true" || value == "1";
+
+            catch
+                tf = false;
+            end
+
+        end % function isEnabled
+
+        function tf = hasEditableColumn(~, columnEditable)
+            % HASEDITABLECOLUMN
+            % True if any column is editable.
+
+            tf = false;
+
+            if isempty(columnEditable)
+                return
+            end
+
+            try
+                tf = any(logical(columnEditable(:)));
+            catch
+                tf = false;
+            end
+
+        end % function hasEditableColumn
+
+        function rows = selectedRows(~, tableObject)
+            % SELECTEDROWS
+            % Extracts unique selected row indices from a UITable.
+
+            rows = zeros(0, 1);
+
+            try
+                selection = tableObject.Selection;
+
+                if isempty(selection)
+                    return
+                end
+
+                if size(selection, 2) >= 1
+                    rows = unique(selection(:, 1));
+                    rows = rows(:);
+                end
+
+            catch
+                rows = zeros(0, 1);
+            end
+
+        end % function selectedRows
+
+        function value = safeStringScalar(~, raw)
+            % SAFESTRINGSCALAR
+            % Converts raw UI or property value to a non-missing scalar string.
+
+            value = "";
+
+            if isempty(raw)
+                return
+            end
+
+            try
+                value = string(raw);
+
+                if isempty(value)
+                    value = "";
+                    return
+                end
+
+                value = value(1);
+
+                if ismissing(value)
+                    value = "";
+                end
+
+            catch
+                value = "";
+            end
+
+        end % function safeStringScalar
+
+        %% Private notification function
+        function showNotification(app, notification)
+            % SHOWNOTIFICATION
+            % Central notification sink for OpenMebius2.mlapp.
+            % showNotification(notification)
+
+            if isempty(notification)
+                return
+            end
+
+            if numel(notification) > 1
+
+                for i = 1:numel(notification)
+                    app.showNotification(notification(i));
+                end
+
+                return
+            end
+
+            if ~isa(notification, ...
+                "openmebius.presentation.notification.Notification")
+
+                notification = ...
+                    openmebius.presentation.notification.Notification.info( ...
+                    string(notification));
+
+            end
+
+            app.appendLogText(notification.toLogText());
+
+            if notification.ShowAlert
+
+                uialert( ...
+                    app.OpenMebius2UIFigure, ...
+                    char(notification.Message), ...
+                    char(notification.Title), ...
+                    "Icon", char(notification.alertIcon()), ...
+                    "Interpreter", "none");
+
+            end
+
+        end % method showNotification
+
+        function appendLogText(app, text)
+            % APPENDLOGTEXT
+            % Raw append operation for LogTextArea.
+
+            text = string(text);
+
+            before = app.LogTextArea.Value;
+            app.LogTextArea.Value = [before; text(:)];
+
+            scroll(app.LogTextArea, "bottom");
+
+            drawnow limitrate
+
+        end % method appendLogText
+
+        function notifyInfo(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = ""
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.info( ...
+                message, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyInfo
+
+        function notifyWarning(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = ""
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.warning( ...
+                message, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyWarning
+
+        function notifyError(app, message, options)
+
+            arguments
+                app
+                message (1, 1) string
+                options.Title (1, 1) string = ""
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.error( ...
+                message, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyError
+
+        function notifyException(app, exception, options)
+
+            arguments
+                app
+                exception
+                options.Title (1, 1) string = "Error"
+                options.Alert (1, 1) logical = false
+            end
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.fromException( ...
+                exception, ...
+                Title = options.Title, ...
+                ShowAlert = options.Alert));
+
+        end % method notifyException
+
+        function ensureDialogService(app)
+
+            if isempty(app.DialogService)
+                app.DialogService = ...
+                    openmebius.presentation.dialog.AppDialogService( ...
+                    app.OpenMebius2UIFigure);
+                return
+            end
+
+            try
+                app.DialogService.setParent(app.OpenMebius2UIFigure);
+            catch
+                app.DialogService = ...
+                    openmebius.presentation.dialog.AppDialogService( ...
+                    app.OpenMebius2UIFigure);
+            end
+
+        end % method ensureDialogService
+
+        function attachLegacyListeners(app)
+
+            app.LegacyListeners = event.listener.empty(0, 1);
+
+            if ~isempty(app.batch) && isvalid(app.batch)
+
+                app.LegacyListeners(end + 1, 1) = addlistener( ...
+                    app.batch, ...
+                    'ProgressUpdate', ...
+                    @(src, event) statusBatch(app, event));
+
+                app.LegacyListeners(end + 1, 1) = addlistener( ...
+                    app.batch, ...
+                    'GeneralMsg', ...
+                    @(src, event) statusGeneralMsg(app, event));
+
+                app.LegacyListeners(end + 1, 1) = addlistener( ...
+                    app.batch, ...
+                    'FluxResult', ...
+                    @(src, event) updateResult(app, event));
+
+            end
+
+            if ~isempty(app.result) && isvalid(app.result)
+
+                app.LegacyListeners(end + 1, 1) = addlistener( ...
+                    app.result, ...
+                    'GeneralMsg', ...
+                    @(src, event) statusGeneralMsg(app, event));
+
+            end
+
+        end % method attachLegacyListeners
+
+        function detachLegacyListeners(app)
+
+            if isempty(app.LegacyListeners)
+                return
+            end
+
+            for i = 1:numel(app.LegacyListeners)
+
+                try
+
+                    if isvalid(app.LegacyListeners(i))
+                        delete(app.LegacyListeners(i));
+                    end
+
+                catch
+                    % Ignore listener cleanup errors.
+                end
+
+            end
+
+            app.LegacyListeners = event.listener.empty(0, 1);
+
+        end % method detachLegacyListeners
+
+        %% Apply Session
+        function applyProjectSession(app, session)
+
+            arguments
+                app
+                session openmebius.domain.project.ProjectSession
+            end
+
+            app.ProjectSession = session;
+
+            app.ProjectDirectoryDropDown.Value = ...
+                session.Paths.RootDirectory;
+
+            app.ProjectNameEditField.Value = ...
+                session.Metadata.Name;
+
+            app.ProjectAuthorEditField.Value = ...
+                session.Metadata.Author;
+
+            app.OrganismEditField.Value = ...
+                session.Metadata.Organism;
+
+            app.directoryModel = ...
+                session.Paths.ModelDirectory;
+
+            app.directoryExp = ...
+                session.Paths.ExperimentDirectory;
+
+            app.directoryResult = ...
+                session.Paths.ResultDirectory;
+
+        end % method applyProjectSession
+
+        function applyLegacyProjectArtifacts(app, artifacts)
+
+            arguments
+                app
+                artifacts openmebius.infrastructure.legacy.LegacyProjectArtifacts
+            end
+
+            app.detachLegacyListeners();
+
+            app.model = artifacts.Model;
+            app.exp = artifacts.Experiments;
+            app.batch = artifacts.Batch;
+            app.result = artifacts.Result;
+
+            app.attachLegacyListeners();
+
+        end % method applyLegacyProjectArtifacts
+
+        function applyBatchStyleRules(app, styleRules)
+
+            if isempty(styleRules)
+                return
+            end
+
+            for i = 1:numel(styleRules)
+
+                style = app.batchStyleFromKey(styleRules(i).StyleKey);
+
+                addStyle( ...
+                    app.RunTable, ...
+                    style, ...
+                    'cell', ...
+                    [styleRules(i).Rows, styleRules(i).Columns]);
+
+            end
+
+        end % method applyBatchStyleRules
+
+        function style = batchStyleFromKey(app, styleKey)
+
+            switch lower(string(styleKey))
+
+                case "info"
+                    style = app.styleInfoIcon;
+
+                case "success"
+                    style = app.styleSuccessIcon;
+
+                case "warning"
+                    style = app.styleWarningIcon;
+
+                case "error"
+                    style = app.styleErrorIcon;
+
+                case "question"
+                    style = app.styleQuestionIcon;
+
+                otherwise
+                    error( ...
+                        "OpenMebius2:Batch:UnknownStyleKey", ...
+                        "Unknown batch style key: %s", string(styleKey));
+            end
+
+        end % method batchStyleFromKey
+
+        function style = resultStyleFromRule(app, rule)
+
+            key = lower(string(rule.StyleKey));
+
+            switch key
+
+                case "chi2-passed"
+
+                    if app.isDarkTheme()
+                        style = app.styleIsPassedDark;
+                    else
+                        style = app.styleIsPassed;
+                    end
+
+                case "chi2-failed"
+
+                    if app.isDarkTheme()
+                        style = app.styleIsNotPassedDark;
+                    else
+                        style = app.styleIsNotPassed;
+                    end
+
+                case "align-right"
+                    style = uistyle("HorizontalAlignment", "right");
+
+                case "background"
+                    style = uistyle("BackgroundColor", char(rule.Value));
+
+                otherwise
+                    error( ...
+                        "OpenMebius2:Result:UnknownStyleKey", ...
+                        "Unknown result style key: %s", key);
+            end
+
+        end % method resultStyleFromRule
+
+        function applyResultStyleRules(app, tableObject, styleRules)
+
+            if isempty(styleRules)
+                return
+            end
+
+            for i = 1:numel(styleRules)
+
+                style = app.resultStyleFromRule(styleRules(i));
+
+                target = char(styleRules(i).Target);
+
+                switch string(styleRules(i).Target)
+
+                    case "cell"
+                        addStyle( ...
+                            tableObject, ...
+                            style, ...
+                            target, ...
+                            [styleRules(i).Rows, styleRules(i).Columns]);
+
+                    case "column"
+                        addStyle( ...
+                            tableObject, ...
+                            style, ...
+                            target, ...
+                            styleRules(i).Columns);
+
+                    case "row"
+                        addStyle( ...
+                            tableObject, ...
+                            style, ...
+                            target, ...
+                            styleRules(i).Rows);
+
+                    otherwise
+                        error( ...
+                            "OpenMebius2:Result:InvalidStyleTarget", ...
+                            "Unknown style target: %s", string(styleRules(i).Target));
+                end
+
+            end
+
+        end % method applyResultStyleRules
+
+        function loadLegacyProjectObjects(app)
+
+            app.updateStatus("model", "running");
+
+            app.model = EMUModel(app.directoryModel);
+
+            if app.model.isError
+                app.LogText(app.model.statusMsg);
+                app.updateStatus("model", "error");
+                return
+            end
+
+            IOStatus = app.model.getIOStatus();
+
+            if strcmp(IOStatus, "completed")
+                app.notifyInfo("Model loaded successfully.");
+            else
+                app.LogText(app.model.statusMsg);
+                app.updateStatus("model", "error");
+                return
+            end
+
+            app.notifyInfo("Constructing EMU network...");
+
+            pause(0.5)
+
+            loadEMUModel(app)
+
+            if app.model.isError
+                app.LogText(app.model.statusMsg);
+                app.updateStatus("model", "error");
+                return
+            end
+
+            loadPathway(app)
+
+            app.notifyInfo("EMU network was successfully constructed.");
+            app.updateStatus("model", "finished");
+
+            app.updateStatus("experiment", "running");
+
+            app.exp = IOExps( ...
+                app.directoryExp, ...
+                app.directoryModel);
+
+            if app.exp.isError
+                app.LogText(app.exp.statusMsg);
+                app.updateStatus("experiment", "error");
+                return
+            end
+
+            loadExpData(app)
+
+            if app.exp.isError
+                app.LogText(app.exp.statusMsg);
+                app.updateStatus("experiment", "error");
+                return
+            end
+
+            app.updateStatus("experiment", "finished");
+            app.LogText(app.exp.statusMsg);
+
+            loadBatchTable(app)
+            loadResult(app)
+
+        end % method loadLegacyProjectObjects
+
+        function ensureBatchPresenter(app)
+
+            if isempty(app.BatchPresenter)
+                app.BatchPresenter = ...
+                    openmebius.presentation.batch.BatchPresenter();
+            end
+
+        end % method ensureBatchPresenter
+
+        function ensureProgressBar(app)
+
+            if isempty(app.ProgressBar) || ~isvalid(app.ProgressBar)
+                app.ProgressBar = CustomProgressBar(app.GridLayout2, 3, 1);
+            end
+
+        end % method ensureProgressBar
+
+        function ensureResultPresenter(app)
+
+            if isempty(app.ResultPresenter)
+                app.ResultPresenter = ...
+                    openmebius.presentation.result.ResultPresenter();
+            end
+
+        end % method ensureResultPresenter
+
+        function ensureResultPlotPresenter(app)
+
+            if isempty(app.ResultPlotPresenter)
+                app.ResultPlotPresenter = ...
+                    openmebius.presentation.result.ResultPlotPresenter();
+            end
+
+        end % method ensureResultPlotPresenter
+
+        function rows = selectedTableRows(~, tableObject)
+
+            rows = zeros(0, 1);
+
+            try
+                selection = tableObject.Selection;
+
+                if isempty(selection)
+                    return
+                end
+
+                if isvector(selection)
+                    rows = selection(:);
+                else
+                    rows = selection(:, 1);
+                end
+
+                rows = double(rows(:));
+                rows = rows(~isnan(rows));
+                rows = rows(rows >= 1);
+                rows = unique(rows, "stable");
+
+                data = tableObject.Data;
+
+                if isempty(data)
+                    rows = zeros(0, 1);
+                    return
+                end
+
+                if istable(data)
+                    maxRow = height(data);
+                else
+                    maxRow = size(data, 1);
+                end
+
+                rows = rows(rows <= maxRow);
+
+            catch
+                rows = zeros(0, 1);
+            end
+
+        end % method selectedTableRows
+
+        function fluxCells = toFluxLabelCell(~, values)
+
+            if isempty(values)
+                fluxCells = {};
+                return
+            end
+
+            if iscell(values)
+                fluxCells = values(:);
+                return
+            end
+
+            if isnumeric(values)
+                fluxCells = arrayfun( ...
+                    @(x) sprintf('%.2f', x), ...
+                    values(:), ...
+                    'UniformOutput', false);
+                return
+            end
+
+            if isstring(values)
+                fluxCells = cellstr(values(:));
+                return
+            end
+
+            if ischar(values)
+                fluxCells = cellstr(string(values));
+                return
+            end
+
+            try
+                fluxCells = cellstr(string(values(:)));
+            catch
+                fluxCells = {};
+            end
+
+        end % method toFluxLabelCell
+
+        function context = captureResultPlotContext(app)
+
+            context = struct();
+
+            context.Mode = string(app.ResultDropDown.Value);
+
+            context.SelectedMainRows = ...
+                app.selectedTableRows(app.ResultMainTable);
+
+            context.SelectedSubRows = ...
+                app.selectedTableRows(app.ResultSubTable);
+
+            context.MainTableData = app.ResultMainTable.Data;
+            context.SubTableData = app.ResultSubTable.Data;
+
+            context.MainTableRowNames = string.empty(0, 1);
+            context.SubTableRowNames = string.empty(0, 1);
+
+            try
+                context.MainTableRowNames = string(app.ResultMainTable.RowName);
+            catch
+                context.MainTableRowNames = string.empty(0, 1);
+            end
+
+            try
+                context.SubTableRowNames = string(app.ResultSubTable.RowName);
+            catch
+                context.SubTableRowNames = string.empty(0, 1);
+            end
+
+        end % method captureResultPlotContext
 
         %% Private initialization function
         function initLog(app)
@@ -800,9 +2457,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if ~options.update
 
                 % Set the initial status
-                app.calcStatus = ["init", "init", "init", "init", "init"];
+                app.calcStatus = ...
+                    openmebius.presentation.status.StatusPresenter.initial();
 
-            end % if ~options.update
+            end
 
         end % function initStatusTable
 
@@ -1028,7 +2686,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             arguments
                 app
                 options.reload = false
-            end % arguments
+            end
+
+            app.ensureBatchPresenter();
 
             if ~options.reload
 
@@ -1036,41 +2696,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 app.batch = Batch(app.exp);
 
-                addlistener(app.batch, 'ProgressUpdate', @(src, event) statusBatch(app, event));
-                addlistener(app.batch, 'GeneralMsg', @(src, event) statusGeneralMsg(app, event));
-                addlistener(app.batch, 'FluxResult', @(src, event) updateResult(app, event));
+                app.attachLegacyListeners();
 
-            end % if ~options.reload
+            end
 
             if isempty(app.batch) || ~isvalid(app.batch)
                 msg = "Batch object is not valid.";
-                app.LogTextDate(msg, "Error");
+                app.notifyError(msg);
                 app.updateStatus("batch", "error");
                 return
-            end % if isempty(app.batch) || ~isvalid(app.batch)
-
-            if isempty(app.ProgressBar) || ~isvalid(app.ProgressBar)
-                app.ProgressBar = CustomProgressBar(app.GridLayout2, 3, 1);
             end
 
-            [batchGUI, columnEditable] = getBatchForGUI(app.batch);
-            batchGUI.Experiment = string(batchGUI.Experiment);
+            app.ensureProgressBar();
 
-            IDs = batchGUI.ID;
-            status = getBatchStatus(app.batch, IDs);
-            app.RunTable.Data = batchGUI;
-            app.RunTable.ColumnName = batchGUI.Properties.VariableNames;
-            setBatchInitialStyle(app, status);
+            viewModel = app.BatchPresenter.presentTable(app.batch);
 
-            app.RunTable.ColumnEditable = columnEditable;
+            app.renderBatchTable(viewModel);
 
             if ~options.reload
-
                 app.updateStatus("batch", "finished");
-                msg = "Batch table loaded successfully.";
-                LogTextDate(app, msg, "Info");
-
-            end % if ~options.reload
+                app.notifyInfo("Batch table loaded successfully.");
+            end
 
         end % function loadBatchTable
 
@@ -1079,76 +2725,61 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             arguments
                 app
                 options.reload = false
-            end % arguments
+            end
 
-            % Create the result object
+            app.ensureResultPresenter();
+
             if ~options.reload
 
                 app.updateStatus("result", "running");
-                app.result = IOResult(app.directoryResult);
-                addlistener(app.result, 'GeneralMsg', @(src, event) statusGeneralMsg(app, event));
 
-            end % if ~options.reload
+                app.result = IOResult(app.directoryResult);
+
+                addlistener( ...
+                    app.result, ...
+                    'GeneralMsg', ...
+                    @(src, event) statusGeneralMsg(app, event));
+
+            end
 
             if isempty(app.result) || ~isvalid(app.result)
                 msg = "Result object is not valid.";
-                app.LogTextDate(msg, "Error");
-                app.updateStatus(app, "result", "error");
+                app.notifyError(msg);
+                app.updateStatus("result", "error");
                 return
-            end % if isempty(app.result) || ~isvalid(app.result)
+            end
 
             if app.result.isError
-
                 app.LogText(app.result.statusMsg);
-                app.updateStatus(app, "result", "error");
+                app.updateStatus("result", "error");
                 return
+            end
 
-            end % if app.result.isError
+            viewModel = app.ResultPresenter.presentIndex( ...
+                app.result, ...
+                app.batch);
 
-            % Load the result files
-            % Get the selected batch ID
-            batchGUI = getBatchForGUI(app.batch);
-            batchID = batchGUI.ID;
-            batchStatus = getBatchStatus(app.batch, batchID);
-            batchID = batchID(batchStatus == "finished");
-            [data, dataMask] = loadResultFiles(app.result, batchID);
+            app.renderResultSubTable(viewModel);
 
-            if isempty(data(dataMask))
+            app.renderResultMainTable( ...
+                openmebius.presentation.result.ResultTableViewModel());
+
+            if isempty(viewModel.Data)
 
                 if ~options.reload
-
-                    updateStatus(app, "result", "init");
-                    msg = "No result files found in the results directory.";
-                    LogTextDate(app, msg, "Info");
-
+                    app.updateStatus("result", "init");
+                    app.notifyInfo("No result files found in the results directory.");
                 end
 
                 return
+            end
 
-            end % if isempty(data(dataMask))
-
-            % SubTable
-            loadSubResultTable(app, batchGUI, batchID, data, dataMask);
-
-            % Delete MainTable
-            if ~isempty(app.ResultMainTable.Data)
-
-                app.ResultMainTable.Data = [];
-                app.ResultMainTable.ColumnName = [];
-                app.ResultMainTable.RowName = [];
-
-            end % if ~isempty(app.ResultMainTable.Data)
-
-            % Set the status as complete
             if ~options.reload
+                app.updateStatus("result", "finished");
+                app.notifyInfo("Result files loaded successfully.");
+            end
 
-                updateStatus(app, "result", "finished");
-                msg = "Result files loaded successfully.";
-                LogTextDate(app, msg, "Info");
-
-            end % if ~options.reload
-
-        end % function loadResult
+        end % method loadResult
 
         function loadMainResultTable(app, options)
 
@@ -1158,10 +2789,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.relativeTo = ""
             end
 
-            type = app.ResultDropDown.Value;
-            selection = app.ResultSubTable.Selection;
+            type = string(app.ResultDropDown.Value);
+            rows = app.selectedTableRows(app.ResultSubTable);
 
-            if isempty(selection)
+            if isempty(rows)
                 return
             end
 
@@ -1169,25 +2800,48 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 case "Overview"
 
-                    selection = selection(1);
-                    batchID = app.ResultSubTable.Data.ID(selection);
-                    loadResultOverView(app, batchID, relative = options.relative, relativeTo = options.relativeTo);
+                    row = rows(1);
+                    batchID = string(app.ResultSubTable.Data.ID(row));
 
-                case "Details"
+                    loadResultOverView( ...
+                        app, ...
+                        batchID, ...
+                        relative = options.relative, ...
+                        relativeTo = options.relativeTo);
 
-                    selection = selection(1);
-                    batchID = app.ResultSubTable.Data.ID(selection);
+                case {"Details", "Detailed"}
+
+                    row = rows(1);
+                    batchID = string(app.ResultSubTable.Data.ID(row));
+
                     loadResultDetailed(app, batchID);
 
                 case "Comparison"
 
-                    batchIDs = app.ResultSubTable.Data.ID(selection);
-                    Names = app.ResultSubTable.Data.Name(selection);
-                    loadResultComparison(app, batchIDs, Names, relative = options.relative, relativeTo = options.relativeTo);
+                    if numel(rows) < 2
+                        msg = "Please select at least two results for comparison.";
+                        LogTextDate(app, msg, "Warning");
+                        return
+                    end
 
-            end % switch type
+                    batchIDs = string(app.ResultSubTable.Data.ID(rows));
+                    names = string(app.ResultSubTable.Data.Name(rows));
 
-        end % function loadMainResultTable
+                    loadResultComparison( ...
+                        app, ...
+                        batchIDs, ...
+                        names, ...
+                        relative = options.relative, ...
+                        relativeTo = options.relativeTo);
+
+                otherwise
+
+                    error( ...
+                        "OpenMebius2:Result:InvalidViewMode", ...
+                        "Unknown result view mode: %s", type);
+            end
+
+        end % method loadMainResultTable
 
         function loadResultOverView(app, batchID, options)
 
@@ -1198,74 +2852,35 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.relativeTo = ""
             end
 
-            if ~options.relative
-                tableData = getFluxOverView(app.result, batchID);
-            else
-                tableData = getFluxOverView( ...
-                    app.result, batchID, relative = options.relative, relativeTo = options.relativeTo);
-            end
+            app.ensureResultPresenter();
 
-            formattedData = arrayfun(@(x) sprintf('%.2f', x), tableData{:, 2:end}, 'UniformOutput', false);
-            formattedData = [tableData(:, 1), cell2table(formattedData)];
-            formattedData.Properties.VariableNames = tableData.Properties.VariableNames;
+            viewModel = app.ResultPresenter.presentMain( ...
+                app.result, ...
+                "Overview", ...
+                batchID, ...
+                "", ...
+                Relative = options.relative, ...
+                RelativeTo = options.relativeTo, ...
+                IsDarkTheme = app.isDarkTheme());
 
-            app.ResultMainTable.Data = formattedData;
-            app.ResultMainTable.ColumnName = tableData.Properties.VariableNames;
-            app.ResultMainTable.RowName = tableData.Properties.RowNames;
-            app.ResultMainTable.ColumnEditable = false(1, size(tableData, 2));
+            app.renderResultMainTable(viewModel);
 
-            uiRight = uistyle("HorizontalAlignment", "right");
-            addStyle(app.ResultMainTable, uiRight, "column", 2:size(tableData, 2));
-
-        end % function loadResultOverView
+        end % method loadResultOverView
 
         function loadResultDetailed(app, batchID)
 
-            tableRtn = getFluxDetailed(app.result, batchID);
-            formattedData = arrayfun(@(x) sprintf('%.4f', x), tableRtn{:, 3:end}, 'UniformOutput', false);
-            formattedData = [tableRtn(:, 1:2), cell2table(formattedData)];
-            formattedData.Properties.VariableNames = tableRtn.Properties.VariableNames;
+            app.ensureResultPresenter();
 
-            app.ResultMainTable.Data = formattedData;
-            app.ResultMainTable.ColumnName = tableRtn.Properties.VariableNames;
-            app.ResultMainTable.RowName = tableRtn.Properties.RowNames;
-            app.ResultMainTable.ColumnEditable = false(1, size(tableRtn, 2));
+            viewModel = app.ResultPresenter.presentMain( ...
+                app.result, ...
+                "Details", ...
+                batchID, ...
+                "", ...
+                IsDarkTheme = app.isDarkTheme());
 
-            % Right align the table
-            uiRight = uistyle("HorizontalAlignment", "right");
-            addStyle(app.ResultMainTable, uiRight, "column", 3:size(tableRtn, 2));
+            app.renderResultMainTable(viewModel);
 
-            drawnow();
-
-            color = Color();
-
-            for i = 3:size(tableRtn, 2)
-
-                if mod(i, 3) ~= 2
-                    continue
-                end
-
-                % Get the data for the current column
-                data = tableRtn{:, i};
-
-                % Normalize the data
-                data = 0.99 * (data - min(data)) / (max(data) - min(data));
-
-                isDark = isDarkTheme(app);
-
-                % Get the color value for the current column
-                hex = getColorValue(color, data, "color", "cmthermallight", "isDark", isDark);
-
-                for j = 1:length(data)
-
-                    % Set the color for the current cell
-                    addStyle(app.ResultMainTable, uistyle("BackgroundColor", hex(j, :)), 'cell', [j i]);
-
-                end % for j
-
-            end % for i
-
-        end % function loadResultDetailed
+        end % method loadResultDetailed
 
         function loadResultComparison(app, batchIDs, names, options)
 
@@ -1277,69 +2892,32 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.relativeTo = ""
             end
 
-            tableData = getFluxComparison( ...
-                app.result, batchIDs, names, ...
-                relative = options.relative, relativeTo = options.relativeTo);
+            app.ensureResultPresenter();
 
-            if isempty(tableData)
-                return
-            end
+            viewModel = app.ResultPresenter.presentMain( ...
+                app.result, ...
+                "Comparison", ...
+                batchIDs, ...
+                names, ...
+                Relative = options.relative, ...
+                RelativeTo = options.relativeTo, ...
+                IsDarkTheme = app.isDarkTheme());
 
-            formattedData = arrayfun(@(x) sprintf('%.2f', x), tableData{:, 2:end}, 'UniformOutput', false);
-            formattedData = [tableData(:, 1), cell2table(formattedData)];
-            formattedData.Properties.VariableNames = tableData.Properties.VariableNames;
+            app.renderResultMainTable(viewModel);
 
-            app.ResultMainTable.Data = formattedData;
-            app.ResultMainTable.ColumnName = tableData.Properties.VariableNames;
-            app.ResultMainTable.RowName = tableData.Properties.RowNames;
-            app.ResultMainTable.ColumnEditable = false(1, size(tableData, 2));
+        end % method loadResultComparison
 
-        end % function loadResultComparison
+        function loadSubResultTable(app, ~, ~, ~, ~)
 
-        function loadSubResultTable(app, batchGUI, batchID, data, dataMask)
+            app.ensureResultPresenter();
 
-            data = data(dataMask);
-            batchID = batchID(dataMask);
-            batchExpList = batchGUI.Name(dataMask);
-            RSS = getRSS(app.result, data);
-            isPassed = getIsPassedChi2Test(app.result, data);
+            viewModel = app.ResultPresenter.presentIndex( ...
+                app.result, ...
+                app.batch);
 
-            % Update the result table
-            expListTable = table( ...
-                batchID, ...
-                batchExpList, ...
-                RSS, ...
-                'VariableNames', ["ID", "Name", "RSS"] ...
-            );
+            app.renderResultSubTable(viewModel);
 
-            app.ResultSubTable.Data = expListTable;
-            app.ResultSubTable.ColumnName = expListTable.Properties.VariableNames;
-            app.ResultSubTable.RowName = expListTable.Properties.RowNames;
-            app.ResultSubTable.ColumnEditable = false(1, size(expListTable, 2));
-
-            % Apply color format
-            resetResultTableColorFormat(app);
-
-            if ~isempty(data)
-
-                isPassedIdx = find(isPassed);
-                isNotPassedIdx = find(~isPassed);
-
-                for i = 1:length(isPassedIdx)
-
-                    addStyle(app.ResultSubTable, app.styleIsPassed, 'cell', [isPassedIdx(i) 3]);
-
-                end % isPassedIdx
-
-                for i = 1:length(isNotPassedIdx)
-
-                    addStyle(app.ResultSubTable, app.styleIsNotPassed, 'cell', [isNotPassedIdx(i) 3]);
-
-                end % isNotPassedIdx
-
-            end % if ~isempty(data)
-
-        end % function loadSubResultTable
+        end % method loadSubResultTable
 
         %% Private reset function
         function resetAllComponents(app)
@@ -1569,61 +3147,127 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function updateResultPlot(app)
 
-            type = app.ResultDropDown.Value;
-            selectedFlux = app.ResultMainTable.Selection;
-            selectedID = app.ResultSubTable.Selection;
+            type = string(app.ResultDropDown.Value);
 
-            if isempty(selectedFlux) || isempty(selectedID)
+            % During the migration period, pathway plot is supported only for
+            % Overview. Details / Comparison will be handled later by
+            % ResultPlotPresenter.
+            if type == "Details" || type == "Detailed" || type == "Comparison"
+                cla(app.SubUIAxes);
+
+                % Main pathway should not be overwritten by unsupported plots.
+                % If you prefer clearing both axes, uncomment the next line.
+                % cla(app.MainUIAxes);
+
                 return
             end
 
-            switch type
+            if type ~= "Overview"
+                return
+            end
 
-                case "Overview"
+            selectedResultRows = app.selectedTableRows(app.ResultSubTable);
+            selectedFluxRows = app.selectedTableRows(app.ResultMainTable);
 
-                    selectedFlux = selectedFlux(1);
-                    selectedID = selectedID(1);
-                    % Reaction ID
-                    RxnIDs = app.ResultMainTable.RowName;
-                    batchIDs = app.ResultSubTable.Data.ID;
-                    RxnID = string(RxnIDs(selectedFlux));
-                    Fluxes = app.ResultMainTable.Data.Flux(1:end - 1);
-                    batchID = batchIDs(selectedID);
+            if isempty(selectedResultRows)
+                return
+            end
 
-                    % Reaction highlight mask
-                    modelTable = getModelTable(app.model);
-                    highlightMask = strcmp(modelTable.Properties.RowNames, RxnID);
+            if isempty(app.ResultSubTable.Data) || ~istable(app.ResultSubTable.Data)
+                return
+            end
 
-                    drawFluxLabel( ...
-                        app.model, ...
-                        app.MainUIAxes, ...
-                        Fluxes, ...
-                        highlight = highlightMask, ...
-                        darkmode = isDarkTheme(app) ...
-                    );
+            tableData = app.getResultMainRawData();
 
-                    % Confidence interval plot
-                    data = getCIReaction(app.result, batchID, RxnID);
+            if isempty(tableData) || ~istable(tableData)
+                return
+            end
 
-                    if isempty(data) || ~isfield(data, 'CI')
-                        % Clear the axes
-                        cla(app.SubUIAxes);
-                        return
-                    end
+            if ~any(string(tableData.Properties.VariableNames) == "Flux")
+                return
+            end
 
-                    % Clear the axes
-                    cla(app.SubUIAxes);
-                    drawCIReaction( ...
-                        app.result, app.SubUIAxes, data ...
-                    )
+            rxnIDs = app.getResultReactionIds(tableData);
 
-                case "Detailed"
+            if isempty(rxnIDs)
+                return
+            end
 
-                case "Comparison"
+            % -------------------------------------------------------------
+            % Draw metabolic pathway with flux labels.
+            % This should work even when no flux row is selected.
+            % -------------------------------------------------------------
+            fluxColumn = tableData.Flux;
 
-            end % switch type
+            if numel(fluxColumn) > 1
+                fluxColumn = fluxColumn(1:end - 1);
+            end
 
-        end % function updateBatchTable
+            fluxLabels = app.toFluxLabelCell(fluxColumn);
+
+            modelTable = getModelTable(app.model);
+            highlightMask = false(height(modelTable), 1);
+
+            hasSelectedFlux = ~isempty(selectedFluxRows);
+
+            if hasSelectedFlux
+                selectedFluxRow = selectedFluxRows(1);
+
+                if selectedFluxRow <= numel(rxnIDs)
+                    rxnID = string(rxnIDs(selectedFluxRow));
+                    highlightMask = strcmp(modelTable.Properties.RowNames, rxnID);
+                else
+                    hasSelectedFlux = false;
+                end
+
+            end
+
+            app.MainUIAxes.Visible = 'on';
+            app.SubUIAxes.Visible = 'on';
+
+            drawFluxLabel( ...
+                app.model, ...
+                app.MainUIAxes, ...
+                fluxLabels, ...
+                highlight = highlightMask, ...
+                darkmode = isDarkTheme(app));
+
+            app.MainUIAxes.ContextMenu = app.ContextMenu;
+
+            % -------------------------------------------------------------
+            % CI plot requires a selected reaction.
+            % If no reaction is selected, keep pathway and clear only SubUIAxes.
+            % -------------------------------------------------------------
+            if ~hasSelectedFlux
+                cla(app.SubUIAxes);
+                return
+            end
+
+            selectedResultRow = selectedResultRows(1);
+
+            if selectedResultRow > height(app.ResultSubTable.Data)
+                cla(app.SubUIAxes);
+                return
+            end
+
+            batchID = string(app.ResultSubTable.Data.ID(selectedResultRow));
+            rxnID = string(rxnIDs(selectedFluxRows(1)));
+
+            data = getCIReaction(app.result, batchID, rxnID);
+
+            if isempty(data) || ~isfield(data, 'CI')
+                cla(app.SubUIAxes);
+                return
+            end
+
+            cla(app.SubUIAxes);
+
+            drawCIReaction( ...
+                app.result, ...
+                app.SubUIAxes, ...
+                data);
+
+        end % method updateResultPlot
 
         %% Private clipboard function
         function clipboardText = copyTableToClipboard(~, tableObject)
@@ -1847,100 +3491,120 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % function pasteClipboardToTable
 
         %% Style functions
-
         function setBatchInitialStyle(app, status)
-            % Set the initial style for the batch table
-            % depending on the status of the batch
-            %
-            % status: "ready", "finished", "warning", "error"
 
-            numBatch = length(status);
-            IDs = app.RunTable.Data.ID;
+            app.ensureBatchPresenter();
 
-            for i = 1:numBatch
+            if isempty(app.RunTable.Data)
+                return
+            end
 
-                ID = IDs(i);
-                iStatus = status(i);
+            styleRules = ...
+                app.BatchPresenter.styleRulesForStatus( ...
+                app.RunTable.Data, ...
+                status);
 
-                idx = find(app.RunTable.Data.ID == ID, 1);
+            app.applyBatchStyleRules(styleRules);
 
-                switch iStatus
+        end
 
-                    case "ready"
-                        addStyle(app.RunTable, app.styleInfoIcon, 'cell', [idx 1]);
+        function data = getResultMainRawData(app)
 
-                    case "finished"
-                        addStyle(app.RunTable, app.styleSuccessIcon, 'cell', [idx 1]);
+            data = app.ResultMainTable.Data;
 
-                    case "warning"
-                        addStyle(app.RunTable, app.styleWarningIcon, 'cell', [idx 1]);
+            try
+                userData = app.ResultMainTable.UserData;
 
-                    case "error"
-                        addStyle(app.RunTable, app.styleErrorIcon, 'cell', [idx 1]);
+                if isstruct(userData) && ...
+                        isfield(userData, "RawData") && ...
+                        ~isempty(userData.RawData)
 
-                    case "question"
-                        addStyle(app.RunTable, app.styleQuestionIcon, 'cell', [idx 1]);
-                    otherwise
-                        error("Unknown status: " + iStatus);
+                    data = userData.RawData;
+                end
+
+            catch
+                data = app.ResultMainTable.Data;
+            end
+
+        end % method getResultMainRawData
+
+        function rxnIDs = getResultReactionIds(app, tableData)
+
+            rxnIDs = strings(0, 1);
+
+            try
+                rxnIDs = string(app.ResultMainTable.RowName);
+                rxnIDs = rxnIDs(:);
+
+                if ~isempty(rxnIDs) && any(rxnIDs ~= "")
+                    return
+                end
+
+            catch
+            end
+
+            try
+                rxnIDs = string(tableData.Properties.RowNames);
+                rxnIDs = rxnIDs(:);
+
+                if ~isempty(rxnIDs) && any(rxnIDs ~= "")
+                    return
+                end
+
+            catch
+            end
+
+            candidates = ["ID", "RxnID", "Reaction", "ReactionID"];
+
+            try
+                names = string(tableData.Properties.VariableNames);
+
+                for i = 1:numel(candidates)
+                    idx = find(names == candidates(i), 1);
+
+                    if ~isempty(idx)
+                        rxnIDs = string(tableData{:, idx});
+                        rxnIDs = rxnIDs(:);
+                        return
+                    end
 
                 end
 
-            end % for i
+            catch
+            end
 
-        end % function setBatchInitialStyle
+        end % method getResultReactionIds
 
         %% Status function
         function statusBatch(app, data)
 
-            data = data.data;
-            ID = data.id;
-            status = data.status;
-            rate = data.rate;
-            msg = "Batch " + ID + " is completed.";
-            idx = find(app.RunTable.Data.ID == ID, 1);
+            app.ensureBatchPresenter();
 
-            switch status
+            viewModel = ...
+                app.BatchPresenter.presentProgress( ...
+                data, ...
+                app.RunTable.Data);
 
-                case "finished"
-                    LogTextDate(app, msg, "Info");
-                    addStyle(app.RunTable, app.styleSuccessIcon, 'cell', [idx 1]);
-
-                case "warning"
-                    LogTextDate(app, msg, "Warning");
-                    addStyle(app.RunTable, app.styleWarningIcon, 'cell', [idx 1]);
-
-                case "error"
-                    LogTextDate(app, msg, "Error");
-                    addStyle(app.RunTable, app.styleErrorIcon, 'cell', [idx 1]);
-
-                case "question"
-                    LogTextDate(app, msg, "Error");
-                    addStyle(app.RunTable, app.styleQuestionIcon, 'cell', [idx 1]);
-
+            if ~isempty(viewModel.Notification)
+                app.showNotification(viewModel.Notification);
             end
 
-            app.ProgressBar.setProgress(rate, msg);
-            drawnow();
+            app.applyBatchStyleRules(viewModel.StyleRules);
+
+            app.renderBatchProgress(viewModel);
 
         end % function statusBatch
 
         function statusGeneralMsg(app, data)
 
             data = data.data;
-            msg = data.msg;
-            status = data.status;
 
-            switch status
+            notification = ...
+                openmebius.presentation.notification.Notification( ...
+                string(data.msg), ...
+                string(data.status));
 
-                case "info"
-                    LogTextDate(app, msg, "Info");
-
-                case "warning"
-                    LogTextDate(app, msg, "Warning");
-
-                case "error"
-                    LogTextDate(app, msg, "Error");
-            end
+            app.showNotification(notification);
 
         end % function statusGeneralMsg
 
@@ -1981,287 +3645,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method checkLatestVersionOnStartup
 
-        %% Private lock and unlock function
-
-        function lockModelTab(app)
-
-            app.ModelTable.Enable = 'off';
-            app.ModelReloadButton.Enable = 'off';
-            app.ModelEditButton.Enable = 'off';
-
-        end % function lockModelTab
-
-        function unlockModelTab(app)
-
-            app.ModelTable.Enable = 'on';
-            app.ModelReloadButton.Enable = 'on';
-            app.ModelEditButton.Enable = 'on';
-
-        end % function unlockModelTab
-
-        function lockMSTab(app)
-
-            app.MSTable.Enable = 'off';
-            app.AtomTable.Enable = 'off';
-            app.MSReloadButton.Enable = 'off';
-            app.MSEditButton.Enable = 'off';
-
-            % Figure context menu
-            app.MainUIAxes.ContextMenu = [];
-
-        end % function lockMSTab
-
-        function unlockMSTab(app)
-
-            app.MSTable.Enable = 'on';
-            app.AtomTable.Enable = 'on';
-            app.MSReloadButton.Enable = 'on';
-            app.MSEditButton.Enable = 'on';
-
-            % Restore the context menu for the figure
-            app.MainUIAxes.ContextMenu = app.ContextMenu;
-
-        end % function unlockMSTab
-
-        function lockExpTab(app)
-
-            app.ExpTable.Enable = 'off';
-            app.BiomassTable.Enable = 'off';
-            app.ExpImportButton.Enable = 'off';
-            app.ExpReloadButton.Enable = 'off';
-            app.ExpSaveButton.Enable = 'off';
-
-            % Disable the context menu for the ExpTable
-            app.ExpTable.ContextMenu = [];
-
-        end % function lockExpTab
-
-        function unlockExpTab(app)
-
-            app.ExpTable.Enable = 'on';
-            app.BiomassTable.Enable = 'on';
-            app.ExpImportButton.Enable = 'on';
-            app.ExpReloadButton.Enable = 'on';
-            app.ExpSaveButton.Enable = 'on';
-
-            % Restore the context menu for the ExpTable
-            app.ExpTable.ContextMenu = app.ExperimentContextMenu;
-
-        end % function unlockExpTab
-
-        function lockTracerTab(app)
-
-            app.UptakeTable.Enable = 'off';
-            app.LabelTable.Enable = 'off';
-            app.TracerConfigButton.Enable = 'off';
-            app.TracerReloadButton.Enable = 'off';
-            app.TracerSaveButton.Enable = 'off';
-
-        end % function lockTracerTab
-
-        function unlockTracerTab(app)
-
-            app.UptakeTable.Enable = 'on';
-            app.LabelTable.Enable = 'on';
-            app.TracerConfigButton.Enable = 'on';
-            app.TracerReloadButton.Enable = 'on';
-            app.TracerSaveButton.Enable = 'on';
-
-        end % function unlockTracerTab
-
-        function lockRunTab(app)
-
-            app.RunAutoButton.Enable = 'off';
-            app.RunConfigButton.Enable = 'off';
-            app.RunReloadButton.Enable = 'off';
-            app.RunSaveButton.Enable = 'off';
-            app.RunRunButton.Enable = 'off';
-            app.RunTable.Enable = 'off';
-            app.RunTable.ContextMenu = [];
-
-        end % function lockRunTab
-
-        function unlockRunTab(app)
-
-            app.RunAutoButton.Enable = 'on';
-            app.RunConfigButton.Enable = 'on';
-            app.RunReloadButton.Enable = 'on';
-            app.RunSaveButton.Enable = 'on';
-            app.RunRunButton.Enable = 'on';
-            app.RunTable.Enable = 'on';
-            app.RunTable.ContextMenu = app.ContextMenuRun;
-
-        end % function unlockRunTab
-
-        function lockResultTab(app)
-
-            app.ResultDropDown.Enable = 'off';
-            app.ResultMainTable.Enable = 'off';
-            app.ResultSubTable.Enable = 'off';
-            app.ResultReportButton.Enable = 'off';
-            app.ResultReloadButton.Enable = 'off';
-            app.ResultSaveButton.Enable = 'off';
-
-        end % function lockResultTab
-
-        function unlockResultTab(app)
-
-            app.ResultDropDown.Enable = 'on';
-            app.ResultMainTable.Enable = 'on';
-            app.ResultSubTable.Enable = 'on';
-            app.ResultReportButton.Enable = 'on';
-            app.ResultReloadButton.Enable = 'on';
-            app.ResultSaveButton.Enable = 'on';
-
-        end % function unlockResultTab
-
-        function lockMenu(app)
-
-            % Lock the menu items
-            app.FilesMenu.Enable = 'off';
-            app.ModelMenu.Enable = 'off';
-            app.BatchMenu.Enable = 'off';
-            app.ViewMenu.Enable = 'off';
-
-        end % method lockMenu
-
-        function unlockMenu(app)
-
-            % Unlock the menu items
-            app.FilesMenu.Enable = 'on';
-            app.ModelMenu.Enable = 'on';
-            app.BatchMenu.Enable = 'on';
-            app.ViewMenu.Enable = 'on';
-
-        end % method unlockMenu
-
-        %% Functional lock and unlock
-        function lockForModelEdit(app, action)
-
-            switch action
-                case "edit"
-                    lockMSTab(app)
-                    lockExpTab(app)
-                    lockTracerTab(app)
-                    lockRunTab(app)
-                    lockResultTab(app)
-                    app.ModelSaveButton.Enable = 'on';
-                    app.ModelEditButton.Enable = 'off';
-                    app.ModelTable.ColumnEditable = true(1, width(app.ModelTable.Data));
-                case "save"
-                    unlockMSTab(app)
-                    unlockExpTab(app)
-                    unlockTracerTab(app)
-                    unlockRunTab(app)
-                    unlockResultTab(app)
-                    app.ModelSaveButton.Enable = 'off';
-                    app.ModelEditButton.Enable = 'on';
-                    app.ModelTable.ColumnEditable = false(1, width(app.ModelTable.Data));
-            end
-
-        end % function lockForModelEdit
-
-        function lockForMSEdit(app, action)
-
-            switch action
-                case "edit"
-                    lockModelTab(app)
-                    lockExpTab(app)
-                    lockTracerTab(app)
-                    lockRunTab(app)
-                    lockResultTab(app)
-                    app.MSEditButton.Enable = 'off';
-                    app.MSSaveButton.Enable = 'on';
-                    app.MSTable.ColumnEditable = true(1, width(app.MSTable.Data));
-                    app.AtomTable.ColumnEditable = true(1, width(app.AtomTable.Data));
-                case "save"
-                    unlockModelTab(app)
-                    unlockExpTab(app)
-                    unlockTracerTab(app)
-                    unlockRunTab(app)
-                    unlockResultTab(app)
-                    app.MSEditButton.Enable = 'on';
-                    app.MSSaveButton.Enable = 'off';
-                    app.MSTable.ColumnEditable = false(1, width(app.MSTable.Data));
-                    app.AtomTable.ColumnEditable = false(1, width(app.AtomTable.Data));
-            end
-
-        end % function lockForMSEdit
-
-        function lockRunTabForBatchRun(app)
-            % LOCKRUNTABFORBATCH Lock the Run tab for batch processing
-
-            % Lock buttons
-            app.RunAutoButton.Enable = 'off';
-            app.RunConfigButton.Enable = 'off';
-            app.RunReloadButton.Enable = 'off';
-            app.RunSaveButton.Enable = 'off';
-            % app.RunRunButton.Enable = 'on';
-
-            % Turn RunTable into read-only
-            app.RunTableEditable = app.RunTable.ColumnEditable;
-            app.RunTable.ColumnEditable = false(1, width(app.RunTable.Data));
-            app.RunTable.ContextMenu = [];
-
-        end % method lockRunTabForBatch
-
-        function unlockRunTabForBatchRun(app)
-            % UNLOCKRUNTABFORBATCH Unlock the Run tab after batch processing
-
-            % Unlock buttons
-            app.RunAutoButton.Enable = 'on';
-            app.RunConfigButton.Enable = 'on';
-            app.RunReloadButton.Enable = 'on';
-            app.RunSaveButton.Enable = 'on';
-            app.RunRunButton.Enable = 'on';
-
-            % Restore RunTable to editable state
-            app.RunTable.ColumnEditable = app.RunTableEditable;
-            app.RunTable.ContextMenu = app.ContextMenuRun;
-
-        end % method unlockRunTabForBatch
-
-        function lockAllProjectFeature(app)
-
-            app.ProjectPanel.Enable = 'off';
-
-            % Lock project related components
-            % app.ProjectBrowseButton.Enable = 'off';
-            % app.ProjectLoadButton.Enable = 'off';
-            % app.ProjectEditButton.Enable = 'off';
-            % app.ProjectSaveButton.Enable = 'off';
-
-            % app.ProjectCreateButton.Enable = 'off';
-            % app.TemplateModelLoadButton.Enable = 'off';
-            % app.TemplateModelSaveButton.Enable = 'off';
-
-            % app.ProjectTypeDropDown.Enable = 'off';
-            % app.ProjectNameEditField.Enable = 'off';
-            % app.ProjectAuthorEditField.Enable = 'off';
-            % app.OrganismEditField.Enable = 'off';
-
-        end % lockAllProjectFeature
-
-        function unlockAllProjectFeature(app)
-
-            app.ProjectPanel.Enable = 'on';
-
-            % Unlock project related components
-            % app.ProjectLoadButton.Enable = 'on';
-            % app.ProjectEditButton.Enable = 'on';
-            % app.ProjectSaveButton.Enable = 'on';
-
-            % app.ProjectCreateButton.Enable = 'on';
-            % app.TemplateModelLoadButton.Enable = 'on';
-            % app.TemplateModelSaveButton.Enable = 'on';
-
-            % app.ProjectTypeDropDown.Enable = 'on';
-            % app.ProjectNameEditField.Enable = 'on';
-            % app.ProjectAuthorEditField.Enable = 'on';
-            % app.OrganismEditField.Enable = 'on';
-
-        end % unlockAllProjectFeature
-
     end % methods (Access = private)
 
     % Callbacks that handle component events
@@ -2271,6 +3654,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function startupFcn(app, filepath)
 
             app.setLogFile();
+
+            app.DialogService = ...
+                openmebius.presentation.dialog.AppDialogService( ...
+                app.OpenMebius2UIFigure);
+
+            app.ProjectRepository = ...
+                openmebius.infrastructure.project.FileProjectRepository();
+
+            app.OpenProjectUseCase = ...
+                openmebius.application.project.OpenProjectUseCase( ...
+                app.ProjectRepository);
+
+            app.LegacyProjectLoader = ...
+                openmebius.infrastructure.legacy.LegacyProjectLoader();
+
+            app.BatchPresenter = ...
+                openmebius.presentation.batch.BatchPresenter();
+            app.ResultPresenter = ...
+                openmebius.presentation.result.ResultPresenter();
+            app.ResultPlotPresenter = ...
+                openmebius.presentation.result.ResultPlotPresenter();
 
             if nargin < 2
                 filepath = "";
@@ -2282,8 +3686,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             initLog(app)
 
-            lockAllFeature(app)
             initStatusTable(app);
+
+            app.initializePresentation();
 
             checkLatestVersionOnStartup(app);
 
@@ -2309,11 +3714,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ProjectBrowseButton
         function ProjectBrowseButtonPushed(app, event)
 
-            % Open a dialog to select the project directory
-            projectDirectory = uigetdir(app.ProjectDirectoryDropDown.Value, "Select Project Directory");
+            [projectDirectory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Project Directory", ...
+                StartPath = app.ProjectDirectoryDropDown.Value);
 
-            if isequal(projectDirectory, 0)
-                return; % User canceled the dialog
+            if ~isOK
+                return
             end
 
             % If the directory is equal to the current directory, do nothing
@@ -2332,134 +3738,39 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % Update the status
             updateStatus(app, "model", "init");
 
-            unlockProject(app);
+            app.refreshPresentation();
 
         end
 
         % Button pushed function: ProjectLoadButton
         function ProjectLoadButtonPushed(app, event)
 
-            % Update status
-            updateStatus(app, "model", "running");
-
-            projectDirectory = app.ProjectDirectoryDropDown.Value;
-            objProjectDirectory = IO(projectDirectory);
-
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
-
-            % If the project directory is not empty, load the project
-            if objProjectDirectory.isEmpty
-                msg = objProjectDirectory.returnDateMsg("Project directory is empty", "Info");
-                app.LogText(msg);
-                app.updateStatus("model", "error");
-                return
-            end
-
-            % Load JSON file
-            json = objProjectDirectory.importJSONFile(fullfile(projectDirectory, "setting.json"));
-
-            if objProjectDirectory.isError
-                app.LogText(objProjectDirectory.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
 
             try
-                app.ProjectNameEditField.Value = json.Name;
-                app.ProjectAuthorEditField.Value = json.Author;
-                app.OrganismEditField.Value = json.Organism;
-            catch
-                msg = "Error loading project setting.json file. Please check the file format.";
-                LogTextDate(app, msg, "Error");
-                updateStatus(app, "model", "error");
-                return
+                projectDirectory = string(app.ProjectDirectoryDropDown.Value);
+
+                session = app.OpenProjectUseCase.execute(projectDirectory);
+
+                artifacts = app.LegacyProjectLoader.load(session);
+
+                app.applyProjectSession(session);
+                app.applyLegacyProjectArtifacts(artifacts);
+
+                for i = 1:numel(artifacts.Messages)
+                    app.notifyInfo(artifacts.Messages(i));
+                end
+
+                app.renderLegacyProjectArtifacts();
+
+                app.refreshPresentation();
+
+            catch ME
+                app.updateStatus("model", "error");
+                app.notifyException( ...
+                    ME ...
+                );
             end
-
-            % Initialize the directory
-            initDirectory(app, projectDirectory);
-
-            LogText(app, objProjectDirectory.statusMsg);
-
-            clear objProjectDirectory;
-
-            app.model = EMUModel(app.directoryModel);
-
-            if app.model.isError
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            else
-                msg = "Model folder found in " + projectDirectory;
-                LogTextDate(app, msg, "Info");
-            end
-
-            IOStatus = app.model.getIOStatus();
-
-            if strcmp(IOStatus, "completed")
-                msg = "Model loaded successfully.";
-                LogTextDate(app, msg, "Info");
-            else
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            end
-
-            msg = "Constructing EMU network...";
-            LogTextDate(app, msg, "Info");
-
-            pause(0.5)
-
-            loadEMUModel(app)
-
-            if app.model.isError
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            end
-
-            loadPathway(app)
-
-            msg = "EMU network was successfully constructed.";
-            LogTextDate(app, msg, "Info");
-            updateStatus(app, "model", "finished");
-
-            % Load experimental data
-            updateStatus(app, "experiment", "running");
-
-            app.exp = IOExps( ...
-                app.directoryExp, ...
-                app.directoryModel ...
-            );
-
-            if app.exp.isError
-                LogText(app, app.exp.statusMsg);
-                updateStatus(app, "experiment", "error");
-                return
-            end
-
-            loadExpData(app)
-
-            if app.exp.isError
-                LogText(app, app.exp.statusMsg);
-                updateStatus(app, "experiment", "error");
-                return
-            end
-
-            updateStatus(app, "experiment", "finished");
-            LogText(app, app.exp.statusMsg);
-
-            % Load batch table
-            loadBatchTable(app)
-
-            % Load results if available
-            loadResult(app)
-
-            lockProject(app)
-            unlockAllFeature(app)
 
         end
 
@@ -2493,6 +3804,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Button pushed function: ProjectCreateButton
         function ProjectCreateButtonPushed(app, event)
+
+            cleanupPresentation = app.beginPresentationOperation();
 
             [answ, ok] = app.uiInputDlgWrap( ...
                 Prompt = "Enter the name of the new project directory:", ...
@@ -2633,9 +3946,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.batch = Batch(app.exp);
             app.result = IOResult(app.directoryResult);
 
-            lockProject(app);
-            unlockAllFeature(app);
-
         end
 
         % Value changed function: ProjectDirectoryDropDown
@@ -2660,11 +3970,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TemplateModelBrowseButton
         function TemplateModelBrowseButtonPushed(app, event)
 
-            % Open a dialog to select the template model directory
-            templateModelDirectory = uigetdir(app.TemplateModelDirectoryDropDown.Value, "Select Template Model Directory");
+            [templateModelDirectory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Template Model Directory", ...
+                StartPath = app.TemplateModelDirectoryDropDown.Value);
 
-            if isequal(templateModelDirectory, 0)
-                return; % User canceled the dialog
+            if ~isOK
+                return
             end
 
             % If the directory is equal to the current directory, do nothing
@@ -2680,12 +3991,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.TemplateModelDirectoryDropDown.Items{end + 1} = templateModelDirectory;
             end
 
-            unlockProject(app);
+            app.refreshPresentation();
 
         end
 
         % Button pushed function: TemplateModelLoadButton
         function TemplateModelLoadButtonPushed(app, event)
+
+            cleanupPresentation = app.beginPresentationOperation();
 
             % Update status
             updateStatus(app, "model", "running");
@@ -2748,8 +4061,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadPathway(app)
 
-            lockProject(app, template = true);
-
             msg = "EMU network was successfully constructed.";
             LogTextDate(app, msg, "Info");
             updateStatus(app, "model", "finished");
@@ -2799,9 +4110,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ModelEditButton
         function ModelEditButtonPushed(app, event)
 
-            lockForModelEdit(app, "edit");
+            import openmebius.presentation.main.EditTarget
 
-            app.updateStatus("model", "info");
+            app.beginPresentationEdit(EditTarget.Model);
 
             app.LogTextDate("Model table is now editable", "Info");
 
@@ -2810,28 +4121,39 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ModelSaveButton
         function ModelSaveButtonPushed(app, event)
 
-            app.updateStatus("model", "running");
+            app.beginPresentationEditCommit();
 
-            tableIn = app.ModelTable.Data;
-            app.model.updateModelTableGUI(tableIn);
+            try
+                app.updateStatus("model", "running");
 
-            errorRows = app.model.getInvalidModelRowIdx();
+                tableIn = app.ModelTable.Data;
+                app.model.updateModelTableGUI(tableIn);
 
-            resetModelTableColorFormat(app);
+                errorRows = app.model.getInvalidModelRowIdx();
 
-            if ~isempty(errorRows)
-                addStyle(app.ModelTable, app.styleError, 'row', errorRows);
-            end
+                resetModelTableColorFormat(app);
 
-            if app.model.isError
-                app.LogTextDate(app.model.statusMsg, "Error");
-                app.updateStatus("model", "error");
-            else
+                if ~isempty(errorRows)
+                    addStyle(app.ModelTable, app.styleError, 'row', errorRows);
+                end
+
+                if app.model.isError
+                    app.LogTextDate(app.model.statusMsg, "Error");
+                    app.updateStatus("model", "error");
+
+                    app.finishPresentationEditCommit(false);
+                    return
+                end
+
                 app.LogTextDate(app.model.statusMsg, "Info");
-                app.updateStatus("model", "complete");
-            end
+                app.updateStatus("model", "finished");
 
-            lockForModelEdit(app, "save");
+                app.finishPresentationEditCommit(true);
+
+            catch ME
+                app.finishPresentationEditCommit(false);
+                rethrow(ME)
+            end
 
         end
 
@@ -2918,9 +4240,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: MSEditButton
         function MSEditButtonPushed(app, event)
 
-            lockForMSEdit(app, "edit");
+            import openmebius.presentation.main.EditTarget
 
-            app.updateStatus("model", "info");
+            app.beginPresentationEdit(EditTarget.MassSpectrometry);
 
             app.LogTextDate("MS table is now editable", "Info");
 
@@ -2929,38 +4251,49 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: MSSaveButton
         function MSSaveButtonPushed(app, event)
 
-            app.updateStatus("model", "running");
+            app.beginPresentationEditCommit();
 
-            tableMS = app.MSTable.Data;
-            tableAtom = app.AtomTable.Data;
+            try
+                app.updateStatus("model", "running");
 
-            lockForMSEdit(app, "save");
+                tableMS = app.MSTable.Data;
+                tableAtom = app.AtomTable.Data;
 
-            app.model.updateMSTable(tableMS)
-            resetMSTableColorFormat(app)
+                app.model.updateMSTable(tableMS)
+                resetMSTableColorFormat(app)
 
-            errorRows = app.model.getInvalidMSRowIdx();
+                errorRows = app.model.getInvalidMSRowIdx();
 
-            if ~isempty(errorRows)
-                addStyle(app.MSTable, app.styleError, 'row', errorRows);
-            end
+                if ~isempty(errorRows)
+                    addStyle(app.MSTable, app.styleError, 'row', errorRows);
+                end
 
-            app.model.updateAtomTable(tableAtom)
-            errorRows = app.model.getInvalidAtomRowIdx();
+                app.model.updateAtomTable(tableAtom)
+                errorRows = app.model.getInvalidAtomRowIdx();
 
-            if ~isempty(errorRows)
-                addStyle(app.AtomTable, app.styleError, 'row', errorRows);
-            end
+                if ~isempty(errorRows)
+                    addStyle(app.AtomTable, app.styleError, 'row', errorRows);
+                end
 
-            if app.model.isError
+                if app.model.isError
+                    app.LogText(app.model.statusMsg);
+                    app.updateStatus("model", "error");
+
+                    app.finishPresentationEditCommit(false);
+                    return
+                end
+
                 app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-            else
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "complete");
-            end
+                app.updateStatus("model", "finished");
 
-            app.LogTextDate("MS table saved", "Info");
+                app.LogTextDate("MS table saved", "Info");
+
+                app.finishPresentationEditCommit(true);
+
+            catch ME
+                app.finishPresentationEditCommit(false);
+                rethrow(ME)
+            end
 
         end
 
@@ -3058,11 +4391,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ExpSaveButton
         function ExpSaveButtonPushed(app, event)
 
+            cleanupPresentation = app.beginPresentationOperation();
+
             updateStatus(app, "experiment", "running");
 
             updateModel(app)
-
-            lockAllFeatureForOtherGUI(app)
 
             tableExp = app.ExpTable.Data;
             tableBiomass = app.BiomassTable.Data;
@@ -3072,7 +4405,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if err
 
                 LogText(app, app.exp.statusMsg);
-                unlockAllFeatureForOtherGUI(app)
                 updateStatus(app, "experiment", "error");
 
                 return
@@ -3085,7 +4417,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             saveExpData(app.exp);
             LogText(app, app.exp.statusMsg);
 
-            unlockAllFeatureForOtherGUI(app)
             updateStatus(app, "experiment", "finished");
 
         end
@@ -3127,7 +4458,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             idxRow = idx(1, 1);
 
-            lockAllFeatureForOtherGUI(app)
+            cleanupPresentation = app.beginPresentationOperation();
 
             app.MSViewApp = MSView(app, idxRow);
 
@@ -3136,7 +4467,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TracerConfigButton
         function LabelConfigButtonPushed(app, event)
 
-            lockAllFeature(app)
+            cleanupPresentation = app.beginPresentationOperation();
             app.LabelConfigApp = LabelConfig(app, app.model.tableLabelView, app.model.structLabelView);
 
         end
@@ -3153,9 +4484,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TracerSaveButton
         function TracerSaveButtonPushed(app, event)
 
-            lockAllFeatureForOtherGUI(app)
-            updateStatus(app, "experiment", "running");
+            cleanupPresentation = app.beginPresentationOperation();
 
+            updateStatus(app, "experiment", "running");
             updateModel(app)
 
             tableUptake = app.UptakeTable.Data;
@@ -3166,7 +4497,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if err
 
                 app.LogText(app.exp.statusMsg);
-                unlockAllFeatureForOtherGUI(app)
                 updateStatus(app, "experiment", "error");
                 return
 
@@ -3179,7 +4509,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if err
 
                 app.LogText(app.exp.statusMsg);
-                unlockAllFeatureForOtherGUI(app)
                 updateStatus(app, "experiment", "error");
                 return
 
@@ -3191,7 +4520,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             saveExpData(app.exp);
             LogText(app, app.exp.statusMsg);
 
-            unlockAllFeatureForOtherGUI(app)
             updateStatus(app, "experiment", "finished");
 
         end
@@ -3215,7 +4543,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            lockAllFeature(app)
+            cleanupPresentation = app.beginPresentationOperation();
 
             app.TracerConfigApp = ...
                 TracerConfig( ...
@@ -3268,7 +4596,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             updateBatchTable(app);
 
-            lockAllFeatureForOtherGUI(app)
+            cleanupPresentation = app.beginPresentationOperation();
 
             app.RunConfigApp = RunConfig(app, selection);
 
@@ -3298,51 +4626,52 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Button pushed function: RunRunButton
         function RunRunButtonPushed(app, event)
-            % Run batch jobs
 
-            lockAllFeatureForBatchRun(app)
+            if app.Presenter.isRunning()
 
-            % Toggle button text between "Run" and "Cancel"
-            if strcmp(app.RunRunButton.Text, "Cancel")
+                app.requestPresentationCancelRun();
 
                 msg = "Canceling batch jobs. It may take several minutes...";
                 app.LogTextDate(msg, "Info");
-                app.RunRunButton.Enable = 'off';
 
                 cancelBatch(app.batch)
 
-                app.RunRunButton.Text = "Run";
-                app.RunRunButton.Enable = 'on';
-                unlockAllFeatureForBatchRun(app);
-
                 return
-
-            else
-
-                app.RunRunButton.Text = "Cancel";
-
             end
 
-            msg = "Batch jobs are running...";
-            app.LogTextDate(msg, "Info");
+            app.beginPresentationRun();
+            cleanupPresentation = onCleanup( ...
+                @() app.finishPresentationRunSafely());
 
-            updateBatchTable(app);
+            try
+                app.updateStatus("batch", "running");
 
-            status = runBatch(app.batch, app.directoryResult);
-
-            if strcmp(status, "canceled")
-                msg = "Batch jobs are canceled.";
+                msg = "Batch jobs are running...";
                 app.LogTextDate(msg, "Info");
-                app.RunRunButton.Text = "Run";
-                unlockAllFeatureForBatchRun(app);
-                return
-            end % if
 
-            msg = "All batch jobs are completed.";
-            app.LogTextDate(msg, "Info");
-            app.RunRunButton.Text = "Run";
+                updateBatchTable(app);
 
-            unlockAllFeatureForBatchRun(app);
+                % updateBatchTable may reset RunTable.ColumnEditable.
+                app.refreshPresentation();
+
+                status = runBatch(app.batch, app.directoryResult);
+
+                if strcmp(status, "canceled")
+                    msg = "Batch jobs are canceled.";
+                    app.LogTextDate(msg, "Info");
+                    app.updateStatus("batch", "finished");
+                    return
+                end
+
+                msg = "All batch jobs are completed.";
+                app.LogTextDate(msg, "Info");
+                app.updateStatus("batch", "finished");
+
+            catch ME
+                app.updateStatus("batch", "error");
+                app.LogTextDate(string(ME.message), "Error");
+                rethrow(ME)
+            end
 
         end
 
@@ -3368,15 +4697,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             selectedRows = unique(selectedRows); % Ensure unique selection
             batchIDs = app.RunTable.Data.ID(selectedRows);
 
-            % Confirm deletion
-            answer = uiconfirm(app.OpenMebius2UIFigure, ...
+            [answer, isOK] = app.uiConfirmWrap( ...
                 "Are you sure you want to remove the selected batch?", ...
                 "Remove Batch", ...
-                'Options', {'Yes', 'No'}, ...
-                'DefaultOption', 'No', ...
-                'CancelOption', 'No');
+                Options = ["Yes", "No"], ...
+                DefaultOption = "No", ...
+                CancelOption = "No", ...
+                Icon = "warning");
 
-            if strcmp(answer, 'Yes')
+            if isOK && answer == "Yes"
 
                 for i = 1:length(batchIDs)
                     batchID = batchIDs(i);
@@ -3444,7 +4773,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Value changed function: ResultDropDown
         function ResultDropDownValueChanged(app, event)
 
-            updateResult(app);
+            loadMainResultTable(app);
+            updateResultPlot(app);
 
         end
 
@@ -3544,7 +4874,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadHistory(app)
             initLog(app)
-            unlockProject(app);
+            cleanupPresentation = app.beginPresentationOperation();
 
             % Reset all components
             resetAllComponents(app);
@@ -3554,8 +4884,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             updateStatus(app, "experiment", "init");
             updateStatus(app, "batch", "init");
             updateStatus(app, "result", "init");
-
-            unlockAllFeature(app);
 
         end
 
@@ -3659,10 +4987,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: ImportMSdatafromtextfilesMenu
         function ImportMSdatafromtextfilesMenuSelected(app, event)
 
-            importDirectory = uigetdir(app.directoryExp, "Select Directory Containing MS Data Text Files");
+            [importDirectory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Directory Containing MS Data Text Files", ...
+                StartPath = app.directoryExp);
 
-            if isequal(importDirectory, 0)
-                return; % User canceled the dialog
+            if ~isOK
+                return
             end
 
             % Check model is loaded
@@ -3698,12 +5028,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: AboutOpenMebius2Menu
         function AboutOpenMebius2MenuSelected(app, event)
 
-            % Show about dialog
-            msg = "test";
-            uialert(app.OpenMebius2UIFigure, msg, "About OpenMebius2", ...
-                'Icon', 'info', ...
-                'Interpreter', 'none' ...
-            );
+            msg = "This is a test message";
+
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.info( ...
+                msg, ...
+                Title = "About OpenMebius2", ...
+                ShowAlert = true));
 
         end
 

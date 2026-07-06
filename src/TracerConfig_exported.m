@@ -48,7 +48,6 @@ classdef TracerConfig_exported < matlab.apps.AppBase
             text = app.MainApp.exp.disparseLabelPattern(app.UITable.Data);
             app.MainApp.LabelTable.Data{app.xy(1), app.xy(2)} = {text};
 
-            app.MainApp.unlockAllFeature()
             delete(app)
 
         end
@@ -56,7 +55,6 @@ classdef TracerConfig_exported < matlab.apps.AppBase
         % Close request function: TracerselectionconfigUIFigure
         function TracerselectionconfigUIFigureCloseRequest(app, event)
 
-            app.MainApp.unlockAllFeature()
             delete(app)
 
         end

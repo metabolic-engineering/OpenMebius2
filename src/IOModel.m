@@ -723,20 +723,28 @@ classdef IOModel < IO
             reset(obj);
 
             try
-                obj.tableMS = tableIn(:, ["Reaction", "Transition"]);
+                tableMSIn = tableIn(:, ["Reaction", "Transition"]);
             catch
                 updateMsg(obj, "The table is not in the correct format.", "Error", obj.logLevel);
                 obj.isError = true;
                 return;
             end
 
+            if any(strcmp(tableIn.Properties.VariableNames, "Used"))
+                tableMSIn.Used = normalizeMSUsedColumn(obj, tableIn.Used, height(tableMSIn));
+            else
+                tableMSIn.Used = true(height(tableMSIn), 1);
+                updateMsg(obj, "The MS table does not contain the 'Used' column. A default 'Used=true' column has been added.", "Warning", obj.logLevel);
+            end
+
+            obj.tableMS = tableMSIn;
             obj.errorColumnsMS = [];
 
             updateMsg(obj, "The table has been updated successfully.", "Info", obj.logLevel);
 
             reconstructModel(obj);
 
-        end % function updateMSTable
+        end % method updateMSTable
 
         function updateAtomTable(obj, tableIn)
 
@@ -1239,6 +1247,72 @@ classdef IOModel < IO
             updateMsg(obj, "The metabolites have been listed up successfully.", "Debug", obj.logLevel);
 
         end % listUpMetabolite
+
+        function used = normalizeMSUsedColumn(obj, usedIn, numRows)
+            % NORMALIZEMSUSEDCOLUMN Convert MS Used column to a logical column vector.
+            % used = normalizeMSUsedColumn(obj, usedIn, numRows)
+            %
+            % Inputs:
+            %   usedIn (various types): The input value for the MS Used column. It can be logical, numeric, cell array, or string.
+            %   numRows (integer): The number of rows in the MS table.
+            %
+            % Outputs:
+            %   used (logical array): A logical column vector indicating whether each row is used (true) or not (false).
+
+            try
+
+                if islogical(usedIn)
+                    used = usedIn;
+
+                elseif isnumeric(usedIn)
+                    used = usedIn ~= 0;
+                    used(isnan(usedIn)) = false;
+
+                elseif iscell(usedIn)
+                    used = false(numRows, 1);
+
+                    for i = 1:numRows
+                        iValue = usedIn{i};
+
+                        if isempty(iValue)
+                            used(i) = false;
+
+                        elseif islogical(iValue)
+                            used(i) = iValue(1);
+
+                        elseif isnumeric(iValue)
+                            iValue = iValue(1);
+                            used(i) = ~isnan(iValue) && iValue ~= 0;
+
+                        elseif ischar(iValue) || isstring(iValue)
+                            used(i) = any(lower(strtrim(string(iValue))) == ["true", "1", "yes", "y", "on"]);
+
+                        else
+                            used(i) = logical(iValue);
+                        end
+
+                    end
+
+                elseif ischar(usedIn) || isstring(usedIn)
+                    used = ismember(lower(strtrim(string(usedIn))), ["true", "1", "yes", "y", "on"]);
+
+                else
+                    used = logical(usedIn);
+                end
+
+                used = used(:);
+
+                if numel(used) ~= numRows
+                    error("OpenMebius2:InvalidMSUsedColumn", ...
+                    "The Used column has an invalid number of rows.");
+                end
+
+            catch
+                used = true(numRows, 1);
+                updateMsg(obj, "The MS table 'Used' column could not be converted to logical values. All fragments are selected.", "Warning", obj.logLevel);
+            end
+
+        end % method normalizeMSUsedColumn
 
         %% Save functions
         function saveModel(obj)
