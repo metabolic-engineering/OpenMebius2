@@ -1521,6 +1521,80 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method capturePresentationContext
 
+        function [status, msg] = extractGeneralMessagePayload(~, event)
+
+            payload = event;
+
+            % Unwrap event.EventData / BatchProgressEventData / nested struct.
+            for i = 1:5
+
+                if isstruct(payload) && ...
+                        isfield(payload, 'status') && ...
+                        isfield(payload, 'msg')
+                    break
+                end
+
+                if isobject(payload)
+
+                    try
+
+                        if isprop(payload, 'data')
+                            payload = payload.data;
+                            continue
+                        end
+
+                    catch
+                    end
+
+                end
+
+                if isstruct(payload) && isfield(payload, 'data')
+                    payload = payload.data;
+                    continue
+                end
+
+                break
+            end
+
+            if ~isstruct(payload) || ...
+                    ~isfield(payload, 'status') || ...
+                    ~isfield(payload, 'msg')
+
+                error( ...
+                    "OpenMebius2:Notification:InvalidGeneralMessagePayload", ...
+                "GeneralMsg event does not contain status/msg payload.");
+            end
+
+            status = lower(string(payload.status));
+            msg = string(payload.msg);
+
+            if isempty(msg)
+                msg = "";
+            else
+                msg = msg(1);
+            end
+
+            if isempty(status)
+                status = "info";
+            else
+                status = status(1);
+            end
+
+            switch status
+                case {"info", "warning", "error", "success"}
+                    % keep
+                case {"warn"}
+                    status = "warning";
+                case {"err", "exception"}
+                    status = "error";
+                case {"ok", "finished", "complete", "completed"}
+                    status = "success";
+                otherwise
+                    status = "info";
+            end
+
+        end % method extractGeneralMessagePayload
+
         function tf = isLoadedObject(app, value)
             % ISLOADEDOBJECT
             % True when the value exists and, if it is a handle object, is valid.
@@ -3595,18 +3669,32 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function statusBatch
 
-        function statusGeneralMsg(app, data)
+        function statusGeneralMsg(app, event)
 
-            data = data.data;
+            try
+                [status, msg] = app.extractGeneralMessagePayload(event);
 
-            notification = ...
-                openmebius.presentation.notification.Notification( ...
-                string(data.msg), ...
-                string(data.status));
+                notification = ...
+                    openmebius.presentation.notification.Notification( ...
+                    msg, ...
+                    status);
 
-            app.showNotification(notification);
+                app.showNotification(notification);
 
-        end % function statusGeneralMsg
+            catch ME
+                % Event callback内で例外を握り潰すと通知消失に見えるため、
+                % 最低限LogTextAreaへ落とす。
+                try
+                    app.appendLogText( ...
+                        "[ERROR] Failed to handle GeneralMsg event: " + ...
+                        string(ME.message));
+                catch
+                    disp(ME.message)
+                end
+
+            end
+
+        end % method statusGeneralMsg
 
         function checkLatestVersionOnStartup(app)
             % CHECKLATESTVERSIONONSTARTUP Checks whether a newer version exists.

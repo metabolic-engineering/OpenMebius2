@@ -405,8 +405,8 @@ classdef FluxAnalysis < handle & IO
                 notifyGeneralMessage(obj, "warning", msg, dbstack());
             end
 
-            fluxUB = repmat(maxEfflux * 3, numFlux, 1);
-            fluxLB = repmat(-maxEfflux * 3, numFlux, 1);
+            fluxUB = repmat(maxEfflux * 3000, numFlux, 1);
+            fluxLB = repmat(-maxEfflux * 3000, numFlux, 1);
 
             if options.customBoundary
                 fluxLB = options.fluxLB;
