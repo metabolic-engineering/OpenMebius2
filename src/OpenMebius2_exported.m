@@ -48,6 +48,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         GridLayout14 matlab.ui.container.GridLayout
         BiomassTable matlab.ui.control.Table
         GridLayout12_3 matlab.ui.container.GridLayout
+        ExpCalculationButton matlab.ui.control.Button
         ExpImportButton matlab.ui.control.Button
         ExpReloadButton matlab.ui.control.Button
         ExpSaveButton matlab.ui.control.Button
@@ -4385,6 +4386,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end
 
+        % Button pushed function: ExpCalculationButton
+        function ExpCalculationButtonPushed(app, event)
+
+            cleanupPresentation = app.beginPresentationOperation();
+
+            updateStatus(app, "experiment", "running");
+
+        end
+
         % Button pushed function: ExpImportButton
         function ExpImportButtonPushed(app, event)
 
@@ -5677,6 +5687,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ExpImportButton.Layout.Row = 1;
             app.ExpImportButton.Layout.Column = 6;
             app.ExpImportButton.Text = 'Import data';
+
+            % Create ExpCalculationButton
+            app.ExpCalculationButton = uibutton(app.GridLayout12_3, 'push');
+            app.ExpCalculationButton.ButtonPushedFcn = createCallbackFcn(app, @ExpCalculationButtonPushed, true);
+            app.ExpCalculationButton.Enable = 'off';
+            app.ExpCalculationButton.Layout.Row = 1;
+            app.ExpCalculationButton.Layout.Column = 5;
+            app.ExpCalculationButton.Text = 'Calculate';
 
             % Create GridLayout13_2
             app.GridLayout13_2 = uigridlayout(app.GridLayout11_3);
