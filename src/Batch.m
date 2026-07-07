@@ -1323,7 +1323,16 @@ classdef Batch < handle
 
             status = "finished";
 
-            obj.exp.calculateMDV();
+            if ~obj.exp.hasCalculatedMDV()
+                status = "error";
+
+                type = "GeneralMsg";
+                ed = struct;
+                ed.status = "error";
+                ed.msg = "MDV data has not been calculated. Press the Calculate MDV button before running batch jobs.";
+                notify(obj, 'GeneralMsg', BatchProgressEventData(type, ed));
+                return
+            end
 
             for i = 1:height(obj.tableBatch)
 

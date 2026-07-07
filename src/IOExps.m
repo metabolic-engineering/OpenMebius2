@@ -203,6 +203,11 @@ classdef IOExps < IO
                 obj.dataExp.(structName).tableSubstrate = objExp.tableSubstrate;
                 obj.dataExp.(structName).tableMS = objExp.tableMS;
 
+                % Keep previously calculated MDV-derived sheets from the
+                % imported workbook when they exist.  Importing must not
+                % trigger a recalculation.
+                loadStoredDerivedTables(obj, objExp, structName, erase(fileExp, ".xlsx"));
+
             end % for i
 
         end % importExpData
@@ -236,18 +241,17 @@ classdef IOExps < IO
                 fieldName = obj.fieldNames(i);
                 name = getExpName(obj, i);
 
-                % If MDV is not calculated, calculate it
-                if ~isfield(obj.dataExp.(fieldName), "tableMDV")
-                    calculateMDV(obj);
-                end
-
                 objExp.tableInfo = obj.dataExp.(fieldName).tableInfo;
                 objExp.tableSubstrate = obj.dataExp.(fieldName).tableSubstrate;
                 objExp.tableMS = obj.dataExp.(fieldName).tableMS;
-                objExp.tableMSNormalized = obj.dataExp.(fieldName).tableMSNormalized;
-                objExp.tableMDV = obj.dataExp.(fieldName).tableMDV;
-                objExp.tableMDVBiomass = obj.dataExp.(fieldName).tableMDVBiomass;
-                objExp.tableEnrichment = obj.dataExp.(fieldName).tableEnrichment;
+
+                % MDV-derived tables are intentionally not recalculated during
+                % save.  They are persisted only if they have already been
+                % loaded from disk or explicitly updated by calculateMDV().
+                objExp.tableMSNormalized = getStoredTableOrEmpty(obj, fieldName, "tableMSNormalized");
+                objExp.tableMDV = getStoredTableOrEmpty(obj, fieldName, "tableMDV");
+                objExp.tableMDVBiomass = getStoredTableOrEmpty(obj, fieldName, "tableMDVBiomass");
+                objExp.tableEnrichment = getStoredTableOrEmpty(obj, fieldName, "tableEnrichment");
 
                 objExp.saveExcelData();
 
@@ -1020,11 +1024,128 @@ classdef IOExps < IO
 
             end
 
+            obj.reset();
+            updateMsg(obj, "MDV calculation completed.", "Info", obj.logLevel);
+
         end % calculateMDV
+
+        function tf = hasCalculatedMDV(obj)
+
+            tf = hasBiomassCorrectedMDV(obj);
+
+        end % hasCalculatedMDV
+
+        function tf = hasBiomassCorrectedMDV(obj)
+
+            tf = true;
+
+            for i = 1:obj.numFile
+
+                fieldName = obj.fieldNames(i);
+
+                if ~isfield(obj.dataExp.(fieldName), "tableMDVBiomass") || ...
+                        isempty(obj.dataExp.(fieldName).tableMDVBiomass)
+                    tf = false;
+                    return
+                end
+
+                if ~isfield(obj.dataExp.(fieldName), "tableSelection") || ...
+                        isempty(obj.dataExp.(fieldName).tableSelection)
+
+                    try
+                        obj.dataExp.(fieldName).tableSelection = ...
+                            getFragmentSelection(obj, obj.fileListWOExt(i));
+                    catch
+                    end
+
+                end
+
+                if ~isfield(obj.dataExp.(fieldName), "tableSelection") || ...
+                        isempty(obj.dataExp.(fieldName).tableSelection)
+                    tf = false;
+                    return
+                end
+
+            end % for i
+
+        end % hasBiomassCorrectedMDV
 
     end % methods (Access = public)
 
     methods (Access = private)
+
+        function tableOut = getStoredTableOrEmpty(obj, fieldName, tableName)
+
+            arguments
+                obj IOExps
+                fieldName (1, 1) string
+                tableName (1, 1) string
+            end
+
+            if isfield(obj.dataExp.(fieldName), tableName)
+                tableOut = obj.dataExp.(fieldName).(tableName);
+            else
+                tableOut = table();
+            end
+
+        end % getStoredTableOrEmpty
+
+        function loadStoredDerivedTables(obj, objExp, structName, expName)
+
+            arguments
+                obj IOExps
+                objExp IOExp
+                structName (1, 1) string
+                expName (1, 1) string
+            end
+
+            optionalTables = [ ...
+                                  "tableMSNormalized", ...
+                                  "tableMDV", ...
+                                  "tableMDVBiomass", ...
+                                  "tableEnrichment" ...
+                              ];
+
+            for iTable = 1:length(optionalTables)
+
+                tableName = optionalTables(iTable);
+
+                if ~isempty(objExp.(tableName))
+                    obj.dataExp.(structName).(tableName) = objExp.(tableName);
+                end
+
+            end % for iTable
+
+            if isfield(obj.dataExp.(structName), "tableMDVBiomass") && ...
+                    ~isempty(obj.dataExp.(structName).tableMDVBiomass)
+
+                try
+                    [tableMDVBiomass, errMDV] = validateMDVData( ...
+                        obj, ...
+                        obj.dataExp.(structName).tableMDVBiomass ...
+                    );
+                    obj.dataExp.(structName).tableMDVBiomass = tableMDVBiomass;
+                    obj.dataExp.(structName).errMDV = errMDV;
+                    obj.dataExp.(structName).tableSelection = getFragmentSelection(obj, expName);
+                catch ME
+                    obj.dataExp.(structName).errMDV = true(1, ...
+                        width(obj.dataExp.(structName).tableMDVBiomass));
+                    updateMsg(obj, ...
+                        "The stored biomass-corrected MDV sheet could not be validated: " + string(ME.message), ...
+                        "Warning", obj.logLevel);
+                end
+
+            end
+
+            if isfield(obj.dataExp.(structName), "tableEnrichment")
+                tableEnrichment = obj.dataExp.(structName).tableEnrichment;
+                obj.dataExp.(structName).errEnrichment = ...
+                    any(tableEnrichment{:, :} < 0 | ...
+                    tableEnrichment{:, :} > 1 | ...
+                    isnan(tableEnrichment{:, :}), 2);
+            end
+
+        end % loadStoredDerivedTables
 
         function obj = loadExpFiles(obj)
 
@@ -1075,6 +1196,8 @@ classdef IOExps < IO
             obj.dataExp.(structName).tableInfo = objExp.tableInfo;
             obj.dataExp.(structName).tableSubstrate = objExp.tableSubstrate;
             obj.dataExp.(structName).tableMS = objExp.tableMS;
+
+            loadStoredDerivedTables(obj, objExp, structName, erase(fileExp, ".xlsx"));
 
             if isempty(obj.dataExp.(structName).tableSubstrate)
                 obj.dataExp.(structName).tableSubstrate = ...
@@ -1541,8 +1664,14 @@ classdef IOExps < IO
                 iFieldName = obj.fieldNames(i);
                 iExperimentName = obj.fileListWOExt(i);
 
-                if ~isfield(obj.dataExp.(iFieldName), "tableEnrichment")
-                    calculateMDV(obj);
+                if ~isfield(obj.dataExp.(iFieldName), "tableEnrichment") || ...
+                        isempty(obj.dataExp.(iFieldName).tableEnrichment)
+                    updateMsg(obj, ...
+                        "The enrichment table is not available. Press Calculate MDV before viewing enrichment data.", ...
+                        "Error", obj.logLevel);
+                    tableRtn = table();
+                    err = [];
+                    return
                 end
 
                 iTableEnrichment = obj.dataExp.(iFieldName).tableEnrichment;
@@ -1608,8 +1737,14 @@ classdef IOExps < IO
                 iFieldName = obj.fieldNames(i);
                 iExperimentName = obj.fileListWOExt(i);
 
-                if ~isfield(obj.dataExp.(iFieldName), "tableSelection")
-                    calculateMDV(obj);
+                if ~isfield(obj.dataExp.(iFieldName), "tableSelection") || ...
+                        isempty(obj.dataExp.(iFieldName).tableSelection)
+                    updateMsg(obj, ...
+                        "The fragment selection table is not available. Press Calculate MDV before configuring MDV-dependent analysis.", ...
+                        "Error", obj.logLevel);
+                    tableRtnSelect = table();
+                    tableRtnAvailable = table();
+                    return
                 end
 
                 iTableSelection = obj.dataExp.(iFieldName).tableSelection;

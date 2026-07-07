@@ -123,7 +123,13 @@ classdef MSView_exported < matlab.apps.AppBase
             app.MainApp = MainApp;
 
             app.ExpDropDown.Items = MainApp.exp.getExpList();
-            MainApp.exp.calculateMDV();
+
+            if ~MainApp.exp.hasCalculatedMDV()
+                MainApp.LogTextDate( ...
+                    "MDV-derived tables have not been calculated. Press Calculate MDV in the Experiment tab before viewing MDV, biomass-corrected MDV or enrichment data.", ...
+                    "Warning" ...
+                );
+            end
 
             expName = MainApp.exp.getExpName(idx);
 
