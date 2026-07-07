@@ -405,8 +405,8 @@ classdef FluxAnalysis < handle & IO
                 notifyGeneralMessage(obj, "warning", msg, dbstack());
             end
 
-            fluxUB = repmat(maxEfflux * 3000, numFlux, 1);
-            fluxLB = repmat(-maxEfflux * 3000, numFlux, 1);
+            fluxUB = repmat(maxEfflux * 3, numFlux, 1);
+            fluxLB = repmat(-maxEfflux * 3, numFlux, 1);
 
             if options.customBoundary
                 fluxLB = options.fluxLB;
@@ -1905,17 +1905,13 @@ classdef FluxAnalysis < handle & IO
                 "UseParallel", false ...
             );
 
+            objectiveFcn = @(x) calculateObjectiveFunction(obj, x, MDVExpTemp);
+
             [x, fval, exitflag, output] = ...
-                fmincon( ...
-                @(x) calculateObjectiveFunction(obj, x, MDVExpTemp), ...
+                runConfiguredNonlinearOptimizer( ...
+                obj, ...
+                objectiveFcn, ...
                 tmpInitialFlux, ...
-                [], ...
-                [], ...
-                [], ...
-                [], ...
-                [], ...
-                [], ...
-                @(x) calculateConstraints(obj, x), ...
                 fmincon_options ...
             );
 
@@ -1973,17 +1969,13 @@ classdef FluxAnalysis < handle & IO
                 "UseParallel", false ...
             );
 
+            objectiveFcn = @(x) calculateObjectiveFunctionInstationary(obj, x, MDVExpTemp);
+
             [x, fval, exitflag, output] = ...
-                fmincon( ...
-                @(x) calculateObjectiveFunctionInstationary(obj, x, MDVExpTemp), ...
+                runConfiguredNonlinearOptimizer( ...
+                obj, ...
+                objectiveFcn, ...
                 tmpInitialFlux, ...
-                [], ...
-                [], ...
-                [], ...
-                [], ...
-                [], ...
-                [], ...
-                @(x) calculateConstraints(obj, x), ...
                 fmincon_options ...
             );
 
@@ -2008,6 +2000,408 @@ classdef FluxAnalysis < handle & IO
             end % if
 
         end % calculateNonLinearOptimizationInstationary
+
+        function [x, fval, exitflag, output] = runConfiguredNonlinearOptimizer( ...
+                obj, objectiveFcn, initialFlux, fminconOptions)
+            % RUNCONFIGUREDNONLINEAROPTIMIZER Run the configured optimizer.
+            %
+            % The default strategy is a two-stage hybrid optimization:
+            %   1. A real-coded genetic algorithm explores the independent
+            %      flux space and supplies a robust starting point.
+            %   2. FMINCON performs the final constrained local refinement.
+            % Set config.optimizationMethod to "gradient-only" to retain the
+            % previous FMINCON-only behavior.
+
+            constraintFcn = @(x) calculateConstraints(obj, x);
+            method = getOptimizationMethod(obj);
+            startFlux = initialFlux(:);
+            gaOutput = [];
+
+            switch method
+                case {"gradient-only", "fmincon", "local"}
+                    % Backward-compatible path.
+                case {"hybrid-ga-gradient", "hybrid", "ga-gradient"}
+                    [startFlux, gaOutput] = calculateGAStartPoint(obj, objectiveFcn, startFlux);
+                otherwise
+                    msg = "Unknown optimizationMethod '" + method + "'. Falling back to hybrid-ga-gradient.";
+                    notifyGeneralMessage(obj, "warning", msg, dbstack());
+                    [startFlux, gaOutput] = calculateGAStartPoint(obj, objectiveFcn, startFlux);
+            end % switch
+
+            [x, fval, exitflag, output] = fmincon( ...
+                objectiveFcn, ...
+                startFlux, ...
+                [], ...
+                [], ...
+                [], ...
+                [], ...
+                [], ...
+                [], ...
+                constraintFcn, ...
+                fminconOptions ...
+            );
+
+            if ~isempty(gaOutput)
+                output.hybridGA = gaOutput;
+            end % if
+
+        end % runConfiguredNonlinearOptimizer
+
+        function method = getOptimizationMethod(obj)
+            % GETOPTIMIZATIONMETHOD Return the normalized nonlinear optimizer name.
+
+            method = "hybrid-ga-gradient";
+
+            if isfield(obj.config, 'optimizationMethod') && ...
+                    ~isempty(obj.config.optimizationMethod)
+                method = lower(string(obj.config.optimizationMethod));
+            end % if
+
+        end % getOptimizationMethod
+
+        function gaConfig = getGAConfig(obj, nVariables)
+            % GETGACONFIG Read GA configuration with safe defaults.
+
+            userConfig = struct;
+
+            if isfield(obj.config, 'GA') && isstruct(obj.config.GA)
+                userConfig = obj.config.GA;
+            end % if
+
+            gaConfig = struct;
+            gaConfig.populationSize = max(4, round(readNumericConfig(obj, userConfig, 'populationSize', max(50, 4 * nVariables))));
+            gaConfig.generations = max(1, round(readNumericConfig(obj, userConfig, 'generations', 40)));
+            gaConfig.eliteCount = max(1, round(readNumericConfig(obj, userConfig, 'eliteCount', 2)));
+            gaConfig.eliteCount = min(gaConfig.eliteCount, gaConfig.populationSize);
+            gaConfig.tournamentSize = max(2, round(readNumericConfig(obj, userConfig, 'tournamentSize', 3)));
+            gaConfig.crossoverFraction = min(1, max(0, readNumericConfig(obj, userConfig, 'crossoverFraction', 0.80)));
+            gaConfig.mutationRate = min(1, max(0, readNumericConfig(obj, userConfig, 'mutationRate', 0.20)));
+            gaConfig.mutationScale = max(0, readNumericConfig(obj, userConfig, 'mutationScale', 0.10));
+            gaConfig.penaltyScale = max(0, readNumericConfig(obj, userConfig, 'penaltyScale', 1e6));
+            gaConfig.feasibilityTolerance = max(0, readNumericConfig(obj, userConfig, 'feasibilityTolerance', 1e-8));
+            gaConfig.functionTolerance = max(0, readNumericConfig(obj, userConfig, 'functionTolerance', 1e-9));
+            gaConfig.stallGenerations = max(1, round(readNumericConfig(obj, userConfig, 'stallGenerations', 10)));
+            gaConfig.seed = round(readNumericConfig(obj, userConfig, 'seed', 0));
+            gaConfig.maxInitialSeeds = max(1, round(readNumericConfig(obj, userConfig, 'maxInitialSeeds', gaConfig.populationSize)));
+
+        end % getGAConfig
+
+        function value = readNumericConfig(~, userConfig, fieldName, defaultValue)
+            % READNUMERICCONFIG Read a scalar numeric field from a struct.
+
+            value = defaultValue;
+
+            if isstruct(userConfig) && isfield(userConfig, fieldName) && ...
+                    ~isempty(userConfig.(fieldName))
+                candidate = userConfig.(fieldName);
+
+                if isnumeric(candidate) || islogical(candidate)
+                    value = double(candidate(1));
+                end % if
+
+            end % if
+
+        end % readNumericConfig
+
+        function [bestStart, gaOutput] = calculateGAStartPoint(obj, objectiveFcn, initialFlux)
+            % CALCULATEGASTARTPOINT Search a FMINCON start point by GA.
+
+            msg = "Initializing GA global-search stage for hybrid optimization...";
+            notifyGeneralMessage(obj, "info", msg, dbstack());
+
+            initialFlux = initialFlux(:);
+            nVariables = length(initialFlux);
+            gaConfig = getGAConfig(obj, nVariables);
+            [lowerBound, upperBound, seedPool] = deriveGABoundsFromInitialPopulation(obj, initialFlux, gaConfig);
+            variableSpan = upperBound - lowerBound;
+
+            if gaConfig.seed > 0
+                previousRandomState = rng;
+                cleanupRandomState = onCleanup(@() rng(previousRandomState));
+                rng(gaConfig.seed, 'twister');
+            end % if
+
+            population = initializeGAPopulation(obj, initialFlux, seedPool, lowerBound, upperBound, gaConfig);
+            [score, rawScore, violation] = evaluateGAPopulation(obj, population, objectiveFcn, gaConfig);
+
+            [bestPenaltyObjective, bestPenaltyIndex] = min(score);
+            bestPenaltyFlux = population(:, bestPenaltyIndex);
+            bestFeasibleObjective = inf;
+            bestFeasibleFlux = initialFlux;
+            feasible = violation <= gaConfig.feasibilityTolerance;
+
+            if any(feasible)
+                feasibleRawScore = rawScore;
+                feasibleRawScore(~feasible) = inf;
+                [bestFeasibleObjective, bestFeasibleIndex] = min(feasibleRawScore);
+                bestFeasibleFlux = population(:, bestFeasibleIndex);
+            end % if
+
+            initialObjective = safeObjectiveEvaluation(obj, objectiveFcn, initialFlux);
+            bestHistory = nan(gaConfig.generations, 1);
+            stallCount = 0;
+            previousBest = bestPenaltyObjective;
+            performedGenerations = 0;
+
+            for generation = 1:gaConfig.generations
+
+                if obj.isCanceled
+                    break;
+                end % if
+
+                performedGenerations = generation;
+                [~, order] = sort(score, 'ascend');
+                nextPopulation = zeros(nVariables, gaConfig.populationSize);
+                nextPopulation(:, 1:gaConfig.eliteCount) = population(:, order(1:gaConfig.eliteCount));
+
+                nextIndex = gaConfig.eliteCount + 1;
+
+                while nextIndex <= gaConfig.populationSize
+
+                    parent1 = population(:, tournamentSelect(obj, score, gaConfig.tournamentSize));
+                    parent2 = population(:, tournamentSelect(obj, score, gaConfig.tournamentSize));
+
+                    [child1, child2] = crossoverGAIndividuals(obj, parent1, parent2, gaConfig);
+                    child1 = mutateGAIndividual(obj, child1, variableSpan, gaConfig);
+                    child2 = mutateGAIndividual(obj, child2, variableSpan, gaConfig);
+                    child1 = min(max(child1, lowerBound), upperBound);
+                    child2 = min(max(child2, lowerBound), upperBound);
+
+                    nextPopulation(:, nextIndex) = child1;
+                    nextIndex = nextIndex + 1;
+
+                    if nextIndex <= gaConfig.populationSize
+                        nextPopulation(:, nextIndex) = child2;
+                        nextIndex = nextIndex + 1;
+                    end % if
+
+                end % while
+
+                population = nextPopulation;
+                [score, rawScore, violation] = evaluateGAPopulation(obj, population, objectiveFcn, gaConfig);
+
+                [currentBestPenaltyObjective, currentBestPenaltyIndex] = min(score);
+
+                if currentBestPenaltyObjective < bestPenaltyObjective
+                    bestPenaltyObjective = currentBestPenaltyObjective;
+                    bestPenaltyFlux = population(:, currentBestPenaltyIndex);
+                end % if
+
+                feasible = violation <= gaConfig.feasibilityTolerance;
+
+                if any(feasible)
+                    feasibleRawScore = rawScore;
+                    feasibleRawScore(~feasible) = inf;
+                    [currentBestFeasibleObjective, currentBestFeasibleIndex] = min(feasibleRawScore);
+
+                    if currentBestFeasibleObjective < bestFeasibleObjective
+                        bestFeasibleObjective = currentBestFeasibleObjective;
+                        bestFeasibleFlux = population(:, currentBestFeasibleIndex);
+                    end % if
+
+                end % if
+
+                bestHistory(generation) = bestPenaltyObjective;
+
+                if abs(previousBest - bestPenaltyObjective) <= gaConfig.functionTolerance * max(1, abs(previousBest))
+                    stallCount = stallCount + 1;
+                else
+                    stallCount = 0;
+                end % if
+
+                previousBest = bestPenaltyObjective;
+
+                if stallCount >= gaConfig.stallGenerations
+                    break;
+                end % if
+
+            end % for
+
+            if isfinite(bestFeasibleObjective)
+                bestStart = bestFeasibleFlux;
+            else
+                bestStart = bestPenaltyFlux;
+            end % if
+
+            gaOutput = struct;
+            gaOutput.enabled = true;
+            gaOutput.method = "hybrid-ga-gradient";
+            gaOutput.populationSize = gaConfig.populationSize;
+            gaOutput.generations = performedGenerations;
+            gaOutput.initialObjective = initialObjective;
+            gaOutput.bestPenaltyObjective = bestPenaltyObjective;
+            gaOutput.bestFeasibleObjective = bestFeasibleObjective;
+            gaOutput.bestHistory = bestHistory(1:max(performedGenerations, 1));
+            gaOutput.feasibilityTolerance = gaConfig.feasibilityTolerance;
+            gaOutput.message = "GA global-search stage completed.";
+
+            msg = "Hybrid optimization stage 1 (GA) completed. Initial RSS: " + ...
+                string(initialObjective) + ", GA best feasible RSS: " + ...
+                string(bestFeasibleObjective) + ", GA best penalized objective: " + ...
+                string(bestPenaltyObjective) + ".";
+            notifyGeneralMessage(obj, "info", msg, dbstack());
+
+        end % calculateGAStartPoint
+
+        function [lowerBound, upperBound, seedPool] = deriveGABoundsFromInitialPopulation(obj, initialFlux, gaConfig)
+            % DERIVEGABOUNDSFROMINITIALPOPULATION Build GA search bounds.
+            %
+            % The hit-and-run initial flux distribution already generated by
+            % OpenMebius2 is used as a data-driven box. This keeps the GA in
+            % a physically meaningful region while preserving a global search
+            % stage before FMINCON.
+
+            initialFlux = initialFlux(:);
+            seedPool = initialFlux;
+
+            if ~isempty(obj.initialRhs) && size(obj.initialRhs, 1) == length(obj.maskIndependent)
+                candidateSeeds = obj.initialRhs(obj.maskIndependent, :);
+                validColumns = all(isfinite(candidateSeeds), 1);
+                candidateSeeds = candidateSeeds(:, validColumns);
+
+                if ~isempty(candidateSeeds)
+                    candidateSeeds = candidateSeeds(:, 1:min(size(candidateSeeds, 2), gaConfig.maxInitialSeeds));
+                    seedPool = [seedPool, candidateSeeds]; %#ok<AGROW>
+                end % if
+
+            end % if
+
+            seedPool = seedPool(:, all(isfinite(seedPool), 1));
+
+            if isempty(seedPool)
+                seedPool = initialFlux;
+            end % if
+
+            lowerBound = min(seedPool, [], 2);
+            upperBound = max(seedPool, [], 2);
+            span = upperBound - lowerBound;
+            globalScale = max([1; abs(seedPool(:)); abs(initialFlux(:))]);
+            minWidth = max(1e-9, 1e-6 * max(1, abs(initialFlux)));
+            degenerate = span < minWidth;
+            lowerBound(degenerate) = initialFlux(degenerate) - max(1, 0.5 * globalScale);
+            upperBound(degenerate) = initialFlux(degenerate) + max(1, 0.5 * globalScale);
+
+            span = upperBound - lowerBound;
+            padding = 0.05 * max(span, minWidth);
+            lowerBound = lowerBound - padding;
+            upperBound = upperBound + padding;
+
+            invalid = ~isfinite(lowerBound) | ~isfinite(upperBound) | lowerBound >= upperBound;
+
+            if any(invalid)
+                fallbackWidth = max(1, 0.5 * globalScale);
+                lowerBound(invalid) = initialFlux(invalid) - fallbackWidth;
+                upperBound(invalid) = initialFlux(invalid) + fallbackWidth;
+            end % if
+
+        end % deriveGABoundsFromInitialPopulation
+
+        function population = initializeGAPopulation(obj, initialFlux, seedPool, lowerBound, upperBound, gaConfig)
+            % INITIALIZEGAPOPULATION Create the initial GA population.
+
+            nVariables = length(initialFlux);
+            population = zeros(nVariables, gaConfig.populationSize);
+            seedCount = min(size(seedPool, 2), gaConfig.populationSize);
+            population(:, 1:seedCount) = seedPool(:, 1:seedCount);
+
+            if seedCount < gaConfig.populationSize
+                span = upperBound - lowerBound;
+                randomCount = gaConfig.populationSize - seedCount;
+                population(:, seedCount + 1:gaConfig.populationSize) = ...
+                    repmat(lowerBound, 1, randomCount) + ...
+                    repmat(span, 1, randomCount) .* rand(nVariables, randomCount);
+            end % if
+
+            population = min( ...
+                max(population, repmat(lowerBound, 1, gaConfig.populationSize)), ...
+                repmat(upperBound, 1, gaConfig.populationSize) ...
+            );
+
+        end % initializeGAPopulation
+
+        function [score, rawScore, violation] = evaluateGAPopulation(obj, population, objectiveFcn, gaConfig)
+            % EVALUATEGAPOPULATION Evaluate objective plus constraint penalty.
+
+            populationSize = size(population, 2);
+            score = inf(1, populationSize);
+            rawScore = inf(1, populationSize);
+            violation = inf(1, populationSize);
+
+            for i = 1:populationSize
+
+                if obj.isCanceled
+                    return;
+                end % if
+
+                currentFlux = population(:, i);
+                rawScore(i) = safeObjectiveEvaluation(obj, objectiveFcn, currentFlux);
+
+                try
+                    [c, ceq] = calculateConstraints(obj, currentFlux);
+                    violation(i) = sum(max(c(:), 0) .^ 2) + sum(abs(ceq(:)) .^ 2);
+                catch
+                    violation(i) = inf;
+                end % try
+
+                if isfinite(rawScore(i)) && isfinite(violation(i))
+                    score(i) = rawScore(i) + gaConfig.penaltyScale * ...
+                        max(1, abs(rawScore(i))) * violation(i);
+                end % if
+
+            end % for
+
+        end % evaluateGAPopulation
+
+        function objectiveValue = safeObjectiveEvaluation(~, objectiveFcn, flux)
+            % SAFEOBJECTIVEEVALUATION Robust objective evaluation for GA.
+
+            try
+                objectiveValue = objectiveFcn(flux(:));
+                objectiveValue = double(objectiveValue(1));
+            catch
+                objectiveValue = inf;
+            end % try
+
+            if ~isfinite(objectiveValue) || isnan(objectiveValue)
+                objectiveValue = inf;
+            end % if
+
+        end % safeObjectiveEvaluation
+
+        function selectedIndex = tournamentSelect(~, score, tournamentSize)
+            % TOURNAMENTSELECT Select one individual by tournament selection.
+
+            candidates = randi(length(score), tournamentSize, 1);
+            [~, bestCandidateIndex] = min(score(candidates));
+            selectedIndex = candidates(bestCandidateIndex);
+
+        end % tournamentSelect
+
+        function [child1, child2] = crossoverGAIndividuals(~, parent1, parent2, gaConfig)
+            % CROSSOVERGAINDIVIDUALS Arithmetic crossover for real-valued genes.
+
+            if rand() < gaConfig.crossoverFraction
+                alpha = rand(size(parent1));
+                child1 = alpha .* parent1 + (1 - alpha) .* parent2;
+                child2 = alpha .* parent2 + (1 - alpha) .* parent1;
+            else
+                child1 = parent1;
+                child2 = parent2;
+            end % if
+
+        end % crossoverGAIndividuals
+
+        function individual = mutateGAIndividual(~, individual, variableSpan, gaConfig)
+            % MUTATEGAINDIVIDUAL Gaussian mutation for real-valued genes.
+
+            mutationMask = rand(size(individual)) < gaConfig.mutationRate;
+
+            if any(mutationMask)
+                mutationStep = gaConfig.mutationScale .* max(variableSpan, eps) .* randn(size(individual));
+                individual(mutationMask) = individual(mutationMask) + mutationStep(mutationMask);
+            end % if
+
+        end % mutateGAIndividual
 
         %% Tools
         function threshold = caluclateThreshold(obj, alpha)

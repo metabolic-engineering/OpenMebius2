@@ -677,6 +677,21 @@ classdef Batch < handle
             config.status = 'ready';
             config.deleteResultFile = true;
 
+            config.optimizationMethod = 'hybrid-ga-gradient';
+            config.GA.populationSize = 50;
+            config.GA.generations = 40;
+            config.GA.eliteCount = 2;
+            config.GA.tournamentSize = 3;
+            config.GA.crossoverFraction = 0.8;
+            config.GA.mutationRate = 0.2;
+            config.GA.mutationScale = 0.10;
+            config.GA.penaltyScale = 1e6;
+            config.GA.feasibilityTolerance = 1e-8;
+            config.GA.functionTolerance = 1e-9;
+            config.GA.stallGenerations = 10;
+            config.GA.seed = 0;
+            config.GA.maxInitialSeeds = 50;
+
             % MS fragment selection configuration
             config.isSelectMSFragment = false;
             % all: all fragments
