@@ -18,75 +18,168 @@ classdef MainUIPolicy
             isCanceling = state.Activity == MainActivity.Canceling;
             isRunActive = isRunning || isCanceling;
 
+            isModelEdit = state.EditTarget == EditTarget.Model;
+            isMsEdit = state.EditTarget == EditTarget.MassSpectrometry;
+            isExperimentEdit = state.EditTarget == EditTarget.Experiment;
+            isTracerEdit = state.EditTarget == EditTarget.Tracer;
             isEditing = state.EditTarget ~= EditTarget.None;
+
+            hasProject = openmebius.presentation.main.MainUIPolicy.getBool( ...
+                context, "HasProject", false);
+
+            hasModel = openmebius.presentation.main.MainUIPolicy.getBool( ...
+                context, "HasModel", false);
+
+            hasExperiments = openmebius.presentation.main.MainUIPolicy.getBool( ...
+                context, "HasExperiments", false);
+
+            hasBatches = openmebius.presentation.main.MainUIPolicy.getBool( ...
+                context, "HasBatches", false);
+
+            hasResults = openmebius.presentation.main.MainUIPolicy.getBool( ...
+                context, "HasResults", false);
+
+            canRun = openmebius.presentation.main.MainUIPolicy.getBool( ...
+                context, "CanRun", false);
+
+            isTemplateMode = openmebius.presentation.main.MainUIPolicy.getBool( ...
+                context, "IsTemplateMode", false);
+
+            canCreateProjectFromTemplate = ...
+                openmebius.presentation.main.MainUIPolicy.getBool( ...
+                context, "CanCreateProjectFromTemplate", isTemplateMode);
+
+            projectDirectoryExists = ...
+                openmebius.presentation.main.MainUIPolicy.getBool( ...
+                context, "ProjectDirectoryExists", true);
+
+            templateModelDirectoryExists = ...
+                openmebius.presentation.main.MainUIPolicy.getBool( ...
+                context, "TemplateModelDirectoryExists", true);
 
             ui = struct();
 
-            % Project
-            ui.ProjectBrowseEnabled = isIdle && ~isEditing;
-            ui.ProjectLoadEnabled = isIdle && ~isEditing;
-            ui.ProjectMetadataEditable = ...
-                isIdle && context.HasProject && ~isEditing;
-            ui.ProjectSaveEnabled = ...
-                isIdle && context.HasProject && ~isEditing;
+            % -------------------------------------------------------------
+            % Project panel
+            % -------------------------------------------------------------
+            ui.ProjectPanelEnabled = ...
+                ~isBusy && ~isRunActive;
 
-            % Model
+            ui.ProjectDirectoryEnabled = ...
+                isIdle && ~hasProject && ~isEditing;
+
+            ui.ProjectBrowseEnabled = ...
+                ui.ProjectDirectoryEnabled;
+
+            ui.ProjectLoadEnabled = ...
+                isIdle && ~hasProject && ~isEditing;
+
+            ui.TemplateModelDirectoryEnabled = ...
+                isIdle && ~hasProject && ~isEditing;
+
+            ui.TemplateModelBrowseEnabled = ...
+                ui.TemplateModelDirectoryEnabled;
+
+            ui.TemplateModelLoadEnabled = ...
+                isIdle && ~hasProject && ~isEditing;
+
+            ui.ProjectMetadataEditable = ...
+                isIdle && hasProject && ~isEditing;
+
+            ui.ProjectSaveEnabled = ...
+                isIdle && hasProject && ~isEditing;
+
+            ui.ProjectCreateEnabled = ...
+                isIdle && canCreateProjectFromTemplate && ~hasProject && ~isEditing;
+
+            ui.TemplateModelSaveEnabled = ...
+                isIdle && hasModel && ~isEditing;
+
+            % -------------------------------------------------------------
+            % Stoichiometry tab
+            % -------------------------------------------------------------
             ui.ModelEnabled = ...
-                context.HasProject && ~isBusy && ~isRunning;
+                hasModel && ...
+                ~isBusy && ...
+                ~isRunActive && ...
+                (~isEditing || isModelEdit);
 
             ui.ModelEditEnabled = ...
-                isIdle && context.HasModel && ~isEditing;
+                isIdle && hasModel && ~isEditing;
 
             ui.ModelTableEditable = ...
-                isIdle && ...
-                state.EditTarget == EditTarget.Model;
+                isIdle && isModelEdit;
 
-            ui.ModelSaveEnabled = ui.ModelTableEditable;
+            ui.ModelSaveEnabled = ...
+                ui.ModelTableEditable;
 
-            % MS
+            % -------------------------------------------------------------
+            % MS tab
+            % -------------------------------------------------------------
             ui.MsEnabled = ...
-                context.HasModel && ~isBusy && ~isRunning;
+                hasModel && ...
+                ~isBusy && ...
+                ~isRunActive && ...
+                (~isEditing || isMsEdit);
 
             ui.MsEditEnabled = ...
-                isIdle && context.HasModel && ~isEditing;
+                isIdle && hasModel && ~isEditing;
 
             ui.MsTableEditable = ...
-                isIdle && ...
-                state.EditTarget == EditTarget.MassSpectrometry;
+                isIdle && isMsEdit;
 
-            ui.MsSaveEnabled = ui.MsTableEditable;
+            ui.AtomTableEditable = ...
+                ui.MsTableEditable;
 
-            % Experiment
+            ui.MsSaveEnabled = ...
+                ui.MsTableEditable;
+
+            % -------------------------------------------------------------
+            % Experiment tab
+            % -------------------------------------------------------------
             ui.ExperimentEnabled = ...
-                context.HasModel && ~isBusy && ~isRunning;
+                hasModel && ...
+                ~isBusy && ...
+                ~isRunActive && ...
+                (~isEditing || isExperimentEdit);
 
             ui.ExperimentTableEditable = ...
-                isIdle && ...
-                state.EditTarget == EditTarget.Experiment;
+                isIdle && isExperimentEdit;
 
-            % Tracer
+            ui.BiomassTableEditable = false;
+
+            % -------------------------------------------------------------
+            % Tracer tab
+            % -------------------------------------------------------------
             ui.TracerEnabled = ...
-                context.HasExperiments && ~isBusy && ~isRunning;
+                hasExperiments && ...
+                ~isBusy && ...
+                ~isRunActive && ...
+                (~isEditing || isTracerEdit);
 
             ui.TracerTableEditable = ...
-                isIdle && ...
-                state.EditTarget == EditTarget.Tracer;
+                isIdle && isTracerEdit;
 
-            % Batch
+            ui.UptakeTableEditable = ...
+                ui.TracerTableEditable;
+
+            % -------------------------------------------------------------
+            % Batch / Run tab
+            % -------------------------------------------------------------
             ui.RunTableEnabled = ...
-                context.HasBatches && ~isBusy;
+                hasBatches && ~isBusy;
 
             ui.RunConfigurationEnabled = ...
-                isIdle && context.HasBatches && ~isEditing;
+                isIdle && hasBatches && ~isEditing;
 
             ui.RunTableEditable = ...
-                isIdle && context.HasBatches && ~isEditing;
+                isIdle && hasBatches && ~isEditing;
 
             ui.RunContextMenuEnabled = ...
                 ui.RunTableEnabled && ui.RunConfigurationEnabled;
 
             ui.RunButtonEnabled = ...
-                (isIdle && context.CanRun && ~isEditing) || isRunning;
+                (isIdle && canRun && ~isEditing) || isRunning;
 
             if isRunning
                 ui.RunButtonText = "Cancel";
@@ -100,15 +193,74 @@ classdef MainUIPolicy
                 ui.RunButtonEnabled = false;
             end
 
-            % Result
+            % -------------------------------------------------------------
+            % Result tab
+            % -------------------------------------------------------------
             ui.ResultEnabled = ...
-                context.HasResults && ~isBusy;
+                hasResults && ~isBusy;
+
+            ui.ResultMainTableEditable = false;
+            ui.ResultSubTableEditable = false;
 
             ui.ResultEditable = false;
 
+            % -------------------------------------------------------------
+            % Menus
+            % -------------------------------------------------------------
+            ui.MenuEnabled = ...
+                isIdle && hasProject && ~isEditing;
+
+            % -------------------------------------------------------------
+            % Pathway context menu
+            % -------------------------------------------------------------
+            ui.PathwayContextMenuEnabled = ...
+                isIdle && hasModel && ~isEditing;
+
+            % -------------------------------------------------------------
             % Global indication
+            % -------------------------------------------------------------
             ui.IsBusy = isBusy;
             ui.IsRunning = isRunning;
+            ui.IsCanceling = isCanceling;
+            ui.IsRunActive = isRunActive;
+
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function value = getBool(context, fieldName, defaultValue)
+
+            arguments
+                context struct
+                fieldName (1, 1) string
+                defaultValue (1, 1) logical = false
+            end
+
+            value = defaultValue;
+
+            if ~isfield(context, fieldName)
+                return
+            end
+
+            try
+                raw = context.(fieldName);
+
+                if isempty(raw)
+                    return
+                end
+
+                value = logical(raw);
+
+                if ~isscalar(value)
+                    value = any(value(:));
+                end
+
+            catch
+                value = defaultValue;
+            end
+
         end
 
     end

@@ -22,7 +22,7 @@ classdef IOExps < IO
 
         % MDV
         MDVTolelrance (1, 1) double = -1e-2;
-        naturalIsotopeCorrectionMethod (1, 1) string = "skew";
+        naturalIsotopeCorrectionMethod (1, 1) string = "matrix";
 
         defaultVariableNamesListSubstrate string;
         defaultVariableTypesListSubstrate string;

@@ -31,6 +31,10 @@ classdef Batch < handle
 
     end % properties (Dependent)
 
+    properties (Access = private)
+        FluxAnalysisListeners event.listener = event.listener.empty(0, 1)
+    end % properties (Access = private)
+
     methods
 
         % Constructor
@@ -1351,8 +1355,7 @@ classdef Batch < handle
                     obj ...
                 );
 
-                addlistener(mfa, 'GeneralMsg', @(~, event) notify(obj, 'GeneralMsg', event));
-                addlistener(mfa, 'FluxResult', @(~, event) notify(obj, 'FluxResult', event));
+                obj.attachFluxAnalysisListeners(mfa);
 
                 % Calculate flux distribution
                 mfa.calculateFluxDistribution();
@@ -1508,6 +1511,45 @@ classdef Batch < handle
             end % for i = 1:numel(fields)
 
         end % function fillMissingFields
+
+        function attachFluxAnalysisListeners(obj, mfa)
+
+            obj.clearFluxAnalysisListeners();
+
+            obj.FluxAnalysisListeners(end + 1, 1) = addlistener( ...
+                mfa, ...
+                'GeneralMsg', ...
+                @(src, event) notify(obj, 'GeneralMsg', event));
+
+            obj.FluxAnalysisListeners(end + 1, 1) = addlistener( ...
+                mfa, ...
+                'FluxResult', ...
+                @(src, event) notify(obj, 'FluxResult', event));
+
+        end % method attachFluxAnalysisListeners
+
+        function clearFluxAnalysisListeners(obj)
+
+            if isempty(obj.FluxAnalysisListeners)
+                return
+            end
+
+            for i = 1:numel(obj.FluxAnalysisListeners)
+
+                try
+
+                    if isvalid(obj.FluxAnalysisListeners(i))
+                        delete(obj.FluxAnalysisListeners(i));
+                    end
+
+                catch
+                end
+
+            end
+
+            obj.FluxAnalysisListeners = event.listener.empty(0, 1);
+
+        end % method clearFluxAnalysisListeners
 
     end % methods (Access = private)
 
