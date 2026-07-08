@@ -208,6 +208,8 @@ classdef EMUModel < Stoichiometry
             obj.globalBn = [];
             obj.globalBnEMUName = {};
             obj.globalBnList = [];
+            obj.globalCn = [];
+            obj.globalCnDiag = [];
             obj.globalXn = [];
             obj.globalXnList = [];
             obj.globalYn = [];
@@ -705,30 +707,30 @@ classdef EMUModel < Stoichiometry
             % tspan: (p x 1) double
             %    Time span for simulation
 
-            maxAn = max(obj.tableEMUSizeInfo.An);
-            numEMU = size(obj.tableEMUSizeInfo, 1);
+            numEMUSizeRows = size(obj.tableEMUSizeInfo, 1);
 
-            Xn = reshape(Xn, [maxAn, numEMU + 1, numEMU]);
+            Xn = reshape(Xn, size(obj.globalXn));
 
             [An, Bn] = substituteAnBnMatrix(obj, flux);
             [~, Yn] = substituteXnYnMatrix(obj, EMU, An, Bn, Xn);
             Cn = substituteCnMatrix(obj, poolsize);
             dXdT = zeros(size(Xn));
 
-            for iEMU = 1:numEMU
+            for iEMUSizeRow = 1:numEMUSizeRows
 
-                Ann = obj.tableEMUSizeInfo.An(iEMU);
-                Bnn = obj.tableEMUSizeInfo.Bn(iEMU);
-                iAn = An(1:Ann, 1:Ann, iEMU);
-                iBn = Bn(1:Ann, 1:Bnn, iEMU);
-                iCn = diag(Cn(1:Ann, iEMU));
-                iXn = Xn(1:Ann, 1:iEMU + 1, iEMU);
-                iYn = Yn(1:Bnn, 1:iEMU + 1, iEMU);
+                currentEMUSize = obj.tableEMUSizeInfo.EMUSize(iEMUSizeRow);
+                Ann = obj.tableEMUSizeInfo.An(iEMUSizeRow);
+                Bnn = obj.tableEMUSizeInfo.Bn(iEMUSizeRow);
+                iAn = An(1:Ann, 1:Ann, currentEMUSize);
+                iBn = Bn(1:Ann, 1:Bnn, currentEMUSize);
+                iCn = diag(Cn(1:Ann, currentEMUSize));
+                iXn = Xn(1:Ann, 1:currentEMUSize + 1, currentEMUSize);
+                iYn = Yn(1:Bnn, 1:currentEMUSize + 1, currentEMUSize);
 
-                dXdT(1:Ann, 1:iEMU + 1, iEMU) = ...
+                dXdT(1:Ann, 1:currentEMUSize + 1, currentEMUSize) = ...
                     iCn * (iAn * iXn - iBn * iYn);
 
-            end % for iEMU
+            end % for iEMUSizeRow
 
             dXdT = dXdT(:);
 
@@ -803,23 +805,47 @@ classdef EMUModel < Stoichiometry
             % Cn: (s * n * n) double
             %    Substituted Cn matrix
 
+            ensureCnMatrixAvailable(obj);
+
             CnBool = obj.globalCn;
             Cn = obj.globalCnDiag;
-            numEMU = size(obj.tableEMUSizeInfo, 1);
+            numEMUSizeRows = size(obj.tableEMUSizeInfo, 1);
             poolsize = double(poolsize(:));
+            numPoolMetabolites = numel(poolsize);
+            numCnMetabolites = size(CnBool, 2);
 
-            for iEMU = 1:numEMU
+            if numPoolMetabolites ~= numCnMetabolites
+                error( ...
+                    'EMUModel:PoolSizeDimensionMismatch', ...
+                    ['The pool size vector length (%d) does not match the number of ' ...
+                     'model metabolites in the EMU Cn matrix (%d). Check the INST-MFA ' ...
+                 'pool-size table and rebuild the EMU model cache if necessary.'], ...
+                    numPoolMetabolites, ...
+                    numCnMetabolites ...
+                );
+            end % if
 
-                for jMetabolite = 1:size(poolsize, 1)
+            if any(~isfinite(poolsize)) || any(poolsize <= 0)
+                error( ...
+                    'EMUModel:InvalidPoolSize', ...
+                    'INST-MFA pool sizes must be finite positive values.' ...
+                );
+            end % if
+
+            for iEMUSizeRow = 1:numEMUSizeRows
+
+                currentEMUSize = obj.tableEMUSizeInfo.EMUSize(iEMUSizeRow);
+
+                for jMetabolite = 1:numCnMetabolites
 
                     CnBoolIdx = ...
-                        CnBool(:, jMetabolite, iEMU);
-                    Cn(CnBoolIdx, iEMU) = ...
+                        CnBool(:, jMetabolite, currentEMUSize);
+                    Cn(CnBoolIdx, currentEMUSize) = ...
                         1 / poolsize(jMetabolite);
 
                 end % for jMetabolite
 
-            end % for iEMU
+            end % for iEMUSizeRow
 
         end % method substituteXCnMatrix
 
@@ -2157,6 +2183,8 @@ classdef EMUModel < Stoichiometry
             globalBnEMUName = obj.globalBnEMUName; %#ok<PROPLC>
             globalBnEMUNameMetabolite = obj.globalBnEMUNameMetabolite; %#ok<PROPLC>
             globalBnList = obj.globalBnList; %#ok<PROPLC>
+            globalCn = obj.globalCn; %#ok<PROPLC>
+            globalCnDiag = obj.globalCnDiag; %#ok<PROPLC>
             globalXn = obj.globalXn; %#ok<PROPLC>
             globalXnList = obj.globalXnList; %#ok<PROPLC>
             globalYn = obj.globalYn; %#ok<PROPLC>
@@ -2182,6 +2210,8 @@ classdef EMUModel < Stoichiometry
                     'globalBnEMUName', ...
                     'globalBnEMUNameMetabolite', ...
                     'globalBnList', ...
+                    'globalCn', ...
+                    'globalCnDiag', ...
                     'globalXn', ...
                     'globalXnList', ...
                     'globalYn', ...
@@ -2239,6 +2269,8 @@ classdef EMUModel < Stoichiometry
                     obj.(fields{i}) = loadedData.(fields{i});
                 end % for i=1:length(fields)
 
+                ensureCnMatrixAvailable(obj);
+
                 tf = true;
 
             catch ME
@@ -2247,6 +2279,60 @@ classdef EMUModel < Stoichiometry
             end % try-catch
 
         end % loadModel
+
+        function ensureCnMatrixAvailable(obj)
+            % ENSURECNMATRIXAVAILABLE Build Cn matrices when absent from an old cache.
+
+            if isCnMatrixConsistent(obj)
+                return
+            end % if
+
+            buildCnMatrix(obj);
+
+            if ~isCnMatrixConsistent(obj)
+                error( ...
+                    'EMUModel:InvalidCnMatrix', ...
+                    'Failed to build a valid Cn matrix for INST-MFA.' ...
+                );
+            end % if
+
+        end % ensureCnMatrixAvailable
+
+        function tf = isCnMatrixConsistent(obj)
+            % ISCNMATRIXCONSISTENT Validate the cached Cn matrix dimensions.
+
+            tf = false;
+
+            try
+
+                if isempty(obj.tableEMUSizeInfo) || isempty(obj.globalAnEMUNameMetabolite)
+                    return
+                end % if
+
+                info = obj.tableEMUSizeInfo;
+
+                if isempty(info) || height(info) == 0
+                    return
+                end % if
+
+                maxEMUSize = max(info.EMUSize);
+                maxAn = max(info.An);
+                numMetabolite = numel(obj.getMetaboliteTableMetabolite());
+
+                tf = ...
+                    ~isempty(obj.globalCn) && ...
+                    ~isempty(obj.globalCnDiag) && ...
+                    ~ismatrix(obj.globalCn) && ...
+                    size(obj.globalCn, 1) >= maxAn && ...
+                    size(obj.globalCn, 2) == numMetabolite && ...
+                    size(obj.globalCn, 3) >= maxEMUSize && ...
+                    size(obj.globalCnDiag, 1) >= maxAn && ...
+                    size(obj.globalCnDiag, 2) >= maxEMUSize;
+            catch
+                tf = false;
+            end % try-catch
+
+        end % isCnMatrixConsistent
 
         function resetHashFile(obj)
             % RESETHASHFILE Delete hash file
