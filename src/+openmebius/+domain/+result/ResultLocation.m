@@ -24,6 +24,12 @@ classdef ResultLocation
 
         end % resultFile
 
+        function files = resultFiles(obj)
+
+            files = dir(fullfile(obj.Directory, "*.h5"));
+
+        end % resultFiles
+
     end % methods
 
     methods (Static)

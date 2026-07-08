@@ -17,7 +17,7 @@ classdef IOResult < IO
 
     properties (SetAccess = private)
 
-        directoryResult (1, 1) string
+        ResultLocation openmebius.domain.result.ResultLocation
 
     end % properties
 
@@ -29,12 +29,7 @@ classdef IOResult < IO
             resultLocation = IOResult.resolveResultLocation(resultInput);
 
             obj@IO(resultLocation.Directory);
-
-            if obj.isError
-                obj.directoryResult = "";
-            else
-                obj.directoryResult = resultLocation.Directory;
-            end
+            obj.ResultLocation = resultLocation;
 
         end % constructor
 
@@ -468,8 +463,7 @@ classdef IOResult < IO
             end % arguments
 
             % Load the result file
-            filename = batchID + ".h5";
-            filePath = fullfile(obj.directoryResult, filename);
+            filePath = obj.ResultLocation.resultFile(batchID);
 
             if ~isfile(filePath)
                 notifyGeneralMessage(obj, "error", "Result file does not exist.");
@@ -549,8 +543,7 @@ classdef IOResult < IO
             % Load the result file
             isExist = true;
             data = struct;
-            filename = batchID + ".h5";
-            filePath = fullfile(obj.directoryResult, filename);
+            filePath = obj.ResultLocation.resultFile(batchID);
 
             if ~isfile(filePath)
                 isExist = false;
@@ -683,14 +676,14 @@ classdef IOResult < IO
             obj.IDs = ids;
             obj.dataMask = dataMask;
 
-            if ~isfolder(obj.directoryResult)
+            if ~isfolder(obj.ResultLocation.Directory)
                 obj.isError = true;
                 notifyGeneralMessage(obj, "error", "Result directory does not exist.");
                 return;
             end
 
             % Get all files in the directory
-            files = dir(fullfile(obj.directoryResult, '*.h5'));
+            files = obj.ResultLocation.resultFiles();
 
             if isempty(files)
                 return;
@@ -749,24 +742,13 @@ classdef IOResult < IO
 
             data = struct;
 
-            if ~isfolder(obj.directoryResult)
+            if ~isfolder(obj.ResultLocation.Directory)
                 obj.isError = true;
                 notifyGeneralMessage(obj, "error", "Result directory does not exist.");
                 return;
             end
 
-            % Get all files in the directory
-            files = dir(fullfile(obj.directoryResult, '*.h5'));
-
-            if isempty(files)
-                return;
-            end
-
-            % Remove the extension
-            iFilename = string(char(files.name));
-            idx = find(contains(iFilename, obj.IDs), 1);
-
-            if isempty(idx)
+            if ~isfile(obj.ResultLocation.resultFile(id))
                 return;
             end
 
@@ -1129,7 +1111,7 @@ classdef IOResult < IO
             end % arguments
 
             % Load the result file
-            filePath = fullfile(obj.directoryResult, id + ".h5");
+            filePath = obj.ResultLocation.resultFile(id);
 
             if ~isfile(filePath)
                 notifyGeneralMessage(obj, "error", "Result file does not exist.");
