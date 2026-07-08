@@ -175,6 +175,16 @@ classdef IOExp < IO
                 checkVariable = false ...
             );
 
+            if obj.isError
+                obj.tableMS = table();
+                reset(obj);
+                updateMsg(obj, ...
+                    "The MS sheet was not loaded. Stored MDV-derived sheets will still be checked.", ...
+                    "Warning", obj.logLevel);
+            end
+
+            loadDerivedExcelData(obj);
+
         end % loadExcelData
 
         function loadMSData(obj, sheetName, options)
@@ -302,6 +312,160 @@ classdef IOExp < IO
     end % methods
 
     methods (Access = private)
+
+        function loadDerivedExcelData(obj)
+            % LOADDERIVEDEXCELDATA Load optional MDV-derived sheets.
+
+            derivedTableIdx = 4:length(obj.strTableList);
+
+            for i = derivedTableIdx
+
+                tableName = obj.strTableList(i);
+                sheetName = obj.strTableSheetName(i);
+
+                obj.(tableName) = importOptionalExcelSheet( ...
+                    obj, ...
+                    sheetName, ...
+                    obj.tableReadRowName(i) ...
+                );
+
+            end % for i
+
+        end % loadDerivedExcelData
+
+        function data = importOptionalExcelSheet(obj, sheetName, readRowNames)
+
+            arguments
+                obj
+                sheetName (1, 1) string
+                readRowNames (1, 1) logical
+            end
+
+            actualSheetName = resolveOptionalSheetName(obj, sheetName);
+
+            try
+                data = readtable( ...
+                    obj.pathExp, ...
+                    'Sheet', actualSheetName, ...
+                    'ReadRowNames', readRowNames, ...
+                    'ReadVariableNames', true ...
+                );
+                obj.reset();
+            catch
+                data = table();
+                obj.reset();
+            end
+
+        end % importOptionalExcelSheet
+
+        function sheetName = resolveOptionalSheetName(obj, preferredSheetName)
+
+            arguments
+                obj
+                preferredSheetName (1, 1) string
+            end
+
+            sheetName = preferredSheetName;
+            workbookSheets = getWorkbookSheetNames(obj);
+
+            if isempty(workbookSheets)
+                return
+            end
+
+            aliases = getOptionalSheetAliases(obj, preferredSheetName);
+            normalizedWorkbookSheets = normalizeSheetName(obj, workbookSheets);
+
+            for iAlias = 1:length(aliases)
+
+                normalizedAlias = normalizeSheetName(obj, aliases(iAlias));
+                idx = find(normalizedWorkbookSheets == normalizedAlias, 1);
+
+                if ~isempty(idx)
+                    sheetName = workbookSheets(idx);
+                    return
+                end
+
+            end % for iAlias
+
+        end % resolveOptionalSheetName
+
+        function aliases = getOptionalSheetAliases(~, preferredSheetName)
+            % GETOPTIONALSHEETALIASES Return accepted aliases for derived
+            % experiment sheets.
+
+            switch preferredSheetName
+                case "MS (Normalized)"
+                    aliases = [ ...
+                                   "MS (Normalized)", ...
+                                   "MS Normalized", ...
+                                   "MS normalized data", ...
+                                   "MS normarized data", ...
+                                   "MSNormalized", ...
+                                   "MS_Normalized", ...
+                                   "正規化MS" ...
+                               ];
+                case "MDV"
+                    aliases = [ ...
+                                   "MDV", ...
+                                   "MDV (Mass distribution vectors)", ...
+                                   "Mass distribution vectors", ...
+                                   "Mass distribution vector" ...
+                               ];
+                case "MDV (biomass)"
+                    aliases = [ ...
+                                   "MDV (biomass)", ...
+                                   "MDV (Biomass)", ...
+                                   "MDV biomass", ...
+                                   "MDVBiomass", ...
+                                   "MDV_Biomass", ...
+                                   "Biomass corrected MDV", ...
+                                   "Biomass-corrected MDV", ...
+                                   "Biomass-corrected mass distribution vectors", ...
+                                   "Corrected MDV", ...
+                                   "corrected MDV", ...
+                                   "補正済みMDV", ...
+                                   "バイオマス補正MDV" ...
+                               ];
+                case "Enrichment"
+                    aliases = [ ...
+                                   "Enrichment", ...
+                                   "Atom enrichment", ...
+                                   "Enrichment data", ...
+                                   "濃縮率" ...
+                               ];
+                otherwise
+                    aliases = preferredSheetName;
+            end % switch
+
+            aliases = unique([preferredSheetName aliases], "stable");
+
+        end % getOptionalSheetAliases
+
+        function sheetNames = getWorkbookSheetNames(obj)
+
+            try
+                sheetNames = string(sheetnames(obj.pathExp));
+                sheetNames = sheetNames(:);
+                return
+            catch
+            end
+
+            try
+                [~, sheets] = xlsfinfo(obj.pathExp);
+                sheetNames = string(sheets);
+                sheetNames = sheetNames(:);
+            catch
+                sheetNames = strings(0, 1);
+            end
+
+        end % getWorkbookSheetNames
+
+        function normalized = normalizeSheetName(~, sheetNames)
+
+            normalized = lower(string(sheetNames));
+            normalized = regexprep(normalized, "[\s_\-\(\)]", "");
+
+        end % normalizeSheetName
 
         function setupTableVariableNames(obj)
 

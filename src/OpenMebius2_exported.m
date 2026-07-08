@@ -48,6 +48,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         GridLayout14 matlab.ui.container.GridLayout
         BiomassTable matlab.ui.control.Table
         GridLayout12_3 matlab.ui.container.GridLayout
+        ExpImportButton_2 matlab.ui.control.Button
         ExpImportButton matlab.ui.control.Button
         ExpReloadButton matlab.ui.control.Button
         ExpSaveButton matlab.ui.control.Button
@@ -856,6 +857,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.ExpTable.Enable = value;
                 app.BiomassTable.Enable = value;
                 app.ExpImportButton.Enable = value;
+                app.ExpCalculationButton.Enable = value;
                 app.ExpReloadButton.Enable = value;
                 app.ExpSaveButton.Enable = value;
 
@@ -1520,6 +1522,80 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.isEnabled(app.ResultReloadButton);
 
         end % method capturePresentationContext
+
+        function [status, msg] = extractGeneralMessagePayload(~, event)
+
+            payload = event;
+
+            % Unwrap event.EventData / BatchProgressEventData / nested struct.
+            for i = 1:5
+
+                if isstruct(payload) && ...
+                        isfield(payload, 'status') && ...
+                        isfield(payload, 'msg')
+                    break
+                end
+
+                if isobject(payload)
+
+                    try
+
+                        if isprop(payload, 'data')
+                            payload = payload.data;
+                            continue
+                        end
+
+                    catch
+                    end
+
+                end
+
+                if isstruct(payload) && isfield(payload, 'data')
+                    payload = payload.data;
+                    continue
+                end
+
+                break
+            end
+
+            if ~isstruct(payload) || ...
+                    ~isfield(payload, 'status') || ...
+                    ~isfield(payload, 'msg')
+
+                error( ...
+                    "OpenMebius2:Notification:InvalidGeneralMessagePayload", ...
+                "GeneralMsg event does not contain status/msg payload.");
+            end
+
+            status = lower(string(payload.status));
+            msg = string(payload.msg);
+
+            if isempty(msg)
+                msg = "";
+            else
+                msg = msg(1);
+            end
+
+            if isempty(status)
+                status = "info";
+            else
+                status = status(1);
+            end
+
+            switch status
+                case {"info", "warning", "error", "success"}
+                    % keep
+                case {"warn"}
+                    status = "warning";
+                case {"err", "exception"}
+                    status = "error";
+                case {"ok", "finished", "complete", "completed"}
+                    status = "success";
+                otherwise
+                    status = "info";
+            end
+
+        end % method extractGeneralMessagePayload
 
         function tf = isLoadedObject(app, value)
             % ISLOADEDOBJECT
@@ -3595,18 +3671,32 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function statusBatch
 
-        function statusGeneralMsg(app, data)
+        function statusGeneralMsg(app, event)
 
-            data = data.data;
+            try
+                [status, msg] = app.extractGeneralMessagePayload(event);
 
-            notification = ...
-                openmebius.presentation.notification.Notification( ...
-                string(data.msg), ...
-                string(data.status));
+                notification = ...
+                    openmebius.presentation.notification.Notification( ...
+                    msg, ...
+                    status);
 
-            app.showNotification(notification);
+                app.showNotification(notification);
 
-        end % function statusGeneralMsg
+            catch ME
+                % Event callback内で例外を握り潰すと通知消失に見えるため、
+                % 最低限LogTextAreaへ落とす。
+                try
+                    app.appendLogText( ...
+                        "[ERROR] Failed to handle GeneralMsg event: " + ...
+                        string(ME.message));
+                catch
+                    disp(ME.message)
+                end
+
+            end
+
+        end % method statusGeneralMsg
 
         function checkLatestVersionOnStartup(app)
             % CHECKLATESTVERSIONONSTARTUP Checks whether a newer version exists.
@@ -5124,6 +5214,60 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end
 
+        % Button pushed function: ExpImportButton_2
+        function ExpImportButton_2Pushed(app, event)
+
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+
+            try
+                app.updateStatus("experiment", "running");
+
+                updateModel(app);
+
+                err = app.exp.updateExpData(app.ExpTable.Data, "Info");
+
+                if err
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                err = app.exp.updateExpData(app.UptakeTable.Data, "Uptake");
+
+                if err
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                err = app.exp.updateExpData(app.LabelTable.Data, "Tracer");
+
+                if err
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                app.exp.calculateMDV();
+
+                if app.exp.isError
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                app.batch.updateExperimentalData(app.exp);
+                app.updateStatus("experiment", "finished");
+
+                app.notifyInfo("MDV-derived tables have been updated successfully.");
+
+            catch ME
+                app.updateStatus("experiment", "error");
+                app.notifyError("An error occurred while updating MDV-derived tables: " + ME.message);
+            end
+
+        end
+
     end
 
     % Component initialization
@@ -5589,6 +5733,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ExpImportButton.Layout.Row = 1;
             app.ExpImportButton.Layout.Column = 6;
             app.ExpImportButton.Text = 'Import data';
+
+            % Create ExpImportButton_2
+            app.ExpImportButton_2 = uibutton(app.GridLayout12_3, 'push');
+            app.ExpImportButton_2.ButtonPushedFcn = createCallbackFcn(app, @ExpImportButton_2Pushed, true);
+            app.ExpImportButton_2.Enable = 'off';
+            app.ExpImportButton_2.Layout.Row = 1;
+            app.ExpImportButton_2.Layout.Column = 5;
+            app.ExpImportButton_2.Text = 'Calculate MDV';
+            app.ExpImportButton_2.Tooltip = {'Calculate MS-normalized data, MDV, biomass-corrected MDV, enrichment and fragment availability.'};
 
             % Create GridLayout13_2
             app.GridLayout13_2 = uigridlayout(app.GridLayout11_3);

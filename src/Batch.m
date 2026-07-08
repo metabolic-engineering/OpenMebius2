@@ -31,6 +31,10 @@ classdef Batch < handle
 
     end % properties (Dependent)
 
+    properties (Access = private)
+        FluxAnalysisListeners event.listener = event.listener.empty(0, 1)
+    end % properties (Access = private)
+
     methods
 
         % Constructor
@@ -673,6 +677,21 @@ classdef Batch < handle
             config.status = 'ready';
             config.deleteResultFile = true;
 
+            config.optimizationMethod = 'hybrid-ga-gradient';
+            config.GA.populationSize = 50;
+            config.GA.generations = 40;
+            config.GA.eliteCount = 2;
+            config.GA.tournamentSize = 3;
+            config.GA.crossoverFraction = 0.8;
+            config.GA.mutationRate = 0.2;
+            config.GA.mutationScale = 0.10;
+            config.GA.penaltyScale = 1e6;
+            config.GA.feasibilityTolerance = 1e-8;
+            config.GA.functionTolerance = 1e-9;
+            config.GA.stallGenerations = 10;
+            config.GA.seed = 0;
+            config.GA.maxInitialSeeds = 50;
+
             % MS fragment selection configuration
             config.isSelectMSFragment = false;
             % all: all fragments
@@ -1304,7 +1323,16 @@ classdef Batch < handle
 
             status = "finished";
 
-            obj.exp.calculateMDV();
+            if ~obj.exp.hasCalculatedMDV()
+                status = "error";
+
+                type = "GeneralMsg";
+                ed = struct;
+                ed.status = "error";
+                ed.msg = "MDV data has not been calculated. Press the Calculate MDV button before running batch jobs.";
+                notify(obj, 'GeneralMsg', BatchProgressEventData(type, ed));
+                return
+            end
 
             for i = 1:height(obj.tableBatch)
 
@@ -1351,8 +1379,7 @@ classdef Batch < handle
                     obj ...
                 );
 
-                addlistener(mfa, 'GeneralMsg', @(~, event) notify(obj, 'GeneralMsg', event));
-                addlistener(mfa, 'FluxResult', @(~, event) notify(obj, 'FluxResult', event));
+                obj.attachFluxAnalysisListeners(mfa);
 
                 % Calculate flux distribution
                 mfa.calculateFluxDistribution();
@@ -1508,6 +1535,45 @@ classdef Batch < handle
             end % for i = 1:numel(fields)
 
         end % function fillMissingFields
+
+        function attachFluxAnalysisListeners(obj, mfa)
+
+            obj.clearFluxAnalysisListeners();
+
+            obj.FluxAnalysisListeners(end + 1, 1) = addlistener( ...
+                mfa, ...
+                'GeneralMsg', ...
+                @(src, event) notify(obj, 'GeneralMsg', event));
+
+            obj.FluxAnalysisListeners(end + 1, 1) = addlistener( ...
+                mfa, ...
+                'FluxResult', ...
+                @(src, event) notify(obj, 'FluxResult', event));
+
+        end % method attachFluxAnalysisListeners
+
+        function clearFluxAnalysisListeners(obj)
+
+            if isempty(obj.FluxAnalysisListeners)
+                return
+            end
+
+            for i = 1:numel(obj.FluxAnalysisListeners)
+
+                try
+
+                    if isvalid(obj.FluxAnalysisListeners(i))
+                        delete(obj.FluxAnalysisListeners(i));
+                    end
+
+                catch
+                end
+
+            end
+
+            obj.FluxAnalysisListeners = event.listener.empty(0, 1);
+
+        end % method clearFluxAnalysisListeners
 
     end % methods (Access = private)
 
