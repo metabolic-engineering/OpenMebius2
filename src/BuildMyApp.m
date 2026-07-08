@@ -5,7 +5,7 @@ function BuildMyApp
     exeSplash = fullfile(pwd, "+img", "splash.png");
 
     system = System();
-    latestTag = system.getLatestTag();
+    latestTag = system.getCurrentVersion();
 
     outDir = fullfile(pwd, "../build", "openmebius2");
 
