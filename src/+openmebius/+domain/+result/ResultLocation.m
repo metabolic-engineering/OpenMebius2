@@ -24,6 +24,12 @@ classdef ResultLocation
 
         end % resultFile
 
+        function path = reportFile(obj, fileName)
+
+            path = fullfile(obj.Directory, string(fileName));
+
+        end % reportFile
+
         function tf = hasResultFile(obj, id)
 
             tf = isfile(obj.resultFile(id));
@@ -39,6 +45,18 @@ classdef ResultLocation
     end % methods
 
     methods (Static)
+
+        function obj = fromInput(input)
+
+            if isa(input, 'openmebius.domain.result.ResultLocation')
+                obj = input;
+                return;
+            end
+
+            obj = openmebius.domain.result.ResultLocation.fromDirectory( ...
+                string(input));
+
+        end % fromInput
 
         function obj = fromDirectory(directory)
 

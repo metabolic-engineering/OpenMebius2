@@ -1325,8 +1325,9 @@ classdef Batch < handle
             % obj: Batch
             %     Batch
 
-            resultLocation = Batch.resolveResultLocation(fileDirectory);
-            resultDirectory = resultLocation.Directory;
+            resultLocation = ...
+                openmebius.domain.result.ResultLocation.fromInput( ...
+                fileDirectory);
             status = "finished";
 
             if ~obj.exp.hasCalculatedMDV()
@@ -1377,7 +1378,7 @@ classdef Batch < handle
                     obj.exp, ...
                     obj.tableBatch.exp(i), ...
                     obj.tableBatch.config(i), ...
-                    resultDirectory, ...
+                    resultLocation, ...
                     obj.tableBatch.id(i), ...
                     obj ...
                 );
@@ -1612,19 +1613,6 @@ classdef Batch < handle
                 .fromDirectory(string(experimentInput));
 
         end % resolveExperimentLocation
-
-        function resultLocation = resolveResultLocation(resultInput)
-
-            if isa(resultInput, 'openmebius.domain.result.ResultLocation')
-                resultLocation = resultInput;
-                return;
-            end
-
-            resultLocation = ...
-                openmebius.domain.result.ResultLocation.fromDirectory( ...
-                string(resultInput));
-
-        end % resolveResultLocation
 
         function updatedConfig = updateINSTMFATable(currentConfig, newTimeCourse, newTimePoints)
             % UPDATEINSTMFATABLE Update INST-MFA table
