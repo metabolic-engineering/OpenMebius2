@@ -201,11 +201,9 @@ classdef EMUModelSym < Stoichiometry
                 return;
             end
 
-            fileDirectory = obj.fileDirectory;
-
             if ~obj.isUpdatedModel
                 % Load model from file
-                isSucceeded = loadModelFromFile(obj, fileDirectory);
+                isSucceeded = loadModelFromFile(obj);
 
                 if isSucceeded
                     return;
@@ -368,20 +366,12 @@ classdef EMUModelSym < Stoichiometry
 
         end % constructEMUNetwork
 
-        function tf = loadModelFromFile(obj, fileDirectory)
+        function tf = loadModelFromFile(obj)
             % LOADMODELFROMFILE Load model from file
             %
-            % Parameters
-            % ----------
-            % fileDirectory: string
-            %    File directory of the EMU model
-            %
-            % Returns
-            % -------
-            % None
+            % The cache location is resolved by IOModel.pathCache.
 
-            filename = obj.fileModel + ".mat";
-            filepath = fullfile(fileDirectory, filename);
+            filepath = obj.pathCache;
 
             try
                 load(filepath, "matrixX", "matrixXsym", "matrixY", "matrixYsym", "matrixA", "matrixB", ...
@@ -2152,8 +2142,7 @@ classdef EMUModelSym < Stoichiometry
                              'tableEMUReaction' ...
                          };
 
-            filename = obj.fileModel + ".mat";
-            filePath = fullfile(obj.fileDirectory, filename);
+            filePath = obj.pathCache;
 
             matrixX = obj.matrixX;
             matrixXsym = obj.matrixXsym;
@@ -2194,8 +2183,7 @@ classdef EMUModelSym < Stoichiometry
             % -------
             % None
 
-            filename = obj.fileModel + ".hash";
-            filePath = fullfile(obj.fileDirectory, filename);
+            filePath = obj.pathHash;
 
             if isfile(filePath)
                 delete(filePath);

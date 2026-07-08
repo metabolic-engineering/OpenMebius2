@@ -79,6 +79,7 @@ classdef IOModel < IO
         pathLabel (1, 1) string;
         pathPathway (1, 1) string;
         pathHash (1, 1) string;
+        pathCache (1, 1) string;
 
         % Dependent table for GUI
         tableModelGUI table;
@@ -168,6 +169,10 @@ classdef IOModel < IO
         function pathHash = get.pathHash(obj)
             pathHash = obj.ModelLocation.hashFile(obj.fileModel);
         end % get.pathHash
+
+        function pathCache = get.pathCache(obj)
+            pathCache = obj.ModelLocation.cacheFile(obj.fileModel);
+        end % get.pathCache
 
         function tableModelGUI = get.tableModelGUI(obj)
 
