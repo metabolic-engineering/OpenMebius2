@@ -1247,11 +1247,13 @@ classdef Batch < handle
             %     File directory name
 
             if nargin < 2
-                fileDirectory = obj.exp.fileDirectory;
+                experimentLocation = obj.getExperimentLocation();
+            else
+                experimentLocation = Batch.resolveExperimentLocation(fileDirectory);
             end
 
-            ioInstance = IO(fileDirectory);
-            filenameBatch = fullfile(fileDirectory, obj.filename);
+            ioInstance = IO(experimentLocation.Directory);
+            filenameBatch = experimentLocation.batchFile(obj.filename);
 
             ioInstance.exportJSONFile(filenameBatch, obj.tableBatch);
 
@@ -1275,13 +1277,15 @@ classdef Batch < handle
             %     Message
 
             if nargin < 2
-                fileDirectory = obj.exp.fileDirectory;
+                experimentLocation = obj.getExperimentLocation();
+            else
+                experimentLocation = Batch.resolveExperimentLocation(fileDirectory);
             end
 
             isError = false;
 
-            ioInstance = IO(fileDirectory);
-            filenameBatch = fullfile(fileDirectory, obj.filename);
+            ioInstance = IO(experimentLocation.Directory);
+            filenameBatch = experimentLocation.batchFile(obj.filename);
 
             batch = ioInstance.importJSONFile(filenameBatch);
             msg = ioInstance.statusMsg();
@@ -1321,6 +1325,8 @@ classdef Batch < handle
             % obj: Batch
             %     Batch
 
+            resultLocation = Batch.resolveResultLocation(fileDirectory);
+            resultDirectory = resultLocation.Directory;
             status = "finished";
 
             if ~obj.exp.hasCalculatedMDV()
@@ -1357,10 +1363,7 @@ classdef Batch < handle
 
                 % Delete previous result files
                 if obj.tableBatch.config(i).deleteResultFile
-                    filename = fullfile( ...
-                        fileDirectory, ...
-                        obj.tableBatch.id(i) + ".h5" ...
-                    ); %#ok<PROPLC>
+                    filename = resultLocation.resultFile(obj.tableBatch.id(i)); %#ok<PROPLC>
 
                     if isfile(filename) %#ok<PROPLC>
                         delete(filename); %#ok<PROPLC>
@@ -1374,7 +1377,7 @@ classdef Batch < handle
                     obj.exp, ...
                     obj.tableBatch.exp(i), ...
                     obj.tableBatch.config(i), ...
-                    fileDirectory, ...
+                    resultDirectory, ...
                     obj.tableBatch.id(i), ...
                     obj ...
                 );
@@ -1575,9 +1578,53 @@ classdef Batch < handle
 
         end % method clearFluxAnalysisListeners
 
+        function experimentLocation = getExperimentLocation(obj)
+
+            try
+                experimentLocation = obj.exp.ExperimentLocation;
+
+                if ~isempty(experimentLocation)
+                    return;
+                end
+
+            catch
+            end
+
+            experimentLocation = Batch.resolveExperimentLocation( ...
+                obj.exp.fileDirectory);
+
+        end % method getExperimentLocation
+
     end % methods (Access = private)
 
     methods (Static, Access = private)
+
+        function experimentLocation = resolveExperimentLocation(experimentInput)
+
+            if isa(experimentInput, ...
+                    'openmebius.domain.experiment.ExperimentLocation')
+                experimentLocation = experimentInput;
+                return;
+            end
+
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(string(experimentInput));
+
+        end % resolveExperimentLocation
+
+        function resultLocation = resolveResultLocation(resultInput)
+
+            if isa(resultInput, 'openmebius.domain.result.ResultLocation')
+                resultLocation = resultInput;
+                return;
+            end
+
+            resultLocation = ...
+                openmebius.domain.result.ResultLocation.fromDirectory( ...
+                string(resultInput));
+
+        end % resolveResultLocation
 
         function updatedConfig = updateINSTMFATable(currentConfig, newTimeCourse, newTimePoints)
             % UPDATEINSTMFATABLE Update INST-MFA table

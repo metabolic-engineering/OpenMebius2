@@ -18,6 +18,32 @@ classdef ExperimentLocation
 
         end % constructor
 
+        function path = workbookFile(obj, fileName)
+
+            path = fullfile(obj.Directory, string(fileName));
+
+        end % workbookFile
+
+        function path = batchFile(obj, fileName)
+
+            path = fullfile(obj.Directory, string(fileName));
+
+        end % batchFile
+
+        function name = experimentName(~, fileName)
+
+            [~, name] = fileparts(string(fileName));
+            name = string(name);
+
+        end % experimentName
+
+        function files = filesByType(obj, fileType)
+
+            listing = dir(fullfile(obj.Directory, "*." + string(fileType)));
+            files = string({listing.name});
+
+        end % filesByType
+
     end % methods
 
     methods (Static)

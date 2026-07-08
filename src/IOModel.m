@@ -535,6 +535,12 @@ classdef IOModel < IO
 
         end % function getIOStatus
 
+        function modelLocation = getModelLocation(obj)
+
+            modelLocation = obj.ModelLocation;
+
+        end % function getModelLocation
+
         function tableOut = getModelTable(obj)
 
             tableOut = obj.tableModel;

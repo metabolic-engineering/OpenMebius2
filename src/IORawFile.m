@@ -2,6 +2,12 @@ classdef IORawFile
 
     properties
 
+        RawDataLocation openmebius.domain.raw.RawDataLocation
+
+    end % properties
+
+    properties (Dependent)
+
         fileDirectory
 
     end % properties
@@ -9,17 +15,35 @@ classdef IORawFile
     methods
 
         %% Constructor
-        function obj = IORawFile(fileDirectory)
+        function obj = IORawFile(rawInput)
 
-            obj.fileDirectory = fileDirectory;
+            obj.RawDataLocation = IORawFile.resolveRawDataLocation(rawInput);
 
         end % function
+
+        function fileDirectory = get.fileDirectory(obj)
+
+            if isempty(obj.RawDataLocation)
+                fileDirectory = "";
+                return;
+            end
+
+            fileDirectory = obj.RawDataLocation.Directory;
+
+        end % get.fileDirectory
+
+        function obj = set.fileDirectory(obj, fileDirectory)
+
+            obj.RawDataLocation = IORawFile.resolveRawDataLocation(fileDirectory);
+
+        end % set.fileDirectory
 
         %% Public utilization method
         function [isError, output] = readMSDataFromShimadzuASCII(obj, toSavePath, fragmentList)
 
             isError = false;
             output = '';
+            targetLocation = IORawFile.resolveExperimentLocation(toSavePath);
 
             if ~obj.validateFileDirectory()
                 isError = true;
@@ -27,12 +51,12 @@ classdef IORawFile
                 return;
             end
 
-            textList = dir(append(obj.fileDirectory, '\*.txt'));
-            numFile = size(textList, 1);
+            textList = obj.RawDataLocation.textFiles();
+            numFile = length(textList);
 
             for i = 1:numFile
 
-                filename = fullfile(obj.fileDirectory, textList(i).name);
+                filename = obj.RawDataLocation.textFile(textList(i));
                 [data, isError, output] = obj.readTextData(filename);
 
                 if isError
@@ -40,9 +64,9 @@ classdef IORawFile
                     continue;
                 end
 
-                [~, name, ~] = fileparts(textList(i).name);
+                [~, name, ~] = fileparts(textList(i));
 
-                filename = fullfile(toSavePath, append(name, '.xlsx'));
+                filename = targetLocation.workbookFile(string(name) + ".xlsx");
 
                 data = data(:, {'Name', 'Area'});
 
@@ -173,10 +197,41 @@ classdef IORawFile
         %% Private validation method
         function isValid = validateFileDirectory(obj)
 
-            isValid = isfolder(obj.fileDirectory);
+            isValid = isfolder(obj.RawDataLocation.Directory);
 
         end % function
 
     end % methods (Private)
+
+    methods (Static, Access = private)
+
+        function rawDataLocation = resolveRawDataLocation(rawInput)
+
+            if isa(rawInput, 'openmebius.domain.raw.RawDataLocation')
+                rawDataLocation = rawInput;
+                return;
+            end
+
+            rawDataLocation = ...
+                openmebius.domain.raw.RawDataLocation.fromDirectory( ...
+                string(rawInput));
+
+        end % resolveRawDataLocation
+
+        function experimentLocation = resolveExperimentLocation(experimentInput)
+
+            if isa(experimentInput, ...
+                    'openmebius.domain.experiment.ExperimentLocation')
+                experimentLocation = experimentInput;
+                return;
+            end
+
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(string(experimentInput));
+
+        end % resolveExperimentLocation
+
+    end % methods (Static, Access = private)
 
 end % classdef
