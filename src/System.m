@@ -14,7 +14,7 @@ classdef System < handle
             % GETCURRENTVERSION Returns the version of this application build.
             % Update this value when creating a new release tag.
 
-            version = "2.4.0";
+            version = "2.4.1";
 
         end % function version = getCurrentVersion()
 
