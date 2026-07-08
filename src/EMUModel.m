@@ -118,19 +118,21 @@ classdef EMUModel < Stoichiometry
 
     methods
 
-        function obj = EMUModel(fileDirectory)
+        function obj = EMUModel(modelInput)
             % EMUMODEL: Constructor for the EMUModel class.
             %
             % Parameters:
             % -----------
-            % fileDirectory (1 x 1) string
-            %     File directory containing the model files.
+            % modelInput
+            %     File directory or openmebius.domain.model.ModelLocation.
 
-            obj = obj@Stoichiometry(fileDirectory);
+            obj = obj@Stoichiometry(modelInput);
 
             if obj.isError
                 return
             end
+
+            fileDirectory = obj.fileDirectory;
 
             if ~obj.isUpdatedModel
 

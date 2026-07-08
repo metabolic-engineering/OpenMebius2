@@ -182,24 +182,26 @@ classdef EMUModelSym < Stoichiometry
 
     methods (Access = public)
 
-        function obj = EMUModelSym(fileDirectory)
+        function obj = EMUModelSym(modelInput)
             % EMUMODEL Constructor
             %
             % Parameters
             % ----------
-            % fileDirectory: string
-            %    File directory of the EMU model
+            % modelInput
+            %    File directory or openmebius.domain.model.ModelLocation.
             %
             % Returns
             % -------
             % obj: EMUModel
             %    EMUModel object
 
-            obj = obj@Stoichiometry(fileDirectory);
+            obj = obj@Stoichiometry(modelInput);
 
             if obj.isError
                 return;
             end
+
+            fileDirectory = obj.fileDirectory;
 
             if ~obj.isUpdatedModel
                 % Load model from file

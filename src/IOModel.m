@@ -55,6 +55,7 @@ classdef IOModel < IO
         modelMetaboliteProduct table;
         MSMetaboliteReactant table;
         MSMetaboliteProduct table;
+        ModelLocation openmebius.domain.model.ModelLocation
 
         errorColumnsModel (1, :) double = [];
         errorColumnsMS (1, :) double = [];
@@ -90,9 +91,12 @@ classdef IOModel < IO
     %% General methods
     methods
 
-        function obj = IOModel(fileDirectory)
+        function obj = IOModel(modelInput)
 
-            obj = obj@IO(fileDirectory);
+            modelLocation = IOModel.resolveModelLocation(modelInput);
+
+            obj = obj@IO(modelLocation.Directory);
+            obj.ModelLocation = modelLocation;
 
             if obj.isError
                 return;
@@ -141,22 +145,28 @@ classdef IOModel < IO
         % Dependent properties
         % Get the file name
         function pathModel = get.pathModel(obj)
-            pathModel = fullfile(obj.fileDirectory, obj.fileModel + "." + obj.fileTypeModel);
+            pathModel = obj.ModelLocation.modelFile( ...
+                obj.fileModel, ...
+                obj.fileTypeModel);
         end % get.pathModel
 
         % Get the file name
         function pathPathway = get.pathPathway(obj)
-            pathPathway = fullfile(obj.fileDirectory, obj.filePathway + "." + obj.fileTypePathway);
+            pathPathway = obj.ModelLocation.pathwayFile( ...
+                obj.filePathway, ...
+                obj.fileTypePathway);
         end % get.pathPathway
 
         % Get the file name
         function pathLabel = get.pathLabel(obj)
-            pathLabel = fullfile(obj.fileDirectory, obj.fileLabel + "." + obj.fileTypeLabel);
+            pathLabel = obj.ModelLocation.labelFile( ...
+                obj.fileLabel, ...
+                obj.fileTypeLabel);
         end % get.pathLabel
 
         % Get the hash file
         function pathHash = get.pathHash(obj)
-            pathHash = fullfile(obj.fileDirectory, obj.fileModel + ".hash");
+            pathHash = obj.ModelLocation.hashFile(obj.fileModel);
         end % get.pathHash
 
         function tableModelGUI = get.tableModelGUI(obj)
@@ -792,6 +802,23 @@ classdef IOModel < IO
         end % function updateStructLabel
 
     end % methods (public)
+
+    methods (Static, Access = private)
+
+        function modelLocation = resolveModelLocation(modelInput)
+
+            if isa(modelInput, 'openmebius.domain.model.ModelLocation')
+                modelLocation = modelInput;
+                return
+            end
+
+            modelLocation = ...
+                openmebius.domain.model.ModelLocation.fromDirectory( ...
+                string(modelInput));
+
+        end % resolveModelLocation
+
+    end % methods (Static, Access = private)
 
     methods (Access = private)
 

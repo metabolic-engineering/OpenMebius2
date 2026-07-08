@@ -23,20 +23,39 @@ classdef IOResult < IO
 
     methods
 
-        function obj = IOResult(directoryResult)
+        function obj = IOResult(resultInput)
             % Constructor for IOResult class
 
-            obj@IO(directoryResult);
+            resultLocation = IOResult.resolveResultLocation(resultInput);
+
+            obj@IO(resultLocation.Directory);
 
             if obj.isError
                 obj.directoryResult = "";
             else
-                obj.directoryResult = directoryResult;
+                obj.directoryResult = resultLocation.Directory;
             end
 
         end % constructor
 
     end % methods
+
+    methods (Static, Access = private)
+
+        function resultLocation = resolveResultLocation(resultInput)
+
+            if isa(resultInput, 'openmebius.domain.result.ResultLocation')
+                resultLocation = resultInput;
+                return
+            end
+
+            resultLocation = ...
+                openmebius.domain.result.ResultLocation.fromDirectory( ...
+                string(resultInput));
+
+        end % resolveResultLocation
+
+    end % methods (Static, Access = private)
 
     methods (Access = public)
 

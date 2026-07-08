@@ -39,9 +39,12 @@ classdef IOExps < IO
 
     methods
 
-        function obj = IOExps(pathExps, modelInput)
+        function obj = IOExps(experimentInput, modelInput)
 
-            obj = obj@IO(pathExps);
+            experimentLocation = IOExps.resolveExperimentLocation( ...
+                experimentInput);
+
+            obj = obj@IO(experimentLocation.Directory);
 
             if obj.isError
                 return;
@@ -1081,6 +1084,24 @@ classdef IOExps < IO
 
     end % methods (Access = public)
 
+    methods (Static, Access = private)
+
+        function experimentLocation = resolveExperimentLocation(experimentInput)
+
+            if isa(experimentInput, ...
+                    'openmebius.domain.experiment.ExperimentLocation')
+                experimentLocation = experimentInput;
+                return
+            end
+
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(string(experimentInput));
+
+        end % resolveExperimentLocation
+
+    end % methods (Static, Access = private)
+
     methods (Access = private)
 
         function [model, pathModel] = resolveModelInput(obj, modelInput)
@@ -1108,6 +1129,12 @@ classdef IOExps < IO
                 end
 
                 pathModel = string(model.fileDirectory);
+                return
+            end
+
+            if isa(modelInput, 'openmebius.domain.model.ModelLocation')
+                pathModel = modelInput.Directory;
+                model = EMUModel(modelInput);
                 return
             end
 

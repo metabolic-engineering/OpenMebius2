@@ -46,6 +46,30 @@ classdef ProjectPaths < openmebius.domain.project.ProjectLayout
 
         end % method assertExists
 
+        function location = modelLocation(obj)
+
+            location = ...
+                openmebius.domain.model.ModelLocation.fromDirectory( ...
+                obj.ModelDirectory);
+
+        end % method modelLocation
+
+        function location = experimentLocation(obj)
+
+            location = ...
+                openmebius.domain.experiment.ExperimentLocation.fromDirectory( ...
+                obj.ExperimentDirectory);
+
+        end % method experimentLocation
+
+        function location = resultLocation(obj)
+
+            location = ...
+                openmebius.domain.result.ResultLocation.fromDirectory( ...
+                obj.ResultDirectory);
+
+        end % method resultLocation
+
     end % methods
 
 end % classdef
