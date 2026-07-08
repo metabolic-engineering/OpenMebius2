@@ -4093,18 +4093,79 @@ classdef FluxAnalysis < handle & IO
 
         end % function isValidateMDV
 
-        function [err, msg] = setINSTMFA(obj)
+        function [poolsize, err, msg] = alignINSTMFAPoolSize(obj, config)
+            % ALIGNINSTMFAPOOLSIZE Align pool sizes to the EMU Cn metabolite order.
 
+            poolsize = [];
             err = false;
             msg = "";
 
-            config = obj.config; %#ok<PROP>
+            modelMetabolites = string(obj.model.getMetaboliteTableMetabolite());
+            modelMetabolites = modelMetabolites(:);
+            inputPoolSize = double(config.INSTMFA.poolSize(:));
 
-            obj.isInstationary = config.isINSTMFA; %#ok<PROP>
-            obj.poolsize = double(config.INSTMFA.poolSize(:)); %#ok<PROP>;
-            obj.timePoints = double(config.INSTMFA.timePoints(:)); %#ok<PROP>
+            if isempty(modelMetabolites)
+                msg = "No model metabolites are available for INST-MFA pool-size alignment.";
+                err = true;
+                return;
+            end % if
 
-            if size(obj.poolsize, 1) < 2
+            if isfield(config.INSTMFA, "poolMetabolite") && ~isempty(config.INSTMFA.poolMetabolite)
+                inputMetabolites = string(config.INSTMFA.poolMetabolite(:));
+
+                if numel(inputMetabolites) ~= numel(inputPoolSize)
+                    msg = "The number of INST-MFA pool-size metabolites does not match the number of pool-size values.";
+                    err = true;
+                    return;
+                end % if
+
+                poolsize = nan(numel(modelMetabolites), 1);
+
+                for iMetabolite = 1:numel(modelMetabolites)
+                    matchedIdx = find(inputMetabolites == modelMetabolites(iMetabolite), 1, "first");
+
+                    if ~isempty(matchedIdx)
+                        poolsize(iMetabolite) = inputPoolSize(matchedIdx);
+                    end % if
+
+                end % for iMetabolite
+
+                missingMetabolites = modelMetabolites(isnan(poolsize));
+
+                if ~isempty(missingMetabolites)
+                    msg = "INST-MFA pool sizes are missing for: " + strjoin(missingMetabolites, ", ") + ".";
+                    err = true;
+                    return;
+                end % if
+
+                return;
+            end % if
+
+            if numel(inputPoolSize) ~= numel(modelMetabolites)
+                msg = "The number of INST-MFA pool-size values does not match the number of model metabolites.";
+                err = true;
+                return;
+            end % if
+
+            poolsize = inputPoolSize;
+
+        end % method alignINSTMFAPoolSize
+
+        function [err, msg] = setINSTMFA(obj)
+
+            config = obj.config;
+
+            obj.isInstationary = config.isINSTMFA;
+            [obj.poolsize, err, msg] = alignINSTMFAPoolSize(obj, config);
+
+            if err
+                notifyGeneralMessage(obj, "error", msg, dbstack());
+                return;
+            end % if
+
+            obj.timePoints = double(config.INSTMFA.timePoints(:));
+
+            if numel(obj.timePoints) < 2
                 msg = "At least two time points are required for instationary 13C-MFA.";
                 notifyGeneralMessage(obj, "error", msg, dbstack());
                 err = true;
@@ -4119,7 +4180,14 @@ classdef FluxAnalysis < handle & IO
                 return;
             end % if
 
-        end % function setINSTMFA
+            if any(~isfinite(obj.poolsize)) || any(obj.poolsize <= 0)
+                msg = "Pool sizes must be finite positive values for instationary 13C-MFA.";
+                notifyGeneralMessage(obj, "error", msg, dbstack());
+                err = true;
+                return;
+            end % if
+
+        end % method setINSTMFA
 
     end % methods (Access = private)
 
