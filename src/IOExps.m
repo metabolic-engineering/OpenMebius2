@@ -39,16 +39,15 @@ classdef IOExps < IO
 
     methods
 
-        function obj = IOExps(pathExps, pathModel)
+        function obj = IOExps(pathExps, modelInput)
 
             obj = obj@IO(pathExps);
-            obj.pathModel = pathModel;
 
             if obj.isError
                 return;
             end
 
-            loadExpData(obj, pathModel);
+            loadExpData(obj, modelInput);
 
             if obj.isError
                 return;
@@ -69,10 +68,16 @@ classdef IOExps < IO
         end % get.fileListWOExt
 
         %% Public general methods
-        function loadExpData(obj, pathModel)
+        function loadExpData(obj, modelInput)
 
-            if nargin < 2 || isempty(pathModel)
-                pathModel = obj.pathModel;
+            if nargin < 2 || isempty(modelInput)
+
+                if ~isempty(obj.objModel)
+                    modelInput = obj.objModel;
+                else
+                    modelInput = obj.pathModel;
+                end
+
             end
 
             obj.fileExpList = obj.getFileList("xlsx");
@@ -83,7 +88,11 @@ classdef IOExps < IO
                 return;
             end
 
-            obj.objModel = EMUModel(pathModel);
+            [obj.objModel, obj.pathModel] = obj.resolveModelInput(modelInput);
+
+            if obj.isError
+                return
+            end
 
             if obj.objModel.isError
                 obj.isError = true;
@@ -1073,6 +1082,49 @@ classdef IOExps < IO
     end % methods (Access = public)
 
     methods (Access = private)
+
+        function [model, pathModel] = resolveModelInput(obj, modelInput)
+
+            model = [];
+            pathModel = "";
+
+            if isa(modelInput, 'EMUModel')
+
+                model = modelInput;
+
+                try
+
+                    if ~isvalid(model)
+                        obj.isError = true;
+                        updateMsg(obj, ...
+                            "The model object is invalid.", ...
+                            "Error", ...
+                            obj.logLevel);
+                        return
+                    end
+
+                catch
+                    % Non-handle compatible objects are treated as valid here.
+                end
+
+                pathModel = string(model.fileDirectory);
+                return
+            end
+
+            pathModel = string(modelInput);
+
+            if pathModel == ""
+                obj.isError = true;
+                updateMsg(obj, ...
+                    "The model directory is empty.", ...
+                    "Error", ...
+                    obj.logLevel);
+                return
+            end
+
+            model = EMUModel(pathModel);
+
+        end % resolveModelInput
 
         function tableOut = getStoredTableOrEmpty(obj, fieldName, tableName)
 

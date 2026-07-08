@@ -1,4 +1,4 @@
-classdef ProjectPaths
+classdef ProjectPaths < openmebius.domain.project.ProjectLayout
 
     properties (SetAccess = private)
         RootDirectory (1, 1) string
@@ -17,12 +17,14 @@ classdef ProjectPaths
             end
 
             rootDirectory = string(rootDirectory);
+            layout = openmebius.domain.project.ProjectLayout.resolve( ...
+                rootDirectory);
 
-            obj.RootDirectory = rootDirectory;
-            obj.ModelDirectory = fullfile(rootDirectory, "model");
-            obj.ExperimentDirectory = fullfile(rootDirectory, "experiments");
-            obj.ResultDirectory = fullfile(rootDirectory, "results");
-            obj.SettingFile = fullfile(rootDirectory, "setting.json");
+            obj.RootDirectory = layout.RootDirectory;
+            obj.ModelDirectory = layout.ModelDirectory;
+            obj.ExperimentDirectory = layout.ExperimentDirectory;
+            obj.ResultDirectory = layout.ResultDirectory;
+            obj.SettingFile = layout.SettingFile;
 
         end % constructor
 
