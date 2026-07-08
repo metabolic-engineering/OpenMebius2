@@ -464,8 +464,9 @@ classdef IOResult < IO
 
             % Load the result file
             filePath = obj.ResultLocation.resultFile(batchID);
+            data = [];
 
-            if ~isfile(filePath)
+            if ~obj.ResultLocation.hasResultFile(batchID)
                 notifyGeneralMessage(obj, "error", "Result file does not exist.");
                 return;
             end
@@ -545,7 +546,7 @@ classdef IOResult < IO
             data = struct;
             filePath = obj.ResultLocation.resultFile(batchID);
 
-            if ~isfile(filePath)
+            if ~obj.ResultLocation.hasResultFile(batchID)
                 isExist = false;
                 return;
             end
@@ -748,7 +749,7 @@ classdef IOResult < IO
                 return;
             end
 
-            if ~isfile(obj.ResultLocation.resultFile(id))
+            if ~obj.ResultLocation.hasResultFile(id)
                 return;
             end
 
@@ -924,7 +925,7 @@ classdef IOResult < IO
                 options.addDatetime (1, 1) logical = true
             end % arguments
 
-            if length(batchID) ~= length(names) || length(batchID) ~= unique(length(batchID))
+            if length(batchID) ~= length(names)
                 notifyGeneralMessage(obj, "error", "Batch ID and names must have the same length.");
                 return;
             end % if
@@ -1010,20 +1011,28 @@ classdef IOResult < IO
                 return;
             end % if
 
-            % Create the file name
-            switch fmt
-                case "xlsx"
-                    fileName = "result_" + name + "_" + batchID + ".xlsx";
-            end % switch
-
-            filePath = fullfile(directoryPath, fileName);
+            baseName = "result_" + name + "_" + batchID;
 
             % Create flux row header
             overview = obj.getFluxOverView(batchID);
+
+            if fmt == "csv"
+                obj.saveResultDataAsCsv( ...
+                    baseName, ...
+                    directoryPath, ...
+                    overview, ...
+                    data, ...
+                    status, ...
+                    batchID);
+                return
+            end
+
+            filePath = fullfile(directoryPath, baseName + ".xlsx");
+
             [isSuccess, msg] = obj.exportExcelFile(filePath, overview, "Overview");
 
             if ~isSuccess
-                notifyGeneralMessage(app, "error", "Failed to save the overview data: " + msg);
+                notifyGeneralMessage(obj, "error", "Failed to save the overview data: " + msg);
                 return;
             end % if ~isSuccess
 
@@ -1031,7 +1040,7 @@ classdef IOResult < IO
             [isSuccess, msg] = obj.exportExcelFile(filePath, detailed, "Detailed", WriteRowNames = false);
 
             if ~isSuccess
-                notifyGeneralMessage(app, "error", "Failed to save the detailed data: " + msg);
+                notifyGeneralMessage(obj, "error", "Failed to save the detailed data: " + msg);
                 return;
             end % if ~isSuccess
 
@@ -1112,8 +1121,9 @@ classdef IOResult < IO
 
             % Load the result file
             filePath = obj.ResultLocation.resultFile(id);
+            data = [];
 
-            if ~isfile(filePath)
+            if ~obj.ResultLocation.hasResultFile(id)
                 notifyGeneralMessage(obj, "error", "Result file does not exist.");
                 return;
             end
@@ -1228,6 +1238,80 @@ classdef IOResult < IO
     end % methods (Access = protected)
 
     methods (Access = private)
+
+        function saveResultDataAsCsv(obj, baseName, directoryPath, overview, data, status, batchID)
+
+            [isSuccess, msg] = obj.exportCsvTable( ...
+                fullfile(directoryPath, baseName + "_overview.csv"), ...
+                overview);
+
+            if ~isSuccess
+                notifyGeneralMessage(obj, "error", "Failed to save the overview data: " + msg);
+                return;
+            end
+
+            detailed = obj.getFluxDetailed(batchID);
+            [isSuccess, msg] = obj.exportCsvTable( ...
+                fullfile(directoryPath, baseName + "_detailed.csv"), ...
+                detailed, ...
+                WriteRowNames = false);
+
+            if ~isSuccess
+                notifyGeneralMessage(obj, "error", "Failed to save the detailed data: " + msg);
+                return;
+            end
+
+            info = obj.getInformationTable(data);
+            [isSuccess, msg] = obj.exportCsvTable( ...
+                fullfile(directoryPath, baseName + "_info.csv"), ...
+                info, ...
+                WriteRowNames = false);
+
+            if ~isSuccess
+                notifyGeneralMessage(obj, "error", "Failed to save the information data: " + msg);
+                return;
+            end
+
+            if ~status(2)
+                return;
+            end
+
+            fluxAll = obj.getFluxAll(data);
+            [isSuccess, msg] = obj.exportCsvTable( ...
+                fullfile(directoryPath, baseName + "_all.csv"), ...
+                fluxAll);
+
+            if ~isSuccess
+                notifyGeneralMessage(obj, "error", "Failed to save the all flux data: " + msg);
+            end
+
+        end % saveResultDataAsCsv
+
+        function [isSuccess, msg] = exportCsvTable(~, pathFile, tableData, options)
+
+            arguments
+                ~
+                pathFile (1, 1) string
+                tableData table
+                options.WriteRowNames (1, 1) logical = true
+                options.WriteVariableNames (1, 1) logical = true
+            end
+
+            isSuccess = true;
+            msg = "";
+
+            try
+                writetable( ...
+                    tableData, ...
+                    pathFile, ...
+                    "WriteRowNames", options.WriteRowNames, ...
+                    "WriteVariableNames", options.WriteVariableNames);
+            catch ME
+                isSuccess = false;
+                msg = string(ME.message);
+            end
+
+        end % exportCsvTable
 
         function tableRtn = getInformationTable(~, data)
             % GETINFORMATIONTABLE Get the information table from the result file.

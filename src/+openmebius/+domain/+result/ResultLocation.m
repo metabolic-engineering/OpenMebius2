@@ -24,6 +24,12 @@ classdef ResultLocation
 
         end % resultFile
 
+        function tf = hasResultFile(obj, id)
+
+            tf = isfile(obj.resultFile(id));
+
+        end % hasResultFile
+
         function files = resultFiles(obj)
 
             files = dir(fullfile(obj.Directory, "*.h5"));
