@@ -5,6 +5,7 @@ classdef MainActivity
         Busy
         Running
         Canceling
+        Modal
     end
 
 end

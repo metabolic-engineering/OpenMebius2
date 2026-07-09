@@ -206,6 +206,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
 
+        MainInteractionSnapshot cell = {}
+
     end % properties (Access=private)
 
     methods (Access = public)
@@ -344,6 +346,17 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             ResultMainTableCellSelection(app, selection);
 
         end % function testResultMainTableCellSelection
+
+        %% Public helper methods
+        function onPreferencesClosed(app)
+            % ONPREFERENCESCLOSED
+            % Called from Preferences.mlapp when Preferences is closed.
+
+            app.PreferencesApp = [];
+
+            app.finishPresentationPreferences();
+
+        end % method onPreferencesClosed
 
     end % methods (Access = public)
 
@@ -755,6 +768,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             if isempty(ui)
                 return
+            end
+
+            if isfield(ui, "MainInteractionEnabled")
+
+                app.applyMainInteractionEnabled(ui.MainInteractionEnabled);
+
+                if ~ui.MainInteractionEnabled
+                    return
+                end
+
             end
 
             % Project panel
@@ -2030,6 +2053,87 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method detachLegacyListeners
 
         %% Apply Session
+        function applyMainInteractionEnabled(app, enabled)
+
+            arguments
+                app
+                enabled (1, 1) logical
+            end
+
+            if enabled
+                app.restoreMainInteraction();
+            else
+                app.lockMainInteraction();
+            end
+
+        end % method applyMainInteractionEnabled
+
+        function lockMainInteraction(app)
+
+            if ~isempty(app.MainInteractionSnapshot)
+                return
+            end
+
+            app.MainInteractionSnapshot = {};
+
+            objects = findall(app.OpenMebius2UIFigure);
+
+            for i = 1:numel(objects)
+
+                obj = objects(i);
+
+                try
+
+                    if isprop(obj, "Enable")
+
+                        app.MainInteractionSnapshot(end + 1, :) = { ...
+                                                                       obj, ...
+                                                                       obj.Enable}; %#ok<AGROW>
+
+                        obj.Enable = 'off';
+
+                    end
+
+                catch
+                    % Ignore components that cannot be locked.
+                end
+
+            end
+
+            drawnow limitrate
+
+        end % method lockMainInteraction
+
+        function restoreMainInteraction(app)
+
+            if isempty(app.MainInteractionSnapshot)
+                return
+            end
+
+            snapshot = app.MainInteractionSnapshot;
+            app.MainInteractionSnapshot = {};
+
+            for i = 1:size(snapshot, 1)
+
+                obj = snapshot{i, 1};
+                value = snapshot{i, 2};
+
+                try
+
+                    if isvalid(obj) && isprop(obj, "Enable")
+                        obj.Enable = value;
+                    end
+
+                catch
+                    % Ignore stale UI handles.
+                end
+
+            end
+
+            drawnow limitrate
+
+        end % method restoreMainInteraction
+
         function applyProjectSession(app, session)
 
             arguments
@@ -2538,6 +2642,34 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method notifySlackBatchCompleted
+
+        function beginPresentationPreferences(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.beginPreferences(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method beginPresentationPreferences
+
+        function finishPresentationPreferences(app)
+
+            try
+                context = app.capturePresentationContext();
+                viewModel = app.Presenter.finishPreferences(context);
+                app.renderMainViewModel(viewModel);
+            catch ME
+
+                try
+                    app.notifyWarning( ...
+                        "Failed to restore main UI after Preferences: " + ...
+                        string(ME.message));
+                catch
+                end
+
+                app.restoreMainInteraction();
+            end
+
+        end % method finishPresentationPreferences
 
         %% Private initialization function
         function initLog(app)
@@ -5230,7 +5362,18 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.PreferencesApp = [];
             end
 
-            app.PreferencesApp = Preferences(app, app.SlackNotifier);
+            try
+                app.beginPresentationPreferences();
+
+                app.PreferencesApp = Preferences(app, app.SlackNotifier);
+
+            catch ME
+                app.finishPresentationPreferences();
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Preferences failed", ...
+                    Alert = true);
+            end
 
         end
 

@@ -17,6 +17,7 @@ classdef MainUIPolicy
             isRunning = state.Activity == MainActivity.Running;
             isCanceling = state.Activity == MainActivity.Canceling;
             isRunActive = isRunning || isCanceling;
+            isModal = state.Activity == MainActivity.Modal;
 
             isModelEdit = state.EditTarget == EditTarget.Model;
             isMsEdit = state.EditTarget == EditTarget.MassSpectrometry;
@@ -58,6 +59,18 @@ classdef MainUIPolicy
                 context, "TemplateModelDirectoryExists", true);
 
             ui = struct();
+
+            % -------------------------------------------------------------
+            % Global modal lock
+            % -------------------------------------------------------------
+            ui.MainInteractionEnabled = ~isModal;
+            ui.IsModal = isModal;
+
+            if isModal
+                ui.IsBusy = false;
+                ui.IsRunning = false;
+                return
+            end
 
             % -------------------------------------------------------------
             % Project panel

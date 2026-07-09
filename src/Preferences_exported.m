@@ -83,22 +83,58 @@ classdef Preferences_exported < matlab.apps.AppBase
 
         end % method onOff
 
-        function showLocalWarning(app, ME)
+        function showPreferenceNotification(app, notification)
 
-            message = string(ME.message);
+            if isempty(notification)
+                return
+            end
+
+            if ~isa(notification, ...
+                "openmebius.presentation.notification.Notification")
+
+                notification = ...
+                    openmebius.presentation.notification.Notification.info( ...
+                    string(notification));
+            end
 
             try
                 uialert( ...
                     app.PreferencesUIFigure, ...
-                    char(message), ...
-                    "Preferences", ...
-                    "Icon", "warning", ...
+                    char(notification.Message), ...
+                    char(notification.Title), ...
+                    "Icon", char(notification.alertIcon()), ...
                     "Interpreter", "none");
             catch
-                warning("%s", message);
+                warning("%s", notification.toLogText());
             end
 
+        end % method showPreferenceNotification
+
+        function showLocalWarning(app, ME)
+
+            notification = ...
+                openmebius.presentation.notification.Notification.fromException( ...
+                ME, ...
+                Title = "Preferences", ...
+                ShowAlert = true);
+
+            app.showPreferenceNotification(notification);
+
         end % method showLocalWarning
+
+        function notifyMainPreferencesClosed(app)
+
+            try
+
+                if ~isempty(app.MainApp) && isvalid(app.MainApp)
+                    app.MainApp.onPreferencesClosed();
+                end
+
+            catch
+                % Main app may have already been deleted.
+            end
+
+        end % method notifyMainPreferencesClosed
 
     end % methods (Access = private)
 
@@ -131,12 +167,6 @@ classdef Preferences_exported < matlab.apps.AppBase
 
             app.SlackWebhookEditField.Enable = app.onOff(enabled);
 
-            try
-                app.saveSlackPreferences();
-            catch ME
-                app.showLocalWarning(ME);
-            end
-
         end
 
         % Value changed function: SlackWebhookEditField
@@ -153,16 +183,34 @@ classdef Preferences_exported < matlab.apps.AppBase
         % Button pushed function: CancelButton
         function CancelButtonPushed(app, event)
 
+            app.notifyMainPreferencesClosed();
+            delete(app);
+
         end
 
         % Button pushed function: CloseButton
         function CloseButtonPushed(app, event)
 
+            try
+                app.saveSlackPreferences();
+                app.notifyMainPreferencesClosed();
+                delete(app);
+
+            catch ME
+                app.showPreferenceNotification( ...
+                    openmebius.presentation.notification.Notification.fromException( ...
+                    ME, ...
+                    Title = "Preferences", ...
+                    ShowAlert = true));
+            end
+
         end
 
         % Close request function: PreferencesUIFigure
         function PreferencesUIFigureCloseRequest(app, event)
-            delete(app)
+
+            app.notifyMainPreferencesClosed();
+            delete(app);
 
         end
 
