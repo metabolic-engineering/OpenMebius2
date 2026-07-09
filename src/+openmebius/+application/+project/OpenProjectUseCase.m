@@ -16,22 +16,22 @@ classdef OpenProjectUseCase < handle
 
         end
 
-        function session = execute(obj, projectDirectory)
+        function session = execute(obj, projectInput)
 
             arguments
                 obj
-                projectDirectory (1, 1) string
+                projectInput (1, 1) string
             end
 
-            projectDirectory = strtrim(projectDirectory);
+            projectInput = strtrim(projectInput);
 
-            if projectDirectory == ""
+            if projectInput == ""
                 error( ...
                     "OpenMebius2:Project:EmptyProjectDirectory", ...
                 "Project directory is empty.");
             end
 
-            session = obj.Repository.openProject(projectDirectory);
+            session = obj.Repository.openProject(projectInput);
 
         end
 
