@@ -6,6 +6,7 @@ classdef ProjectPaths < openmebius.domain.project.ProjectLayout
         ExperimentDirectory (1, 1) string
         ResultDirectory (1, 1) string
         SettingFile (1, 1) string
+        LegacySettingFile (1, 1) string
     end
 
     methods
@@ -25,6 +26,7 @@ classdef ProjectPaths < openmebius.domain.project.ProjectLayout
             obj.ExperimentDirectory = layout.ExperimentDirectory;
             obj.ResultDirectory = layout.ResultDirectory;
             obj.SettingFile = layout.SettingFile;
+            obj.LegacySettingFile = layout.LegacySettingFile;
 
         end % constructor
 
@@ -37,14 +39,39 @@ classdef ProjectPaths < openmebius.domain.project.ProjectLayout
                     obj.RootDirectory);
             end
 
-            if ~isfile(obj.SettingFile)
+            if ~isfile(obj.SettingFile) && ~isfile(obj.LegacySettingFile)
                 error( ...
                     "OpenMebius2:Project:SettingFileNotFound", ...
-                    "setting.json was not found: %s", ...
-                    obj.SettingFile);
+                    "Neither setting.om2 nor setting.json was found in: %s", ...
+                    obj.RootDirectory);
             end
 
         end % method assertExists
+
+        function filePath = activeSettingFile(obj)
+
+            if isfile(obj.SettingFile)
+                filePath = obj.SettingFile;
+                return
+            end
+
+            if isfile(obj.LegacySettingFile)
+                filePath = obj.LegacySettingFile;
+                return
+            end
+
+            filePath = obj.SettingFile;
+
+        end % method activeSettingFile
+
+        function filePaths = settingFileCandidates(obj)
+
+            filePaths = [
+                         obj.SettingFile
+                         obj.LegacySettingFile
+                         ];
+
+        end % method settingFileCandidates
 
         function location = modelLocation(obj)
 

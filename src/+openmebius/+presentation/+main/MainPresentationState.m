@@ -29,7 +29,7 @@ classdef MainPresentationState < handle
 
             obj.Activity = openmebius.presentation.main.MainActivity.Busy;
 
-        end
+        end % method beginBusy
 
         function beginRun(obj)
 
@@ -45,7 +45,7 @@ classdef MainPresentationState < handle
 
             obj.Activity = openmebius.presentation.main.MainActivity.Running;
 
-        end
+        end % method beginRun
 
         function beginEdit(obj, target)
 
@@ -61,7 +61,49 @@ classdef MainPresentationState < handle
 
             obj.EditTarget = target;
 
-        end
+        end % method beginEdit
+
+        function beginModal(obj)
+
+            import openmebius.presentation.main.MainActivity
+            import openmebius.presentation.main.EditTarget
+
+            if obj.Activity ~= MainActivity.Idle
+                error( ...
+                    "OpenMebius2:Presentation:InvalidTransition", ...
+                "Another activity is already in progress.");
+            end
+
+            if obj.EditTarget ~= EditTarget.None
+                error( ...
+                    "OpenMebius2:Presentation:InvalidTransition", ...
+                "Cannot open modal window while a table is being edited.");
+            end
+
+            obj.Activity = MainActivity.Modal;
+
+        end % method beginModal
+
+        function beginEditCommit(obj)
+
+            import openmebius.presentation.main.MainActivity
+            import openmebius.presentation.main.EditTarget
+
+            if obj.Activity ~= MainActivity.Idle
+                error( ...
+                    "OpenMebius2:Presentation:InvalidTransition", ...
+                "Another activity is already in progress.");
+            end
+
+            if obj.EditTarget == EditTarget.None
+                error( ...
+                    "OpenMebius2:Presentation:InvalidTransition", ...
+                "No edit operation is in progress.");
+            end
+
+            obj.Activity = MainActivity.Busy;
+
+        end % method beginEditCommit
 
         function requestCancelRun(obj)
 
@@ -79,13 +121,13 @@ classdef MainPresentationState < handle
 
             obj.Activity = openmebius.presentation.main.MainActivity.Idle;
 
-        end
+        end % method finishActivity
 
         function finishEdit(obj)
 
             obj.EditTarget = openmebius.presentation.main.EditTarget.None;
 
-        end
+        end % method finishEdit
 
         function finishRun(obj)
 
@@ -100,6 +142,16 @@ classdef MainPresentationState < handle
 
         end % method finishRun
 
+        function finishModal(obj)
+
+            import openmebius.presentation.main.MainActivity
+
+            if obj.Activity == MainActivity.Modal
+                obj.Activity = MainActivity.Idle;
+            end
+
+        end % method finishModal
+
         function setResultMode(obj, mode)
 
             arguments
@@ -109,7 +161,7 @@ classdef MainPresentationState < handle
 
             obj.ResultMode = mode;
 
-        end
+        end % method setResultMode
 
         function reset(obj)
 
@@ -117,8 +169,8 @@ classdef MainPresentationState < handle
             obj.EditTarget = openmebius.presentation.main.EditTarget.None;
             obj.ResultMode = "overview";
 
-        end
+        end % method reset
 
-    end
+    end % methods
 
-end
+end % classdef
