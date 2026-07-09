@@ -25,6 +25,7 @@ classdef FluxAnalysis < handle & IO
 
         % File export
         isExport = true
+        ResultLocation openmebius.domain.result.ResultLocation
         HDF5FileName = ""
         HDF5FilePath = ""
 
@@ -99,15 +100,20 @@ classdef FluxAnalysis < handle & IO
                 experiments, ...
                 expList, ...
                 config, ...
-                fileDir, ...
+                resultInput, ...
                 ID, ...
                 controller ...
             )
 
-            obj@IO(fileDir);
+            resultLocation = ...
+                openmebius.domain.result.ResultLocation.fromInput( ...
+                resultInput);
 
+            obj@IO(resultLocation.Directory);
+
+            obj.ResultLocation = resultLocation;
             obj.HDF5FileName = ID;
-            obj.HDF5FilePath = fullfile(fileDir, ID + ".h5");
+            obj.HDF5FilePath = resultLocation.resultFile(ID);
 
             if obj.isError
                 obj.isExport = false;
@@ -2013,7 +2019,7 @@ classdef FluxAnalysis < handle & IO
             % previous FMINCON-only behavior.
 
             constraintFcn = @(x) calculateConstraints(obj, x);
-            method = getOptimizationMethod(obj);
+            method = "gradient-only";
             startFlux = initialFlux(:);
             gaOutput = [];
 

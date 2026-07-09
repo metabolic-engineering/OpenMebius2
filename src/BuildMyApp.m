@@ -1,4 +1,11 @@
 function BuildMyApp
+
+    import openmebius.presentation.notification.Notification
+
+    tStart = tic;
+    msg = "Building OpenMebius2 application...";
+    disp(toLogText(Notification.info(msg)))
+
     appFile = fullfile(pwd, "OpenMebius2.mlapp");
 
     exeIcon = fullfile(pwd, "+img", "logo.png");
@@ -6,6 +13,9 @@ function BuildMyApp
 
     system = System();
     latestTag = system.getCurrentVersion();
+
+    msg = "Current version: " + latestTag;
+    disp(toLogText(Notification.info(msg)))
 
     outDir = fullfile(pwd, "../build", "openmebius2");
 
@@ -42,20 +52,15 @@ function BuildMyApp
         "InstallerLogo", installerLogo, ...
         "OutputDir", fullfile(pwd, "../installer"));
 
-    disp("Creating installer...");
+    msg = "Creating installer: " + filename;
+    disp(toLogText(Notification.info(msg)))
 
     compiler.package.installer(buildResults, "Options", opts);
 
-    disp("Build and packaging completed.");
-
-    imageName = system.getDockerImageName();
-
-    if strcmp(system.getOperatingSystem(), "Linux")
-        opts = compiler.package.DockerOptions(buildResults, ...
-            'ImageName', imageName, ...
-            'DockerContext', fullfile(pwd, '../docker') ...
-        );
-        compiler.package.docker(buildResults, 'Options', opts)
-    end
+    tEnd = toc(tStart);
+    elapsedTime = datetime(0, "ConvertFrom", "epochtime", "Format", "HH:mm:ss");
+    elapsedTime.Second = round(tEnd);
+    msg = "Build completed in " + string(elapsedTime) + ".";
+    disp(toLogText(Notification.info(msg)))
 
 end
