@@ -2591,6 +2591,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app
                 status (1, 1) string
                 options.ErrorMessage (1, 1) string = ""
+                options.DeltaTime (1, 1) duration = seconds(0)
             end
 
             try
@@ -2623,7 +2624,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     Title = "OpenMebius2 Batch Run", ...
                     Status = status, ...
                     ProjectName = projectName, ...
-                    BatchStatus = status);
+                    BatchStatus = status, ...
+                    DeltaTime = options.DeltaTime);
 
                 if result.Success
                     app.notifyInfo("Slack notification sent.");
@@ -5079,6 +5081,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: RunRunButton
         function RunRunButtonPushed(app, event)
 
+            tStart = datetime("now");
+
             if app.Presenter.isRunning()
 
                 app.requestPresentationCancelRun();
@@ -5112,14 +5116,20 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     msg = "Batch jobs are canceled.";
                     app.LogTextDate(msg, "Info");
                     app.updateStatus("batch", "finished");
-                    app.notifySlackBatchCompleted("canceled");
+                    app.notifySlackBatchCompleted( ...
+                        "canceled", ...
+                        DeltaTime = datetime("now") - tStart ...
+                    );
                     return
                 end
 
                 msg = "All batch jobs are completed.";
                 app.LogTextDate(msg, "Info");
                 app.updateStatus("batch", "finished");
-                app.notifySlackBatchCompleted("finished");
+                app.notifySlackBatchCompleted( ...
+                    "finished", ...
+                    DeltaTime = datetime("now") - tStart ...
+                );
 
             catch ME
                 app.updateStatus("batch", "error");
@@ -5127,7 +5137,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 app.notifySlackBatchCompleted( ...
                     "error", ...
-                    ErrorMessage = string(ME.message));
+                    ErrorMessage = string(ME.message), ...
+                    DeltaTime = datetime("now") - tStart ...
+                );
 
                 rethrow(ME)
             end
