@@ -2019,7 +2019,7 @@ classdef FluxAnalysis < handle & IO
             % previous FMINCON-only behavior.
 
             constraintFcn = @(x) calculateConstraints(obj, x);
-            method = getOptimizationMethod(obj);
+            method = "gradient-only";
             startFlux = initialFlux(:);
             gaOutput = [];
 
