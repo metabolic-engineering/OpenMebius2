@@ -50,14 +50,6 @@ classdef MainUIPolicy
                 openmebius.presentation.main.MainUIPolicy.getBool( ...
                 context, "CanCreateProjectFromTemplate", isTemplateMode);
 
-            projectDirectoryExists = ...
-                openmebius.presentation.main.MainUIPolicy.getBool( ...
-                context, "ProjectDirectoryExists", true);
-
-            templateModelDirectoryExists = ...
-                openmebius.presentation.main.MainUIPolicy.getBool( ...
-                context, "TemplateModelDirectoryExists", true);
-
             ui = struct();
 
             % -------------------------------------------------------------
@@ -157,9 +149,10 @@ classdef MainUIPolicy
                 (~isEditing || isExperimentEdit);
 
             ui.ExperimentTableEditable = ...
-                isIdle && isExperimentEdit;
+                isIdle;
 
-            ui.BiomassTableEditable = false;
+            ui.BiomassTableEditable = ...
+                isIdle && isModelEdit;
 
             % -------------------------------------------------------------
             % Tracer tab
@@ -171,7 +164,7 @@ classdef MainUIPolicy
                 (~isEditing || isTracerEdit);
 
             ui.TracerTableEditable = ...
-                isIdle && isTracerEdit;
+                isIdle;
 
             ui.UptakeTableEditable = ...
                 ui.TracerTableEditable;
