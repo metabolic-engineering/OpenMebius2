@@ -686,7 +686,7 @@ classdef Batch < handle
             config.fmincon.optimalityTolerance = 1e-8;
             config.fmincon.constraintTolerance = 1e-8;
             config.fmincon.finiteDifferenceType = 'central';
-            config.fmincon.finiteDifferenceStepSize = 1e-4;
+            config.fmincon.finiteDifferenceStepSize = 1e-6;
             config.fmincon.scaleProblem = 'obj-and-constr';
             config.fmincon.rejectWorseThanInitial = true;
             config.fmincon.objectiveIncreaseTolerance = 1e-6;
