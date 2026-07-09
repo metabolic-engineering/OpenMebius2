@@ -1892,24 +1892,7 @@ classdef FluxAnalysis < handle & IO
             tmpInitialRhs = obj.RHSFmincon;
             tmpInitialFlux = tmpInitialRhs(obj.maskIndependent);
 
-            % Set up large scale optimization
-            switch obj.config.largeScale
-                case true
-                    largeScale = "on";
-                case false
-                    largeScale = "off";
-                otherwise
-                    largeScale = "off";
-            end % switch obj.config.largeScale
-
-            fmincon_options = optimset( ...
-                'Algorithm', obj.config.algorithm, ...
-                'Display', 'off', ...
-                'LargeScale', largeScale, ...
-                'MaxFunEvals', 500000, ...
-                'MaxIter', 500, ...
-                "UseParallel", false ...
-            );
+            fmincon_options = buildFminconOptions(obj, tmpInitialFlux);
 
             objectiveFcn = @(x) calculateObjectiveFunction(obj, x, MDVExpTemp);
 
@@ -1956,24 +1939,7 @@ classdef FluxAnalysis < handle & IO
             tmpInitialRhs = obj.RHSFmincon;
             tmpInitialFlux = tmpInitialRhs(obj.maskIndependent);
 
-            % Set up large scale optimization
-            switch obj.config.largeScale
-                case true
-                    largeScale = "on";
-                case false
-                    largeScale = "off";
-                otherwise
-                    largeScale = "off";
-            end % switch obj.config.largeScale
-
-            fmincon_options = optimset( ...
-                'Algorithm', obj.config.algorithm, ...
-                'LargeScale', largeScale, ...
-                'Display', 'off', ...
-                'MaxFunEvals', 500000, ...
-                'MaxIter', 500, ...
-                "UseParallel", false ...
-            );
+            fmincon_options = buildFminconOptions(obj, tmpInitialFlux);
 
             objectiveFcn = @(x) calculateObjectiveFunctionInstationary(obj, x, MDVExpTemp);
 
@@ -2009,54 +1975,282 @@ classdef FluxAnalysis < handle & IO
 
         function [x, fval, exitflag, output] = runConfiguredNonlinearOptimizer( ...
                 obj, objectiveFcn, initialFlux, fminconOptions)
-            % RUNCONFIGUREDNONLINEAROPTIMIZER Run the configured optimizer.
+            % RUNCONFIGUREDNONLINEAROPTIMIZER Run FMINCON with safeguards.
             %
-            % The default strategy is a two-stage hybrid optimization:
-            %   1. A real-coded genetic algorithm explores the independent
-            %      flux space and supplies a robust starting point.
-            %   2. FMINCON performs the final constrained local refinement.
-            % Set config.optimizationMethod to "gradient-only" to retain the
-            % previous FMINCON-only behavior.
+            % GA-based hybrid optimization is intentionally disabled for now.
+            % FMINCON starts from the supplied feasible initial flux vector.
 
-            constraintFcn = @(x) calculateConstraints(obj, x);
-            method = "gradient-only";
+            method = getOptimizationMethod(obj);
             startFlux = initialFlux(:);
-            gaOutput = [];
 
-            switch method
-                case {"gradient-only", "fmincon", "local"}
-                    % Backward-compatible path.
-                case {"hybrid-ga-gradient", "hybrid", "ga-gradient"}
-                    [startFlux, gaOutput] = calculateGAStartPoint(obj, objectiveFcn, startFlux);
-                otherwise
-                    msg = "Unknown optimizationMethod '" + method + "'. Falling back to hybrid-ga-gradient.";
-                    notifyGeneralMessage(obj, "warning", msg, dbstack());
-                    [startFlux, gaOutput] = calculateGAStartPoint(obj, objectiveFcn, startFlux);
-            end % switch
+            if ismember(method, ["hybrid-ga-gradient", "hybrid", "ga-gradient"])
+                msg = "Hybrid GA optimization is temporarily disabled. Using FMINCON only.";
+                notifyGeneralMessage(obj, "info", msg, dbstack());
+            elseif ~ismember(method, ["gradient-only", "fmincon", "local"])
+                msg = "Unknown optimizationMethod '" + method + "'. Using FMINCON only.";
+                notifyGeneralMessage(obj, "warning", msg, dbstack());
+            end % if
+
+            fminconConfig = getFminconConfig(obj);
+            initialObjective = evaluateObjectiveForGuard(obj, objectiveFcn, startFlux);
+            initialViolation = calculateConstraintViolationForGuard(obj, startFlux);
+
+            [Aineq, bineq] = buildLinearFluxInequalityConstraints(obj, startFlux);
 
             [x, fval, exitflag, output] = fmincon( ...
                 objectiveFcn, ...
                 startFlux, ...
+                Aineq, ...
+                bineq, ...
                 [], ...
                 [], ...
                 [], ...
                 [], ...
                 [], ...
-                [], ...
-                constraintFcn, ...
                 fminconOptions ...
             );
 
-            if ~isempty(gaOutput)
-                output.hybridGA = gaOutput;
-            end % if
+            output.fminconInitialObjective = initialObjective;
+            output.fminconInitialConstraintViolation = initialViolation;
+            output.fminconFinalObjectiveBeforeGuard = fval;
+            output.fminconObjectiveGuardTriggered = false;
+
+            [x, fval, exitflag, output] = applyFminconObjectiveGuard( ...
+                obj, ...
+                x, ...
+                fval, ...
+                exitflag, ...
+                output, ...
+                startFlux, ...
+                initialObjective, ...
+                initialViolation, ...
+                fminconConfig ...
+            );
 
         end % runConfiguredNonlinearOptimizer
+
+        function options = buildFminconOptions(obj, initialFlux)
+            % BUILDFMINCONOPTIONS Create robust FMINCON options.
+
+            fminconConfig = getFminconConfig(obj);
+            algorithm = normalizeFminconAlgorithm(obj);
+            initialFlux = initialFlux(:);
+            typicalX = max(1, abs(initialFlux));
+
+            try
+                options = optimoptions('fmincon');
+                options = setFminconOption(options, 'Algorithm', algorithm);
+                options = setFminconOption(options, 'Display', 'off');
+                options = setFminconOption(options, 'MaxFunctionEvaluations', fminconConfig.maxFunctionEvaluations);
+                options = setFminconOption(options, 'MaxIterations', fminconConfig.maxIterations);
+                options = setFminconOption(options, 'FunctionTolerance', fminconConfig.functionTolerance);
+                options = setFminconOption(options, 'StepTolerance', fminconConfig.stepTolerance);
+                options = setFminconOption(options, 'OptimalityTolerance', fminconConfig.optimalityTolerance);
+                options = setFminconOption(options, 'ConstraintTolerance', fminconConfig.constraintTolerance);
+                options = setFminconOption(options, 'FiniteDifferenceType', fminconConfig.finiteDifferenceType);
+                options = setFminconOption(options, 'FiniteDifferenceStepSize', fminconConfig.finiteDifferenceStepSize);
+                options = setFminconOption(options, 'ScaleProblem', fminconConfig.scaleProblem);
+                options = setFminconOption(options, 'TypicalX', typicalX);
+                options = setFminconOption(options, 'UseParallel', false);
+            catch
+                options = optimset( ...
+                    'Algorithm', algorithm, ...
+                    'Display', 'off', ...
+                    'MaxFunEvals', fminconConfig.maxFunctionEvaluations, ...
+                    'MaxIter', fminconConfig.maxIterations, ...
+                    'TolFun', fminconConfig.functionTolerance, ...
+                    'TolX', fminconConfig.stepTolerance, ...
+                    'TolCon', fminconConfig.constraintTolerance, ...
+                    'FinDiffType', fminconConfig.finiteDifferenceType, ...
+                    'FinDiffRelStep', fminconConfig.finiteDifferenceStepSize, ...
+                    'TypicalX', typicalX, ...
+                    'UseParallel', false ...
+                );
+            end % try
+
+        end % buildFminconOptions
+
+        function options = setFminconOption(options, optionName, optionValue)
+            % SETFMINCONOPTION Assign an option when supported by MATLAB.
+
+            try
+                options.(optionName) = optionValue;
+            catch
+                % Older MATLAB releases do not expose all newer option names.
+                % Unsupported options are ignored intentionally.
+            end % try
+
+        end % setFminconOption
+
+        function fminconConfig = getFminconConfig(obj)
+            % GETFMINCONCONFIG Read FMINCON configuration with safe defaults.
+
+            userConfig = struct;
+
+            if isfield(obj.config, 'fmincon') && isstruct(obj.config.fmincon)
+                userConfig = obj.config.fmincon;
+            end % if
+
+            fminconConfig = struct;
+            fminconConfig.maxFunctionEvaluations = max(1000, round(readNumericConfig(obj, userConfig, 'maxFunctionEvaluations', 1000000)));
+            fminconConfig.maxIterations = max(100, round(readNumericConfig(obj, userConfig, 'maxIterations', 2000)));
+            fminconConfig.functionTolerance = max(0, readNumericConfig(obj, userConfig, 'functionTolerance', 1e-6));
+            fminconConfig.stepTolerance = max(0, readNumericConfig(obj, userConfig, 'stepTolerance', 1e-10));
+            fminconConfig.optimalityTolerance = max(0, readNumericConfig(obj, userConfig, 'optimalityTolerance', 1e-8));
+            fminconConfig.constraintTolerance = max(0, readNumericConfig(obj, userConfig, 'constraintTolerance', 1e-8));
+            fminconConfig.finiteDifferenceStepSize = max(eps, readNumericConfig(obj, userConfig, 'finiteDifferenceStepSize', 1e-4));
+            fminconConfig.objectiveIncreaseTolerance = max(0, readNumericConfig(obj, userConfig, 'objectiveIncreaseTolerance', 1e-6));
+            fminconConfig.initialFeasibilityTolerance = max(0, readNumericConfig(obj, userConfig, 'initialFeasibilityTolerance', 1e-7));
+            fminconConfig.rejectWorseThanInitial = readLogicalConfig(obj, userConfig, 'rejectWorseThanInitial', true);
+            fminconConfig.finiteDifferenceType = readStringConfig(obj, userConfig, 'finiteDifferenceType', 'central');
+            fminconConfig.scaleProblem = readStringConfig(obj, userConfig, 'scaleProblem', 'obj-and-constr');
+
+            if ~ismember(lower(string(fminconConfig.finiteDifferenceType)), ["forward", "central"])
+                fminconConfig.finiteDifferenceType = 'central';
+            end % if
+
+        end % getFminconConfig
+
+        function algorithm = normalizeFminconAlgorithm(obj)
+            % NORMALIZEFMINCONALGORITHM Normalize UI/config algorithm names.
+
+            algorithm = "sqp";
+
+            if isfield(obj.config, 'algorithm') && ~isempty(obj.config.algorithm)
+                candidate = lower(string(obj.config.algorithm));
+
+                switch candidate
+                    case {"sqp", "sqp-legacy"}
+                        algorithm = candidate;
+                    case {"ipms", "interior-point", "interior point"}
+                        algorithm = "interior-point";
+                    otherwise
+                        msg = "Unknown FMINCON algorithm '" + candidate + "'. Using sqp.";
+                        notifyGeneralMessage(obj, "warning", msg, dbstack());
+                end % switch
+
+            end % if
+
+            algorithm = char(algorithm);
+
+        end % normalizeFminconAlgorithm
+
+        function [Aineq, bineq] = buildLinearFluxInequalityConstraints(obj, initialFlux)
+            % BUILDLINEARFLUXINEQUALITYCONSTRAINTS Convert flux >= 0 to A*x <= b.
+            %
+            % calculateConstraints defines c(x) = -flux(x) <= 0.  Because
+            % flux(x) = SFmincon \ RHS(x) and RHS(x) is affine in the
+            % independent flux vector, the non-negativity constraint is linear.
+
+            numRhs = numel(obj.RHSFmincon);
+            numIndependent = numel(initialFlux);
+            selector = zeros(numRhs, numIndependent);
+            selector(obj.maskIndependent, :) = eye(numIndependent);
+
+            fixedRhs = obj.RHSFmincon;
+            fixedRhs(obj.maskIndependent) = 0;
+
+            fluxOffset = obj.SFmincon \ fixedRhs;
+            fluxCoef = obj.SFmincon \ selector;
+
+            Aineq = -fluxCoef;
+            bineq = fluxOffset;
+
+        end % buildLinearFluxInequalityConstraints
+
+        function value = evaluateObjectiveForGuard(~, objectiveFcn, flux)
+            % EVALUATEOBJECTIVEFORGUARD Evaluate objective without stopping guard setup.
+
+            try
+                value = objectiveFcn(flux);
+
+                if ~isscalar(value) || ~isfinite(value)
+                    value = inf;
+                end % if
+
+            catch
+                value = inf;
+            end % try
+
+        end % evaluateObjectiveForGuard
+
+        function violation = calculateConstraintViolationForGuard(obj, flux)
+            % CALCULATECONSTRAINTVIOLATIONFORGUARD Return max positive violation.
+
+            try
+                [c, ceq] = calculateConstraints(obj, flux);
+                violation = 0;
+
+                if ~isempty(c)
+                    violation = max(violation, max([0; c(:)]));
+                end % if
+
+                if ~isempty(ceq)
+                    violation = max(violation, max(abs(ceq(:))));
+                end % if
+
+                if ~isfinite(violation)
+                    violation = inf;
+                end % if
+
+            catch
+                violation = inf;
+            end % try
+
+        end % calculateConstraintViolationForGuard
+
+        function [x, fval, exitflag, output] = applyFminconObjectiveGuard( ...
+                obj, ...
+                x, ...
+                fval, ...
+                exitflag, ...
+                output, ...
+                initialFlux, ...
+                initialObjective, ...
+                initialViolation, ...
+                fminconConfig ...
+            )
+            % APPLYFMINCONOBJECTIVEGUARD Reject unstable objective increases.
+
+            if ~fminconConfig.rejectWorseThanInitial
+                return;
+            end % if
+
+            if ~isfinite(initialObjective)
+                return;
+            end % if
+
+            if initialViolation > fminconConfig.initialFeasibilityTolerance
+                return;
+            end % if
+
+            allowedObjective = initialObjective + ...
+                fminconConfig.objectiveIncreaseTolerance * max(1, abs(initialObjective));
+
+            if isfinite(fval) && fval <= allowedObjective
+                return;
+            end % if
+
+            output.fminconObjectiveGuardTriggered = true;
+            output.fminconRejectedObjective = fval;
+            output.fminconRejectedExitflag = exitflag;
+            output.fminconRejectedMessage = "FMINCON returned a worse objective than the feasible initial point.";
+
+            msg = "FMINCON returned a worse objective (" + string(fval) + ...
+                ") than the feasible initial objective (" + string(initialObjective) + ...
+                "). Reverting to the initial point for this trial.";
+            notifyGeneralMessage(obj, "warning", msg, dbstack());
+
+            x = initialFlux;
+            fval = initialObjective;
+            exitflag = -100;
+
+        end % applyFminconObjectiveGuard
 
         function method = getOptimizationMethod(obj)
             % GETOPTIMIZATIONMETHOD Return the normalized nonlinear optimizer name.
 
-            method = "hybrid-ga-gradient";
+            method = "gradient-only";
 
             if isfield(obj.config, 'optimizationMethod') && ...
                     ~isempty(obj.config.optimizationMethod)
@@ -2064,6 +2258,44 @@ classdef FluxAnalysis < handle & IO
             end % if
 
         end % getOptimizationMethod
+
+        function value = readLogicalConfig(~, userConfig, fieldName, defaultValue)
+            % READLOGICALCONFIG Read a scalar logical field from a struct.
+
+            value = defaultValue;
+
+            if isstruct(userConfig) && isfield(userConfig, fieldName) && ...
+                    ~isempty(userConfig.(fieldName))
+                candidate = userConfig.(fieldName);
+
+                if islogical(candidate) || isnumeric(candidate)
+                    value = logical(candidate(1));
+                elseif ischar(candidate) || isstring(candidate)
+                    candidateString = lower(string(candidate));
+                    value = ismember(candidateString(1), ["true", "1", "yes", "on"]);
+                end % if
+
+            end % if
+
+        end % readLogicalConfig
+
+        function value = readStringConfig(~, userConfig, fieldName, defaultValue)
+            % READSTRINGCONFIG Read a scalar string-like field from a struct.
+
+            value = char(defaultValue);
+
+            if isstruct(userConfig) && isfield(userConfig, fieldName) && ...
+                    ~isempty(userConfig.(fieldName))
+                candidate = userConfig.(fieldName);
+
+                if ischar(candidate) || isstring(candidate)
+                    candidateString = string(candidate);
+                    value = char(candidateString(1));
+                end % if
+
+            end % if
+
+        end % readStringConfig
 
         function gaConfig = getGAConfig(obj, nVariables)
             % GETGACONFIG Read GA configuration with safe defaults.
