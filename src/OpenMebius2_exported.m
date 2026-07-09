@@ -6,6 +6,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ApplicationMenu matlab.ui.container.Menu
         ReloadWindowMenu matlab.ui.container.Menu
         ClearcacheMenu matlab.ui.container.Menu
+        PreferencesMenu matlab.ui.container.Menu
         ExperimentaldataMenu matlab.ui.container.Menu
         ExporttemplateExcelfileMenu matlab.ui.container.Menu
         FilesMenu matlab.ui.container.Menu
@@ -48,7 +49,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         GridLayout14 matlab.ui.container.GridLayout
         BiomassTable matlab.ui.control.Table
         GridLayout12_3 matlab.ui.container.GridLayout
-        ExpImportButton_2 matlab.ui.control.Button
+        ExpCalculationButton matlab.ui.control.Button
         ExpImportButton matlab.ui.control.Button
         ExpReloadButton matlab.ui.control.Button
         ExpSaveButton matlab.ui.control.Button
@@ -856,8 +857,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 value = app.onOff(ui.ExperimentEnabled);
                 app.ExpTable.Enable = value;
                 app.BiomassTable.Enable = value;
-                app.ExpImportButton.Enable = value;
                 app.ExpCalculationButton.Enable = value;
+                app.ExpImportButton.Enable = value;
                 app.ExpReloadButton.Enable = value;
                 app.ExpSaveButton.Enable = value;
 
@@ -4387,6 +4388,60 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end
 
+        % Button pushed function: ExpCalculationButton
+        function ExpCalculationButtonPushed(app, event)
+
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+
+            try
+                app.updateStatus("experiment", "running");
+
+                updateModel(app);
+
+                err = app.exp.updateExpData(app.ExpTable.Data, "Info");
+
+                if err
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                err = app.exp.updateExpData(app.UptakeTable.Data, "Uptake");
+
+                if err
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                err = app.exp.updateExpData(app.LabelTable.Data, "Tracer");
+
+                if err
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                app.exp.calculateMDV();
+
+                if app.exp.isError
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                app.batch.updateExperimentalData(app.exp);
+                app.updateStatus("experiment", "finished");
+
+                app.notifyInfo("MDV-derived tables have been updated successfully.");
+
+            catch ME
+                app.updateStatus("experiment", "error");
+                app.notifyError("An error occurred while updating MDV-derived tables: " + ME.message);
+            end
+
+        end
+
         % Button pushed function: ExpImportButton
         function ExpImportButtonPushed(app, event)
 
@@ -5214,60 +5269,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end
 
-        % Button pushed function: ExpImportButton_2
-        function ExpImportButton_2Pushed(app, event)
-
-            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
-
-            try
-                app.updateStatus("experiment", "running");
-
-                updateModel(app);
-
-                err = app.exp.updateExpData(app.ExpTable.Data, "Info");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                err = app.exp.updateExpData(app.UptakeTable.Data, "Uptake");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                err = app.exp.updateExpData(app.LabelTable.Data, "Tracer");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                app.exp.calculateMDV();
-
-                if app.exp.isError
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                app.batch.updateExperimentalData(app.exp);
-                app.updateStatus("experiment", "finished");
-
-                app.notifyInfo("MDV-derived tables have been updated successfully.");
-
-            catch ME
-                app.updateStatus("experiment", "error");
-                app.notifyError("An error occurred while updating MDV-derived tables: " + ME.message);
-            end
-
-        end
-
     end
 
     % Component initialization
@@ -5301,6 +5302,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ClearcacheMenu = uimenu(app.ApplicationMenu);
             app.ClearcacheMenu.MenuSelectedFcn = createCallbackFcn(app, @ClearcacheMenuSelected, true);
             app.ClearcacheMenu.Text = 'Clear cache';
+
+            % Create PreferencesMenu
+            app.PreferencesMenu = uimenu(app.ApplicationMenu);
+            app.PreferencesMenu.Text = 'Preferences';
 
             % Create ExperimentaldataMenu
             app.ExperimentaldataMenu = uimenu(app.OpenMebius2UIFigure);
@@ -5734,14 +5739,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ExpImportButton.Layout.Column = 6;
             app.ExpImportButton.Text = 'Import data';
 
-            % Create ExpImportButton_2
-            app.ExpImportButton_2 = uibutton(app.GridLayout12_3, 'push');
-            app.ExpImportButton_2.ButtonPushedFcn = createCallbackFcn(app, @ExpImportButton_2Pushed, true);
-            app.ExpImportButton_2.Enable = 'off';
-            app.ExpImportButton_2.Layout.Row = 1;
-            app.ExpImportButton_2.Layout.Column = 5;
-            app.ExpImportButton_2.Text = 'Calculate MDV';
-            app.ExpImportButton_2.Tooltip = {'Calculate MS-normalized data, MDV, biomass-corrected MDV, enrichment and fragment availability.'};
+            % Create ExpCalculationButton
+            app.ExpCalculationButton = uibutton(app.GridLayout12_3, 'push');
+            app.ExpCalculationButton.ButtonPushedFcn = createCallbackFcn(app, @ExpCalculationButtonPushed, true);
+            app.ExpCalculationButton.Enable = 'off';
+            app.ExpCalculationButton.Layout.Row = 1;
+            app.ExpCalculationButton.Layout.Column = 5;
+            app.ExpCalculationButton.Text = 'Calculate';
 
             % Create GridLayout13_2
             app.GridLayout13_2 = uigridlayout(app.GridLayout11_3);
