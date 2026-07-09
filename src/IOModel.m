@@ -94,7 +94,9 @@ classdef IOModel < IO
 
         function obj = IOModel(modelInput)
 
-            modelLocation = IOModel.resolveModelLocation(modelInput);
+            modelLocation = ...
+                openmebius.domain.model.ModelLocation.fromInput( ...
+                modelInput);
 
             obj = obj@IO(modelLocation.Directory);
             obj.ModelLocation = modelLocation;
@@ -813,23 +815,6 @@ classdef IOModel < IO
         end % function updateStructLabel
 
     end % methods (public)
-
-    methods (Static, Access = private)
-
-        function modelLocation = resolveModelLocation(modelInput)
-
-            if isa(modelInput, 'openmebius.domain.model.ModelLocation')
-                modelLocation = modelInput;
-                return
-            end
-
-            modelLocation = ...
-                openmebius.domain.model.ModelLocation.fromDirectory( ...
-                string(modelInput));
-
-        end % resolveModelLocation
-
-    end % methods (Static, Access = private)
 
     methods (Access = private)
 

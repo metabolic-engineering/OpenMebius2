@@ -40,6 +40,12 @@ classdef IOResult < IO
     methods (Access = public)
 
         %% Public get functions
+        function resultLocation = getResultLocation(obj)
+
+            resultLocation = obj.ResultLocation;
+
+        end % getResultLocation
+
         function tableRtn = getFluxOverView(obj, id, options)
             % GETFLUXOVERVIEW Get the flux overview from the result file.
             %
@@ -893,8 +899,8 @@ classdef IOResult < IO
             %       The batch IDs to save the result files.
             %   names: (1, :) string
             %       The names of the batch IDs.
-            %   directoryPath: (1, 1) string
-            %       The directory path to save the result files.
+            %   directoryPath: string or ResultLocation
+            %       The directory or location to save the result files.
             %   options: struct
             %       The options for saving the result files.
             %       options.addDatetime: (1, 1) logical
@@ -906,9 +912,13 @@ classdef IOResult < IO
                 obj (1, 1) IOResult
                 batchID (:, 1) string
                 names (:, 1) string
-                directoryPath (1, 1) string
+                directoryPath
                 options.addDatetime (1, 1) logical = true
             end % arguments
+
+            outputLocation = ...
+                openmebius.domain.result.ResultLocation.fromInput( ...
+                directoryPath);
 
             if length(batchID) ~= length(names)
                 notifyGeneralMessage(obj, "error", "Batch ID and names must have the same length.");
@@ -931,15 +941,15 @@ classdef IOResult < IO
 
                 try
                     % Create the directory if it does not exist
-                    iDirectoryPath = fullfile(directoryPath, directoryName);
+                    iLocation = outputLocation.childLocation(directoryName);
 
-                    if isfolder(iDirectoryPath)
-                        msg = "Directory already exists: " + iDirectoryPath;
+                    if isfolder(iLocation.Directory)
+                        msg = "Directory already exists: " + iLocation.Directory;
                         notifyGeneralMessage(obj, "error", msg);
                         continue;
-                    end % if isfolder(directoryPath)
+                    end % if isfolder(iLocation.Directory)
 
-                    mkdir(iDirectoryPath);
+                    mkdir(iLocation.Directory);
 
                 catch ME
 
@@ -948,11 +958,11 @@ classdef IOResult < IO
 
                 end % try-catch
 
-                msg = "Saving result to: " + iDirectoryPath;
+                msg = "Saving result to: " + iLocation.Directory;
                 notifyGeneralMessage(obj, "info", msg);
 
                 % Save the result data
-                saveResultData(obj, iBatchID, iName, iDirectoryPath, "xlsx");
+                saveResultData(obj, iBatchID, iName, iLocation, "xlsx");
 
             end % for iBatch
 
@@ -968,8 +978,8 @@ classdef IOResult < IO
             %       The batch IDs to save the result files.
             %   name: (1, 1) string
             %       The names of the batch IDs.
-            %   directoryPath: (1, 1) string
-            %       The directory path to save the result files.
+            %   directoryPath: string or ResultLocation
+            %       The directory or location to save the result files.
             %   fmt: (1, 1) string
             %       The format to save the result files.
 
@@ -977,10 +987,14 @@ classdef IOResult < IO
                 obj (1, 1) IOResult
                 batchID (1, 1) string
                 name (1, 1) string
-                directoryPath (1, 1) string
+                directoryPath
                 fmt (1, 1) string {mustBeMember(fmt, ["xlsx", "csv"]) ...
                                        mustBeNonempty(fmt)} = "xlsx"
             end % arguments
+
+            outputLocation = ...
+                openmebius.domain.result.ResultLocation.fromInput( ...
+                directoryPath);
 
             data = obj.getResultData(batchID);
 
@@ -1004,7 +1018,7 @@ classdef IOResult < IO
             if fmt == "csv"
                 obj.saveResultDataAsCsv( ...
                     baseName, ...
-                    directoryPath, ...
+                    outputLocation, ...
                     overview, ...
                     data, ...
                     status, ...
@@ -1012,7 +1026,7 @@ classdef IOResult < IO
                 return
             end
 
-            filePath = fullfile(directoryPath, baseName + ".xlsx");
+            filePath = outputLocation.artifactFile(baseName + ".xlsx");
 
             [isSuccess, msg] = obj.exportExcelFile(filePath, overview, "Overview");
 
@@ -1224,10 +1238,10 @@ classdef IOResult < IO
 
     methods (Access = private)
 
-        function saveResultDataAsCsv(obj, baseName, directoryPath, overview, data, status, batchID)
+        function saveResultDataAsCsv(obj, baseName, outputLocation, overview, data, status, batchID)
 
             [isSuccess, msg] = obj.exportCsvTable( ...
-                fullfile(directoryPath, baseName + "_overview.csv"), ...
+                outputLocation.artifactFile(baseName + "_overview.csv"), ...
                 overview);
 
             if ~isSuccess
@@ -1237,7 +1251,7 @@ classdef IOResult < IO
 
             detailed = obj.getFluxDetailed(batchID);
             [isSuccess, msg] = obj.exportCsvTable( ...
-                fullfile(directoryPath, baseName + "_detailed.csv"), ...
+                outputLocation.artifactFile(baseName + "_detailed.csv"), ...
                 detailed, ...
                 WriteRowNames = false);
 
@@ -1248,7 +1262,7 @@ classdef IOResult < IO
 
             info = obj.getInformationTable(data);
             [isSuccess, msg] = obj.exportCsvTable( ...
-                fullfile(directoryPath, baseName + "_info.csv"), ...
+                outputLocation.artifactFile(baseName + "_info.csv"), ...
                 info, ...
                 WriteRowNames = false);
 
@@ -1263,7 +1277,7 @@ classdef IOResult < IO
 
             fluxAll = obj.getFluxAll(data);
             [isSuccess, msg] = obj.exportCsvTable( ...
-                fullfile(directoryPath, baseName + "_all.csv"), ...
+                outputLocation.artifactFile(baseName + "_all.csv"), ...
                 fluxAll);
 
             if ~isSuccess

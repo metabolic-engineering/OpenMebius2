@@ -35,6 +35,18 @@ classdef RawDataLocation
 
     methods (Static)
 
+        function obj = fromInput(input)
+
+            if isa(input, 'openmebius.domain.raw.RawDataLocation')
+                obj = input;
+                return;
+            end
+
+            obj = openmebius.domain.raw.RawDataLocation.fromDirectory( ...
+                string(input));
+
+        end % fromInput
+
         function obj = fromDirectory(directory)
 
             obj = openmebius.domain.raw.RawDataLocation(string(directory));

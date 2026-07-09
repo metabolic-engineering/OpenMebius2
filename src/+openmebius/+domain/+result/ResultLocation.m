@@ -26,9 +26,22 @@ classdef ResultLocation
 
         function path = reportFile(obj, fileName)
 
-            path = fullfile(obj.Directory, string(fileName));
+            path = obj.artifactFile(fileName);
 
         end % reportFile
+
+        function path = artifactFile(obj, fileName)
+
+            path = fullfile(obj.Directory, string(fileName));
+
+        end % artifactFile
+
+        function location = childLocation(obj, directoryName)
+
+            location = openmebius.domain.result.ResultLocation.fromDirectory( ...
+                fullfile(obj.Directory, string(directoryName)));
+
+        end % childLocation
 
         function tf = hasResultFile(obj, id)
 

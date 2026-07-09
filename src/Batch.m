@@ -1249,7 +1249,9 @@ classdef Batch < handle
             if nargin < 2
                 experimentLocation = obj.getExperimentLocation();
             else
-                experimentLocation = Batch.resolveExperimentLocation(fileDirectory);
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation.fromInput( ...
+                    fileDirectory);
             end
 
             ioInstance = IO(experimentLocation.Directory);
@@ -1279,7 +1281,9 @@ classdef Batch < handle
             if nargin < 2
                 experimentLocation = obj.getExperimentLocation();
             else
-                experimentLocation = Batch.resolveExperimentLocation(fileDirectory);
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation.fromInput( ...
+                    fileDirectory);
             end
 
             isError = false;
@@ -1581,38 +1585,19 @@ classdef Batch < handle
 
         function experimentLocation = getExperimentLocation(obj)
 
-            try
-                experimentLocation = obj.exp.ExperimentLocation;
-
-                if ~isempty(experimentLocation)
-                    return;
-                end
-
-            catch
+            if ismethod(obj.exp, 'getExperimentLocation')
+                experimentLocation = obj.exp.getExperimentLocation();
+                return;
             end
 
-            experimentLocation = Batch.resolveExperimentLocation( ...
-                obj.exp.fileDirectory);
+            error("Batch:MissingExperimentLocation", ...
+                "The experiment object does not expose getExperimentLocation().");
 
         end % method getExperimentLocation
 
     end % methods (Access = private)
 
     methods (Static, Access = private)
-
-        function experimentLocation = resolveExperimentLocation(experimentInput)
-
-            if isa(experimentInput, ...
-                    'openmebius.domain.experiment.ExperimentLocation')
-                experimentLocation = experimentInput;
-                return;
-            end
-
-            experimentLocation = ...
-                openmebius.domain.experiment.ExperimentLocation ...
-                .fromDirectory(string(experimentInput));
-
-        end % resolveExperimentLocation
 
         function updatedConfig = updateINSTMFATable(currentConfig, newTimeCourse, newTimePoints)
             % UPDATEINSTMFATABLE Update INST-MFA table

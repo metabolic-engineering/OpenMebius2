@@ -17,7 +17,8 @@ classdef IORawFile
         %% Constructor
         function obj = IORawFile(rawInput)
 
-            obj.RawDataLocation = IORawFile.resolveRawDataLocation(rawInput);
+            obj.RawDataLocation = ...
+                openmebius.domain.raw.RawDataLocation.fromInput(rawInput);
 
         end % function
 
@@ -34,7 +35,8 @@ classdef IORawFile
 
         function obj = set.fileDirectory(obj, fileDirectory)
 
-            obj.RawDataLocation = IORawFile.resolveRawDataLocation(fileDirectory);
+            obj.RawDataLocation = ...
+                openmebius.domain.raw.RawDataLocation.fromInput(fileDirectory);
 
         end % set.fileDirectory
 
@@ -43,7 +45,9 @@ classdef IORawFile
 
             isError = false;
             output = '';
-            targetLocation = IORawFile.resolveExperimentLocation(toSavePath);
+            targetLocation = ...
+                openmebius.domain.experiment.ExperimentLocation.fromInput( ...
+                toSavePath);
 
             if ~obj.validateFileDirectory()
                 isError = true;
@@ -157,7 +161,7 @@ classdef IORawFile
 
         end % function
 
-        function [isError, output] = exportToExcel(~, data, filename, fragment)
+        function [isError, output] = exportToExcel(obj, data, filename, fragment)
 
             isError = false;
             output = '';
@@ -165,9 +169,10 @@ classdef IORawFile
 
             for i = 1:length(fragment)
 
-                idx = contains(data.Name, fragment{i});
+                idx = obj.matchFragmentRows(data.Name, fragment{i});
                 selectedData = data(idx, 'Area');
-                selectedNaN = nan(100 - height(selectedData), 1);
+                numRows = max(100, height(selectedData));
+                selectedNaN = nan(numRows - height(selectedData), 1);
                 selectedDataNaN = table(selectedNaN, 'VariableNames', {'Area'});
                 selectedData = [selectedData; selectedDataNaN]; %#ok<AGROW>
 
@@ -180,9 +185,25 @@ classdef IORawFile
 
             end % for
 
-            rowNames = arrayfun(@(x) sprintf('M+%d', x), 0:99, 'UniformOutput', false);
+            if isempty(MSTable) || width(MSTable) == 0
+                isError = true;
+                output.message = 'No matching MS fragment data was found in the raw text file.';
+                return;
+            end
+
+            MSTable = MSTable(~all(isnan(MSTable.Variables), 2), :);
+
+            if isempty(MSTable)
+                isError = true;
+                output.message = 'No non-zero MS fragment data was found in the raw text file.';
+                return;
+            end
+
+            rowNames = arrayfun( ...
+                @(x) sprintf('M+%d', x), ...
+                0:(height(MSTable) - 1), ...
+                'UniformOutput', false);
             MSTable.Properties.RowNames = rowNames;
-            MSTable = MSTable (~all(isnan(MSTable.Variables), 2), :);
 
             try
                 writetable(MSTable, filename, 'WriteRowNames', true, 'Sheet', 'MS');
@@ -201,36 +222,31 @@ classdef IORawFile
 
         end % function
 
+        function idx = matchFragmentRows(~, names, fragment)
+
+            normalizedNames = IORawFile.normalizeFragmentLabels(names);
+            normalizedFragment = IORawFile.normalizeFragmentLabels(fragment);
+
+            idx = startsWith(normalizedNames, normalizedFragment);
+
+            if ~any(idx)
+                idx = contains(normalizedNames, normalizedFragment);
+            end
+
+        end % matchFragmentRows
+
     end % methods (Private)
 
     methods (Static, Access = private)
 
-        function rawDataLocation = resolveRawDataLocation(rawInput)
+        function labels = normalizeFragmentLabels(labels)
 
-            if isa(rawInput, 'openmebius.domain.raw.RawDataLocation')
-                rawDataLocation = rawInput;
-                return;
-            end
+            labels = lower(string(labels));
+            labels = regexprep(labels, '\[m[-_ ]*(\d+)\]', '$1');
+            labels = regexprep(labels, '(^|[^a-z0-9])m[-_ ]*(\d+)(?=$|[^a-z0-9])', '$1$2');
+            labels = regexprep(labels, '[^a-z0-9]', '');
 
-            rawDataLocation = ...
-                openmebius.domain.raw.RawDataLocation.fromDirectory( ...
-                string(rawInput));
-
-        end % resolveRawDataLocation
-
-        function experimentLocation = resolveExperimentLocation(experimentInput)
-
-            if isa(experimentInput, ...
-                    'openmebius.domain.experiment.ExperimentLocation')
-                experimentLocation = experimentInput;
-                return;
-            end
-
-            experimentLocation = ...
-                openmebius.domain.experiment.ExperimentLocation ...
-                .fromDirectory(string(experimentInput));
-
-        end % resolveExperimentLocation
+        end % normalizeFragmentLabels
 
     end % methods (Static, Access = private)
 

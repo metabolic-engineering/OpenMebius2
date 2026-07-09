@@ -52,6 +52,18 @@ classdef ModelLocation
 
     methods (Static)
 
+        function obj = fromInput(input)
+
+            if isa(input, 'openmebius.domain.model.ModelLocation')
+                obj = input;
+                return;
+            end
+
+            obj = openmebius.domain.model.ModelLocation.fromDirectory( ...
+                string(input));
+
+        end % fromInput
+
         function obj = fromDirectory(directory)
 
             obj = openmebius.domain.model.ModelLocation(string(directory));

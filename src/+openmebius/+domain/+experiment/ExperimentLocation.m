@@ -48,6 +48,18 @@ classdef ExperimentLocation
 
     methods (Static)
 
+        function obj = fromInput(input)
+
+            if isa(input, 'openmebius.domain.experiment.ExperimentLocation')
+                obj = input;
+                return;
+            end
+
+            obj = openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(string(input));
+
+        end % fromInput
+
         function obj = fromDirectory(directory)
 
             obj = openmebius.domain.experiment.ExperimentLocation( ...

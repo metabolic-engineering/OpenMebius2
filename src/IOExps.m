@@ -42,7 +42,8 @@ classdef IOExps < IO
 
         function obj = IOExps(experimentInput, modelInput)
 
-            experimentLocation = IOExps.resolveExperimentLocation( ...
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation.fromInput( ...
                 experimentInput);
 
             obj = obj@IO(experimentLocation.Directory);
@@ -188,7 +189,9 @@ classdef IOExps < IO
                 options.sheet (1, 1) string = "MS_raw"
             end % arguments
 
-            sourceLocation = IOExps.resolveExperimentLocation(fileDir);
+            sourceLocation = ...
+                openmebius.domain.experiment.ExperimentLocation.fromInput( ...
+                fileDir);
             io = IO(sourceLocation.Directory);
 
             if io.isError
@@ -452,6 +455,12 @@ classdef IOExps < IO
             model = obj.objModel;
 
         end % getModel
+
+        function experimentLocation = getExperimentLocation(obj)
+
+            experimentLocation = obj.ExperimentLocation;
+
+        end % getExperimentLocation
 
         function tableInfo = getInfoTable(obj)
             % GETINFOTABLE: Get the information table of the experiments
@@ -1092,24 +1101,6 @@ classdef IOExps < IO
 
     end % methods (Access = public)
 
-    methods (Static, Access = private)
-
-        function experimentLocation = resolveExperimentLocation(experimentInput)
-
-            if isa(experimentInput, ...
-                    'openmebius.domain.experiment.ExperimentLocation')
-                experimentLocation = experimentInput;
-                return
-            end
-
-            experimentLocation = ...
-                openmebius.domain.experiment.ExperimentLocation ...
-                .fromDirectory(string(experimentInput));
-
-        end % resolveExperimentLocation
-
-    end % methods (Static, Access = private)
-
     methods (Access = private)
 
         function [model, pathModel] = resolveModelInput(obj, modelInput)
@@ -1141,13 +1132,9 @@ classdef IOExps < IO
                 return
             end
 
-            if isa(modelInput, 'openmebius.domain.model.ModelLocation')
-                pathModel = modelInput.Directory;
-                model = EMUModel(modelInput);
-                return
-            end
-
-            pathModel = string(modelInput);
+            modelLocation = ...
+                openmebius.domain.model.ModelLocation.fromInput(modelInput);
+            pathModel = modelLocation.Directory;
 
             if pathModel == ""
                 obj.isError = true;
@@ -1158,7 +1145,7 @@ classdef IOExps < IO
                 return
             end
 
-            model = EMUModel(pathModel);
+            model = EMUModel(modelLocation);
 
         end % resolveModelInput
 
