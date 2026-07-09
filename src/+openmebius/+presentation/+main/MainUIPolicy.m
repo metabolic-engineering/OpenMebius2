@@ -149,9 +149,10 @@ classdef MainUIPolicy
                 (~isEditing || isExperimentEdit);
 
             ui.ExperimentTableEditable = ...
-                isIdle && isExperimentEdit;
+                isIdle;
 
-            ui.BiomassTableEditable = false;
+            ui.BiomassTableEditable = ...
+                isIdle && isModelEdit;
 
             % -------------------------------------------------------------
             % Tracer tab
@@ -163,7 +164,7 @@ classdef MainUIPolicy
                 (~isEditing || isTracerEdit);
 
             ui.TracerTableEditable = ...
-                isIdle && isTracerEdit;
+                isIdle;
 
             ui.UptakeTableEditable = ...
                 ui.TracerTableEditable;
