@@ -10,6 +10,7 @@ classdef IOExps < IO
         % "tableMSNormalized", table, ...
         fieldNames string;
         pathModel (1, 1) string = "";
+        ExperimentLocation openmebius.domain.experiment.ExperimentLocation
 
         tableExpsInfo table;
         tableTracersInfoFull table;
@@ -39,16 +40,20 @@ classdef IOExps < IO
 
     methods
 
-        function obj = IOExps(pathExps, pathModel)
+        function obj = IOExps(experimentInput, modelInput)
 
-            obj = obj@IO(pathExps);
-            obj.pathModel = pathModel;
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation.fromInput( ...
+                experimentInput);
+
+            obj = obj@IO(experimentLocation.Directory);
+            obj.ExperimentLocation = experimentLocation;
 
             if obj.isError
                 return;
             end
 
-            loadExpData(obj, pathModel);
+            loadExpData(obj, modelInput);
 
             if obj.isError
                 return;
@@ -69,13 +74,19 @@ classdef IOExps < IO
         end % get.fileListWOExt
 
         %% Public general methods
-        function loadExpData(obj, pathModel)
+        function loadExpData(obj, modelInput)
 
-            if nargin < 2 || isempty(pathModel)
-                pathModel = obj.pathModel;
+            if nargin < 2 || isempty(modelInput)
+
+                if ~isempty(obj.objModel)
+                    modelInput = obj.objModel;
+                else
+                    modelInput = obj.pathModel;
+                end
+
             end
 
-            obj.fileExpList = obj.getFileList("xlsx");
+            obj.fileExpList = obj.ExperimentLocation.filesByType("xlsx");
             obj.fieldNames = matlab.lang.makeValidName(obj.fileExpList);
 
             if isempty(obj.fileExpList)
@@ -83,7 +94,11 @@ classdef IOExps < IO
                 return;
             end
 
-            obj.objModel = EMUModel(pathModel);
+            [obj.objModel, obj.pathModel] = obj.resolveModelInput(modelInput);
+
+            if obj.isError
+                return
+            end
 
             if obj.objModel.isError
                 obj.isError = true;
@@ -174,14 +189,17 @@ classdef IOExps < IO
                 options.sheet (1, 1) string = "MS_raw"
             end % arguments
 
-            io = IO(fileDir);
+            sourceLocation = ...
+                openmebius.domain.experiment.ExperimentLocation.fromInput( ...
+                fileDir);
+            io = IO(sourceLocation.Directory);
 
             if io.isError
                 obj.isError = true;
                 return;
             end
 
-            obj.fileExpList = io.getFileList(options.type);
+            obj.fileExpList = sourceLocation.filesByType(options.type);
             obj.fieldNames = matlab.lang.makeValidName(obj.fileExpList);
 
             for i = 1:length(obj.fileExpList)
@@ -189,7 +207,7 @@ classdef IOExps < IO
                 fileExp = obj.fileExpList(i);
                 fieldName = obj.fieldNames(i);
 
-                pathFile = fullfile(fileDir, fileExp);
+                pathFile = sourceLocation.workbookFile(fileExp);
                 structName = fieldName;
 
                 objExp = IOExp(pathFile);
@@ -206,7 +224,12 @@ classdef IOExps < IO
                 % Keep previously calculated MDV-derived sheets from the
                 % imported workbook when they exist.  Importing must not
                 % trigger a recalculation.
-                loadStoredDerivedTables(obj, objExp, structName, erase(fileExp, ".xlsx"));
+                loadStoredDerivedTables( ...
+                    obj, ...
+                    objExp, ...
+                    structName, ...
+                    sourceLocation.experimentName(fileExp) ...
+                );
 
             end % for i
 
@@ -231,7 +254,7 @@ classdef IOExps < IO
             for i = 1:length(obj.fileExpList)
 
                 objExp = IOExp( ...
-                    fullfile(obj.fileDirectory, obj.fileExpList(i)) ...
+                    obj.ExperimentLocation.workbookFile(obj.fileExpList(i)) ...
                 );
 
                 if objExp.isError
@@ -432,6 +455,12 @@ classdef IOExps < IO
             model = obj.objModel;
 
         end % getModel
+
+        function experimentLocation = getExperimentLocation(obj)
+
+            experimentLocation = obj.ExperimentLocation;
+
+        end % getExperimentLocation
 
         function tableInfo = getInfoTable(obj)
             % GETINFOTABLE: Get the information table of the experiments
@@ -1074,6 +1103,52 @@ classdef IOExps < IO
 
     methods (Access = private)
 
+        function [model, pathModel] = resolveModelInput(obj, modelInput)
+
+            model = [];
+            pathModel = "";
+
+            if isa(modelInput, 'EMUModel')
+
+                model = modelInput;
+
+                try
+
+                    if ~isvalid(model)
+                        obj.isError = true;
+                        updateMsg(obj, ...
+                            "The model object is invalid.", ...
+                            "Error", ...
+                            obj.logLevel);
+                        return
+                    end
+
+                catch
+                    % Non-handle compatible objects are treated as valid here.
+                end
+
+                modelLocation = model.getModelLocation();
+                pathModel = modelLocation.Directory;
+                return
+            end
+
+            modelLocation = ...
+                openmebius.domain.model.ModelLocation.fromInput(modelInput);
+            pathModel = modelLocation.Directory;
+
+            if pathModel == ""
+                obj.isError = true;
+                updateMsg(obj, ...
+                    "The model directory is empty.", ...
+                    "Error", ...
+                    obj.logLevel);
+                return
+            end
+
+            model = EMUModel(modelLocation);
+
+        end % resolveModelInput
+
         function tableOut = getStoredTableOrEmpty(obj, fieldName, tableName)
 
             arguments
@@ -1178,7 +1253,7 @@ classdef IOExps < IO
                 fieldName (1, 1) string
             end
 
-            pathFile = fullfile(obj.fileDirectory, fileExp);
+            pathFile = obj.ExperimentLocation.workbookFile(fileExp);
             structName = fieldName;
 
             objExp = IOExp(pathFile);
@@ -1197,7 +1272,12 @@ classdef IOExps < IO
             obj.dataExp.(structName).tableSubstrate = objExp.tableSubstrate;
             obj.dataExp.(structName).tableMS = objExp.tableMS;
 
-            loadStoredDerivedTables(obj, objExp, structName, erase(fileExp, ".xlsx"));
+            loadStoredDerivedTables( ...
+                obj, ...
+                objExp, ...
+                structName, ...
+                obj.ExperimentLocation.experimentName(fileExp) ...
+            );
 
             if isempty(obj.dataExp.(structName).tableSubstrate)
                 obj.dataExp.(structName).tableSubstrate = ...

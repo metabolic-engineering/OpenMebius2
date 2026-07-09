@@ -118,15 +118,15 @@ classdef EMUModel < Stoichiometry
 
     methods
 
-        function obj = EMUModel(fileDirectory)
+        function obj = EMUModel(modelInput)
             % EMUMODEL: Constructor for the EMUModel class.
             %
             % Parameters:
             % -----------
-            % fileDirectory (1 x 1) string
-            %     File directory containing the model files.
+            % modelInput
+            %     File directory or openmebius.domain.model.ModelLocation.
 
-            obj = obj@Stoichiometry(fileDirectory);
+            obj = obj@Stoichiometry(modelInput);
 
             if obj.isError
                 return
@@ -134,7 +134,7 @@ classdef EMUModel < Stoichiometry
 
             if ~obj.isUpdatedModel
 
-                isSucceeded = obj.loadEMUModelFromFile(fileDirectory);
+                isSucceeded = obj.loadEMUModelFromFile();
 
                 if ~isSucceeded
                     isConstructed = constructEMUNetwork(obj);
@@ -149,7 +149,7 @@ classdef EMUModel < Stoichiometry
             end % if
 
             if isConstructed
-                saveEMUModelToFile(obj, fileDirectory);
+                saveEMUModelToFile(obj);
             end % if
 
             warning('off', 'MATLAB:nearlySingularMatrix');
@@ -2155,19 +2155,11 @@ classdef EMUModel < Stoichiometry
         end % method buildMDVVector
 
         %% Private utility methods
-        function tf = saveEMUModelToFile(obj, fileDirectory)
-            % SAVEMODEL Save the model to the specified directory.
+        function tf = saveEMUModelToFile(obj)
+            % SAVEMODEL Save the model cache and source-file hash.
             %
-            % saveModel(obj, fileDirectory)
-            %
-            % Parameters
-            % ----------
-            % fileDirectory: string
-            %    Directory to save the model files.
-            %
-            % Returns
-            % -------
-            % None
+            % The file locations are resolved by IOModel.pathCache and
+            % IOModel.pathModel.
 
             tf = false;
 
@@ -2193,8 +2185,7 @@ classdef EMUModel < Stoichiometry
             globalMDVList = obj.globalMDVList; %#ok<PROPLC>
             globalMDVSize = obj.globalMDVSize; %#ok<PROPLC>
 
-            filename = obj.fileModel + ".mat";
-            filePath = fullfile(fileDirectory, filename);
+            filePath = obj.pathCache;
 
             try
                 save(filePath, ...
@@ -2227,8 +2218,7 @@ classdef EMUModel < Stoichiometry
             end % try-catch
 
             try
-                filePath = fullfile(fileDirectory, obj.fileModel + "." + obj.fileTypeModel);
-                saveHashFile(obj, filePath);
+                saveHashFile(obj, obj.pathModel);
             catch ME
                 msg = "Failed to compute    hash for the model file: " + ME.message;
                 emitMsg(obj, msg, "Error", obj.logLevel);
@@ -2237,23 +2227,11 @@ classdef EMUModel < Stoichiometry
 
         end % saveModel
 
-        function tf = loadEMUModelFromFile(obj, fileDirectory)
-            % LOADMODEL Load the model from the specified directory.
-            %
-            % loadModel(obj, fileDirectory)
-            %
-            % Parameters
-            % ----------
-            % fileDirectory: string
-            %    Directory to load the model files.
-            %
-            % Returns
-            % -------
-            % None
+        function tf = loadEMUModelFromFile(obj)
+            % LOADMODEL Load the model cache resolved by IOModel.pathCache.
 
             tf = false;
-            filename = obj.fileModel + ".mat";
-            filePath = fullfile(fileDirectory, filename);
+            filePath = obj.pathCache;
 
             if ~isfile(filePath)
                 msg = "Model file not found: " + filePath;
@@ -2347,8 +2325,7 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            filename = obj.fileModel + ".hash";
-            filePath = fullfile(obj.fileDirectory, filename);
+            filePath = obj.pathHash;
 
             if isfile(filePath)
                 delete(filePath);

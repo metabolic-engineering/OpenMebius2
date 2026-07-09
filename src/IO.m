@@ -80,7 +80,7 @@ classdef IO < handle & Status
 
             % Check if the files exist
             for i = 1:length(filePath)
-                isExistFile(obj, fileNames(i));
+                isExistFile(obj, filePath(i));
 
                 if obj.isError
                     break;

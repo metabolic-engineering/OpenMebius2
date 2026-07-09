@@ -2,8 +2,8 @@ classdef ReportResult < handle
 
     properties (Access = private)
 
-        % fileDirectory
-        fileDirectory = ""
+        % Result output location
+        ResultLocation openmebius.domain.result.ResultLocation
 
         % Objects
         model
@@ -27,7 +27,9 @@ classdef ReportResult < handle
 
         function obj = ReportResult(fileDirectory, model, exp, result)
 
-            obj.fileDirectory = fileDirectory;
+            obj.ResultLocation = ...
+                openmebius.domain.result.ResultLocation.fromInput( ...
+                fileDirectory);
             obj.model = model;
             obj.exp = exp;
             obj.result = result;
@@ -62,8 +64,7 @@ classdef ReportResult < handle
 
         function generateFilename(obj, filename)
 
-            directory = obj.fileDirectory;
-            obj.filename = fullfile(directory, filename);
+            obj.filename = obj.ResultLocation.reportFile(filename);
 
         end % generateFilename
 

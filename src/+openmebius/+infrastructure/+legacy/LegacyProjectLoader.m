@@ -19,7 +19,7 @@ classdef LegacyProjectLoader < handle
             % -------------------------------------------------------------
             % Model
             % -------------------------------------------------------------
-            model = EMUModel(paths.ModelDirectory);
+            model = EMUModel(paths.modelLocation());
 
             if isempty(model) || ~isvalid(model)
                 error( ...
@@ -47,8 +47,8 @@ classdef LegacyProjectLoader < handle
             % Experiments
             % -------------------------------------------------------------
             experiments = IOExps( ...
-                paths.ExperimentDirectory, ...
-                paths.ModelDirectory);
+                paths.experimentLocation(), ...
+                model);
 
             if isempty(experiments) || ~isvalid(experiments)
                 error( ...
@@ -80,7 +80,7 @@ classdef LegacyProjectLoader < handle
             % -------------------------------------------------------------
             % Result
             % -------------------------------------------------------------
-            result = IOResult(paths.ResultDirectory);
+            result = IOResult(paths.resultLocation());
 
             if isempty(result) || ~isvalid(result)
                 error( ...

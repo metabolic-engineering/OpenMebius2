@@ -1247,11 +1247,15 @@ classdef Batch < handle
             %     File directory name
 
             if nargin < 2
-                fileDirectory = obj.exp.fileDirectory;
+                experimentLocation = obj.getExperimentLocation();
+            else
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation.fromInput( ...
+                    fileDirectory);
             end
 
-            ioInstance = IO(fileDirectory);
-            filenameBatch = fullfile(fileDirectory, obj.filename);
+            ioInstance = IO(experimentLocation.Directory);
+            filenameBatch = experimentLocation.batchFile(obj.filename);
 
             ioInstance.exportJSONFile(filenameBatch, obj.tableBatch);
 
@@ -1275,13 +1279,17 @@ classdef Batch < handle
             %     Message
 
             if nargin < 2
-                fileDirectory = obj.exp.fileDirectory;
+                experimentLocation = obj.getExperimentLocation();
+            else
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation.fromInput( ...
+                    fileDirectory);
             end
 
             isError = false;
 
-            ioInstance = IO(fileDirectory);
-            filenameBatch = fullfile(fileDirectory, obj.filename);
+            ioInstance = IO(experimentLocation.Directory);
+            filenameBatch = experimentLocation.batchFile(obj.filename);
 
             batch = ioInstance.importJSONFile(filenameBatch);
             msg = ioInstance.statusMsg();
@@ -1321,6 +1329,9 @@ classdef Batch < handle
             % obj: Batch
             %     Batch
 
+            resultLocation = ...
+                openmebius.domain.result.ResultLocation.fromInput( ...
+                fileDirectory);
             status = "finished";
 
             if ~obj.exp.hasCalculatedMDV()
@@ -1357,10 +1368,7 @@ classdef Batch < handle
 
                 % Delete previous result files
                 if obj.tableBatch.config(i).deleteResultFile
-                    filename = fullfile( ...
-                        fileDirectory, ...
-                        obj.tableBatch.id(i) + ".h5" ...
-                    ); %#ok<PROPLC>
+                    filename = resultLocation.resultFile(obj.tableBatch.id(i)); %#ok<PROPLC>
 
                     if isfile(filename) %#ok<PROPLC>
                         delete(filename); %#ok<PROPLC>
@@ -1374,7 +1382,7 @@ classdef Batch < handle
                     obj.exp, ...
                     obj.tableBatch.exp(i), ...
                     obj.tableBatch.config(i), ...
-                    fileDirectory, ...
+                    resultLocation, ...
                     obj.tableBatch.id(i), ...
                     obj ...
                 );
@@ -1574,6 +1582,18 @@ classdef Batch < handle
             obj.FluxAnalysisListeners = event.listener.empty(0, 1);
 
         end % method clearFluxAnalysisListeners
+
+        function experimentLocation = getExperimentLocation(obj)
+
+            if ismethod(obj.exp, 'getExperimentLocation')
+                experimentLocation = obj.exp.getExperimentLocation();
+                return;
+            end
+
+            error("Batch:MissingExperimentLocation", ...
+                "The experiment object does not expose getExperimentLocation().");
+
+        end % method getExperimentLocation
 
     end % methods (Access = private)
 

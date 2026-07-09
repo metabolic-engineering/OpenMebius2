@@ -55,6 +55,7 @@ classdef IOModel < IO
         modelMetaboliteProduct table;
         MSMetaboliteReactant table;
         MSMetaboliteProduct table;
+        ModelLocation openmebius.domain.model.ModelLocation
 
         errorColumnsModel (1, :) double = [];
         errorColumnsMS (1, :) double = [];
@@ -78,6 +79,7 @@ classdef IOModel < IO
         pathLabel (1, 1) string;
         pathPathway (1, 1) string;
         pathHash (1, 1) string;
+        pathCache (1, 1) string;
 
         % Dependent table for GUI
         tableModelGUI table;
@@ -90,9 +92,14 @@ classdef IOModel < IO
     %% General methods
     methods
 
-        function obj = IOModel(fileDirectory)
+        function obj = IOModel(modelInput)
 
-            obj = obj@IO(fileDirectory);
+            modelLocation = ...
+                openmebius.domain.model.ModelLocation.fromInput( ...
+                modelInput);
+
+            obj = obj@IO(modelLocation.Directory);
+            obj.ModelLocation = modelLocation;
 
             if obj.isError
                 return;
@@ -141,23 +148,33 @@ classdef IOModel < IO
         % Dependent properties
         % Get the file name
         function pathModel = get.pathModel(obj)
-            pathModel = fullfile(obj.fileDirectory, obj.fileModel + "." + obj.fileTypeModel);
+            pathModel = obj.ModelLocation.modelFile( ...
+                obj.fileModel, ...
+                obj.fileTypeModel);
         end % get.pathModel
 
         % Get the file name
         function pathPathway = get.pathPathway(obj)
-            pathPathway = fullfile(obj.fileDirectory, obj.filePathway + "." + obj.fileTypePathway);
+            pathPathway = obj.ModelLocation.pathwayFile( ...
+                obj.filePathway, ...
+                obj.fileTypePathway);
         end % get.pathPathway
 
         % Get the file name
         function pathLabel = get.pathLabel(obj)
-            pathLabel = fullfile(obj.fileDirectory, obj.fileLabel + "." + obj.fileTypeLabel);
+            pathLabel = obj.ModelLocation.labelFile( ...
+                obj.fileLabel, ...
+                obj.fileTypeLabel);
         end % get.pathLabel
 
         % Get the hash file
         function pathHash = get.pathHash(obj)
-            pathHash = fullfile(obj.fileDirectory, obj.fileModel + ".hash");
+            pathHash = obj.ModelLocation.hashFile(obj.fileModel);
         end % get.pathHash
+
+        function pathCache = get.pathCache(obj)
+            pathCache = obj.ModelLocation.cacheFile(obj.fileModel);
+        end % get.pathCache
 
         function tableModelGUI = get.tableModelGUI(obj)
 
@@ -519,6 +536,12 @@ classdef IOModel < IO
             status = obj.IOstatus;
 
         end % function getIOStatus
+
+        function modelLocation = getModelLocation(obj)
+
+            modelLocation = obj.ModelLocation;
+
+        end % function getModelLocation
 
         function tableOut = getModelTable(obj)
 

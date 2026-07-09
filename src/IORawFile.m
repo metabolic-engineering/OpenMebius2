@@ -2,6 +2,12 @@ classdef IORawFile
 
     properties
 
+        RawDataLocation openmebius.domain.raw.RawDataLocation
+
+    end % properties
+
+    properties (Dependent)
+
         fileDirectory
 
     end % properties
@@ -9,17 +15,39 @@ classdef IORawFile
     methods
 
         %% Constructor
-        function obj = IORawFile(fileDirectory)
+        function obj = IORawFile(rawInput)
 
-            obj.fileDirectory = fileDirectory;
+            obj.RawDataLocation = ...
+                openmebius.domain.raw.RawDataLocation.fromInput(rawInput);
 
         end % function
+
+        function fileDirectory = get.fileDirectory(obj)
+
+            if isempty(obj.RawDataLocation)
+                fileDirectory = "";
+                return;
+            end
+
+            fileDirectory = obj.RawDataLocation.Directory;
+
+        end % get.fileDirectory
+
+        function obj = set.fileDirectory(obj, fileDirectory)
+
+            obj.RawDataLocation = ...
+                openmebius.domain.raw.RawDataLocation.fromInput(fileDirectory);
+
+        end % set.fileDirectory
 
         %% Public utilization method
         function [isError, output] = readMSDataFromShimadzuASCII(obj, toSavePath, fragmentList)
 
             isError = false;
             output = '';
+            targetLocation = ...
+                openmebius.domain.experiment.ExperimentLocation.fromInput( ...
+                toSavePath);
 
             if ~obj.validateFileDirectory()
                 isError = true;
@@ -27,12 +55,12 @@ classdef IORawFile
                 return;
             end
 
-            textList = dir(append(obj.fileDirectory, '\*.txt'));
-            numFile = size(textList, 1);
+            textList = obj.RawDataLocation.textFiles();
+            numFile = length(textList);
 
             for i = 1:numFile
 
-                filename = fullfile(obj.fileDirectory, textList(i).name);
+                filename = obj.RawDataLocation.textFile(textList(i));
                 [data, isError, output] = obj.readTextData(filename);
 
                 if isError
@@ -40,9 +68,9 @@ classdef IORawFile
                     continue;
                 end
 
-                [~, name, ~] = fileparts(textList(i).name);
+                [~, name, ~] = fileparts(textList(i));
 
-                filename = fullfile(toSavePath, append(name, '.xlsx'));
+                filename = targetLocation.workbookFile(string(name) + ".xlsx");
 
                 data = data(:, {'Name', 'Area'});
 
@@ -133,7 +161,7 @@ classdef IORawFile
 
         end % function
 
-        function [isError, output] = exportToExcel(~, data, filename, fragment)
+        function [isError, output] = exportToExcel(obj, data, filename, fragment)
 
             isError = false;
             output = '';
@@ -141,9 +169,10 @@ classdef IORawFile
 
             for i = 1:length(fragment)
 
-                idx = contains(data.Name, fragment{i});
+                idx = obj.matchFragmentRows(data.Name, fragment{i});
                 selectedData = data(idx, 'Area');
-                selectedNaN = nan(100 - height(selectedData), 1);
+                numRows = max(100, height(selectedData));
+                selectedNaN = nan(numRows - height(selectedData), 1);
                 selectedDataNaN = table(selectedNaN, 'VariableNames', {'Area'});
                 selectedData = [selectedData; selectedDataNaN]; %#ok<AGROW>
 
@@ -156,9 +185,25 @@ classdef IORawFile
 
             end % for
 
-            rowNames = arrayfun(@(x) sprintf('M+%d', x), 0:99, 'UniformOutput', false);
+            if isempty(MSTable) || width(MSTable) == 0
+                isError = true;
+                output.message = 'No matching MS fragment data was found in the raw text file.';
+                return;
+            end
+
+            MSTable = MSTable(~all(isnan(MSTable.Variables), 2), :);
+
+            if isempty(MSTable)
+                isError = true;
+                output.message = 'No non-zero MS fragment data was found in the raw text file.';
+                return;
+            end
+
+            rowNames = arrayfun( ...
+                @(x) sprintf('M+%d', x), ...
+                0:(height(MSTable) - 1), ...
+                'UniformOutput', false);
             MSTable.Properties.RowNames = rowNames;
-            MSTable = MSTable (~all(isnan(MSTable.Variables), 2), :);
 
             try
                 writetable(MSTable, filename, 'WriteRowNames', true, 'Sheet', 'MS');
@@ -173,10 +218,36 @@ classdef IORawFile
         %% Private validation method
         function isValid = validateFileDirectory(obj)
 
-            isValid = isfolder(obj.fileDirectory);
+            isValid = isfolder(obj.RawDataLocation.Directory);
 
         end % function
 
+        function idx = matchFragmentRows(~, names, fragment)
+
+            normalizedNames = IORawFile.normalizeFragmentLabels(names);
+            normalizedFragment = IORawFile.normalizeFragmentLabels(fragment);
+
+            idx = startsWith(normalizedNames, normalizedFragment);
+
+            if ~any(idx)
+                idx = contains(normalizedNames, normalizedFragment);
+            end
+
+        end % matchFragmentRows
+
     end % methods (Private)
+
+    methods (Static, Access = private)
+
+        function labels = normalizeFragmentLabels(labels)
+
+            labels = lower(string(labels));
+            labels = regexprep(labels, '\[m[-_ ]*(\d+)\]', '$1');
+            labels = regexprep(labels, '(^|[^a-z0-9])m[-_ ]*(\d+)(?=$|[^a-z0-9])', '$1$2');
+            labels = regexprep(labels, '[^a-z0-9]', '');
+
+        end % normalizeFragmentLabels
+
+    end % methods (Static, Access = private)
 
 end % classdef

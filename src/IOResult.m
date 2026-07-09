@@ -17,22 +17,21 @@ classdef IOResult < IO
 
     properties (SetAccess = private)
 
-        directoryResult (1, 1) string
+        ResultLocation openmebius.domain.result.ResultLocation
 
     end % properties
 
     methods
 
-        function obj = IOResult(directoryResult)
+        function obj = IOResult(resultInput)
             % Constructor for IOResult class
 
-            obj@IO(directoryResult);
+            resultLocation = ...
+                openmebius.domain.result.ResultLocation.fromInput( ...
+                resultInput);
 
-            if obj.isError
-                obj.directoryResult = "";
-            else
-                obj.directoryResult = directoryResult;
-            end
+            obj@IO(resultLocation.Directory);
+            obj.ResultLocation = resultLocation;
 
         end % constructor
 
@@ -41,6 +40,12 @@ classdef IOResult < IO
     methods (Access = public)
 
         %% Public get functions
+        function resultLocation = getResultLocation(obj)
+
+            resultLocation = obj.ResultLocation;
+
+        end % getResultLocation
+
         function tableRtn = getFluxOverView(obj, id, options)
             % GETFLUXOVERVIEW Get the flux overview from the result file.
             %
@@ -449,10 +454,10 @@ classdef IOResult < IO
             end % arguments
 
             % Load the result file
-            filename = batchID + ".h5";
-            filePath = fullfile(obj.directoryResult, filename);
+            filePath = obj.ResultLocation.resultFile(batchID);
+            data = [];
 
-            if ~isfile(filePath)
+            if ~obj.ResultLocation.hasResultFile(batchID)
                 notifyGeneralMessage(obj, "error", "Result file does not exist.");
                 return;
             end
@@ -530,10 +535,9 @@ classdef IOResult < IO
             % Load the result file
             isExist = true;
             data = struct;
-            filename = batchID + ".h5";
-            filePath = fullfile(obj.directoryResult, filename);
+            filePath = obj.ResultLocation.resultFile(batchID);
 
-            if ~isfile(filePath)
+            if ~obj.ResultLocation.hasResultFile(batchID)
                 isExist = false;
                 return;
             end
@@ -664,14 +668,14 @@ classdef IOResult < IO
             obj.IDs = ids;
             obj.dataMask = dataMask;
 
-            if ~isfolder(obj.directoryResult)
+            if ~isfolder(obj.ResultLocation.Directory)
                 obj.isError = true;
                 notifyGeneralMessage(obj, "error", "Result directory does not exist.");
                 return;
             end
 
             % Get all files in the directory
-            files = dir(fullfile(obj.directoryResult, '*.h5'));
+            files = obj.ResultLocation.resultFiles();
 
             if isempty(files)
                 return;
@@ -730,24 +734,13 @@ classdef IOResult < IO
 
             data = struct;
 
-            if ~isfolder(obj.directoryResult)
+            if ~isfolder(obj.ResultLocation.Directory)
                 obj.isError = true;
                 notifyGeneralMessage(obj, "error", "Result directory does not exist.");
                 return;
             end
 
-            % Get all files in the directory
-            files = dir(fullfile(obj.directoryResult, '*.h5'));
-
-            if isempty(files)
-                return;
-            end
-
-            % Remove the extension
-            iFilename = string(char(files.name));
-            idx = find(contains(iFilename, obj.IDs), 1);
-
-            if isempty(idx)
+            if ~obj.ResultLocation.hasResultFile(id)
                 return;
             end
 
@@ -906,8 +899,8 @@ classdef IOResult < IO
             %       The batch IDs to save the result files.
             %   names: (1, :) string
             %       The names of the batch IDs.
-            %   directoryPath: (1, 1) string
-            %       The directory path to save the result files.
+            %   directoryPath: string or ResultLocation
+            %       The directory or location to save the result files.
             %   options: struct
             %       The options for saving the result files.
             %       options.addDatetime: (1, 1) logical
@@ -919,11 +912,15 @@ classdef IOResult < IO
                 obj (1, 1) IOResult
                 batchID (:, 1) string
                 names (:, 1) string
-                directoryPath (1, 1) string
+                directoryPath
                 options.addDatetime (1, 1) logical = true
             end % arguments
 
-            if length(batchID) ~= length(names) || length(batchID) ~= unique(length(batchID))
+            outputLocation = ...
+                openmebius.domain.result.ResultLocation.fromInput( ...
+                directoryPath);
+
+            if length(batchID) ~= length(names)
                 notifyGeneralMessage(obj, "error", "Batch ID and names must have the same length.");
                 return;
             end % if
@@ -944,15 +941,15 @@ classdef IOResult < IO
 
                 try
                     % Create the directory if it does not exist
-                    iDirectoryPath = fullfile(directoryPath, directoryName);
+                    iLocation = outputLocation.childLocation(directoryName);
 
-                    if isfolder(iDirectoryPath)
-                        msg = "Directory already exists: " + iDirectoryPath;
+                    if isfolder(iLocation.Directory)
+                        msg = "Directory already exists: " + iLocation.Directory;
                         notifyGeneralMessage(obj, "error", msg);
                         continue;
-                    end % if isfolder(directoryPath)
+                    end % if isfolder(iLocation.Directory)
 
-                    mkdir(iDirectoryPath);
+                    mkdir(iLocation.Directory);
 
                 catch ME
 
@@ -961,11 +958,11 @@ classdef IOResult < IO
 
                 end % try-catch
 
-                msg = "Saving result to: " + iDirectoryPath;
+                msg = "Saving result to: " + iLocation.Directory;
                 notifyGeneralMessage(obj, "info", msg);
 
                 % Save the result data
-                saveResultData(obj, iBatchID, iName, iDirectoryPath, "xlsx");
+                saveResultData(obj, iBatchID, iName, iLocation, "xlsx");
 
             end % for iBatch
 
@@ -981,8 +978,8 @@ classdef IOResult < IO
             %       The batch IDs to save the result files.
             %   name: (1, 1) string
             %       The names of the batch IDs.
-            %   directoryPath: (1, 1) string
-            %       The directory path to save the result files.
+            %   directoryPath: string or ResultLocation
+            %       The directory or location to save the result files.
             %   fmt: (1, 1) string
             %       The format to save the result files.
 
@@ -990,10 +987,14 @@ classdef IOResult < IO
                 obj (1, 1) IOResult
                 batchID (1, 1) string
                 name (1, 1) string
-                directoryPath (1, 1) string
+                directoryPath
                 fmt (1, 1) string {mustBeMember(fmt, ["xlsx", "csv"]) ...
                                        mustBeNonempty(fmt)} = "xlsx"
             end % arguments
+
+            outputLocation = ...
+                openmebius.domain.result.ResultLocation.fromInput( ...
+                directoryPath);
 
             data = obj.getResultData(batchID);
 
@@ -1009,20 +1010,28 @@ classdef IOResult < IO
                 return;
             end % if
 
-            % Create the file name
-            switch fmt
-                case "xlsx"
-                    fileName = "result_" + name + "_" + batchID + ".xlsx";
-            end % switch
-
-            filePath = fullfile(directoryPath, fileName);
+            baseName = "result_" + name + "_" + batchID;
 
             % Create flux row header
             overview = obj.getFluxOverView(batchID);
+
+            if fmt == "csv"
+                obj.saveResultDataAsCsv( ...
+                    baseName, ...
+                    outputLocation, ...
+                    overview, ...
+                    data, ...
+                    status, ...
+                    batchID);
+                return
+            end
+
+            filePath = outputLocation.artifactFile(baseName + ".xlsx");
+
             [isSuccess, msg] = obj.exportExcelFile(filePath, overview, "Overview");
 
             if ~isSuccess
-                notifyGeneralMessage(app, "error", "Failed to save the overview data: " + msg);
+                notifyGeneralMessage(obj, "error", "Failed to save the overview data: " + msg);
                 return;
             end % if ~isSuccess
 
@@ -1030,7 +1039,7 @@ classdef IOResult < IO
             [isSuccess, msg] = obj.exportExcelFile(filePath, detailed, "Detailed", WriteRowNames = false);
 
             if ~isSuccess
-                notifyGeneralMessage(app, "error", "Failed to save the detailed data: " + msg);
+                notifyGeneralMessage(obj, "error", "Failed to save the detailed data: " + msg);
                 return;
             end % if ~isSuccess
 
@@ -1110,9 +1119,10 @@ classdef IOResult < IO
             end % arguments
 
             % Load the result file
-            filePath = fullfile(obj.directoryResult, id + ".h5");
+            filePath = obj.ResultLocation.resultFile(id);
+            data = [];
 
-            if ~isfile(filePath)
+            if ~obj.ResultLocation.hasResultFile(id)
                 notifyGeneralMessage(obj, "error", "Result file does not exist.");
                 return;
             end
@@ -1227,6 +1237,80 @@ classdef IOResult < IO
     end % methods (Access = protected)
 
     methods (Access = private)
+
+        function saveResultDataAsCsv(obj, baseName, outputLocation, overview, data, status, batchID)
+
+            [isSuccess, msg] = obj.exportCsvTable( ...
+                outputLocation.artifactFile(baseName + "_overview.csv"), ...
+                overview);
+
+            if ~isSuccess
+                notifyGeneralMessage(obj, "error", "Failed to save the overview data: " + msg);
+                return;
+            end
+
+            detailed = obj.getFluxDetailed(batchID);
+            [isSuccess, msg] = obj.exportCsvTable( ...
+                outputLocation.artifactFile(baseName + "_detailed.csv"), ...
+                detailed, ...
+                WriteRowNames = false);
+
+            if ~isSuccess
+                notifyGeneralMessage(obj, "error", "Failed to save the detailed data: " + msg);
+                return;
+            end
+
+            info = obj.getInformationTable(data);
+            [isSuccess, msg] = obj.exportCsvTable( ...
+                outputLocation.artifactFile(baseName + "_info.csv"), ...
+                info, ...
+                WriteRowNames = false);
+
+            if ~isSuccess
+                notifyGeneralMessage(obj, "error", "Failed to save the information data: " + msg);
+                return;
+            end
+
+            if ~status(2)
+                return;
+            end
+
+            fluxAll = obj.getFluxAll(data);
+            [isSuccess, msg] = obj.exportCsvTable( ...
+                outputLocation.artifactFile(baseName + "_all.csv"), ...
+                fluxAll);
+
+            if ~isSuccess
+                notifyGeneralMessage(obj, "error", "Failed to save the all flux data: " + msg);
+            end
+
+        end % saveResultDataAsCsv
+
+        function [isSuccess, msg] = exportCsvTable(~, pathFile, tableData, options)
+
+            arguments
+                ~
+                pathFile (1, 1) string
+                tableData table
+                options.WriteRowNames (1, 1) logical = true
+                options.WriteVariableNames (1, 1) logical = true
+            end
+
+            isSuccess = true;
+            msg = "";
+
+            try
+                writetable( ...
+                    tableData, ...
+                    pathFile, ...
+                    "WriteRowNames", options.WriteRowNames, ...
+                    "WriteVariableNames", options.WriteVariableNames);
+            catch ME
+                isSuccess = false;
+                msg = string(ME.message);
+            end
+
+        end % exportCsvTable
 
         function tableRtn = getInformationTable(~, data)
             % GETINFORMATIONTABLE Get the information table from the result file.
