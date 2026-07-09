@@ -146,6 +146,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         RunAddBatchApp;
         ViewSuggestionApp;
         LogApp;
+        PreferencesApp;
         ProgressBar CustomProgressBar
 
         % Styles
@@ -2074,6 +2075,41 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method resolveProjectOpenInput
 
+        function projectInput = normalizeStartupProjectInput(~, projectInput)
+            % NORMALIZESTARTUPPROJECTINPUT
+            % Normalizes optional startup argument.
+            %
+            % Accepts:
+            %   ""
+            %   project directory
+            %   setting.om2
+            %   setting.json
+
+            if nargin < 2 || isempty(projectInput)
+                projectInput = "";
+                return
+            end
+
+            try
+                projectInput = string(projectInput);
+            catch
+                projectInput = "";
+                return
+            end
+
+            if isempty(projectInput)
+                projectInput = "";
+                return
+            end
+
+            projectInput = strtrim(projectInput(1));
+
+            if ismissing(projectInput)
+                projectInput = "";
+            end
+
+        end % method normalizeStartupProjectInput
+
         function applyLegacyProjectArtifacts(app, artifacts)
 
             arguments
@@ -2445,76 +2481,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureSlackNotifier
 
-        function initializeSlackWebhook(app)
-
-            app.ensureSlackNotifier();
-
-            webhook = app.SlackNotifier.getWebhook();
-
-            app.setSlackWebhookFieldMasked(webhook);
-
-        end % method initializeSlackWebhook
-
-        function configureSlackWebhookFromUI(app)
-
-            app.ensureSlackNotifier();
-
-            if ~isprop(app, "SlackWebhookEditField")
-                return
-            end
-
-            value = string(app.SlackWebhookEditField.Value);
-
-            if isempty(value)
-                return
-            end
-
-            value = strtrim(value(1));
-
-            if value == "" || app.isMaskedSlackWebhook(value)
-                return
-            end
-
-            app.SlackNotifier.setWebhook(value);
-            app.setSlackWebhookFieldMasked(value);
-
-        end % method configureSlackWebhookFromUI
-
-        function tf = isMaskedSlackWebhook(~, value)
-
-            value = string(value);
-
-            if isempty(value)
-                tf = false;
-                return
-            end
-
-            value = value(1);
-
-            tf = contains(value, "*");
-
-        end % method isMaskedSlackWebhook
-
-        function setSlackWebhookFieldMasked(app, webhook)
-
-            if ~isprop(app, "SlackWebhookEditField")
-                return
-            end
-
-            app.ensureSlackNotifier();
-
-            webhook = string(webhook);
-
-            if isempty(webhook) || webhook == ""
-                app.SlackWebhookEditField.Value = "";
-                return
-            end
-
-            app.SlackWebhookEditField.Value = ...
-                app.SlackNotifier.maskWebhook(webhook);
-
-        end % method setSlackWebhookFieldMasked
-
         function notifySlackBatchCompleted(app, status, options)
 
             arguments
@@ -2524,10 +2490,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             try
-                app.configureSlackWebhookFromUI();
                 app.ensureSlackNotifier();
 
-                if ~app.SlackNotifier.hasWebhook()
+                if ~app.SlackNotifier.canNotify()
                     return
                 end
 
@@ -2554,12 +2519,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     Title = "OpenMebius2 Batch Run", ...
                     Status = status, ...
                     ProjectName = projectName, ...
-                    BatchStatus = status); %#ok<ADPROP>
+                    BatchStatus = status);
 
-                if result.Success %#ok<ADPROP>
+                if result.Success
                     app.notifyInfo("Slack notification sent.");
-                elseif ~result.Skipped %#ok<ADPROP>
-                    app.notifyWarning("Slack notification failed: " + result.Message); %#ok<ADPROP>
+                elseif ~result.Skipped
+                    app.notifyWarning("Slack notification failed: " + result.Message);
                 end
 
             catch ME
@@ -3924,8 +3889,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.SlackNotifier = ...
                 openmebius.infrastructure.notification.SlackWebhookNotifier();
 
-            app.initializeSlackWebhook();
-
             if nargin < 2
                 filepath = "";
             else
@@ -3942,7 +3905,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             checkLatestVersionOnStartup(app);
 
-            if ~isempty(filepath)
+            filepath = app.normalizeStartupProjectInput(filepath);
+
+            if filepath ~= ""
 
                 try
                     projectDirectory = app.resolveProjectOpenInput(filepath);
@@ -5249,6 +5214,26 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end
 
+        % Menu selected function: PreferencesMenu
+        function PreferencesMenuSelected(app, event)
+
+            app.ensureSlackNotifier();
+
+            try
+
+                if ~isempty(app.PreferencesApp) && isvalid(app.PreferencesApp)
+                    figure(app.PreferencesApp.PreferencesUIFigure);
+                    return
+                end
+
+            catch
+                app.PreferencesApp = [];
+            end
+
+            app.PreferencesApp = Preferences(app, app.SlackNotifier);
+
+        end
+
         % Menu selected function: RelativetoMenu
         function RelativetoMenuSelected(app, event)
 
@@ -5522,6 +5507,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             % Create PreferencesMenu
             app.PreferencesMenu = uimenu(app.ApplicationMenu);
+            app.PreferencesMenu.MenuSelectedFcn = createCallbackFcn(app, @PreferencesMenuSelected, true);
             app.PreferencesMenu.Text = 'Preferences';
 
             % Create ExperimentaldataMenu

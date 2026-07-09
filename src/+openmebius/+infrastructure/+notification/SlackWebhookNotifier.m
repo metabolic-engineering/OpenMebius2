@@ -2,11 +2,13 @@ classdef SlackWebhookNotifier < handle
     % SLACKWEBHOOKNOTIFIER
     % Sends OpenMebius2 notifications to Slack Incoming Webhooks.
     %
-    % The webhook URL is treated as a secret. It is read from / written to
-    % the MATLAB process environment variable OM2_SLACK_WEBHOOK.
+    % The webhook URL is stored in OpenMebius2 temporary folder as text.
+    % It is not stored in project files and not stored in environment variables.
 
     properties (Constant)
-        EnvironmentVariableName = "OM2_SLACK_WEBHOOK"
+        TemporaryFolderName = "OpenMebius2"
+        WebhookFileName = "slack_webhook.txt"
+        EnabledFileName = "slack_notification_enabled.txt"
     end
 
     properties
@@ -15,47 +17,112 @@ classdef SlackWebhookNotifier < handle
 
     methods
 
-        function setWebhook(~, webhookUrl)
+        function setWebhook(obj, webhookUrl)
 
             webhookUrl = strtrim(string(webhookUrl));
 
             if webhookUrl == ""
-                setenv( ...
-                    openmebius.infrastructure.notification.SlackWebhookNotifier ...
-                    .EnvironmentVariableName, ...
-                "");
+                obj.clearWebhook();
                 return
             end
 
-            openmebius.infrastructure.notification.SlackWebhookNotifier ...
-                .validateWebhookUrl(webhookUrl);
+            obj.validateWebhookUrl(webhookUrl);
 
-            setenv( ...
-                openmebius.infrastructure.notification.SlackWebhookNotifier ...
-                .EnvironmentVariableName, ...
-                char(webhookUrl));
+            obj.ensureStorageDirectory();
+
+            fid = fopen(obj.webhookFile(), "w");
+
+            if fid < 0
+                error( ...
+                    "OpenMebius2:Slack:WebhookWriteFailed", ...
+                "Could not open Slack webhook file for writing.");
+            end
+
+            cleanup = onCleanup(@() fclose(fid)); %#ok<NASGU>
+
+            fprintf(fid, "%s", webhookUrl);
 
         end % method setWebhook
 
-        function webhookUrl = getWebhook(~)
+        function webhookUrl = getWebhook(obj)
 
-            webhookUrl = string(getenv( ...
-                openmebius.infrastructure.notification.SlackWebhookNotifier ...
-                .EnvironmentVariableName));
+            filePath = obj.webhookFile();
 
-            if isempty(webhookUrl)
+            if ~isfile(filePath)
+                webhookUrl = "";
+                return
+            end
+
+            try
+                webhookUrl = strtrim(string(fileread(filePath)));
+            catch
+                webhookUrl = "";
+            end
+
+            if isempty(webhookUrl) || ismissing(webhookUrl)
                 webhookUrl = "";
             else
-                webhookUrl = strtrim(webhookUrl(1));
+                webhookUrl = webhookUrl(1);
             end
 
         end % method getWebhook
 
-        function tf = hasWebhook(obj)
+        function clearWebhook(obj)
 
-            tf = obj.getWebhook() ~= "";
+            filePath = obj.webhookFile();
 
-        end % method hasWebhook
+            if isfile(filePath)
+                delete(filePath);
+            end
+
+        end % method clearWebhook
+
+        function setEnabled(obj, enabled)
+
+            arguments
+                obj
+                enabled (1, 1) logical
+            end
+
+            obj.ensureStorageDirectory();
+
+            fid = fopen(obj.enabledFile(), "w");
+
+            if fid < 0
+                error( ...
+                    "OpenMebius2:Slack:EnabledWriteFailed", ...
+                "Could not open Slack enabled file for writing.");
+            end
+
+            cleanup = onCleanup(@() fclose(fid)); %#ok<NASGU>
+
+            fprintf(fid, "%d", enabled);
+
+        end % method setEnabled
+
+        function tf = isEnabled(obj)
+
+            filePath = obj.enabledFile();
+
+            if ~isfile(filePath)
+                tf = false;
+                return
+            end
+
+            try
+                value = strtrim(string(fileread(filePath)));
+                tf = any(value == ["1", "true", "on", "yes"]);
+            catch
+                tf = false;
+            end
+
+        end % method isEnabled
+
+        function tf = canNotify(obj)
+
+            tf = obj.isEnabled() && obj.getWebhook() ~= "";
+
+        end % method canNotify
 
         function result = send(obj, message, options)
 
@@ -68,22 +135,21 @@ classdef SlackWebhookNotifier < handle
                 options.BatchStatus (1, 1) string = ""
             end
 
-            webhookUrl = obj.getWebhook();
-
             result = struct( ...
                 "Success", false, ...
                 "Skipped", false, ...
                 "Response", "", ...
                 "Message", "");
 
-            if webhookUrl == ""
+            if ~obj.canNotify()
                 result.Skipped = true;
-                result.Message = "Slack webhook is not configured.";
+                result.Message = "Slack notification is disabled or webhook is empty.";
                 return
             end
 
-            openmebius.infrastructure.notification.SlackWebhookNotifier ...
-                .validateWebhookUrl(webhookUrl);
+            webhookUrl = obj.getWebhook();
+
+            obj.validateWebhookUrl(webhookUrl);
 
             payload = obj.createPayload( ...
                 message, ...
@@ -114,28 +180,78 @@ classdef SlackWebhookNotifier < handle
 
             webhookUrl = string(webhookUrl);
 
-            if webhookUrl == ""
+            if isempty(webhookUrl) || webhookUrl == ""
                 masked = "";
                 return
             end
 
+            webhookUrl = webhookUrl(1);
             n = strlength(webhookUrl);
 
-            if n <= 12
+            if n <= 16
                 masked = join(repmat("*", 1, max(1, n)), "");
                 return
             end
 
-            prefix = extractBefore(webhookUrl, min(9, n));
-            suffix = extractAfter(webhookUrl, max(n - 4, 1));
+            prefix = extractBefore(webhookUrl, 9);
+            suffix = extractAfter(webhookUrl, n - 4);
 
             masked = prefix + "********" + suffix;
 
         end % method maskWebhook
 
+        function tf = isMaskedWebhook(~, value)
+
+            value = string(value);
+
+            if isempty(value)
+                tf = false;
+                return
+            end
+
+            value = value(1);
+            tf = contains(value, "*");
+
+        end % method isMaskedWebhook
+
+        function directory = storageDirectory(~)
+
+            directory = string(fullfile( ...
+                tempdir, ...
+                openmebius.infrastructure.notification.SlackWebhookNotifier ...
+                .TemporaryFolderName));
+
+        end % method storageDirectory
+
+        function filePath = webhookFile(obj)
+
+            filePath = fullfile( ...
+                obj.storageDirectory(), ...
+                obj.WebhookFileName);
+
+        end % method webhookFile
+
+        function filePath = enabledFile(obj)
+
+            filePath = fullfile( ...
+                obj.storageDirectory(), ...
+                obj.EnabledFileName);
+
+        end % method enabledFile
+
     end % methods
 
     methods (Access = private)
+
+        function ensureStorageDirectory(obj)
+
+            directory = obj.storageDirectory();
+
+            if ~isfolder(directory)
+                mkdir(directory);
+            end
+
+        end % method ensureStorageDirectory
 
         function payload = createPayload(~, message, options)
 
@@ -181,7 +297,7 @@ classdef SlackWebhookNotifier < handle
                                   "type", "section", ...
                                   "text", struct( ...
                                   "type", "mrkdwn", ...
-                                  "text", char(join(fields, "\n")))) ...
+                                  "text", char(join(fields, newline)))) ...
                               };
 
         end % method createPayload
