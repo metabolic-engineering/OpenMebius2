@@ -195,10 +195,10 @@ classdef RunConfig_exported < matlab.apps.AppBase
             algorithm = arrayfun(@(x) x.algorithm, app.selectedConfig, "UniformOutput", false);
             algorithm = algorithm{1};
 
-            switch algorithm
-                case 'interior-point'
+            switch lower(string(algorithm))
+                case {"interior-point", "ipms"}
                     app.AlgorithmDropDown.Value = 'IPMs';
-                case 'SQP'
+                case {"sqp", "sqp-legacy"}
                     app.AlgorithmDropDown.Value = 'SQP';
             end
 
@@ -589,11 +589,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Update the configuration with values from the UI
             config.iteration = app.IterationSpinner.Value;
 
-            switch config.algorithm
+            switch app.AlgorithmDropDown.Value
                 case 'IPMs'
                     config.algorithm = 'interior-point';
                 case 'SQP'
-                    config.algorithm = 'SQP';
+                    config.algorithm = 'sqp';
             end
 
             config.largeScale = app.LargeScaleCheckBox.Value;
@@ -1186,14 +1186,14 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.AlgorithmDropDown.Items = {'IPMs', 'SQP'};
             app.AlgorithmDropDown.Layout.Row = 1;
             app.AlgorithmDropDown.Layout.Column = 2;
-            app.AlgorithmDropDown.Value = 'IPMs';
+            app.AlgorithmDropDown.Value = 'SQP';
 
             % Create LargeScaleCheckBox
             app.LargeScaleCheckBox = uicheckbox(app.GridLayout8);
             app.LargeScaleCheckBox.Text = 'Large scale problem';
             app.LargeScaleCheckBox.Layout.Row = 3;
             app.LargeScaleCheckBox.Layout.Column = 1;
-            app.LargeScaleCheckBox.Value = true;
+            app.LargeScaleCheckBox.Value = false;
 
             % Create SuggestionCheckBox
             app.SuggestionCheckBox = uicheckbox(app.GridLayout8);
