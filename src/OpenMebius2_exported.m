@@ -203,6 +203,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
         LegacyListeners event.listener = event.listener.empty(0, 1)
 
+        SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
+
     end % properties (Access=private)
 
     methods (Access = public)
@@ -2059,6 +2061,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method applyProjectSession
 
+        function projectDirectory = resolveProjectOpenInput(app, projectInput)
+
+            arguments
+                app
+                projectInput (1, 1) string
+            end
+
+            projectDirectory = ...
+                openmebius.infrastructure.project.FileProjectRepository ...
+                .resolveProjectDirectory(projectInput);
+
+        end % method resolveProjectOpenInput
+
         function applyLegacyProjectArtifacts(app, artifacts)
 
             arguments
@@ -2419,6 +2434,145 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method captureResultPlotContext
+
+        %% Slack notification helpers
+        function ensureSlackNotifier(app)
+
+            if isempty(app.SlackNotifier)
+                app.SlackNotifier = ...
+                    openmebius.infrastructure.notification.SlackWebhookNotifier();
+            end
+
+        end % method ensureSlackNotifier
+
+        function initializeSlackWebhook(app)
+
+            app.ensureSlackNotifier();
+
+            webhook = app.SlackNotifier.getWebhook();
+
+            app.setSlackWebhookFieldMasked(webhook);
+
+        end % method initializeSlackWebhook
+
+        function configureSlackWebhookFromUI(app)
+
+            app.ensureSlackNotifier();
+
+            if ~isprop(app, "SlackWebhookEditField")
+                return
+            end
+
+            value = string(app.SlackWebhookEditField.Value);
+
+            if isempty(value)
+                return
+            end
+
+            value = strtrim(value(1));
+
+            if value == "" || app.isMaskedSlackWebhook(value)
+                return
+            end
+
+            app.SlackNotifier.setWebhook(value);
+            app.setSlackWebhookFieldMasked(value);
+
+        end % method configureSlackWebhookFromUI
+
+        function tf = isMaskedSlackWebhook(~, value)
+
+            value = string(value);
+
+            if isempty(value)
+                tf = false;
+                return
+            end
+
+            value = value(1);
+
+            tf = contains(value, "*");
+
+        end % method isMaskedSlackWebhook
+
+        function setSlackWebhookFieldMasked(app, webhook)
+
+            if ~isprop(app, "SlackWebhookEditField")
+                return
+            end
+
+            app.ensureSlackNotifier();
+
+            webhook = string(webhook);
+
+            if isempty(webhook) || webhook == ""
+                app.SlackWebhookEditField.Value = "";
+                return
+            end
+
+            app.SlackWebhookEditField.Value = ...
+                app.SlackNotifier.maskWebhook(webhook);
+
+        end % method setSlackWebhookFieldMasked
+
+        function notifySlackBatchCompleted(app, status, options)
+
+            arguments
+                app
+                status (1, 1) string
+                options.ErrorMessage (1, 1) string = ""
+            end
+
+            try
+                app.configureSlackWebhookFromUI();
+                app.ensureSlackNotifier();
+
+                if ~app.SlackNotifier.hasWebhook()
+                    return
+                end
+
+                projectName = "";
+
+                try
+
+                    if ~isempty(app.ProjectSession)
+                        projectName = app.ProjectSession.Metadata.Name;
+                    end
+
+                catch
+                    projectName = "";
+                end
+
+                message = "Batch calculation " + status + ".";
+
+                if options.ErrorMessage ~= ""
+                    message = message + newline + "Error: " + options.ErrorMessage;
+                end
+
+                result = app.SlackNotifier.send( ...
+                    message, ...
+                    Title = "OpenMebius2 Batch Run", ...
+                    Status = status, ...
+                    ProjectName = projectName, ...
+                    BatchStatus = status); %#ok<ADPROP>
+
+                if result.Success %#ok<ADPROP>
+                    app.notifyInfo("Slack notification sent.");
+                elseif ~result.Skipped %#ok<ADPROP>
+                    app.notifyWarning("Slack notification failed: " + result.Message); %#ok<ADPROP>
+                end
+
+            catch ME
+
+                try
+                    app.notifyWarning( ...
+                        "Slack notification skipped: " + string(ME.message));
+                catch
+                end
+
+            end
+
+        end % method notifySlackBatchCompleted
 
         %% Private initialization function
         function initLog(app)
@@ -3767,6 +3921,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ResultPlotPresenter = ...
                 openmebius.presentation.result.ResultPlotPresenter();
 
+            app.SlackNotifier = ...
+                openmebius.infrastructure.notification.SlackWebhookNotifier();
+
+            app.initializeSlackWebhook();
+
             if nargin < 2
                 filepath = "";
             else
@@ -3785,10 +3944,20 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             if ~isempty(filepath)
 
-                filepath = fileparts(filepath);
+                try
+                    projectDirectory = app.resolveProjectOpenInput(filepath);
 
-                app.ProjectDirectoryDropDown.Value = filepath;
-                ProjectLoadButtonPushed(app);
+                    if projectDirectory ~= ""
+                        app.ProjectDirectoryDropDown.Value = projectDirectory;
+                        ProjectLoadButtonPushed(app);
+                    end
+
+                catch ME
+                    app.notifyException( ...
+                        ME, ...
+                        Title = "Project open failed", ...
+                        Alert = true);
+                end
 
             end
 
@@ -3839,7 +4008,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
 
             try
-                projectDirectory = string(app.ProjectDirectoryDropDown.Value);
+                projectDirectory = app.resolveProjectOpenInput( ...
+                    string(app.ProjectDirectoryDropDown.Value));
 
                 session = app.OpenProjectUseCase.execute(projectDirectory);
 
@@ -3859,8 +4029,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             catch ME
                 app.updateStatus("model", "error");
                 app.notifyException( ...
-                    ME ...
-                );
+                    ME, ...
+                    Title = "Project load failed", ...
+                    Alert = true);
             end
 
         end
@@ -3868,28 +4039,43 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ProjectSaveButton
         function ProjectSaveButtonPushed(app, event)
 
-            % Export project setting to JSON file
-            projectDirectory = app.ProjectDirectoryDropDown.Value;
-            objProjectDirectory = IO(projectDirectory);
+            try
 
-            if objProjectDirectory.isError
-                app.LogText(objProjectDirectory.statusMsg);
-                return
+                if isempty(app.ProjectSession) || ~isvalid(app.ProjectSession)
+
+                    projectDirectory = app.resolveProjectOpenInput( ...
+                        string(app.ProjectDirectoryDropDown.Value));
+
+                    app.ProjectSession = app.OpenProjectUseCase.execute( ...
+                        projectDirectory);
+                end
+
+                metadata = openmebius.domain.project.ProjectMetadata( ...
+                    Name = string(app.ProjectNameEditField.Value), ...
+                    Author = string(app.ProjectAuthorEditField.Value), ...
+                    Organism = string(app.OrganismEditField.Value));
+
+                session = openmebius.domain.project.ProjectSession( ...
+                    metadata, ...
+                    app.ProjectSession.Paths);
+
+                app.ProjectSession = session;
+
+                app.ProjectRepository.saveProject(app.ProjectSession);
+
+                msg = "Project setting saved to " + ...
+                    app.ProjectSession.Paths.SettingFile + ...
+                    " and " + ...
+                    app.ProjectSession.Paths.LegacySettingFile;
+
+                app.notifyInfo(msg);
+
+            catch ME
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Project save failed", ...
+                    Alert = true);
             end
-
-            json.Name = app.ProjectNameEditField.Value;
-            json.Author = app.ProjectAuthorEditField.Value;
-            json.Organism = app.OrganismEditField.Value;
-
-            objProjectDirectory.exportJSONFile(fullfile(projectDirectory, "setting.json"), json);
-
-            if objProjectDirectory.isError
-                app.LogText(objProjectDirectory.statusMsg);
-                return
-            end
-
-            msg = objProjectDirectory.returnDateMsg("Project setting saved to setting.json", "Info");
-            app.LogText(msg);
 
         end
 
@@ -3981,7 +4167,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             json.Author = app.ProjectAuthorEditField.Value;
             json.Organism = app.OrganismEditField.Value;
 
-            objProjectDirectory.exportJSONFile(fullfile(newProjectDirectory, "setting.json"), json);
+            projectPaths = openmebius.domain.project.ProjectPaths( ...
+                string(newProjectDirectory));
+
+            objProjectDirectory.exportJSONFile(projectPaths.SettingFile, json);
+
+            if objProjectDirectory.isError
+                LogText(app, objProjectDirectory.statusMsg);
+                return
+            end
+
+            objProjectDirectory.exportJSONFile(projectPaths.LegacySettingFile, json);
+
+            if objProjectDirectory.isError
+                LogText(app, objProjectDirectory.statusMsg);
+                return
+            end
+
+            msg = "Project setting saved to " + projectPaths.SettingFile + ...
+                " and " + projectPaths.LegacySettingFile;
+
+            LogTextDate(app, msg, "Info");
 
             if objProjectDirectory.isError
                 LogText(app, objProjectDirectory.statusMsg);
@@ -4042,19 +4248,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Value changed function: ProjectDirectoryDropDown
         function ProjectDirectoryDropDownValueChanged(app, event)
 
-            value = app.ProjectDirectoryDropDown.Value;
+            value = string(app.ProjectDirectoryDropDown.Value);
 
-            % Check directory exists
-            if ~isfolder(value)
-                msg = "Selected directory does not exist: " + value;
-                LogTextDate(app, msg, "Error");
+            try
+                value = app.resolveProjectOpenInput(value);
+            catch ME
+                msg = "Selected project path does not exist: " + ...
+                    string(app.ProjectDirectoryDropDown.Value);
+
+                LogTextDate(app, msg + newline + string(ME.message), "Error");
                 return
-            end % if ~isfolder(value)
+            end
 
-            % Add the directory to the item
+            app.ProjectDirectoryDropDown.Value = value;
+
             if ~any(strcmp(app.ProjectDirectoryDropDown.Items, value))
                 app.ProjectDirectoryDropDown.Items{end + 1} = value;
-            end % if exist
+            end
 
         end
 
@@ -4805,16 +5015,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     msg = "Batch jobs are canceled.";
                     app.LogTextDate(msg, "Info");
                     app.updateStatus("batch", "finished");
+                    app.notifySlackBatchCompleted("canceled");
                     return
                 end
 
                 msg = "All batch jobs are completed.";
                 app.LogTextDate(msg, "Info");
                 app.updateStatus("batch", "finished");
+                app.notifySlackBatchCompleted("finished");
 
             catch ME
                 app.updateStatus("batch", "error");
                 app.LogTextDate(string(ME.message), "Error");
+
+                app.notifySlackBatchCompleted( ...
+                    "error", ...
+                    ErrorMessage = string(ME.message));
+
                 rethrow(ME)
             end
 
