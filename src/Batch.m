@@ -662,8 +662,8 @@ classdef Batch < handle
             % Flux calculation configuration
             config.iteration = 30;
             config.perturbateEfflux = false;
-            config.algorithm = 'interior-point';
-            config.largeScale = true;
+            config.algorithm = 'sqp';
+            config.largeScale = false;
             config.fluxLB = -1000;
             config.fluxUB = 1000;
             config.numExperiments = 1;
@@ -677,7 +677,25 @@ classdef Batch < handle
             config.status = 'ready';
             config.deleteResultFile = true;
 
-            config.optimizationMethod = 'hybrid-ga-gradient';
+            config.optimizationMethod = 'gradient-only';
+
+            config.fmincon.maxFunctionEvaluations = 1000000;
+            config.fmincon.maxIterations = 2000;
+            config.fmincon.functionTolerance = 1e-6;
+            config.fmincon.stepTolerance = 1e-10;
+            config.fmincon.optimalityTolerance = 1e-8;
+            config.fmincon.constraintTolerance = 1e-8;
+            config.fmincon.finiteDifferenceType = 'central';
+            config.fmincon.finiteDifferenceStepSize = 1e-6;
+            config.fmincon.finiteDifferenceStepSizeSearch.enabled = true;
+            config.fmincon.finiteDifferenceStepSizeSearch.candidates = [1e-5, 1e-6, 1e-7, 1e-8, 1e-9];
+            config.fmincon.finiteDifferenceStepSizeSearch.includeConfiguredStep = true;
+            config.fmincon.finiteDifferenceStepSizeSearch.maxCandidates = 6;
+            config.fmincon.scaleProblem = 'obj-and-constr';
+            config.fmincon.rejectWorseThanInitial = true;
+            config.fmincon.objectiveIncreaseTolerance = 1e-6;
+            config.fmincon.initialFeasibilityTolerance = 1e-7;
+
             config.GA.populationSize = 50;
             config.GA.generations = 40;
             config.GA.eliteCount = 2;
@@ -1591,7 +1609,7 @@ classdef Batch < handle
             end
 
             error("Batch:MissingExperimentLocation", ...
-                "The experiment object does not expose getExperimentLocation().");
+            "The experiment object does not expose getExperimentLocation().");
 
         end % method getExperimentLocation
 

@@ -6,6 +6,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ApplicationMenu matlab.ui.container.Menu
         ReloadWindowMenu matlab.ui.container.Menu
         ClearcacheMenu matlab.ui.container.Menu
+        PreferencesMenu matlab.ui.container.Menu
         ExperimentaldataMenu matlab.ui.container.Menu
         ExporttemplateExcelfileMenu matlab.ui.container.Menu
         FilesMenu matlab.ui.container.Menu
@@ -48,7 +49,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         GridLayout14 matlab.ui.container.GridLayout
         BiomassTable matlab.ui.control.Table
         GridLayout12_3 matlab.ui.container.GridLayout
-        ExpImportButton_2 matlab.ui.control.Button
+        ExpCalculationButton matlab.ui.control.Button
         ExpImportButton matlab.ui.control.Button
         ExpReloadButton matlab.ui.control.Button
         ExpSaveButton matlab.ui.control.Button
@@ -145,6 +146,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         RunAddBatchApp;
         ViewSuggestionApp;
         LogApp;
+        PreferencesApp;
         ProgressBar CustomProgressBar
 
         % Styles
@@ -201,6 +203,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
         LegacyListeners event.listener = event.listener.empty(0, 1)
+
+        SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
+
+        MainInteractionSnapshot cell = {}
 
     end % properties (Access=private)
 
@@ -340,6 +346,17 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             ResultMainTableCellSelection(app, selection);
 
         end % function testResultMainTableCellSelection
+
+        %% Public helper methods
+        function onPreferencesClosed(app)
+            % ONPREFERENCESCLOSED
+            % Called from Preferences.mlapp when Preferences is closed.
+
+            app.PreferencesApp = [];
+
+            app.finishPresentationPreferences();
+
+        end % method onPreferencesClosed
 
     end % methods (Access = public)
 
@@ -753,6 +770,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
+            if isfield(ui, "MainInteractionEnabled")
+
+                app.applyMainInteractionEnabled(ui.MainInteractionEnabled);
+
+                if ~ui.MainInteractionEnabled
+                    return
+                end
+
+            end
+
             % Project panel
             % ---------------------------------------------------------------------
             if isfield(ui, "ProjectPanelEnabled")
@@ -856,8 +883,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 value = app.onOff(ui.ExperimentEnabled);
                 app.ExpTable.Enable = value;
                 app.BiomassTable.Enable = value;
-                app.ExpImportButton.Enable = value;
                 app.ExpCalculationButton.Enable = value;
+                app.ExpImportButton.Enable = value;
                 app.ExpReloadButton.Enable = value;
                 app.ExpSaveButton.Enable = value;
 
@@ -2026,6 +2053,87 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method detachLegacyListeners
 
         %% Apply Session
+        function applyMainInteractionEnabled(app, enabled)
+
+            arguments
+                app
+                enabled (1, 1) logical
+            end
+
+            if enabled
+                app.restoreMainInteraction();
+            else
+                app.lockMainInteraction();
+            end
+
+        end % method applyMainInteractionEnabled
+
+        function lockMainInteraction(app)
+
+            if ~isempty(app.MainInteractionSnapshot)
+                return
+            end
+
+            app.MainInteractionSnapshot = {};
+
+            objects = findall(app.OpenMebius2UIFigure);
+
+            for i = 1:numel(objects)
+
+                obj = objects(i);
+
+                try
+
+                    if isprop(obj, "Enable")
+
+                        app.MainInteractionSnapshot(end + 1, :) = { ...
+                                                                       obj, ...
+                                                                       obj.Enable}; %#ok<AGROW>
+
+                        obj.Enable = 'off';
+
+                    end
+
+                catch
+                    % Ignore components that cannot be locked.
+                end
+
+            end
+
+            drawnow limitrate
+
+        end % method lockMainInteraction
+
+        function restoreMainInteraction(app)
+
+            if isempty(app.MainInteractionSnapshot)
+                return
+            end
+
+            snapshot = app.MainInteractionSnapshot;
+            app.MainInteractionSnapshot = {};
+
+            for i = 1:size(snapshot, 1)
+
+                obj = snapshot{i, 1};
+                value = snapshot{i, 2};
+
+                try
+
+                    if isvalid(obj) && isprop(obj, "Enable")
+                        obj.Enable = value;
+                    end
+
+                catch
+                    % Ignore stale UI handles.
+                end
+
+            end
+
+            drawnow limitrate
+
+        end % method restoreMainInteraction
+
         function applyProjectSession(app, session)
 
             arguments
@@ -2057,6 +2165,54 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 session.Paths.ResultDirectory;
 
         end % method applyProjectSession
+
+        function projectDirectory = resolveProjectOpenInput(app, projectInput)
+
+            arguments
+                app
+                projectInput (1, 1) string
+            end
+
+            projectDirectory = ...
+                openmebius.infrastructure.project.FileProjectRepository ...
+                .resolveProjectDirectory(projectInput);
+
+        end % method resolveProjectOpenInput
+
+        function projectInput = normalizeStartupProjectInput(~, projectInput)
+            % NORMALIZESTARTUPPROJECTINPUT
+            % Normalizes optional startup argument.
+            %
+            % Accepts:
+            %   ""
+            %   project directory
+            %   setting.om2
+            %   setting.json
+
+            if nargin < 2 || isempty(projectInput)
+                projectInput = "";
+                return
+            end
+
+            try
+                projectInput = string(projectInput);
+            catch
+                projectInput = "";
+                return
+            end
+
+            if isempty(projectInput)
+                projectInput = "";
+                return
+            end
+
+            projectInput = strtrim(projectInput(1));
+
+            if ismissing(projectInput)
+                projectInput = "";
+            end
+
+        end % method normalizeStartupProjectInput
 
         function applyLegacyProjectArtifacts(app, artifacts)
 
@@ -2418,6 +2574,104 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method captureResultPlotContext
+
+        %% Slack notification helpers
+        function ensureSlackNotifier(app)
+
+            if isempty(app.SlackNotifier)
+                app.SlackNotifier = ...
+                    openmebius.infrastructure.notification.SlackWebhookNotifier();
+            end
+
+        end % method ensureSlackNotifier
+
+        function notifySlackBatchCompleted(app, status, options)
+
+            arguments
+                app
+                status (1, 1) string
+                options.ErrorMessage (1, 1) string = ""
+                options.DeltaTime (1, 1) duration = seconds(0)
+            end
+
+            try
+                app.ensureSlackNotifier();
+
+                if ~app.SlackNotifier.canNotify()
+                    return
+                end
+
+                projectName = "";
+
+                try
+
+                    if ~isempty(app.ProjectSession)
+                        projectName = app.ProjectSession.Metadata.Name;
+                    end
+
+                catch
+                    projectName = "";
+                end
+
+                message = "Batch calculation " + status + ".";
+
+                if options.ErrorMessage ~= ""
+                    message = message + newline + "Error: " + options.ErrorMessage;
+                end
+
+                result = app.SlackNotifier.send( ...
+                    message, ...
+                    Title = "OpenMebius2 Batch Run", ...
+                    Status = status, ...
+                    ProjectName = projectName, ...
+                    BatchStatus = status, ...
+                    DeltaTime = options.DeltaTime);
+
+                if result.Success
+                    app.notifyInfo("Slack notification sent.");
+                elseif ~result.Skipped
+                    app.notifyWarning("Slack notification failed: " + result.Message);
+                end
+
+            catch ME
+
+                try
+                    app.notifyWarning( ...
+                        "Slack notification skipped: " + string(ME.message));
+                catch
+                end
+
+            end
+
+        end % method notifySlackBatchCompleted
+
+        function beginPresentationPreferences(app)
+
+            context = app.capturePresentationContext();
+            viewModel = app.Presenter.beginPreferences(context);
+            app.renderMainViewModel(viewModel);
+
+        end % method beginPresentationPreferences
+
+        function finishPresentationPreferences(app)
+
+            try
+                context = app.capturePresentationContext();
+                viewModel = app.Presenter.finishPreferences(context);
+                app.renderMainViewModel(viewModel);
+            catch ME
+
+                try
+                    app.notifyWarning( ...
+                        "Failed to restore main UI after Preferences: " + ...
+                        string(ME.message));
+                catch
+                end
+
+                app.restoreMainInteraction();
+            end
+
+        end % method finishPresentationPreferences
 
         %% Private initialization function
         function initLog(app)
@@ -3766,6 +4020,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ResultPlotPresenter = ...
                 openmebius.presentation.result.ResultPlotPresenter();
 
+            app.SlackNotifier = ...
+                openmebius.infrastructure.notification.SlackWebhookNotifier();
+
             if nargin < 2
                 filepath = "";
             else
@@ -3782,12 +4039,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             checkLatestVersionOnStartup(app);
 
-            if ~isempty(filepath)
+            filepath = app.normalizeStartupProjectInput(filepath);
 
-                filepath = fileparts(filepath);
+            if filepath ~= ""
 
-                app.ProjectDirectoryDropDown.Value = filepath;
-                ProjectLoadButtonPushed(app);
+                try
+                    projectDirectory = app.resolveProjectOpenInput(filepath);
+
+                    if projectDirectory ~= ""
+                        app.ProjectDirectoryDropDown.Value = projectDirectory;
+                        ProjectLoadButtonPushed(app);
+                    end
+
+                catch ME
+                    app.notifyException( ...
+                        ME, ...
+                        Title = "Project open failed", ...
+                        Alert = true);
+                end
 
             end
 
@@ -3838,7 +4107,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
 
             try
-                projectDirectory = string(app.ProjectDirectoryDropDown.Value);
+                projectDirectory = app.resolveProjectOpenInput( ...
+                    string(app.ProjectDirectoryDropDown.Value));
 
                 session = app.OpenProjectUseCase.execute(projectDirectory);
 
@@ -3858,8 +4128,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             catch ME
                 app.updateStatus("model", "error");
                 app.notifyException( ...
-                    ME ...
-                );
+                    ME, ...
+                    Title = "Project load failed", ...
+                    Alert = true);
             end
 
         end
@@ -3867,28 +4138,43 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ProjectSaveButton
         function ProjectSaveButtonPushed(app, event)
 
-            % Export project setting to JSON file
-            projectDirectory = app.ProjectDirectoryDropDown.Value;
-            objProjectDirectory = IO(projectDirectory);
+            try
 
-            if objProjectDirectory.isError
-                app.LogText(objProjectDirectory.statusMsg);
-                return
+                if isempty(app.ProjectSession) || ~isvalid(app.ProjectSession)
+
+                    projectDirectory = app.resolveProjectOpenInput( ...
+                        string(app.ProjectDirectoryDropDown.Value));
+
+                    app.ProjectSession = app.OpenProjectUseCase.execute( ...
+                        projectDirectory);
+                end
+
+                metadata = openmebius.domain.project.ProjectMetadata( ...
+                    Name = string(app.ProjectNameEditField.Value), ...
+                    Author = string(app.ProjectAuthorEditField.Value), ...
+                    Organism = string(app.OrganismEditField.Value));
+
+                session = openmebius.domain.project.ProjectSession( ...
+                    metadata, ...
+                    app.ProjectSession.Paths);
+
+                app.ProjectSession = session;
+
+                app.ProjectRepository.saveProject(app.ProjectSession);
+
+                msg = "Project setting saved to " + ...
+                    app.ProjectSession.Paths.SettingFile + ...
+                    " and " + ...
+                    app.ProjectSession.Paths.LegacySettingFile;
+
+                app.notifyInfo(msg);
+
+            catch ME
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Project save failed", ...
+                    Alert = true);
             end
-
-            json.Name = app.ProjectNameEditField.Value;
-            json.Author = app.ProjectAuthorEditField.Value;
-            json.Organism = app.OrganismEditField.Value;
-
-            objProjectDirectory.exportJSONFile(fullfile(projectDirectory, "setting.json"), json);
-
-            if objProjectDirectory.isError
-                app.LogText(objProjectDirectory.statusMsg);
-                return
-            end
-
-            msg = objProjectDirectory.returnDateMsg("Project setting saved to setting.json", "Info");
-            app.LogText(msg);
 
         end
 
@@ -3980,7 +4266,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             json.Author = app.ProjectAuthorEditField.Value;
             json.Organism = app.OrganismEditField.Value;
 
-            objProjectDirectory.exportJSONFile(fullfile(newProjectDirectory, "setting.json"), json);
+            projectPaths = openmebius.domain.project.ProjectPaths( ...
+                string(newProjectDirectory));
+
+            objProjectDirectory.exportJSONFile(projectPaths.SettingFile, json);
+
+            if objProjectDirectory.isError
+                LogText(app, objProjectDirectory.statusMsg);
+                return
+            end
+
+            objProjectDirectory.exportJSONFile(projectPaths.LegacySettingFile, json);
+
+            if objProjectDirectory.isError
+                LogText(app, objProjectDirectory.statusMsg);
+                return
+            end
+
+            msg = "Project setting saved to " + projectPaths.SettingFile + ...
+                " and " + projectPaths.LegacySettingFile;
+
+            LogTextDate(app, msg, "Info");
 
             if objProjectDirectory.isError
                 LogText(app, objProjectDirectory.statusMsg);
@@ -4041,19 +4347,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Value changed function: ProjectDirectoryDropDown
         function ProjectDirectoryDropDownValueChanged(app, event)
 
-            value = app.ProjectDirectoryDropDown.Value;
+            value = string(app.ProjectDirectoryDropDown.Value);
 
-            % Check directory exists
-            if ~isfolder(value)
-                msg = "Selected directory does not exist: " + value;
-                LogTextDate(app, msg, "Error");
+            try
+                value = app.resolveProjectOpenInput(value);
+            catch ME
+                msg = "Selected project path does not exist: " + ...
+                    string(app.ProjectDirectoryDropDown.Value);
+
+                LogTextDate(app, msg + newline + string(ME.message), "Error");
                 return
-            end % if ~isfolder(value)
+            end
 
-            % Add the directory to the item
+            app.ProjectDirectoryDropDown.Value = value;
+
             if ~any(strcmp(app.ProjectDirectoryDropDown.Items, value))
                 app.ProjectDirectoryDropDown.Items{end + 1} = value;
-            end % if exist
+            end
 
         end
 
@@ -4383,6 +4693,60 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             catch ME
                 app.finishPresentationEditCommit(false);
                 rethrow(ME)
+            end
+
+        end
+
+        % Button pushed function: ExpCalculationButton
+        function ExpCalculationButtonPushed(app, event)
+
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+
+            try
+                app.updateStatus("experiment", "running");
+
+                updateModel(app);
+
+                err = app.exp.updateExpData(app.ExpTable.Data, "Info");
+
+                if err
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                err = app.exp.updateExpData(app.UptakeTable.Data, "Uptake");
+
+                if err
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                err = app.exp.updateExpData(app.LabelTable.Data, "Tracer");
+
+                if err
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                app.exp.calculateMDV();
+
+                if app.exp.isError
+                    app.LogText(app.exp.statusMsg);
+                    app.updateStatus("experiment", "error");
+                    return
+                end
+
+                app.batch.updateExperimentalData(app.exp);
+                app.updateStatus("experiment", "finished");
+
+                app.notifyInfo("MDV-derived tables have been updated successfully.");
+
+            catch ME
+                app.updateStatus("experiment", "error");
+                app.notifyError("An error occurred while updating MDV-derived tables: " + ME.message);
             end
 
         end
@@ -4717,6 +5081,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: RunRunButton
         function RunRunButtonPushed(app, event)
 
+            tStart = datetime("now");
+
             if app.Presenter.isRunning()
 
                 app.requestPresentationCancelRun();
@@ -4750,16 +5116,31 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     msg = "Batch jobs are canceled.";
                     app.LogTextDate(msg, "Info");
                     app.updateStatus("batch", "finished");
+                    app.notifySlackBatchCompleted( ...
+                        "canceled", ...
+                        DeltaTime = datetime("now") - tStart ...
+                    );
                     return
                 end
 
                 msg = "All batch jobs are completed.";
                 app.LogTextDate(msg, "Info");
                 app.updateStatus("batch", "finished");
+                app.notifySlackBatchCompleted( ...
+                    "finished", ...
+                    DeltaTime = datetime("now") - tStart ...
+                );
 
             catch ME
                 app.updateStatus("batch", "error");
                 app.LogTextDate(string(ME.message), "Error");
+
+                app.notifySlackBatchCompleted( ...
+                    "error", ...
+                    ErrorMessage = string(ME.message), ...
+                    DeltaTime = datetime("now") - tStart ...
+                );
+
                 rethrow(ME)
             end
 
@@ -4974,6 +5355,37 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             updateStatus(app, "experiment", "init");
             updateStatus(app, "batch", "init");
             updateStatus(app, "result", "init");
+
+        end
+
+        % Menu selected function: PreferencesMenu
+        function PreferencesMenuSelected(app, event)
+
+            app.ensureSlackNotifier();
+
+            try
+
+                if ~isempty(app.PreferencesApp) && isvalid(app.PreferencesApp)
+                    figure(app.PreferencesApp.PreferencesUIFigure);
+                    return
+                end
+
+            catch
+                app.PreferencesApp = [];
+            end
+
+            try
+                app.beginPresentationPreferences();
+
+                app.PreferencesApp = Preferences(app, app.SlackNotifier);
+
+            catch ME
+                app.finishPresentationPreferences();
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Preferences failed", ...
+                    Alert = true);
+            end
 
         end
 
@@ -5214,60 +5626,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end
 
-        % Button pushed function: ExpImportButton_2
-        function ExpImportButton_2Pushed(app, event)
-
-            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
-
-            try
-                app.updateStatus("experiment", "running");
-
-                updateModel(app);
-
-                err = app.exp.updateExpData(app.ExpTable.Data, "Info");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                err = app.exp.updateExpData(app.UptakeTable.Data, "Uptake");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                err = app.exp.updateExpData(app.LabelTable.Data, "Tracer");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                app.exp.calculateMDV();
-
-                if app.exp.isError
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                app.batch.updateExperimentalData(app.exp);
-                app.updateStatus("experiment", "finished");
-
-                app.notifyInfo("MDV-derived tables have been updated successfully.");
-
-            catch ME
-                app.updateStatus("experiment", "error");
-                app.notifyError("An error occurred while updating MDV-derived tables: " + ME.message);
-            end
-
-        end
-
     end
 
     % Component initialization
@@ -5301,6 +5659,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ClearcacheMenu = uimenu(app.ApplicationMenu);
             app.ClearcacheMenu.MenuSelectedFcn = createCallbackFcn(app, @ClearcacheMenuSelected, true);
             app.ClearcacheMenu.Text = 'Clear cache';
+
+            % Create PreferencesMenu
+            app.PreferencesMenu = uimenu(app.ApplicationMenu);
+            app.PreferencesMenu.MenuSelectedFcn = createCallbackFcn(app, @PreferencesMenuSelected, true);
+            app.PreferencesMenu.Text = 'Preferences';
 
             % Create ExperimentaldataMenu
             app.ExperimentaldataMenu = uimenu(app.OpenMebius2UIFigure);
@@ -5734,14 +6097,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ExpImportButton.Layout.Column = 6;
             app.ExpImportButton.Text = 'Import data';
 
-            % Create ExpImportButton_2
-            app.ExpImportButton_2 = uibutton(app.GridLayout12_3, 'push');
-            app.ExpImportButton_2.ButtonPushedFcn = createCallbackFcn(app, @ExpImportButton_2Pushed, true);
-            app.ExpImportButton_2.Enable = 'off';
-            app.ExpImportButton_2.Layout.Row = 1;
-            app.ExpImportButton_2.Layout.Column = 5;
-            app.ExpImportButton_2.Text = 'Calculate MDV';
-            app.ExpImportButton_2.Tooltip = {'Calculate MS-normalized data, MDV, biomass-corrected MDV, enrichment and fragment availability.'};
+            % Create ExpCalculationButton
+            app.ExpCalculationButton = uibutton(app.GridLayout12_3, 'push');
+            app.ExpCalculationButton.ButtonPushedFcn = createCallbackFcn(app, @ExpCalculationButtonPushed, true);
+            app.ExpCalculationButton.Enable = 'off';
+            app.ExpCalculationButton.Layout.Row = 1;
+            app.ExpCalculationButton.Layout.Column = 5;
+            app.ExpCalculationButton.Text = 'Calculate';
 
             % Create GridLayout13_2
             app.GridLayout13_2 = uigridlayout(app.GridLayout11_3);

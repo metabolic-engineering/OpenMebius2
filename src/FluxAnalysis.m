@@ -275,7 +275,7 @@ classdef FluxAnalysis < handle & IO
                 obj.RHSFmincon = tmpRhs(:, i);
 
                 if ~obj.config.isINSTMFA
-                    [fval, estimatedFlux, estimatedMDV, exitflag, ~] = ...
+                    [fval, estimatedFlux, estimatedMDV, exitflag, optimizationOutput] = ...
                         calculateNonLinearOptimization(obj, obj.MDVExpFmincon);
                 else
 
@@ -288,11 +288,11 @@ classdef FluxAnalysis < handle & IO
                         return;
                     end
 
-                    [fval, estimatedFlux, estimatedMDV, exitflag, ~] = ...
+                    [fval, estimatedFlux, estimatedMDV, exitflag, optimizationOutput] = ...
                         calculateNonLinearOptimizationInstationary(obj, obj.MDVExpFmincon);
                 end
 
-                exportFluxResult(obj, i, estimatedFlux, fval, estimatedMDV, exitflag);
+                exportFluxResult(obj, i, estimatedFlux, fval, estimatedMDV, exitflag, optimizationOutput);
 
                 obj.resultRSS(i) = fval;
                 obj.resultFlux(:, i) = estimatedFlux;
@@ -1892,24 +1892,7 @@ classdef FluxAnalysis < handle & IO
             tmpInitialRhs = obj.RHSFmincon;
             tmpInitialFlux = tmpInitialRhs(obj.maskIndependent);
 
-            % Set up large scale optimization
-            switch obj.config.largeScale
-                case true
-                    largeScale = "on";
-                case false
-                    largeScale = "off";
-                otherwise
-                    largeScale = "off";
-            end % switch obj.config.largeScale
-
-            fmincon_options = optimset( ...
-                'Algorithm', obj.config.algorithm, ...
-                'Display', 'off', ...
-                'LargeScale', largeScale, ...
-                'MaxFunEvals', 500000, ...
-                'MaxIter', 500, ...
-                "UseParallel", false ...
-            );
+            fmincon_options = buildFminconOptions(obj, tmpInitialFlux);
 
             objectiveFcn = @(x) calculateObjectiveFunction(obj, x, MDVExpTemp);
 
@@ -1931,8 +1914,15 @@ classdef FluxAnalysis < handle & IO
                 notifyGeneralMessage(obj, "error", msg, dbstack());
                 return;
             else
+                stepSizeMsg = "";
+
+                if isfield(output, 'fminconFiniteDifferenceStepSize')
+                    stepSizeMsg = " FiniteDifferenceStepSize: " + ...
+                        string(output.fminconFiniteDifferenceStepSize) + ".";
+                end % if
+
                 msg = "Nonlinear optimization completed. " + ...
-                    "RSS: " + string(fval) + ")";
+                    "RSS: " + string(fval) + "." + stepSizeMsg;
             end % if
 
             notifyGeneralMessage(obj, "info", msg, dbstack());
@@ -1956,24 +1946,7 @@ classdef FluxAnalysis < handle & IO
             tmpInitialRhs = obj.RHSFmincon;
             tmpInitialFlux = tmpInitialRhs(obj.maskIndependent);
 
-            % Set up large scale optimization
-            switch obj.config.largeScale
-                case true
-                    largeScale = "on";
-                case false
-                    largeScale = "off";
-                otherwise
-                    largeScale = "off";
-            end % switch obj.config.largeScale
-
-            fmincon_options = optimset( ...
-                'Algorithm', obj.config.algorithm, ...
-                'LargeScale', largeScale, ...
-                'Display', 'off', ...
-                'MaxFunEvals', 500000, ...
-                'MaxIter', 500, ...
-                "UseParallel", false ...
-            );
+            fmincon_options = buildFminconOptions(obj, tmpInitialFlux);
 
             objectiveFcn = @(x) calculateObjectiveFunctionInstationary(obj, x, MDVExpTemp);
 
@@ -2000,63 +1973,577 @@ classdef FluxAnalysis < handle & IO
                 notifyGeneralMessage(obj, "error", msg, dbstack());
                 return;
             else
+                stepSizeMsg = "";
+
+                if isfield(output, 'fminconFiniteDifferenceStepSize')
+                    stepSizeMsg = " FiniteDifferenceStepSize: " + ...
+                        string(output.fminconFiniteDifferenceStepSize) + ".";
+                end % if
+
                 msg = "Nonlinear optimization for instationary MFA completed. " + ...
-                    "RSS: " + string(fval) + ")";
+                    "RSS: " + string(fval) + "." + stepSizeMsg;
                 notifyGeneralMessage(obj, "info", msg, dbstack());
             end % if
 
         end % calculateNonLinearOptimizationInstationary
 
         function [x, fval, exitflag, output] = runConfiguredNonlinearOptimizer( ...
-                obj, objectiveFcn, initialFlux, fminconOptions)
-            % RUNCONFIGUREDNONLINEAROPTIMIZER Run the configured optimizer.
+                obj, objectiveFcn, initialFlux, fminconOptions) %#ok<INUSD>
+            % RUNCONFIGUREDNONLINEAROPTIMIZER Run FMINCON with safeguards.
             %
-            % The default strategy is a two-stage hybrid optimization:
-            %   1. A real-coded genetic algorithm explores the independent
-            %      flux space and supplies a robust starting point.
-            %   2. FMINCON performs the final constrained local refinement.
-            % Set config.optimizationMethod to "gradient-only" to retain the
-            % previous FMINCON-only behavior.
+            % GA-based hybrid optimization is intentionally disabled for now.
+            % FMINCON starts from the supplied feasible initial flux vector.
+            % Optionally, several FiniteDifferenceStepSize values are tried
+            % and the best feasible FMINCON result is selected.
 
-            constraintFcn = @(x) calculateConstraints(obj, x);
-            method = "gradient-only";
+            method = getOptimizationMethod(obj);
             startFlux = initialFlux(:);
-            gaOutput = [];
 
-            switch method
-                case {"gradient-only", "fmincon", "local"}
-                    % Backward-compatible path.
-                case {"hybrid-ga-gradient", "hybrid", "ga-gradient"}
-                    [startFlux, gaOutput] = calculateGAStartPoint(obj, objectiveFcn, startFlux);
-                otherwise
-                    msg = "Unknown optimizationMethod '" + method + "'. Falling back to hybrid-ga-gradient.";
-                    notifyGeneralMessage(obj, "warning", msg, dbstack());
-                    [startFlux, gaOutput] = calculateGAStartPoint(obj, objectiveFcn, startFlux);
-            end % switch
-
-            [x, fval, exitflag, output] = fmincon( ...
-                objectiveFcn, ...
-                startFlux, ...
-                [], ...
-                [], ...
-                [], ...
-                [], ...
-                [], ...
-                [], ...
-                constraintFcn, ...
-                fminconOptions ...
-            );
-
-            if ~isempty(gaOutput)
-                output.hybridGA = gaOutput;
+            if ismember(method, ["hybrid-ga-gradient", "hybrid", "ga-gradient"])
+                msg = "Hybrid GA optimization is temporarily disabled. Using FMINCON only.";
+                notifyGeneralMessage(obj, "info", msg, dbstack());
+            elseif ~ismember(method, ["gradient-only", "fmincon", "local"])
+                msg = "Unknown optimizationMethod '" + method + "'. Using FMINCON only.";
+                notifyGeneralMessage(obj, "warning", msg, dbstack());
             end % if
 
+            fminconConfig = getFminconConfig(obj);
+            initialObjective = evaluateObjectiveForGuard(obj, objectiveFcn, startFlux);
+            initialViolation = calculateConstraintViolationForGuard(obj, startFlux);
+
+            [Aineq, bineq] = buildLinearFluxInequalityConstraints(obj, startFlux);
+
+            [x, fval, exitflag, output] = ...
+                runFminconFiniteDifferenceStepSizeSearch( ...
+                obj, ...
+                objectiveFcn, ...
+                startFlux, ...
+                Aineq, ...
+                bineq, ...
+                initialObjective, ...
+                initialViolation, ...
+                fminconConfig ...
+            );
+
         end % runConfiguredNonlinearOptimizer
+
+        function [x, fval, exitflag, output] = ...
+                runFminconFiniteDifferenceStepSizeSearch( ...
+                obj, ...
+                objectiveFcn, ...
+                startFlux, ...
+                Aineq, ...
+                bineq, ...
+                initialObjective, ...
+                initialViolation, ...
+                fminconConfig ...
+            )
+            % RUNFMINCONFINITEDIFFERENCESTEPSIZESEARCH Run FMINCON for
+            % multiple finite-difference step-size candidates and retain the
+            % best feasible result.
+
+            candidateStepSizes = getFiniteDifferenceStepSizeCandidates(obj, fminconConfig);
+            numCandidates = numel(candidateStepSizes);
+
+            trialObjectives = inf(numCandidates, 1);
+            trialExitflags = nan(numCandidates, 1);
+            trialViolations = inf(numCandidates, 1);
+            trialGuardTriggered = false(numCandidates, 1);
+            trialExecutionFailed = false(numCandidates, 1);
+            trialMessages = strings(numCandidates, 1);
+            trialOutputs = cell(numCandidates, 1);
+            trialFluxes = cell(numCandidates, 1);
+            suppressGuardMessage = numCandidates > 1;
+
+            feasibilityTolerance = max([ ...
+                                            fminconConfig.constraintTolerance, ...
+                                            fminconConfig.initialFeasibilityTolerance, ...
+                                            eps ...
+                                        ]);
+
+            bestIndex = 1;
+            bestScore = inf;
+            bestX = startFlux;
+            bestFval = initialObjective;
+            bestExitflag = -101;
+            bestOutput = struct;
+
+            for iCandidate = 1:numCandidates
+
+                iStepSize = candidateStepSizes(iCandidate);
+                iOptions = buildFminconOptions(obj, startFlux, iStepSize);
+
+                [iX, iFval, iExitflag, iOutput] = runFminconOnce( ...
+                    obj, ...
+                    objectiveFcn, ...
+                    startFlux, ...
+                    Aineq, ...
+                    bineq, ...
+                    iOptions, ...
+                    iStepSize ...
+                );
+
+                iOutput.fminconFiniteDifferenceStepSize = iStepSize;
+                iOutput.fminconInitialObjective = initialObjective;
+                iOutput.fminconInitialConstraintViolation = initialViolation;
+                iOutput.fminconFinalObjectiveBeforeGuard = iFval;
+                iOutput.fminconObjectiveGuardTriggered = false;
+
+                [iX, iFval, iExitflag, iOutput] = applyFminconObjectiveGuard( ...
+                    obj, ...
+                    iX, ...
+                    iFval, ...
+                    iExitflag, ...
+                    iOutput, ...
+                    startFlux, ...
+                    initialObjective, ...
+                    initialViolation, ...
+                    fminconConfig, ...
+                    suppressGuardMessage ...
+                );
+
+                iViolation = calculateConstraintViolationForGuard(obj, iX);
+
+                trialObjectives(iCandidate) = iFval;
+                trialExitflags(iCandidate) = iExitflag;
+                trialViolations(iCandidate) = iViolation;
+                trialGuardTriggered(iCandidate) = isfield(iOutput, 'fminconObjectiveGuardTriggered') && ...
+                    logical(iOutput.fminconObjectiveGuardTriggered);
+                trialExecutionFailed(iCandidate) = isfield(iOutput, 'fminconExecutionFailed') && ...
+                    logical(iOutput.fminconExecutionFailed);
+
+                if isfield(iOutput, 'message') && ~isempty(iOutput.message)
+                    trialMessages(iCandidate) = string(iOutput.message);
+                end % if
+
+                trialOutputs{iCandidate} = iOutput;
+                trialFluxes{iCandidate} = iX;
+
+                if isfinite(iFval) && iViolation <= 10 * feasibilityTolerance
+                    iScore = iFval;
+                else
+                    iScore = inf;
+                end % if
+
+                if iScore < bestScore
+                    bestIndex = iCandidate;
+                    bestScore = iScore;
+                    bestX = iX;
+                    bestFval = iFval;
+                    bestExitflag = iExitflag;
+                    bestOutput = iOutput;
+                end % if
+
+            end % for iCandidate
+
+            if ~isfinite(bestScore)
+
+                if isfinite(initialObjective) && initialViolation <= 10 * feasibilityTolerance
+                    bestIndex = 1;
+                    bestX = startFlux;
+                    bestFval = initialObjective;
+                    bestExitflag = -103;
+                    bestOutput = struct;
+                    bestOutput.message = "No FMINCON finite-difference step-size trial improved a feasible initial point.";
+                    bestOutput.fminconExecutionFailed = false;
+                else
+                    finiteMask = isfinite(trialObjectives);
+
+                    if any(finiteMask)
+                        finiteObjectives = trialObjectives;
+                        finiteObjectives(~finiteMask) = inf;
+                        [~, bestIndex] = min(finiteObjectives);
+                        bestX = trialFluxes{bestIndex};
+                        bestFval = trialObjectives(bestIndex);
+                        bestExitflag = trialExitflags(bestIndex);
+                        bestOutput = trialOutputs{bestIndex};
+                    else
+                        bestIndex = 1;
+                        bestX = startFlux;
+                        bestFval = initialObjective;
+                        bestExitflag = -102;
+                        bestOutput = struct;
+                        bestOutput.message = "All FMINCON finite-difference step-size trials failed.";
+                        bestOutput.fminconExecutionFailed = true;
+                    end % if
+
+                end % if
+
+            end % if
+
+            searchOutput = struct;
+            searchOutput.enabled = fminconConfig.finiteDifferenceStepSizeSearch.enabled;
+            searchOutput.candidates = candidateStepSizes(:);
+            searchOutput.objectives = trialObjectives;
+            searchOutput.exitflags = trialExitflags;
+            searchOutput.constraintViolations = trialViolations;
+            searchOutput.objectiveGuardTriggered = trialGuardTriggered;
+            searchOutput.executionFailed = trialExecutionFailed;
+            searchOutput.messages = trialMessages;
+            searchOutput.bestIndex = bestIndex;
+            searchOutput.bestFiniteDifferenceStepSize = candidateStepSizes(bestIndex);
+            searchOutput.bestObjective = bestFval;
+
+            x = bestX;
+            fval = bestFval;
+            exitflag = bestExitflag;
+            output = bestOutput;
+
+            if ~isfield(output, 'fminconInitialObjective')
+                output.fminconInitialObjective = initialObjective;
+            end % if
+
+            if ~isfield(output, 'fminconInitialConstraintViolation')
+                output.fminconInitialConstraintViolation = initialViolation;
+            end % if
+
+            if ~isfield(output, 'fminconFinalObjectiveBeforeGuard')
+                output.fminconFinalObjectiveBeforeGuard = fval;
+            end % if
+
+            if ~isfield(output, 'fminconObjectiveGuardTriggered')
+                output.fminconObjectiveGuardTriggered = false;
+            end % if
+
+            output.fminconFiniteDifferenceStepSize = candidateStepSizes(bestIndex);
+            output.fminconFiniteDifferenceStepSizeSearch = searchOutput;
+
+        end % runFminconFiniteDifferenceStepSizeSearch
+
+        function [x, fval, exitflag, output] = runFminconOnce( ...
+                ~, objectiveFcn, startFlux, Aineq, bineq, fminconOptions, finiteDifferenceStepSize)
+            % RUNFMINCONONCE Run a single guarded FMINCON call.
+
+            try
+                [x, fval, exitflag, output] = fmincon( ...
+                    objectiveFcn, ...
+                    startFlux, ...
+                    Aineq, ...
+                    bineq, ...
+                    [], ...
+                    [], ...
+                    [], ...
+                    [], ...
+                    [], ...
+                    fminconOptions ...
+                );
+
+                if ~isscalar(fval) || ~isfinite(fval)
+                    fval = inf;
+                end % if
+
+                output.fminconExecutionFailed = false;
+
+            catch ME
+                x = startFlux;
+                fval = inf;
+                exitflag = -200;
+                output = struct;
+                output.message = "FMINCON failed at FiniteDifferenceStepSize=" + ...
+                    string(finiteDifferenceStepSize) + ": " + string(ME.message);
+                output.fminconExecutionFailed = true;
+                output.fminconExceptionIdentifier = string(ME.identifier);
+            end % try
+
+        end % runFminconOnce
+
+        function options = buildFminconOptions(obj, initialFlux, finiteDifferenceStepSize)
+            % BUILDFMINCONOPTIONS Create robust FMINCON options.
+
+            fminconConfig = getFminconConfig(obj);
+
+            if nargin < 3 || isempty(finiteDifferenceStepSize)
+                finiteDifferenceStepSize = fminconConfig.finiteDifferenceStepSize;
+            end % if
+
+            algorithm = normalizeFminconAlgorithm(obj);
+            initialFlux = initialFlux(:);
+            typicalX = max(1, abs(initialFlux));
+
+            try
+                options = optimoptions('fmincon');
+                options = setFminconOption(options, 'Algorithm', algorithm);
+                options = setFminconOption(options, 'Display', 'off');
+                options = setFminconOption(options, 'MaxFunctionEvaluations', fminconConfig.maxFunctionEvaluations);
+                options = setFminconOption(options, 'MaxIterations', fminconConfig.maxIterations);
+                options = setFminconOption(options, 'FunctionTolerance', fminconConfig.functionTolerance);
+                options = setFminconOption(options, 'StepTolerance', fminconConfig.stepTolerance);
+                options = setFminconOption(options, 'OptimalityTolerance', fminconConfig.optimalityTolerance);
+                options = setFminconOption(options, 'ConstraintTolerance', fminconConfig.constraintTolerance);
+                options = setFminconOption(options, 'FiniteDifferenceType', fminconConfig.finiteDifferenceType);
+                options = setFminconOption(options, 'FiniteDifferenceStepSize', finiteDifferenceStepSize);
+                options = setFminconOption(options, 'ScaleProblem', fminconConfig.scaleProblem);
+                options = setFminconOption(options, 'TypicalX', typicalX);
+                options = setFminconOption(options, 'UseParallel', false);
+            catch
+                options = optimset( ...
+                    'Algorithm', algorithm, ...
+                    'Display', 'off', ...
+                    'MaxFunEvals', fminconConfig.maxFunctionEvaluations, ...
+                    'MaxIter', fminconConfig.maxIterations, ...
+                    'TolFun', fminconConfig.functionTolerance, ...
+                    'TolX', fminconConfig.stepTolerance, ...
+                    'TolCon', fminconConfig.constraintTolerance, ...
+                    'FinDiffType', fminconConfig.finiteDifferenceType, ...
+                    'FinDiffRelStep', finiteDifferenceStepSize, ...
+                    'TypicalX', typicalX, ...
+                    'UseParallel', false ...
+                );
+            end % try
+
+        end % buildFminconOptions
+
+        function options = setFminconOption(options, optionName, optionValue)
+            % SETFMINCONOPTION Assign an option when supported by MATLAB.
+
+            try
+                options.(optionName) = optionValue;
+            catch
+                % Older MATLAB releases do not expose all newer option names.
+                % Unsupported options are ignored intentionally.
+            end % try
+
+        end % setFminconOption
+
+        function fminconConfig = getFminconConfig(obj)
+            % GETFMINCONCONFIG Read FMINCON configuration with safe defaults.
+
+            userConfig = struct;
+
+            if isfield(obj.config, 'fmincon') && isstruct(obj.config.fmincon)
+                userConfig = obj.config.fmincon;
+            end % if
+
+            fminconConfig = struct;
+            fminconConfig.maxFunctionEvaluations = max(1000, round(readNumericConfig(obj, userConfig, 'maxFunctionEvaluations', 1000000)));
+            fminconConfig.maxIterations = max(100, round(readNumericConfig(obj, userConfig, 'maxIterations', 2000)));
+            fminconConfig.functionTolerance = max(0, readNumericConfig(obj, userConfig, 'functionTolerance', 1e-6));
+            fminconConfig.stepTolerance = max(0, readNumericConfig(obj, userConfig, 'stepTolerance', 1e-10));
+            fminconConfig.optimalityTolerance = max(0, readNumericConfig(obj, userConfig, 'optimalityTolerance', 1e-8));
+            fminconConfig.constraintTolerance = max(0, readNumericConfig(obj, userConfig, 'constraintTolerance', 1e-8));
+            fminconConfig.finiteDifferenceStepSize = max(eps, readNumericConfig(obj, userConfig, 'finiteDifferenceStepSize', 1e-6));
+            fminconConfig.objectiveIncreaseTolerance = max(0, readNumericConfig(obj, userConfig, 'objectiveIncreaseTolerance', 1e-6));
+            fminconConfig.initialFeasibilityTolerance = max(0, readNumericConfig(obj, userConfig, 'initialFeasibilityTolerance', 1e-7));
+            fminconConfig.rejectWorseThanInitial = readLogicalConfig(obj, userConfig, 'rejectWorseThanInitial', true);
+            fminconConfig.finiteDifferenceType = readStringConfig(obj, userConfig, 'finiteDifferenceType', 'central');
+            fminconConfig.scaleProblem = readStringConfig(obj, userConfig, 'scaleProblem', 'obj-and-constr');
+
+            if ~ismember(lower(string(fminconConfig.finiteDifferenceType)), ["forward", "central"])
+                fminconConfig.finiteDifferenceType = 'central';
+            end % if
+
+            searchUserConfig = struct;
+
+            if isfield(userConfig, 'finiteDifferenceStepSizeSearch') && ...
+                    ~isempty(userConfig.finiteDifferenceStepSizeSearch)
+                candidateSearchConfig = userConfig.finiteDifferenceStepSizeSearch;
+
+                if isstruct(candidateSearchConfig)
+                    searchUserConfig = candidateSearchConfig;
+                else
+                    searchUserConfig.enabled = candidateSearchConfig;
+                end % if
+
+            elseif isfield(userConfig, 'stepSizeSearch') && ...
+                    ~isempty(userConfig.stepSizeSearch)
+                candidateSearchConfig = userConfig.stepSizeSearch;
+
+                if isstruct(candidateSearchConfig)
+                    searchUserConfig = candidateSearchConfig;
+                else
+                    searchUserConfig.enabled = candidateSearchConfig;
+                end % if
+
+            end % if
+
+            defaultStepSizeCandidates = [1e-3, 1e-4, 1e-5, 1e-6, 1e-7];
+            fminconConfig.finiteDifferenceStepSizeSearch = struct;
+            fminconConfig.finiteDifferenceStepSizeSearch.enabled = ...
+                readLogicalConfig(obj, searchUserConfig, 'enabled', true);
+            fminconConfig.finiteDifferenceStepSizeSearch.includeConfiguredStep = ...
+                readLogicalConfig(obj, searchUserConfig, 'includeConfiguredStep', true);
+            fminconConfig.finiteDifferenceStepSizeSearch.maxCandidates = ...
+                max(1, round(readNumericConfig(obj, searchUserConfig, 'maxCandidates', numel(defaultStepSizeCandidates) + 1)));
+            fminconConfig.finiteDifferenceStepSizeSearch.candidates = ...
+                readNumericVectorConfig(obj, searchUserConfig, 'candidates', defaultStepSizeCandidates);
+
+        end % getFminconConfig
+
+        function stepSizes = getFiniteDifferenceStepSizeCandidates(~, fminconConfig)
+            % GETFINITEDIFFERENCESTEPSIZECANDIDATES Return FMINCON
+            % FiniteDifferenceStepSize candidates.
+
+            searchConfig = fminconConfig.finiteDifferenceStepSizeSearch;
+
+            if ~searchConfig.enabled
+                stepSizes = fminconConfig.finiteDifferenceStepSize;
+                return;
+            end % if
+
+            stepSizes = searchConfig.candidates(:);
+
+            if searchConfig.includeConfiguredStep
+                stepSizes = [fminconConfig.finiteDifferenceStepSize; stepSizes];
+            end % if
+
+            stepSizes = stepSizes(isfinite(stepSizes) & stepSizes > 0);
+
+            if isempty(stepSizes)
+                stepSizes = fminconConfig.finiteDifferenceStepSize;
+            end % if
+
+            stepSizes = unique(stepSizes, 'stable');
+            stepSizes = stepSizes(1:min(numel(stepSizes), searchConfig.maxCandidates));
+
+        end % getFiniteDifferenceStepSizeCandidates
+
+        function algorithm = normalizeFminconAlgorithm(obj)
+            % NORMALIZEFMINCONALGORITHM Normalize UI/config algorithm names.
+
+            algorithm = "sqp";
+
+            if isfield(obj.config, 'algorithm') && ~isempty(obj.config.algorithm)
+                candidate = lower(string(obj.config.algorithm));
+
+                switch candidate
+                    case {"sqp", "sqp-legacy"}
+                        algorithm = candidate;
+                    case {"ipms", "interior-point", "interior point"}
+                        algorithm = "interior-point";
+                    otherwise
+                        msg = "Unknown FMINCON algorithm '" + candidate + "'. Using sqp.";
+                        notifyGeneralMessage(obj, "warning", msg, dbstack());
+                end % switch
+
+            end % if
+
+            algorithm = char(algorithm);
+
+        end % normalizeFminconAlgorithm
+
+        function [Aineq, bineq] = buildLinearFluxInequalityConstraints(obj, initialFlux)
+            % BUILDLINEARFLUXINEQUALITYCONSTRAINTS Convert flux >= 0 to A*x <= b.
+            %
+            % calculateConstraints defines c(x) = -flux(x) <= 0.  Because
+            % flux(x) = SFmincon \ RHS(x) and RHS(x) is affine in the
+            % independent flux vector, the non-negativity constraint is linear.
+
+            numRhs = numel(obj.RHSFmincon);
+            numIndependent = numel(initialFlux);
+            selector = zeros(numRhs, numIndependent);
+            selector(obj.maskIndependent, :) = eye(numIndependent);
+
+            fixedRhs = obj.RHSFmincon;
+            fixedRhs(obj.maskIndependent) = 0;
+
+            fluxOffset = obj.SFmincon \ fixedRhs;
+            fluxCoef = obj.SFmincon \ selector;
+
+            Aineq = -fluxCoef;
+            bineq = fluxOffset;
+
+        end % buildLinearFluxInequalityConstraints
+
+        function value = evaluateObjectiveForGuard(~, objectiveFcn, flux)
+            % EVALUATEOBJECTIVEFORGUARD Evaluate objective without stopping guard setup.
+
+            try
+                value = objectiveFcn(flux);
+
+                if ~isscalar(value) || ~isfinite(value)
+                    value = inf;
+                end % if
+
+            catch
+                value = inf;
+            end % try
+
+        end % evaluateObjectiveForGuard
+
+        function violation = calculateConstraintViolationForGuard(obj, flux)
+            % CALCULATECONSTRAINTVIOLATIONFORGUARD Return max positive violation.
+
+            try
+                [c, ceq] = calculateConstraints(obj, flux);
+                violation = 0;
+
+                if ~isempty(c)
+                    violation = max(violation, max([0; c(:)]));
+                end % if
+
+                if ~isempty(ceq)
+                    violation = max(violation, max(abs(ceq(:))));
+                end % if
+
+                if ~isfinite(violation)
+                    violation = inf;
+                end % if
+
+            catch
+                violation = inf;
+            end % try
+
+        end % calculateConstraintViolationForGuard
+
+        function [x, fval, exitflag, output] = applyFminconObjectiveGuard( ...
+                obj, ...
+                x, ...
+                fval, ...
+                exitflag, ...
+                output, ...
+                initialFlux, ...
+                initialObjective, ...
+                initialViolation, ...
+                fminconConfig, ...
+                suppressMessage ...
+            )
+            % APPLYFMINCONOBJECTIVEGUARD Reject unstable objective increases.
+
+            if nargin < 10 || isempty(suppressMessage)
+                suppressMessage = false;
+            end % if
+
+            if ~fminconConfig.rejectWorseThanInitial
+                return;
+            end % if
+
+            if ~isfinite(initialObjective)
+                return;
+            end % if
+
+            if initialViolation > fminconConfig.initialFeasibilityTolerance
+                return;
+            end % if
+
+            allowedObjective = initialObjective + ...
+                fminconConfig.objectiveIncreaseTolerance * max(1, abs(initialObjective));
+
+            if isfinite(fval) && fval <= allowedObjective
+                return;
+            end % if
+
+            output.fminconObjectiveGuardTriggered = true;
+            output.fminconRejectedObjective = fval;
+            output.fminconRejectedExitflag = exitflag;
+            output.fminconRejectedMessage = "FMINCON returned a worse objective than the feasible initial point.";
+
+            if ~suppressMessage
+                msg = "FMINCON returned a worse objective (" + string(fval) + ...
+                    ") than the feasible initial objective (" + string(initialObjective) + ...
+                    "). Reverting to the initial point for this trial.";
+                notifyGeneralMessage(obj, "warning", msg, dbstack());
+            end % if
+
+            x = initialFlux;
+            fval = initialObjective;
+            exitflag = -100;
+
+        end % applyFminconObjectiveGuard
 
         function method = getOptimizationMethod(obj)
             % GETOPTIMIZATIONMETHOD Return the normalized nonlinear optimizer name.
 
-            method = "hybrid-ga-gradient";
+            method = "gradient-only";
 
             if isfield(obj.config, 'optimizationMethod') && ...
                     ~isempty(obj.config.optimizationMethod)
@@ -2064,6 +2551,44 @@ classdef FluxAnalysis < handle & IO
             end % if
 
         end % getOptimizationMethod
+
+        function value = readLogicalConfig(~, userConfig, fieldName, defaultValue)
+            % READLOGICALCONFIG Read a scalar logical field from a struct.
+
+            value = defaultValue;
+
+            if isstruct(userConfig) && isfield(userConfig, fieldName) && ...
+                    ~isempty(userConfig.(fieldName))
+                candidate = userConfig.(fieldName);
+
+                if islogical(candidate) || isnumeric(candidate)
+                    value = logical(candidate(1));
+                elseif ischar(candidate) || isstring(candidate)
+                    candidateString = lower(string(candidate));
+                    value = ismember(candidateString(1), ["true", "1", "yes", "on"]);
+                end % if
+
+            end % if
+
+        end % readLogicalConfig
+
+        function value = readStringConfig(~, userConfig, fieldName, defaultValue)
+            % READSTRINGCONFIG Read a scalar string-like field from a struct.
+
+            value = char(defaultValue);
+
+            if isstruct(userConfig) && isfield(userConfig, fieldName) && ...
+                    ~isempty(userConfig.(fieldName))
+                candidate = userConfig.(fieldName);
+
+                if ischar(candidate) || isstring(candidate)
+                    candidateString = string(candidate);
+                    value = char(candidateString(1));
+                end % if
+
+            end % if
+
+        end % readStringConfig
 
         function gaConfig = getGAConfig(obj, nVariables)
             % GETGACONFIG Read GA configuration with safe defaults.
@@ -2091,6 +2616,55 @@ classdef FluxAnalysis < handle & IO
             gaConfig.maxInitialSeeds = max(1, round(readNumericConfig(obj, userConfig, 'maxInitialSeeds', gaConfig.populationSize)));
 
         end % getGAConfig
+
+        function values = readNumericVectorConfig(obj, userConfig, fieldName, defaultValues)
+            % READNUMERICVECTORCONFIG Read a positive numeric vector field.
+
+            values = double(defaultValues(:));
+
+            if isstruct(userConfig) && isfield(userConfig, fieldName) && ...
+                    ~isempty(userConfig.(fieldName))
+                candidate = userConfig.(fieldName);
+
+                if isnumeric(candidate) || islogical(candidate)
+                    values = double(candidate(:));
+                elseif iscell(candidate)
+                    numericValues = [];
+
+                    for i = 1:numel(candidate)
+
+                        if isnumeric(candidate{i}) || islogical(candidate{i})
+                            numericValues = [numericValues; double(candidate{i}(:))]; %#ok<AGROW>
+                        elseif ischar(candidate{i}) || isstring(candidate{i})
+                            numericValues = [numericValues; parseNumericTokens(obj, candidate{i})]; %#ok<AGROW>
+                        end % if
+
+                    end % for i
+
+                    values = numericValues;
+                elseif ischar(candidate) || isstring(candidate)
+                    values = parseNumericTokens(obj, candidate);
+                end % if
+
+            end % if
+
+            values = values(isfinite(values) & values > 0);
+
+            if isempty(values)
+                values = double(defaultValues(:));
+            end % if
+
+        end % readNumericVectorConfig
+
+        function values = parseNumericTokens(obj, candidate)
+            % PARSENUMERICTOKENS Parse numeric values from a string.
+
+            tokenPattern = '[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?';
+            tokens = regexp(char(candidate), tokenPattern, 'match');
+            values = str2double(tokens(:));
+            values = values(isfinite(values));
+
+        end % parseNumericTokens
 
         function value = readNumericConfig(~, userConfig, fieldName, defaultValue)
             % READNUMERICCONFIG Read a scalar numeric field from a struct.
@@ -3278,7 +3852,47 @@ classdef FluxAnalysis < handle & IO
 
         end % exportInitialFluxDistribution
 
-        function exportFluxResult(obj, iteration, flux, RSS, MDV, exitfrag)
+        function [stepSize, candidates, objectives, exitflags] = ...
+                extractFminconStepSizeOutput(~, optimizationOutput)
+            % EXTRACTFMINCONSTEPSIZEOUTPUT Extract FMINCON step-size search
+            % diagnostics from the optimization output struct.
+
+            stepSize = NaN;
+            candidates = [];
+            objectives = [];
+            exitflags = [];
+
+            if ~isstruct(optimizationOutput)
+                return;
+            end % if
+
+            if isfield(optimizationOutput, 'fminconFiniteDifferenceStepSize') && ...
+                    ~isempty(optimizationOutput.fminconFiniteDifferenceStepSize)
+                stepSize = double(optimizationOutput.fminconFiniteDifferenceStepSize(1));
+            end % if
+
+            if ~isfield(optimizationOutput, 'fminconFiniteDifferenceStepSizeSearch') || ...
+                    ~isstruct(optimizationOutput.fminconFiniteDifferenceStepSizeSearch)
+                return;
+            end % if
+
+            searchOutput = optimizationOutput.fminconFiniteDifferenceStepSizeSearch;
+
+            if isfield(searchOutput, 'candidates')
+                candidates = double(searchOutput.candidates(:));
+            end % if
+
+            if isfield(searchOutput, 'objectives')
+                objectives = double(searchOutput.objectives(:));
+            end % if
+
+            if isfield(searchOutput, 'exitflags')
+                exitflags = double(searchOutput.exitflags(:));
+            end % if
+
+        end % extractFminconStepSizeOutput
+
+        function exportFluxResult(obj, iteration, flux, RSS, MDV, exitfrag, optimizationOutput)
             % EXPORTFLUXRESULT Export the flux results.
             %
             % Parameters:
@@ -3302,6 +3916,10 @@ classdef FluxAnalysis < handle & IO
             %   output: (1, 1) struct
             %       The output of the optimization.
 
+            if nargin < 7 || isempty(optimizationOutput)
+                optimizationOutput = struct;
+            end % if
+
             % Get the current time in POSIX format
             unixTime = posixtime(datetime("now", "TimeZone", "UTC"));
             % Get the idnex of the reversible reactions
@@ -3323,6 +3941,15 @@ classdef FluxAnalysis < handle & IO
             obj.result.(fieldName).RSS = RSS;
             obj.result.(fieldName).MDV = MDV;
             obj.result.(fieldName).exitflag = exitfrag;
+
+            [finiteDifferenceStepSize, finiteDifferenceStepSizeCandidates, ...
+                 finiteDifferenceStepSizeObjectives, finiteDifferenceStepSizeExitflags] = ...
+                extractFminconStepSizeOutput(obj, optimizationOutput);
+
+            obj.result.(fieldName).finiteDifferenceStepSize = finiteDifferenceStepSize;
+            obj.result.(fieldName).finiteDifferenceStepSizeCandidates = finiteDifferenceStepSizeCandidates;
+            obj.result.(fieldName).finiteDifferenceStepSizeObjectives = finiteDifferenceStepSizeObjectives;
+            obj.result.(fieldName).finiteDifferenceStepSizeExitflags = finiteDifferenceStepSizeExitflags;
             obj.result.(fieldName).time = unixTime;
             obj.result.status = obj.statusFlag;
 
@@ -3372,6 +3999,37 @@ classdef FluxAnalysis < handle & IO
                 dataAddress + "/exitflag", ...
                 exitfrag ...
             );
+
+            % Export selected FMINCON finite-difference step size
+            writeHDF5File( ...
+                obj, ...
+                obj.HDF5FilePath, ...
+                dataAddress + "/finiteDifferenceStepSize", ...
+                finiteDifferenceStepSize ...
+            );
+
+            if ~isempty(finiteDifferenceStepSizeCandidates)
+                writeHDF5File( ...
+                    obj, ...
+                    obj.HDF5FilePath, ...
+                    dataAddress + "/finiteDifferenceStepSizeCandidates", ...
+                    finiteDifferenceStepSizeCandidates ...
+                );
+
+                writeHDF5File( ...
+                    obj, ...
+                    obj.HDF5FilePath, ...
+                    dataAddress + "/finiteDifferenceStepSizeObjectives", ...
+                    finiteDifferenceStepSizeObjectives ...
+                );
+
+                writeHDF5File( ...
+                    obj, ...
+                    obj.HDF5FilePath, ...
+                    dataAddress + "/finiteDifferenceStepSizeExitflags", ...
+                    finiteDifferenceStepSizeExitflags ...
+                );
+            end % if
 
             % Export the time
             writeHDF5File( ...

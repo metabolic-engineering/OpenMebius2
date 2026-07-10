@@ -88,21 +88,11 @@ classdef MainPresenter < handle
         end
 
         function viewModel = beginEditCommit(obj, context)
-            % BEGINEDITCOMMIT
-            % Starts a short busy operation while preserving EditTarget.
-            %
-            % State transition:
-            %   Activity   Idle  -> Busy
-            %   EditTarget Model -> Model
-            %
-            % This is used by:
-            %   ModelSaveButtonPushed
-            %   MSSaveButtonPushed
 
-            obj.State.beginBusy();
+            obj.State.beginEditCommit();
             viewModel = obj.present(context);
 
-        end
+        end % method beginEditCommit
 
         function viewModel = finishEditCommit(obj, context, success)
             % FINISHEDITCOMMIT
@@ -147,6 +137,28 @@ classdef MainPresenter < handle
             viewModel = obj.finishEditCommit(context, true);
 
         end
+
+        function viewModel = beginPreferences(obj, context)
+
+            obj.State.beginModal();
+            viewModel = obj.present(context);
+
+        end % method beginPreferences
+
+        function viewModel = finishPreferences(obj, context)
+
+            obj.State.finishModal();
+            viewModel = obj.present(context);
+
+        end % method finishPreferences
+
+        function tf = isModal(obj)
+
+            import openmebius.presentation.main.MainActivity
+
+            tf = obj.State.Activity == MainActivity.Modal;
+
+        end % method isModal
 
         function viewModel = requestCancelRun(obj, context)
 

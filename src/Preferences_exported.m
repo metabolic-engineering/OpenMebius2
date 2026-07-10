@@ -1,0 +1,338 @@
+classdef Preferences_exported < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        PreferencesUIFigure matlab.ui.Figure
+        GridLayout matlab.ui.container.GridLayout
+        GridLayout4 matlab.ui.container.GridLayout
+        CancelButton matlab.ui.control.Button
+        CloseButton matlab.ui.control.Button
+        TabGroup matlab.ui.container.TabGroup
+        NotificationTab matlab.ui.container.Tab
+        GridLayout2 matlab.ui.container.GridLayout
+        GridLayout3 matlab.ui.container.GridLayout
+        SlackWebhookEditField matlab.ui.control.EditField
+        WebhookEditFieldLabel matlab.ui.control.Label
+        SlacknotificationCheckBox matlab.ui.control.CheckBox
+    end
+
+    properties (Access = private)
+        MainApp
+        SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
+    end
+
+    methods (Access = private)
+
+        function loadSlackPreferences(app)
+
+            if isempty(app.SlackNotifier)
+                app.SlackNotifier = ...
+                    openmebius.infrastructure.notification.SlackWebhookNotifier();
+            end
+
+            enabled = app.SlackNotifier.isEnabled();
+            webhook = app.SlackNotifier.getWebhook();
+
+            app.SlacknotificationCheckBox.Value = enabled;
+            app.SlackWebhookEditField.Enable = app.onOff(enabled);
+
+            if webhook == ""
+                app.SlackWebhookEditField.Value = "";
+            else
+                app.SlackWebhookEditField.Value = ...
+                    app.SlackNotifier.maskWebhook(webhook);
+            end
+
+        end % method loadSlackPreferences
+
+        function saveSlackPreferences(app)
+
+            if isempty(app.SlackNotifier)
+                app.SlackNotifier = ...
+                    openmebius.infrastructure.notification.SlackWebhookNotifier();
+            end
+
+            enabled = logical(app.SlacknotificationCheckBox.Value);
+            app.SlackNotifier.setEnabled(enabled);
+
+            value = strtrim(string(app.SlackWebhookEditField.Value));
+
+            if isempty(value) || value == ""
+                app.SlackNotifier.clearWebhook();
+                return
+            end
+
+            if app.SlackNotifier.isMaskedWebhook(value)
+                return
+            end
+
+            app.SlackNotifier.setWebhook(value);
+
+            app.SlackWebhookEditField.Value = ...
+                app.SlackNotifier.maskWebhook(value);
+
+        end % method saveSlackPreferences
+
+        function value = onOff(~, enabled)
+
+            if enabled
+                value = 'on';
+            else
+                value = 'off';
+            end
+
+        end % method onOff
+
+        function showPreferenceNotification(app, notification)
+
+            if isempty(notification)
+                return
+            end
+
+            if ~isa(notification, ...
+                "openmebius.presentation.notification.Notification")
+
+                notification = ...
+                    openmebius.presentation.notification.Notification.info( ...
+                    string(notification));
+            end
+
+            try
+                uialert( ...
+                    app.PreferencesUIFigure, ...
+                    char(notification.Message), ...
+                    char(notification.Title), ...
+                    "Icon", char(notification.alertIcon()), ...
+                    "Interpreter", "none");
+            catch
+                warning("%s", notification.toLogText());
+            end
+
+        end % method showPreferenceNotification
+
+        function showLocalWarning(app, ME)
+
+            notification = ...
+                openmebius.presentation.notification.Notification.fromException( ...
+                ME, ...
+                Title = "Preferences", ...
+                ShowAlert = true);
+
+            app.showPreferenceNotification(notification);
+
+        end % method showLocalWarning
+
+        function notifyMainPreferencesClosed(app)
+
+            try
+
+                if ~isempty(app.MainApp) && isvalid(app.MainApp)
+                    app.MainApp.onPreferencesClosed();
+                end
+
+            catch
+                % Main app may have already been deleted.
+            end
+
+        end % method notifyMainPreferencesClosed
+
+    end % methods (Access = private)
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Code that executes after component creation
+        function startupFcn(app, mainApp, slackNotifier)
+
+            if nargin < 2
+                mainApp = [];
+            end
+
+            if nargin < 3 || isempty(slackNotifier)
+                slackNotifier = ...
+                    openmebius.infrastructure.notification.SlackWebhookNotifier();
+            end
+
+            app.MainApp = mainApp;
+            app.SlackNotifier = slackNotifier;
+
+            app.loadSlackPreferences();
+
+        end
+
+        % Value changed function: SlacknotificationCheckBox
+        function SlacknotificationCheckBoxValueChanged(app, event)
+
+            enabled = logical(app.SlacknotificationCheckBox.Value);
+
+            app.SlackWebhookEditField.Enable = app.onOff(enabled);
+
+        end
+
+        % Value changed function: SlackWebhookEditField
+        function SlackWebhookEditFieldValueChanged(app, event)
+
+            try
+                app.saveSlackPreferences();
+            catch ME
+                app.showLocalWarning(ME);
+            end
+
+        end
+
+        % Button pushed function: CancelButton
+        function CancelButtonPushed(app, event)
+
+            app.notifyMainPreferencesClosed();
+            delete(app);
+
+        end
+
+        % Button pushed function: CloseButton
+        function CloseButtonPushed(app, event)
+
+            try
+                app.saveSlackPreferences();
+                app.notifyMainPreferencesClosed();
+                delete(app);
+
+            catch ME
+                app.showPreferenceNotification( ...
+                    openmebius.presentation.notification.Notification.fromException( ...
+                    ME, ...
+                    Title = "Preferences", ...
+                    ShowAlert = true));
+            end
+
+        end
+
+        % Close request function: PreferencesUIFigure
+        function PreferencesUIFigureCloseRequest(app, event)
+
+            app.notifyMainPreferencesClosed();
+            delete(app);
+
+        end
+
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Get the file path for locating images
+            pathToMLAPP = fileparts(mfilename('fullpath'));
+
+            % Create PreferencesUIFigure and hide until all components are created
+            app.PreferencesUIFigure = uifigure('Visible', 'off');
+            app.PreferencesUIFigure.Position = [100 100 640 480];
+            app.PreferencesUIFigure.Name = 'Preferences';
+            app.PreferencesUIFigure.Icon = fullfile(pathToMLAPP, '+img', 'logo.png');
+            app.PreferencesUIFigure.CloseRequestFcn = createCallbackFcn(app, @PreferencesUIFigureCloseRequest, true);
+
+            % Create GridLayout
+            app.GridLayout = uigridlayout(app.PreferencesUIFigure);
+            app.GridLayout.ColumnWidth = {'1x'};
+            app.GridLayout.RowHeight = {'1x', 'fit'};
+
+            % Create TabGroup
+            app.TabGroup = uitabgroup(app.GridLayout);
+            app.TabGroup.Layout.Row = 1;
+            app.TabGroup.Layout.Column = 1;
+
+            % Create NotificationTab
+            app.NotificationTab = uitab(app.TabGroup);
+            app.NotificationTab.Title = 'Notification';
+
+            % Create GridLayout2
+            app.GridLayout2 = uigridlayout(app.NotificationTab);
+            app.GridLayout2.ColumnWidth = {'1x'};
+            app.GridLayout2.RowHeight = {'fit', 'fit', '1x', 'fit'};
+
+            % Create SlacknotificationCheckBox
+            app.SlacknotificationCheckBox = uicheckbox(app.GridLayout2);
+            app.SlacknotificationCheckBox.ValueChangedFcn = createCallbackFcn(app, @SlacknotificationCheckBoxValueChanged, true);
+            app.SlacknotificationCheckBox.Text = 'Slack notification';
+            app.SlacknotificationCheckBox.Layout.Row = 1;
+            app.SlacknotificationCheckBox.Layout.Column = 1;
+
+            % Create GridLayout3
+            app.GridLayout3 = uigridlayout(app.GridLayout2);
+            app.GridLayout3.ColumnWidth = {'1x', '6x'};
+            app.GridLayout3.RowHeight = {'1x'};
+            app.GridLayout3.Padding = [0 0 0 0];
+            app.GridLayout3.Layout.Row = 2;
+            app.GridLayout3.Layout.Column = 1;
+
+            % Create WebhookEditFieldLabel
+            app.WebhookEditFieldLabel = uilabel(app.GridLayout3);
+            app.WebhookEditFieldLabel.Layout.Row = 1;
+            app.WebhookEditFieldLabel.Layout.Column = 1;
+            app.WebhookEditFieldLabel.Text = 'Webhook';
+
+            % Create SlackWebhookEditField
+            app.SlackWebhookEditField = uieditfield(app.GridLayout3, 'text');
+            app.SlackWebhookEditField.ValueChangedFcn = createCallbackFcn(app, @SlackWebhookEditFieldValueChanged, true);
+            app.SlackWebhookEditField.Layout.Row = 1;
+            app.SlackWebhookEditField.Layout.Column = 2;
+
+            % Create GridLayout4
+            app.GridLayout4 = uigridlayout(app.GridLayout);
+            app.GridLayout4.ColumnWidth = {'1x', '1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout4.RowHeight = {'1x'};
+            app.GridLayout4.Layout.Row = 2;
+            app.GridLayout4.Layout.Column = 1;
+
+            % Create CloseButton
+            app.CloseButton = uibutton(app.GridLayout4, 'push');
+            app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
+            app.CloseButton.Layout.Row = 1;
+            app.CloseButton.Layout.Column = 6;
+            app.CloseButton.Text = 'Close';
+
+            % Create CancelButton
+            app.CancelButton = uibutton(app.GridLayout4, 'push');
+            app.CancelButton.ButtonPushedFcn = createCallbackFcn(app, @CancelButtonPushed, true);
+            app.CancelButton.Layout.Row = 1;
+            app.CancelButton.Layout.Column = 5;
+            app.CancelButton.Text = 'Cancel';
+
+            % Show the figure after all components are created
+            app.PreferencesUIFigure.Visible = 'on';
+        end
+
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = Preferences_exported(varargin)
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.PreferencesUIFigure)
+
+            % Execute the startup function
+            runStartupFcn(app, @(app)startupFcn(app, varargin{:}))
+
+            if nargout == 0
+                clear app
+            end
+
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.PreferencesUIFigure)
+        end
+
+    end
+
+end
