@@ -122,6 +122,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         RunAddBatchApp
         selection
         selectedConfig
+        MSFragmentTableMetadata
     end
 
     %% Public methods
@@ -542,13 +543,17 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             clear batchIDUnique
 
-            tableSelected = app.MainApp.batch.getBatchCustomFragment(batchID);
+            fragmentSelections = app.MainApp.batch.getBatchMSFragmentSelections(batchID);
+            viewModel = ...
+                openmebius.presentation.batch.MSFragmentTableMapper.toViewModel( ...
+                fragmentSelections);
+            app.MSFragmentTableMetadata = viewModel.Metadata;
 
             % Fill the MSTable with the selected and available tables
-            app.MSTable.Data = tableSelected;
-            app.MSTable.ColumnName = tableSelected.Properties.VariableNames;
-            app.MSTable.RowName = tableSelected.Properties.RowNames;
-            app.MSTable.ColumnEditable = true(1, size(tableSelected, 2));
+            app.MSTable.Data = viewModel.Data;
+            app.MSTable.ColumnName = viewModel.ColumnName;
+            app.MSTable.RowName = viewModel.RowName;
+            app.MSTable.ColumnEditable = viewModel.ColumnEditable;
 
         end % loadMSFragmentTable
 
@@ -675,7 +680,12 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             clear batchIDUnique
 
-            app.MainApp.batch.updateBatchConfigFragment(batchID, data)
+            fragmentSelections = ...
+                openmebius.presentation.batch.MSFragmentTableMapper.fromViewTable( ...
+                data, ...
+                app.MSFragmentTableMetadata);
+
+            app.MainApp.batch.updateBatchMSFragmentSelections(fragmentSelections)
 
         end % applyMSFragment
 
