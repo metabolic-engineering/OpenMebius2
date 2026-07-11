@@ -200,6 +200,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
         ProjectSession openmebius.domain.project.ProjectSession
         ExperimentImportService openmebius.application.experiment.ExperimentImportService
+        RawMSImportService openmebius.application.experiment.RawMSImportService
         ExperimentCalculationService openmebius.application.experiment.ExperimentCalculationService
         ExperimentEditService openmebius.application.experiment.ExperimentEditService
 
@@ -4073,6 +4074,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.ExperimentImportService = ...
                 openmebius.application.experiment.ExperimentImportService();
+            app.RawMSImportService = ...
+                openmebius.application.experiment.RawMSImportService();
             app.ExperimentCalculationService = ...
                 openmebius.application.experiment.ExperimentCalculationService();
             app.ExperimentEditService = ...
@@ -5531,19 +5534,36 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            % Check model is loaded
-            if isempty(app.model) || app.model.isError
-                msg = "Model is not loaded. Please load a model before importing MS data.";
-                LogTextDate(app, msg, "Error");
-                return
+            updateStatus(app, "experiment", "running");
+
+            try
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation ...
+                    .fromDirectory(app.directoryExp);
+
+                result = app.RawMSImportService.importShimadzuASCII( ...
+                    importDirectory, ...
+                    experimentLocation, ...
+                    app.model);
+
+                app.applyExperimentImportResult(result);
+                app.loadExpData();
+                loadBatchTable(app, reload = true);
+
+                updateStatus(app, "experiment", "finished");
+
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
+
+                app.notifyInfo("Raw MS data imported successfully.");
+            catch ME
+                updateStatus(app, "experiment", "error");
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Raw MS data import failed", ...
+                    Alert = true);
             end
-
-            fragment = app.model.getAtomTable();
-            fragment = fragment.Properties.RowNames;
-
-            % Import MS data from text files
-            io = IORawFile(importDirectory);
-            io.readMSDataFromShimadzuASCII(app.directoryExp, fragment);
 
         end
 
