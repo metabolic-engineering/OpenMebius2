@@ -199,6 +199,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProjectRepository openmebius.infrastructure.project.FileProjectRepository
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
         ProjectSession openmebius.domain.project.ProjectSession
+        ExperimentImportService openmebius.application.experiment.ExperimentImportService
 
         LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
         LegacyListeners event.listener = event.listener.empty(0, 1)
@@ -2261,6 +2262,22 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method applyLegacyProjectArtifacts
 
+        function applyExperimentImportResult(app, result)
+
+            arguments
+                app
+                result openmebius.application.experiment.ExperimentImportResult
+            end
+
+            app.detachLegacyListeners();
+
+            app.exp = result.Experiments;
+            app.batch = result.Batch;
+
+            app.attachLegacyListeners();
+
+        end % method applyExperimentImportResult
+
         function applyBatchStyleRules(app, styleRules)
 
             if isempty(styleRules)
@@ -4052,6 +4069,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.project.OpenProjectUseCase( ...
                 app.ProjectRepository);
 
+            app.ExperimentImportService = ...
+                openmebius.application.experiment.ExperimentImportService();
+
             app.LegacyProjectLoader = ...
                 openmebius.infrastructure.legacy.LegacyProjectLoader();
 
@@ -4797,90 +4817,86 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ExpImportButtonPushed(app, event)
 
             % Wrap
-            [file, ~] = app.uiGetFileWrap( ...
+            [files, isOK] = app.uiGetFileWrap( ...
                 Filter = {'*.xlsx;*.xls', 'Excel Files (*.xlsx, *.xls)'}, ...
                 Title = 'Select Experimental Data File', ...
                 MultiSelect = "on" ...
             );
 
-            if isequal(file, 0)
+            if ~isOK || isempty(files)
                 % User canceled the dialog
                 msg = "No file selected.";
                 app.LogTextDate(msg, "Warning");
                 return
             end
 
-            if ischar(file)
-                file = {file};
-            end
-
-            numFiles = length(file);
+            files = string(files(:));
+            numFiles = length(files);
             msg = "Importing experimental data from " + string(numFiles) + " file(s): ";
             app.LogTextDate(msg, "Info");
 
-            % Get files in directoryExp
-            ToDirectory = app.directoryExp;
-
-            % Get file list of the directory
-            filesInDirectory = dir(fullfile(ToDirectory, '*.xlsx'));
-            filesInDirectory = {filesInDirectory.name};
-
-            for i = 1:numFiles
-
-                filePath = fullfile(file{i});
-
-                % Check if the file exists
-                if ~isfile(filePath)
-                    msg = "File does not exist: " + file{i};
-                    app.LogTextDate(msg, "Error");
-                    continue
-                end
-
-                % Check if the file is already in the directory
-                if any(strcmp(filesInDirectory, file{i}))
-                    msg = "File already exists in the directory: " + file{i};
-                    app.LogTextDate(msg, "Warning");
-                    continue
-                end
-
-                % Copy the file to the directoryExp
-                try
-                    copyfile(filePath, ToDirectory, 'f');
-                    msg = "File imported successfully: " + file{i};
-                    app.LogTextDate(msg, "Info");
-                catch ME
-                    msg = "Failed to import file: " + file{i} + ". Error: " + ME.message;
-                    app.LogTextDate(msg, "Error");
-                    continue
-                end % try-catch
-
-            end % i = 1:numFiles
-
-            % Reload the experimental data
             updateStatus(app, "experiment", "running");
 
-            app.exp.loadExpData();
-            app.loadExpData();
+            try
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation ...
+                    .fromDirectory(app.directoryExp);
 
-            if app.exp.isError
-                app.LogText(app.exp.statusMsg);
+                result = app.ExperimentImportService.importFiles( ...
+                    experimentLocation, ...
+                    files, ...
+                    app.model);
+
+                app.applyExperimentImportResult(result);
+                app.loadExpData();
+                loadBatchTable(app, reload = true);
+
+                updateStatus(app, "experiment", "finished");
+
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
+
+                msg = "Experimental data imported successfully.";
+                app.LogTextDate(msg, "Info");
+            catch ME
                 updateStatus(app, "experiment", "error");
-                return
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Experiment import failed", ...
+                    Alert = true);
             end
-
-            updateStatus(app, "experiment", "finished");
-            msg = "Experimental data imported successfully.";
-            app.LogTextDate(msg, "Info");
 
         end
 
         % Button pushed function: ExpReloadButton
         function ExpReloadButtonPushed(app, event)
 
-            app.exp.loadExpData(app.directoryModel);
-            loadExpData(app)
-            msg = app.model.returnDateMsg("Experimental data reloaded", "Info");
-            app.LogText(msg);
+            updateStatus(app, "experiment", "running");
+
+            try
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation ...
+                    .fromDirectory(app.directoryExp);
+
+                result = app.ExperimentImportService.reload( ...
+                    experimentLocation, ...
+                    app.model);
+
+                app.applyExperimentImportResult(result);
+                loadExpData(app)
+                loadBatchTable(app, reload = true)
+
+                updateStatus(app, "experiment", "finished");
+                msg = app.model.returnDateMsg("Experimental data reloaded", "Info");
+                app.LogText(msg);
+            catch ME
+                updateStatus(app, "experiment", "error");
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Experiment reload failed", ...
+                    Alert = true);
+            end
 
         end
 
