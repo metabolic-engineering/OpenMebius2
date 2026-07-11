@@ -201,6 +201,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProjectSession openmebius.domain.project.ProjectSession
         ExperimentImportService openmebius.application.experiment.ExperimentImportService
         ExperimentCalculationService openmebius.application.experiment.ExperimentCalculationService
+        ExperimentEditService openmebius.application.experiment.ExperimentEditService
 
         LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
         LegacyListeners event.listener = event.listener.empty(0, 1)
@@ -4074,6 +4075,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.experiment.ExperimentImportService();
             app.ExperimentCalculationService = ...
                 openmebius.application.experiment.ExperimentCalculationService();
+            app.ExperimentEditService = ...
+                openmebius.application.experiment.ExperimentEditService();
 
             app.LegacyProjectLoader = ...
                 openmebius.infrastructure.legacy.LegacyProjectLoader();
@@ -4888,31 +4891,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             cleanupPresentation = app.beginPresentationOperation();
 
-            updateStatus(app, "experiment", "running");
+            try
+                updateStatus(app, "experiment", "running");
 
-            updateModel(app)
+                result = app.ExperimentEditService.saveInfo( ...
+                    app.model, ...
+                    app.exp, ...
+                    app.batch, ...
+                    app.ExpTable.Data);
 
-            tableExp = app.ExpTable.Data;
-            tableBiomass = app.BiomassTable.Data;
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
 
-            err = updateExpData(app.exp, tableExp, "Info");
-
-            if err
-
-                LogText(app, app.exp.statusMsg);
+                updateStatus(app, "experiment", "finished");
+            catch ME
                 updateStatus(app, "experiment", "error");
-
-                return
-
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Experiment save failed", ...
+                    Alert = true);
             end
-
-            LogTextDate(app, "Experimental data updated", "Info");
-
-            % Save the experimental data
-            saveExpData(app.exp);
-            LogText(app, app.exp.statusMsg);
-
-            updateStatus(app, "experiment", "finished");
 
         end
 
@@ -4981,41 +4980,28 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             cleanupPresentation = app.beginPresentationOperation();
 
-            updateStatus(app, "experiment", "running");
-            updateModel(app)
+            try
+                updateStatus(app, "experiment", "running");
 
-            tableUptake = app.UptakeTable.Data;
-            tableLabel = app.LabelTable.Data;
+                result = app.ExperimentEditService.saveTracer( ...
+                    app.model, ...
+                    app.exp, ...
+                    app.batch, ...
+                    app.UptakeTable.Data, ...
+                    app.LabelTable.Data);
 
-            err = app.exp.updateExpData(tableUptake, "Uptake");
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
 
-            if err
-
-                app.LogText(app.exp.statusMsg);
+                updateStatus(app, "experiment", "finished");
+            catch ME
                 updateStatus(app, "experiment", "error");
-                return
-
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Tracer save failed", ...
+                    Alert = true);
             end
-
-            app.LogTextDate("Uptake table updated", "Info");
-
-            err = app.exp.updateExpData(tableLabel, "Tracer");
-
-            if err
-
-                app.LogText(app.exp.statusMsg);
-                updateStatus(app, "experiment", "error");
-                return
-
-            end
-
-            app.LogTextDate("Tracer table updated", "Info");
-
-            % Save the experimental data
-            saveExpData(app.exp);
-            LogText(app, app.exp.statusMsg);
-
-            updateStatus(app, "experiment", "finished");
 
         end
 
