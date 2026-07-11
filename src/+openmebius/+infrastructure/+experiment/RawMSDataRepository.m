@@ -64,23 +64,17 @@ classdef RawMSDataRepository < handle
                     .outputMessage(output));
             end
 
-            report = struct( ...
-                'ImportedFiles', strings(0, 1), ...
-                'SkippedFiles', strings(0, 1), ...
-                'Messages', strings(0, 1));
+            report = ...
+                openmebius.infrastructure.experiment.RawMSDataRepository ...
+                .reportFromRawOutput(output);
 
             missingFiles = strings(0, 1);
 
-            for i = 1:numel(textFiles)
-                [~, fileBaseName] = fileparts(textFiles(i));
-                workbookName = string(fileBaseName) + ".xlsx";
+            for i = 1:numel(report.ImportedFiles)
+                workbookName = report.ImportedFiles(i);
                 workbookPath = experimentLocation.workbookFile(workbookName);
 
-                if isfile(workbookPath)
-                    report.ImportedFiles(end + 1, 1) = workbookName;
-                    report.Messages(end + 1, 1) = ...
-                        "Raw MS data imported successfully: " + workbookName;
-                else
+                if ~isfile(workbookPath)
                     missingFiles(end + 1, 1) = workbookName; %#ok<AGROW>
                 end
             end
@@ -97,6 +91,27 @@ classdef RawMSDataRepository < handle
     end % methods
 
     methods (Static, Access = private)
+
+        function report = reportFromRawOutput(output)
+
+            report = struct( ...
+                'ImportedFiles', strings(0, 1), ...
+                'SkippedFiles', strings(0, 1), ...
+                'Messages', strings(0, 1));
+
+            if ~isstruct(output)
+                return
+            end
+
+            if isfield(output, 'ImportedFiles')
+                report.ImportedFiles = string(output.ImportedFiles(:));
+            end
+
+            if isfield(output, 'Messages')
+                report.Messages = string(output.Messages(:));
+            end
+
+        end % reportFromRawOutput
 
         function message = outputMessage(output)
 

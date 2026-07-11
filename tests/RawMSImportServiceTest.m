@@ -91,6 +91,54 @@ classdef RawMSImportServiceTest < matlab.unittest.TestCase
 
         end % importShimadzuASCIIRequiresLoadedModel
 
+        function importShimadzuASCIIFailsWhenAnyRawFileFails(testCase)
+
+            fixture = RawMSImportServiceTest.importFixture();
+            cleanupExperiment = onCleanup( ...
+                @() RawMSImportServiceTest.removeDirectory(fixture.Directory));
+
+            rawDirectory = string(tempname);
+            mkdir(rawDirectory);
+            cleanupRaw = onCleanup( ...
+                @() RawMSImportServiceTest.removeDirectory(rawDirectory));
+
+            model = fixture.ImportResult.Experiments.getModel();
+            atomTable = model.getAtomTable();
+            fragmentName = string(atomTable.Properties.RowNames{1});
+
+            validRawFile = fullfile(rawDirectory, "valid_sample.txt");
+            invalidRawFile = fullfile(rawDirectory, "invalid_sample.txt");
+            RawMSImportServiceTest.writeShimadzuText( ...
+                validRawFile, ...
+                fragmentName);
+            RawMSImportServiceTest.writeInvalidShimadzuText(invalidRawFile);
+
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation.fromDirectory( ...
+                fixture.Directory);
+
+            service = openmebius.application.experiment.RawMSImportService();
+
+            try
+                service.importShimadzuASCII( ...
+                    rawDirectory, ...
+                    experimentLocation, ...
+                    model);
+                testCase.verifyTrue( ...
+                    false, ...
+                    "Expected raw MS import to fail when any source file fails.");
+            catch ME
+                testCase.verifyEqual( ...
+                    string(ME.identifier), ...
+                    "OpenMebius2:RawMSDataRepository:ImportFailed");
+                testCase.verifyTrue(contains(string(ME.message), "invalid_sample.txt"));
+                testCase.verifyTrue(contains(string(ME.message), "Tag not found"));
+            end
+
+            testCase.verifyTrue(isfile(fullfile(fixture.Directory, "valid_sample.xlsx")));
+
+        end % importShimadzuASCIIFailsWhenAnyRawFileFails
+
     end % methods
 
     methods (Static, Access = private)
@@ -140,6 +188,22 @@ classdef RawMSImportServiceTest < matlab.unittest.TestCase
             fprintf(fileID, "\n");
 
         end % writeShimadzuText
+
+        function writeInvalidShimadzuText(filename)
+
+            fileID = fopen(filename, 'w');
+
+            if fileID == -1
+                error("RawMSImportServiceTest:FileOpenFailed", ...
+                    "Failed to create test raw MS file: %s", filename);
+            end
+
+            cleanup = onCleanup(@() fclose(fileID));
+
+            fprintf(fileID, "Name\tArea\tHeight\n");
+            fprintf(fileID, "Unknown M+0\t10\t1\n");
+
+        end % writeInvalidShimadzuText
 
         function removeDirectory(directory)
 
