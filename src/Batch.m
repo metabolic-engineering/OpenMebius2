@@ -659,103 +659,7 @@ classdef Batch < handle
 
         function config = getDefaultConfig(~)
 
-            % Get default configuration
-            config = struct;
-
-            % Flux calculation configuration
-            config.iteration = 30;
-            config.perturbateEfflux = false;
-            config.algorithm = 'sqp';
-            config.largeScale = false;
-            config.fluxLB = -1000;
-            config.fluxUB = 1000;
-            config.numExperiments = 1;
-            config.suggestNextFlux = false;
-            config.isParallel = false;
-            % Status
-            % ready: ready to run
-            % finished: finished
-            % error: error
-            % warning: warning
-            config.status = 'ready';
-            config.deleteResultFile = true;
-
-            config.optimizationMethod = 'gradient-only';
-
-            config.fmincon.maxFunctionEvaluations = 1000000;
-            config.fmincon.maxIterations = 2000;
-            config.fmincon.functionTolerance = 1e-6;
-            config.fmincon.stepTolerance = 1e-10;
-            config.fmincon.optimalityTolerance = 1e-8;
-            config.fmincon.constraintTolerance = 1e-8;
-            config.fmincon.finiteDifferenceType = 'central';
-            config.fmincon.finiteDifferenceStepSize = 1e-6;
-            config.fmincon.finiteDifferenceStepSizeSearch.enabled = true;
-            config.fmincon.finiteDifferenceStepSizeSearch.candidates = [1e-5, 1e-6, 1e-7, 1e-8, 1e-9];
-            config.fmincon.finiteDifferenceStepSizeSearch.includeConfiguredStep = true;
-            config.fmincon.finiteDifferenceStepSizeSearch.maxCandidates = 6;
-            config.fmincon.scaleProblem = 'obj-and-constr';
-            config.fmincon.rejectWorseThanInitial = true;
-            config.fmincon.objectiveIncreaseTolerance = 1e-6;
-            config.fmincon.initialFeasibilityTolerance = 1e-7;
-
-            config.GA.populationSize = 50;
-            config.GA.generations = 40;
-            config.GA.eliteCount = 2;
-            config.GA.tournamentSize = 3;
-            config.GA.crossoverFraction = 0.8;
-            config.GA.mutationRate = 0.2;
-            config.GA.mutationScale = 0.10;
-            config.GA.penaltyScale = 1e6;
-            config.GA.feasibilityTolerance = 1e-8;
-            config.GA.functionTolerance = 1e-9;
-            config.GA.stallGenerations = 10;
-            config.GA.seed = 0;
-            config.GA.maxInitialSeeds = 50;
-
-            % MS fragment selection configuration
-            config.isSelectMSFragment = false;
-            % all: all fragments
-            % custom: custom fragments
-            config.MS.fragment = 'all';
-            config.MS.fragmentList = string([]);
-            config.MS.expList = string([]);
-            config.MS.customFragment = [];
-
-            config.efflux = struct;
-            config.efflux.selection = logical([]);
-            config.efflux.substrate = string([]);
-            config.efflux.substrateSD = [];
-
-            % Confidence interval configuration
-            config.isCalcCI = false;
-            config.CIConf.algorithm = 'Monte Carlo';
-            config.CIConf.grid.delta = 1;
-            config.CIConf.grid.threshold = 'chi-sq';
-            config.CIConf.grid.points = 10;
-            config.CIConf.grid.iteration = config.iteration;
-            config.CIConf.grid.alpha = 0.05;
-            config.CIConf.grid.isParallel = true;
-            config.CIConf.MC.iteration = 500;
-            config.CIConf.MC.fixMID = true;
-            config.CIConf.MC.MIDSD = 0.01;
-            config.CIConf.MC.optimizationProcedure = 'multiple';
-            config.CIConf.MC.terminationTolerance = 1e-4;
-            config.CIConf.MC.proximityThreshold = 1e-4;
-            config.CIConf.MC.certainThreshold = 3;
-            config.CIConf.MC.theNumberOfRuns = 50;
-            config.CIConf.MC.calculationMethod = 'discarding';
-
-            config.suggestionTable = string([]);
-            config.suggestionTableRowNames = string([]);
-            config.suggestionTableVarNames = string([]);
-
-            config.isINSTMFA = false;
-            config.INSTMFA = struct;
-            config.INSTMFA.poolMetabolite = string([]);
-            config.INSTMFA.poolSize = [];
-            config.INSTMFA.timePointsExpName = string([]);
-            config.INSTMFA.timePoints = [];
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
 
         end
 
@@ -802,7 +706,8 @@ classdef Batch < handle
             for i = 1:length(ids)
 
                 % Update batch configuration
-                configFilled = fillMissingFields(obj, config, obj.getDefaultConfig());
+                configFilled = ...
+                    openmebius.domain.batch.BatchConfig.normalize(config);
                 obj.tableBatch.config(idx(i)) = configFilled;
 
             end % for i
@@ -1107,8 +1012,7 @@ classdef Batch < handle
             end
 
             % Ensure config has the same fields as the default config
-            defaultConfig = obj.getDefaultConfig();
-            config = obj.fillMissingFields(config, defaultConfig);
+            config = openmebius.domain.batch.BatchConfig.normalize(config);
             config.random = double(rand(1, 1));
 
             id = keyHash({name, exp, config});
@@ -1166,7 +1070,9 @@ classdef Batch < handle
 
             % Fill missing fields with current config
             currentConfig = obj.tableBatch.config(idx);
-            config = obj.fillMissingFields(config, currentConfig);
+            config = openmebius.domain.batch.BatchConfig.fillMissingFields( ...
+                config, ...
+                currentConfig);
             config = obj.updateINSTMFATable( ...
                 config, ...
                 exp{:}', ...
@@ -1309,32 +1215,15 @@ classdef Batch < handle
 
             isError = false;
 
-            [batch, isImportError, msg] = obj.BatchJsonRepository.load( ...
+            [batchLoaded, isImportError, msg] = obj.BatchJsonRepository.load( ...
                 experimentLocation, ...
-                string(obj.filename));
+                string(obj.filename), ...
+                obj.tableBatch.Properties.VariableNames);
 
             if isImportError
                 isError = true;
                 return
             end % if isImportError
-
-            % Fill missing fields in config
-            defaultConfig = obj.getDefaultConfig();
-
-            for i = 1:length(batch)
-                batch(i).config = obj.fillMissingFields(batch(i).config, defaultConfig);
-            end
-
-            batchLoaded = table( ...
-                string({batch.id})', ...
-                string({batch.name})', ...
-                {batch.exp}', ...
-                string({batch.description})', ...
-                {batch.config}', ...
-                'VariableNames', obj.tableBatch.Properties.VariableNames ...
-            );
-
-            batchLoaded.config = arrayfun(@(x) x{:}, batchLoaded.config);
 
             obj.tableBatch = batchLoaded;
 
@@ -1487,14 +1376,8 @@ classdef Batch < handle
 
         function initTableBatch(obj)
 
-            vars = {'id', 'name', 'exp', 'description', 'config'};
-
-            % Create table
-            obj.tableBatch = table( ...
-                'Size', [0, length(vars)], ...
-                'VariableNames', vars, ...
-                'VariableTypes', {'string', 'string', 'cell', 'string', 'struct'} ...
-            );
+            obj.tableBatch = ...
+                openmebius.infrastructure.batch.BatchJsonMapper.emptyTable();
 
         end % initTableBatch
 
@@ -1537,31 +1420,6 @@ classdef Batch < handle
             end % for i
 
         end % updateHash
-
-        function config = fillMissingFields(obj, config, defaultConfig)
-
-            fields = fieldnames(defaultConfig);
-
-            for i = 1:numel(fields)
-                fname = fields{i};
-
-                if ~isfield(config, fname)
-                    % If the field is missing, fill it with the default value
-                    config.(fname) = defaultConfig.(fname);
-
-                else
-                    % Fill missing sub-fields if both are structs
-                    if isstruct(config.(fname)) && isstruct(defaultConfig.(fname))
-                        config.(fname) = obj.fillMissingFields( ...
-                            config.(fname), ...
-                            defaultConfig.(fname));
-                    end % if isstruct(config.(fname)) && isstruct(defaultConfig.(fname))
-
-                end % if ~isfield(config, fname)
-
-            end % for i = 1:numel(fields)
-
-        end % function fillMissingFields
 
         function attachFluxAnalysisListeners(obj, mfa)
 

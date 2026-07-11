@@ -16,16 +16,20 @@ classdef BatchJsonRepository
             ioInstance = IO(experimentLocation.Directory);
             filenameBatch = experimentLocation.batchFile(fileName);
 
-            ioInstance.exportJSONFile(filenameBatch, batchTable);
+            batchJsonData = openmebius.infrastructure.batch.BatchJsonMapper.toJsonData(batchTable);
+
+            ioInstance.exportJSONFile(filenameBatch, batchJsonData);
 
         end % save
 
-        function [batchData, isError, msg] = load(~, experimentLocation, fileName)
+        function [batchTable, isError, msg] = load( ...
+                ~, ...
+                experimentLocation, ...
+                fileName, ...
+                variableNames)
 
-            arguments
-                ~
-                experimentLocation openmebius.domain.experiment.ExperimentLocation
-                fileName (1, 1) string
+            if nargin < 4
+                variableNames = openmebius.infrastructure.batch.BatchJsonMapper.defaultVariableNames();
             end
 
             ioInstance = IO(experimentLocation.Directory);
@@ -34,6 +38,13 @@ classdef BatchJsonRepository
             batchData = ioInstance.importJSONFile(filenameBatch);
             msg = ioInstance.statusMsg();
             isError = ioInstance.isError;
+
+            if isError
+                batchTable = openmebius.infrastructure.batch.BatchJsonMapper.emptyTable(variableNames);
+                return
+            end
+
+            batchTable = openmebius.infrastructure.batch.BatchJsonMapper.toTable(batchData, variableNames);
 
         end % load
 
