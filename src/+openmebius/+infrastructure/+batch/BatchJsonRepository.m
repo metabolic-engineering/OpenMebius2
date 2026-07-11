@@ -1,6 +1,6 @@
 classdef BatchJsonRepository
     % BATCHJSONREPOSITORY
-    % Reads and writes legacy batch JSON files.
+    % Reads and writes batch JSON files.
 
     methods
 

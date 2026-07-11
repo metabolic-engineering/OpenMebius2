@@ -1,10 +1,10 @@
 classdef BatchJsonMapper
     % BATCHJSONMAPPER
-    % Converts between legacy batch JSON data and the internal batch table.
+    % Converts between batch JSON data and the internal batch table.
 
     methods (Static)
 
-        function batchTable = toTable(batchData, variableNames)
+        function batchTable = toTable(batchJsonData, variableNames)
 
             if nargin < 2 || isempty(variableNames)
                 variableNames = openmebius.infrastructure.batch.BatchJsonMapper.defaultVariableNames();
@@ -12,25 +12,41 @@ classdef BatchJsonMapper
 
             variableNames = cellstr(variableNames);
 
+            document = ...
+                openmebius.infrastructure.batch.BatchJsonMigration.toCurrentDocument( ...
+                batchJsonData);
+            batchData = document.batches;
+
             if isempty(batchData)
                 batchTable = openmebius.infrastructure.batch.BatchJsonMapper.emptyTable(variableNames);
                 return
             end
 
             batchData = batchData(:);
+            numBatches = numel(batchData);
 
-            for i = 1:numel(batchData)
-                batchData(i).config = ...
+            ids = strings(numBatches, 1);
+            names = strings(numBatches, 1);
+            expValues = cell(numBatches, 1);
+            descriptions = strings(numBatches, 1);
+            configValues = cell(numBatches, 1);
+
+            for i = 1:numBatches
+                ids(i) = string(batchData(i).id);
+                names(i) = string(batchData(i).name);
+                expValues{i} = batchData(i).exp;
+                descriptions(i) = string(batchData(i).description);
+                configValues{i} = ...
                     openmebius.domain.batch.BatchConfig.normalize( ...
                     batchData(i).config);
             end
 
             batchTable = table( ...
-                string({batchData.id})', ...
-                string({batchData.name})', ...
-                {batchData.exp}', ...
-                string({batchData.description})', ...
-                {batchData.config}', ...
+                ids, ...
+                names, ...
+                expValues, ...
+                descriptions, ...
+                configValues, ...
                 'VariableNames', variableNames ...
             );
 
@@ -44,8 +60,12 @@ classdef BatchJsonMapper
                 batchTable table
             end
 
-            % Preserve the current legacy jsonencode(table) format.
-            batchJsonData = batchTable;
+            batchData = ...
+                openmebius.infrastructure.batch.BatchJsonMapper.toBatchData( ...
+                batchTable);
+            batchJsonData = ...
+                openmebius.infrastructure.batch.BatchJsonMigration.createCurrentDocument( ...
+                batchData);
 
         end % toJsonData
 
@@ -84,6 +104,29 @@ classdef BatchJsonMapper
             variableTypes = {'string', 'string', 'cell', 'string', 'struct'};
 
         end % defaultVariableTypes
+
+    end % methods
+
+    methods (Static, Access = private)
+
+        function batchData = toBatchData(batchTable)
+
+            batchData = struct( ...
+                'id', {}, ...
+                'name', {}, ...
+                'exp', {}, ...
+                'description', {}, ...
+                'config', {});
+
+            for i = 1:height(batchTable)
+                batchData(i, 1).id = batchTable.id(i);
+                batchData(i, 1).name = batchTable.name(i);
+                batchData(i, 1).exp = batchTable.exp{i};
+                batchData(i, 1).description = batchTable.description(i);
+                batchData(i, 1).config = batchTable.config(i);
+            end
+
+        end % toBatchData
 
     end % methods
 
