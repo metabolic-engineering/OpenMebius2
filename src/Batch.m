@@ -20,6 +20,7 @@ classdef Batch < handle
 
         % Batch configuration
         filename = 'batch.json'
+        BatchJsonRepository
         batchColumnNamesforGUI = ["ID", "Name", "Experiment", "Description"];
         batchColumnEditableforGUI = [false, true, false, true];
 
@@ -43,6 +44,8 @@ classdef Batch < handle
             % Set properties
             obj.exp = exp;
             obj.model = exp.getModel();
+            obj.BatchJsonRepository = ...
+                openmebius.infrastructure.batch.BatchJsonRepository();
 
             % Initialize table
             initTableBatch(obj);
@@ -1272,10 +1275,10 @@ classdef Batch < handle
                     fileDirectory);
             end
 
-            ioInstance = IO(experimentLocation.Directory);
-            filenameBatch = experimentLocation.batchFile(obj.filename);
-
-            ioInstance.exportJSONFile(filenameBatch, obj.tableBatch);
+            obj.BatchJsonRepository.save( ...
+                experimentLocation, ...
+                string(obj.filename), ...
+                obj.tableBatch);
 
         end % saveBatchFile
 
@@ -1306,16 +1309,14 @@ classdef Batch < handle
 
             isError = false;
 
-            ioInstance = IO(experimentLocation.Directory);
-            filenameBatch = experimentLocation.batchFile(obj.filename);
+            [batch, isImportError, msg] = obj.BatchJsonRepository.load( ...
+                experimentLocation, ...
+                string(obj.filename));
 
-            batch = ioInstance.importJSONFile(filenameBatch);
-            msg = ioInstance.statusMsg();
-
-            if ioInstance.isError
+            if isImportError
                 isError = true;
                 return
-            end % if ioInstance.isError
+            end % if isImportError
 
             % Fill missing fields in config
             defaultConfig = obj.getDefaultConfig();
