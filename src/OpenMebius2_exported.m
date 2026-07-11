@@ -146,7 +146,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         RunAddBatchApp;
         ViewSuggestionApp;
         LogApp;
-        PreferencesApp;
         ProgressBar CustomProgressBar
 
         % Styles
@@ -205,6 +204,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         LegacyListeners event.listener = event.listener.empty(0, 1)
 
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
+
+        PreferencesApp
+        PreferencesListeners event.listener = event.listener.empty(0, 1)
 
         MainInteractionSnapshot cell = {}
 
@@ -346,17 +348,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             ResultMainTableCellSelection(app, selection);
 
         end % function testResultMainTableCellSelection
-
-        %% Public helper methods
-        function onPreferencesClosed(app)
-            % ONPREFERENCESCLOSED
-            % Called from Preferences.mlapp when Preferences is closed.
-
-            app.PreferencesApp = [];
-
-            app.finishPresentationPreferences();
-
-        end % method onPreferencesClosed
 
     end % methods (Access = public)
 
@@ -2051,6 +2042,44 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.LegacyListeners = event.listener.empty(0, 1);
 
         end % method detachLegacyListeners
+
+        function attachPreferencesListeners(app, preferencesApp)
+
+            app.detachPreferencesListeners();
+
+            if isempty(preferencesApp) || ~isvalid(preferencesApp)
+                return
+            end
+
+            app.PreferencesListeners(1, 1) = addlistener( ...
+                preferencesApp, ...
+                "PreferencesClosed", ...
+                @(src, event) app.onPreferencesClosed(src, event));
+
+        end % method attachPreferencesListeners
+
+        function detachPreferencesListeners(app)
+
+            if isempty(app.PreferencesListeners)
+                return
+            end
+
+            for i = 1:numel(app.PreferencesListeners)
+
+                try
+
+                    if isvalid(app.PreferencesListeners(i))
+                        delete(app.PreferencesListeners(i));
+                    end
+
+                catch
+                end
+
+            end
+
+            app.PreferencesListeners = event.listener.empty(0, 1);
+
+        end % method detachPreferencesListeners
 
         %% Apply Session
         function applyMainInteractionEnabled(app, enabled)
@@ -3991,6 +4020,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
     end % methods (Access = private)
 
+    %% Private callback functions
+    methods (Access = private)
+
+        function onPreferencesClosed(app, src, event)
+
+            app.detachPreferencesListeners();
+            app.PreferencesApp = [];
+            app.finishPresentationPreferences();
+
+        end % method onPreferencesClosed
+
+    end % methods (Access = private)
+
     % Callbacks that handle component events
     methods (Access = private)
 
@@ -5377,7 +5419,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             try
                 app.beginPresentationPreferences();
 
-                app.PreferencesApp = Preferences(app, app.SlackNotifier);
+                app.PreferencesApp = Preferences(app.SlackNotifier);
+
+                app.attachPreferencesListeners(app.PreferencesApp);
 
             catch ME
                 app.finishPresentationPreferences();
