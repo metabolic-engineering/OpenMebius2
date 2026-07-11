@@ -200,6 +200,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
         ProjectSession openmebius.domain.project.ProjectSession
         ExperimentImportService openmebius.application.experiment.ExperimentImportService
+        ExperimentCalculationService openmebius.application.experiment.ExperimentCalculationService
 
         LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
         LegacyListeners event.listener = event.listener.empty(0, 1)
@@ -4071,6 +4072,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.ExperimentImportService = ...
                 openmebius.application.experiment.ExperimentImportService();
+            app.ExperimentCalculationService = ...
+                openmebius.application.experiment.ExperimentCalculationService();
 
             app.LegacyProjectLoader = ...
                 openmebius.infrastructure.legacy.LegacyProjectLoader();
@@ -4767,48 +4770,28 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             try
                 app.updateStatus("experiment", "running");
 
-                updateModel(app);
+                result = app.ExperimentCalculationService.calculateMDV( ...
+                    app.model, ...
+                    app.exp, ...
+                    app.batch, ...
+                    app.ExpTable.Data, ...
+                    app.UptakeTable.Data, ...
+                    app.LabelTable.Data);
 
-                err = app.exp.updateExpData(app.ExpTable.Data, "Info");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                err = app.exp.updateExpData(app.UptakeTable.Data, "Uptake");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                err = app.exp.updateExpData(app.LabelTable.Data, "Tracer");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                app.exp.calculateMDV();
-
-                if app.exp.isError
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                app.batch.updateExperimentalData(app.exp);
                 app.updateStatus("experiment", "finished");
 
-                app.notifyInfo("MDV-derived tables have been updated successfully.");
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
+
+                app.notifyInfo(result.Messages(end));
 
             catch ME
                 app.updateStatus("experiment", "error");
-                app.notifyError("An error occurred while updating MDV-derived tables: " + ME.message);
+                app.notifyException( ...
+                    ME, ...
+                    Title = "MDV calculation failed", ...
+                    Alert = true);
             end
 
         end
