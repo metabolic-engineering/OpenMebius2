@@ -5498,20 +5498,25 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            selectedCell = currentData{selected(1, 1), selected(1, 2)};
-            numRows = size(currentData, 1);
+            try
+                result = app.ExperimentEditService.copyTracerToAllEntries( ...
+                    app.model, ...
+                    app.exp, ...
+                    app.batch, ...
+                    currentData, ...
+                    selected);
 
-            for i = 1:numRows
-                currentData{i, selected(1, 2)} = selectedCell;
+                app.LabelTable.Data = result.UpdatedTable;
+
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
+            catch ME
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Tracer copy failed", ...
+                    Alert = true);
             end
-
-            app.LabelTable.Data = currentData;
-
-            msg = "Selected tracer copied to all entries.";
-            LogTextDate(app, msg, "Info");
-
-            % Update the tracer table in exp
-            app.exp.updateExpData(app.LabelTable.Data, "Tracer");
 
         end
 

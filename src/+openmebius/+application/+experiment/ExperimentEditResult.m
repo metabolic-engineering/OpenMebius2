@@ -6,6 +6,7 @@ classdef ExperimentEditResult
         Experiments
         Batch
         Messages (:, 1) string
+        UpdatedTable table
     end
 
     methods
@@ -16,11 +17,13 @@ classdef ExperimentEditResult
                 options.Experiments
                 options.Batch
                 options.Messages (:, 1) string = strings(0, 1)
+                options.UpdatedTable table = table()
             end
 
             obj.Experiments = options.Experiments;
             obj.Batch = options.Batch;
             obj.Messages = options.Messages;
+            obj.UpdatedTable = options.UpdatedTable;
 
         end % constructor
 

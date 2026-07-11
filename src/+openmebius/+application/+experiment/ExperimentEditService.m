@@ -68,6 +68,44 @@ classdef ExperimentEditService < handle
 
         end % saveTracer
 
+        function result = copyTracerToAllEntries(~, model, experiments, batch, tracerTable, selection)
+
+            arguments
+                ~
+                model
+                experiments IOExps
+                batch Batch
+                tracerTable table
+                selection (:, :) double
+            end
+
+            openmebius.application.experiment.ExperimentEditService ...
+                .syncModel(model, experiments, batch);
+
+            [selectedRow, selectedColumn] = ...
+                openmebius.application.experiment.ExperimentEditService ...
+                .selectedTableCell(selection, tracerTable);
+
+            updatedTracerTable = tracerTable;
+            selectedTracer = updatedTracerTable{selectedRow, selectedColumn};
+
+            for row = 1:height(updatedTracerTable)
+                updatedTracerTable{row, selectedColumn} = selectedTracer;
+            end
+
+            openmebius.application.experiment.ExperimentEditService ...
+                .updateExperimentData(experiments, updatedTracerTable, "Tracer");
+
+            batch.updateExperimentalData(experiments);
+
+            result = openmebius.application.experiment.ExperimentEditResult( ...
+                Experiments = experiments, ...
+                Batch = batch, ...
+                UpdatedTable = updatedTracerTable, ...
+                Messages = "Selected tracer copied to all entries.");
+
+        end % copyTracerToAllEntries
+
     end % methods
 
     methods (Static, Access = private)
@@ -117,6 +155,26 @@ classdef ExperimentEditService < handle
             end
 
         end % updateExperimentData
+
+        function [row, column] = selectedTableCell(selection, tableData)
+
+            if isempty(selection) || size(selection, 2) < 2
+                error( ...
+                    "OpenMebius2:ExperimentEdit:InvalidSelection", ...
+                    "A tracer table cell must be selected.");
+            end
+
+            row = selection(1, 1);
+            column = selection(1, 2);
+
+            if row < 1 || row > height(tableData) || ...
+                    column < 1 || column > width(tableData)
+                error( ...
+                    "OpenMebius2:ExperimentEdit:SelectionOutOfRange", ...
+                    "The selected tracer table cell is outside the table.");
+            end
+
+        end % selectedTableCell
 
         function saveExperiments(experiments)
 
