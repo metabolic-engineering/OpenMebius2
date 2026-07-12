@@ -198,6 +198,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         DialogService openmebius.presentation.dialog.AppDialogService
         ProjectRepository openmebius.infrastructure.project.FileProjectRepository
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
+        CreateProjectUseCase openmebius.application.project.CreateProjectUseCase
         ProjectSession openmebius.domain.project.ProjectSession
         BatchLoadService openmebius.application.batch.BatchLoadService
         ExperimentImportService openmebius.application.experiment.ExperimentImportService
@@ -206,6 +207,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ExperimentEditService openmebius.application.experiment.ExperimentEditService
 
         LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
+        LegacyProjectInitializer openmebius.infrastructure.legacy.LegacyProjectInitializer
         LegacyListeners event.listener = event.listener.empty(0, 1)
 
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
@@ -561,6 +563,33 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method renderLegacyProjectArtifacts
+
+        function renderCreatedProjectArtifacts(app)
+
+            app.updateStatus("model", "running");
+
+            app.notifyInfo("Constructing EMU network...");
+
+            pause(0.5)
+
+            loadEMUModel(app)
+
+            if app.model.isError
+                app.LogText(app.model.statusMsg);
+                app.updateStatus("model", "error");
+                return
+            end
+
+            loadPathway(app)
+
+            app.updateStatus("model", "finished");
+            app.notifyInfo("New project created and model loaded successfully.");
+
+            app.updateStatus("experiment", "init");
+            app.updateStatus("batch", "init");
+            app.updateStatus("result", "init");
+
+        end % method renderCreatedProjectArtifacts
 
         function renderBatchTable(app, viewModel)
 
@@ -1989,6 +2018,36 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method ensureDialogService
+
+        function ensureProjectServices(app)
+
+            if isempty(app.ProjectRepository)
+                app.ProjectRepository = ...
+                    openmebius.infrastructure.project.FileProjectRepository();
+            end
+
+            if isempty(app.OpenProjectUseCase)
+                app.OpenProjectUseCase = ...
+                    openmebius.application.project.OpenProjectUseCase( ...
+                    app.ProjectRepository);
+            end
+
+            if isempty(app.CreateProjectUseCase)
+                app.CreateProjectUseCase = ...
+                    openmebius.application.project.CreateProjectUseCase( ...
+                    app.ProjectRepository);
+            end
+
+        end % method ensureProjectServices
+
+        function ensureLegacyProjectInitializer(app)
+
+            if isempty(app.LegacyProjectInitializer)
+                app.LegacyProjectInitializer = ...
+                    openmebius.infrastructure.legacy.LegacyProjectInitializer();
+            end
+
+        end % method ensureLegacyProjectInitializer
 
         function ensureExperimentImportService(app)
 
@@ -4151,6 +4210,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.OpenProjectUseCase = ...
                 openmebius.application.project.OpenProjectUseCase( ...
                 app.ProjectRepository);
+            app.CreateProjectUseCase = ...
+                openmebius.application.project.CreateProjectUseCase( ...
+                app.ProjectRepository);
 
             app.ExperimentImportService = ...
                 openmebius.application.experiment.ExperimentImportService();
@@ -4165,6 +4227,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.LegacyProjectLoader = ...
                 openmebius.infrastructure.legacy.LegacyProjectLoader();
+            app.LegacyProjectInitializer = ...
+                openmebius.infrastructure.legacy.LegacyProjectInitializer();
 
             app.BatchPresenter = ...
                 openmebius.presentation.batch.BatchPresenter();
@@ -4334,7 +4398,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ProjectCreateButton
         function ProjectCreateButtonPushed(app, event)
 
-            cleanupPresentation = app.beginPresentationOperation();
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
 
             [answ, ok] = app.uiInputDlgWrap( ...
                 Prompt = "Enter the name of the new project directory:", ...
@@ -4355,12 +4419,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             directoryName = directoryName{1};
 
             if isempty(directoryName)
-                msg = "Project directory name cannot be empty.";
-                LogTextDate(app, msg, "Error");
+                app.notifyError("Project directory name cannot be empty.");
                 return
             end % if isempty(directoryName)
 
-            % Create the project directory
             projectParentDirectory = app.uiGetDirWrap( ...
                 StartPath = app.ProjectDirectoryDropDown.Value, ...
                 Title = "Select Parent Directory for New Project" ...
@@ -4372,128 +4434,58 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             projectParentDirectory = string(projectParentDirectory);
+            templateModelDirectory = string( ...
+                app.TemplateModelDirectoryDropDown.Value);
 
-            % Check if the directory already exists
-            newProjectDirectory = fullfile(projectParentDirectory, directoryName);
-
-            if isfolder(newProjectDirectory)
-                msg = "Project directory already exists: " + newProjectDirectory;
-                LogTextDate(app, msg, "Error");
-                return
-            end % if isfolder(newProjectDirectory)
-
-            % Create the new project directory
             try
-                mkdir(newProjectDirectory);
+                app.ensureProjectServices();
+                app.ensureLegacyProjectInitializer();
+
+                metadata = openmebius.domain.project.ProjectMetadata( ...
+                    Name = string(app.ProjectNameEditField.Value), ...
+                    Author = string(app.ProjectAuthorEditField.Value), ...
+                    Organism = string(app.OrganismEditField.Value));
+
+                createResult = app.CreateProjectUseCase.execute( ...
+                    ParentDirectory = projectParentDirectory, ...
+                    ProjectDirectoryName = string(directoryName), ...
+                    TemplateModelDirectory = templateModelDirectory, ...
+                    Metadata = metadata);
+
+                app.applyProjectSession(createResult.Session);
+
+                items = string(app.ProjectDirectoryDropDown.Items);
+
+                if ~any(items == createResult.Session.Paths.RootDirectory)
+                    items(end + 1) = createResult.Session.Paths.RootDirectory;
+                    app.ProjectDirectoryDropDown.Items = items;
+                end
+
+                app.updateStatus("model", "init");
+
+                for i = 1:numel(createResult.Messages)
+                    app.notifyInfo(createResult.Messages(i));
+                end
+
+                artifacts = app.LegacyProjectInitializer.initialize( ...
+                    createResult.Session);
+
+                app.applyLegacyProjectArtifacts(artifacts);
+
+                for i = 1:numel(artifacts.Messages)
+                    app.notifyInfo(artifacts.Messages(i));
+                end
+
+                app.renderCreatedProjectArtifacts();
+                app.refreshPresentation();
+
             catch ME
-                msg = "Failed to create project directory: " + newProjectDirectory + ". Error: " + ME.message;
-                LogTextDate(app, msg, "Error");
-                return
-            end % try-catch
-
-            % Update the dropdown value
-            app.ProjectDirectoryDropDown.Value = newProjectDirectory;
-            % Add the directory to the item
-            items = string(app.ProjectDirectoryDropDown.Items);
-
-            if ~any(items == string(newProjectDirectory))
-                items(end + 1) = string(newProjectDirectory);
-                app.ProjectDirectoryDropDown.Items = items;
+                app.updateStatus("model", "error");
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Project create failed", ...
+                    Alert = true);
             end
-
-            % Update the status
-            updateStatus(app, "model", "init");
-
-            msg = "New project directory created: " + newProjectDirectory;
-            LogTextDate(app, msg, "Info");
-
-            % Save JSON file
-            objProjectDirectory = IO(newProjectDirectory);
-
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                return
-            end
-
-            json.Name = app.ProjectNameEditField.Value;
-            json.Author = app.ProjectAuthorEditField.Value;
-            json.Organism = app.OrganismEditField.Value;
-
-            projectPaths = openmebius.domain.project.ProjectPaths( ...
-                string(newProjectDirectory));
-
-            objProjectDirectory.exportJSONFile(projectPaths.SettingFile, json);
-
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                return
-            end
-
-            objProjectDirectory.exportJSONFile(projectPaths.LegacySettingFile, json);
-
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                return
-            end
-
-            msg = "Project setting saved to " + projectPaths.SettingFile + ...
-                " and " + projectPaths.LegacySettingFile;
-
-            LogTextDate(app, msg, "Info");
-
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                return
-            end
-
-            msg = "Project setting saved to " + fullfile(newProjectDirectory, "setting.json");
-            LogTextDate(app, msg, "Info");
-
-            % Initialize the directory
-            initDirectory(app, newProjectDirectory);
-
-            % Copy model template to the new project directory
-            templateModelDirectory = app.TemplateModelDirectoryDropDown.Value;
-
-            if ~isfolder(templateModelDirectory)
-                msg = "Template model directory does not exist: " + templateModelDirectory;
-                LogTextDate(app, msg, "Error");
-                return
-            end % if ~isfolder(templateModelDirectory)
-
-            % Copy the template model directory to the new project directory
-            try
-                copyfile(templateModelDirectory, fullfile(newProjectDirectory, "model"), 'f');
-                msg = "Template model copied to " + fullfile(newProjectDirectory, "model");
-                LogTextDate(app, msg, "Info");
-            catch ME
-                msg = "Failed to copy template model: " + ME.message;
-                LogTextDate(app, msg, "Error");
-                return
-            end % try-catch
-
-            % Load the model
-            app.model = EMUModel(fullfile(newProjectDirectory, "model"));
-
-            msg = "Constructing EMU network...";
-            LogTextDate(app, msg, "Info");
-
-            pause(0.5)
-
-            loadEMUModel(app);
-            loadPathway(app);
-
-            updateStatus(app, "model", "finished");
-
-            msg = "New project created and model loaded successfully.";
-            LogTextDate(app, msg, "Info");
-
-            app.exp = IOExps( ...
-                app.directoryExp, ...
-                app.directoryModel ...
-            );
-            app.batch = Batch(app.exp);
-            app.result = IOResult(app.directoryResult);
 
         end
 
