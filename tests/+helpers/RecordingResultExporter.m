@@ -6,7 +6,7 @@ classdef RecordingResultExporter < handle
         BatchIDs (:, 1) string = strings(0, 1)
         BatchNames (:, 1) string = strings(0, 1)
         OutputLocation openmebius.domain.result.ResultLocation
-        AddDatetime (1, 1) logical = true
+        ExportDirectories (:, 1) string = strings(0, 1)
     end
 
     methods
@@ -14,26 +14,20 @@ classdef RecordingResultExporter < handle
         function saveResult( ...
                 obj, ...
                 result, ...
-                batchIDs, ...
-                batchNames, ...
-                outputLocation, ...
-                options)
+                exportPlan)
 
             arguments
                 obj
                 result
-                batchIDs (:, 1) string
-                batchNames (:, 1) string
-                outputLocation openmebius.domain.result.ResultLocation
-                options.AddDatetime (1, 1) logical = true
+                exportPlan openmebius.application.result.ResultExportPlan
             end
 
             obj.WasCalled = true;
             obj.Result = result;
-            obj.BatchIDs = batchIDs;
-            obj.BatchNames = batchNames;
-            obj.OutputLocation = outputLocation;
-            obj.AddDatetime = options.AddDatetime;
+            obj.BatchIDs = exportPlan.BatchIDs;
+            obj.BatchNames = exportPlan.BatchNames;
+            obj.OutputLocation = exportPlan.OutputLocation;
+            obj.ExportDirectories = exportPlan.ExportDirectories;
 
         end
 
