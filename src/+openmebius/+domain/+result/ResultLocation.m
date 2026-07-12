@@ -30,6 +30,12 @@ classdef ResultLocation
 
         end % reportFile
 
+        function path = summaryReportFile(obj)
+
+            path = obj.reportFile("summary");
+
+        end % summaryReportFile
+
         function path = artifactFile(obj, fileName)
 
             path = fullfile(obj.Directory, string(fileName));

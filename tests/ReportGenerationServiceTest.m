@@ -172,7 +172,7 @@ classdef ReportGenerationServiceTest < matlab.unittest.TestCase
                     @(location, model, experiments, result) []
                 options.View (1, 1) function_handle = @(report) []
                 options.OutputPath (1, 1) function_handle = ...
-                    @(report, location) location.reportFile("summary")
+                    @(report, location) location.summaryReportFile()
             end
 
             repository = struct( ...

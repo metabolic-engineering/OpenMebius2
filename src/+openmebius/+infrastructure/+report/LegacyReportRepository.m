@@ -37,7 +37,7 @@ classdef LegacyReportRepository < handle
                 resultLocation openmebius.domain.result.ResultLocation
             end
 
-            outputPath = resultLocation.reportFile("summary");
+            outputPath = resultLocation.summaryReportFile();
 
             if isobject(report) && ismethod(report, "getOutputPath")
                 outputPath = string(report.getOutputPath());

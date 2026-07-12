@@ -90,17 +90,11 @@ classdef ReportResult < handle
 
             import mlreportgen.report.Report;
 
-            generateFilename(obj, "summary");
+            obj.filename = obj.ResultLocation.summaryReportFile();
             obj.rpt = Report(obj.filename, "html");
             obj.rpt.Layout.Landscape = true;
 
         end % setupReport
-
-        function generateFilename(obj, filename)
-
-            obj.filename = obj.ResultLocation.reportFile(filename);
-
-        end % generateFilename
 
         function addTitlePage(obj)
 
