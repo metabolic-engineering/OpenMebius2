@@ -203,6 +203,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         TemplateModelLoadService openmebius.application.model.TemplateModelLoadService
         BatchLoadService openmebius.application.batch.BatchLoadService
         ResultLoadService openmebius.application.result.ResultLoadService
+        ReportGenerationService openmebius.application.report.ReportGenerationService
         ExperimentImportService openmebius.application.experiment.ExperimentImportService
         RawMSImportService openmebius.application.experiment.RawMSImportService
         ExperimentCalculationService openmebius.application.experiment.ExperimentCalculationService
@@ -2087,6 +2088,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureResultLoadService
 
+        function ensureReportGenerationService(app)
+
+            if isempty(app.ReportGenerationService)
+                app.ReportGenerationService = ...
+                    openmebius.application.report.ReportGenerationService();
+            end
+
+        end % method ensureReportGenerationService
+
         function attachLegacyListeners(app)
 
             app.LegacyListeners = event.listener.empty(0, 1);
@@ -2420,6 +2430,18 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.attachLegacyListeners();
 
         end % method applyResultLoadResult
+
+        function applyReportGenerationResult(app, reportGenerationResult)
+
+            arguments
+                app
+                reportGenerationResult ...
+                    openmebius.application.report.ReportGenerationResult
+            end
+
+            app.report = reportGenerationResult.Report;
+
+        end % method applyReportGenerationResult
 
         function result = reloadExperimentState(app, options)
 
@@ -4271,6 +4293,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.batch.BatchLoadService();
             app.ResultLoadService = ...
                 openmebius.application.result.ResultLoadService();
+            app.ReportGenerationService = ...
+                openmebius.application.report.ReportGenerationService();
             app.RawMSImportService = ...
                 openmebius.application.experiment.RawMSImportService();
             app.ExperimentCalculationService = ...
@@ -5390,25 +5414,44 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ResultReportButton
         function ResultReportButtonPushed(app, event)
 
-            % Exit if result data is not available
-            if isempty(app.result) || app.result.isError
-                msg = "Result data is not available.";
-                app.LogTextDate(msg, "Error");
-                return
-            end
+            try
+                app.ensureReportGenerationService();
 
-            if isdeployed
-                msg = "Report generation is not available in the deployed version.";
-                app.LogTextDate(msg, "Warning");
-                return
-            end
+                resultLocation = openmebius.domain.result.ResultLocation ...
+                    .fromDirectory(app.directoryResult);
 
-            app.report = ReportResult( ...
-                app.directoryResult, ...
-                app.model, ...
-                app.exp, ...
-                app.result ...
-            );
+                reportGenerationResult = ...
+                    app.ReportGenerationService.generate( ...
+                    resultLocation, ...
+                    app.model, ...
+                    app.exp, ...
+                    app.result, ...
+                    IsDeployed = isdeployed);
+
+                app.applyReportGenerationResult(reportGenerationResult);
+
+                for i = 1:numel(reportGenerationResult.Messages)
+                    app.notifyInfo(reportGenerationResult.Messages(i));
+                end
+
+            catch ME
+
+                switch string(ME.identifier)
+
+                    case "OpenMebius2:Report:UnavailableInDeployed"
+                        app.notifyWarning(string(ME.message));
+
+                    case "OpenMebius2:Report:DataUnavailable"
+                        app.notifyError(string(ME.message));
+
+                    otherwise
+                        app.notifyException( ...
+                            ME, ...
+                            Title = "Report generation failed", ...
+                            Alert = true);
+                end
+
+            end
 
         end
 
