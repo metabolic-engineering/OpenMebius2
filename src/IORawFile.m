@@ -43,45 +43,100 @@ classdef IORawFile
         %% Public utilization method
         function [isError, output] = readMSDataFromShimadzuASCII(obj, toSavePath, fragmentList)
 
-            isError = false;
-            output = '';
+            output = IORawFile.emptyImportReport();
             targetLocation = ...
                 openmebius.domain.experiment.ExperimentLocation.fromInput( ...
                 toSavePath);
 
             if ~obj.validateFileDirectory()
                 isError = true;
-                output.message = 'Invalid file directory.';
+                output = IORawFile.appendFailure( ...
+                    output, ...
+                    obj.fileDirectory, ...
+                    'Invalid file directory.');
                 return;
             end
 
             textList = obj.RawDataLocation.textFiles();
             numFile = length(textList);
 
+            if numFile == 0
+                isError = true;
+                output = IORawFile.appendFailure( ...
+                    output, ...
+                    obj.RawDataLocation.Directory, ...
+                    'No raw MS text files were found.');
+                return;
+            end
+
             for i = 1:numFile
 
-                filename = obj.RawDataLocation.textFile(textList(i));
-                [data, isError, output] = obj.readTextData(filename);
+                sourceFile = obj.RawDataLocation.textFile(textList(i));
+                [data, fileIsError, fileOutput] = obj.readTextData(sourceFile);
 
-                if isError
-                    output.message = sprintf('Error reading file: %s. %s', filename, output.message);
+                if fileIsError
+                    message = sprintf( ...
+                        'Error reading file: %s. %s', ...
+                        sourceFile, ...
+                        fileOutput.message);
+                    output = IORawFile.appendFailure( ...
+                        output, ...
+                        textList(i), ...
+                        message);
                     continue;
                 end
 
                 [~, name, ~] = fileparts(textList(i));
+                workbookName = string(name) + ".xlsx";
+                workbookFile = targetLocation.workbookFile(workbookName);
 
-                filename = targetLocation.workbookFile(string(name) + ".xlsx");
-
-                data = data(:, {'Name', 'Area'});
-
-                [isError, output] = obj.exportToExcel(data, filename, fragmentList);
-
-                if isError
-                    output.message = sprintf('Error exporting to Excel for file: %s. %s', filename, output.message);
+                try
+                    data = data(:, {'Name', 'Area'});
+                catch ME
+                    message = sprintf( ...
+                        'Error preparing raw MS table for file: %s. %s', ...
+                        sourceFile, ...
+                        ME.message);
+                    output = IORawFile.appendFailure( ...
+                        output, ...
+                        textList(i), ...
+                        message);
                     continue;
                 end
 
+                [fileIsError, fileOutput] = obj.exportToExcel( ...
+                    data, ...
+                    workbookFile, ...
+                    fragmentList);
+
+                if fileIsError
+                    message = sprintf( ...
+                        'Error exporting to Excel for file: %s. %s', ...
+                        workbookFile, ...
+                        fileOutput.message);
+                    output = IORawFile.appendFailure( ...
+                        output, ...
+                        textList(i), ...
+                        message);
+                    continue;
+                end
+
+                output = IORawFile.appendSuccess( ...
+                    output, ...
+                    workbookName, ...
+                    "Raw MS data imported successfully: " + workbookName);
+
             end % for
+
+            isError = ~isempty(output.FailedFiles);
+
+            if isError
+                output.message = strjoin(output.FailureMessages, newline);
+            else
+                output.message = sprintf( ...
+                    'Imported %d raw MS data file(s).', ...
+                    numel(output.ImportedFiles));
+            end
 
         end % function
 
@@ -238,6 +293,35 @@ classdef IORawFile
     end % methods (Private)
 
     methods (Static, Access = private)
+
+        function report = emptyImportReport()
+
+            report = struct( ...
+                'ImportedFiles', strings(0, 1), ...
+                'FailedFiles', strings(0, 1), ...
+                'Messages', strings(0, 1), ...
+                'FailureMessages', strings(0, 1), ...
+                'message', "");
+
+        end % emptyImportReport
+
+        function report = appendSuccess(report, fileName, message)
+
+            report.ImportedFiles(end + 1, 1) = string(fileName);
+            report.Messages(end + 1, 1) = string(message);
+
+        end % appendSuccess
+
+        function report = appendFailure(report, fileName, message)
+
+            message = string(message);
+
+            report.FailedFiles(end + 1, 1) = string(fileName);
+            report.FailureMessages(end + 1, 1) = message;
+            report.Messages(end + 1, 1) = message;
+            report.message = strjoin(report.FailureMessages, newline);
+
+        end % appendFailure
 
         function labels = normalizeFragmentLabels(labels)
 

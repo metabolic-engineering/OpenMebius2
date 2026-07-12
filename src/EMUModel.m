@@ -118,7 +118,7 @@ classdef EMUModel < Stoichiometry
 
     methods
 
-        function obj = EMUModel(modelInput)
+        function obj = EMUModel(modelInput, varargin)
             % EMUMODEL: Constructor for the EMUModel class.
             %
             % Parameters:
@@ -126,7 +126,7 @@ classdef EMUModel < Stoichiometry
             % modelInput
             %     File directory or openmebius.domain.model.ModelLocation.
 
-            obj = obj@Stoichiometry(modelInput);
+            obj = obj@Stoichiometry(modelInput, varargin{:});
 
             if obj.isError
                 return

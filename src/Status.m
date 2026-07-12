@@ -3,6 +3,7 @@ classdef Status < handle
     properties
 
         isError (1, 1) logical = false;
+        logLevel (1, 1) string {mustBeMember(logLevel, ["Debug", "Info", "Notice", "Warning", "Error", "Fatal"])} = "Info";
 
     end
 
@@ -37,6 +38,12 @@ classdef Status < handle
 
             % Get the log message
             statusMsg = obj.DateText + " " + obj.msg;
+
+        end
+
+        function errorMsg = get.errorMsg(obj)
+
+            errorMsg = obj.statusMsg;
 
         end
 
@@ -120,6 +127,13 @@ classdef Status < handle
             msg = obj.DateText + " " + msg;
 
         end %returnDateMsg
+
+        function reset(obj)
+
+            obj.isError = false;
+            obj.msg = "";
+
+        end % reset
 
     end
 

@@ -1,4 +1,4 @@
-classdef IOResult < IO
+classdef IOResult < Status
 
     events
 
@@ -18,20 +18,45 @@ classdef IOResult < IO
     properties (SetAccess = private)
 
         ResultLocation openmebius.domain.result.ResultLocation
+        ResultRepository
 
     end % properties
 
     methods
 
-        function obj = IOResult(resultInput)
+        function obj = IOResult(resultInput, options)
             % Constructor for IOResult class
+
+            arguments
+                resultInput
+                options.ResultRepository = ...
+                    openmebius.infrastructure.result.ResultRepository()
+            end
 
             resultLocation = ...
                 openmebius.domain.result.ResultLocation.fromInput( ...
                 resultInput);
 
-            obj@IO(resultLocation.Directory);
             obj.ResultLocation = resultLocation;
+            obj.ResultRepository = options.ResultRepository;
+
+            try
+                obj.ResultRepository.assertResultDirectory(resultLocation);
+            catch
+                obj.isError = true;
+                updateMsg(obj, ...
+                    "The directory " + resultLocation.Directory + ...
+                    " does not exist.", ...
+                    "Error", ...
+                    obj.logLevel);
+                return
+            end
+
+            updateMsg(obj, ...
+                "The directory " + resultLocation.Directory + ...
+                " exists.", ...
+                "Info", ...
+                obj.logLevel);
 
         end % constructor
 
@@ -668,7 +693,7 @@ classdef IOResult < IO
             obj.IDs = ids;
             obj.dataMask = dataMask;
 
-            if ~isfolder(obj.ResultLocation.Directory)
+            if ~obj.ResultLocation.directoryExists()
                 obj.isError = true;
                 notifyGeneralMessage(obj, "error", "Result directory does not exist.");
                 return;
@@ -734,7 +759,7 @@ classdef IOResult < IO
 
             data = struct;
 
-            if ~isfolder(obj.ResultLocation.Directory)
+            if ~obj.ResultLocation.directoryExists()
                 obj.isError = true;
                 notifyGeneralMessage(obj, "error", "Result directory does not exist.");
                 return;
@@ -925,29 +950,25 @@ classdef IOResult < IO
                 return;
             end % if
 
-            for iBatch = 1:length(batchID)
+            exportPlan = openmebius.application.result.ResultExportPlan.build( ...
+                batchID, ...
+                names, ...
+                outputLocation, ...
+                AddDatetime = options.addDatetime);
 
-                % Get the batch ID and name
-                iBatchID = batchID(iBatch);
-                iName = names(iBatch);
+            for iBatch = 1:exportPlan.count()
 
-                % Create the file name
-                if options.addDatetime
-                    datetimeStr = string(datetime('now', 'Format', 'yyyyMMdd-HHmmss'));
-                    directoryName = iName + "_" + iBatchID + "_" + datetimeStr;
-                else
-                    directoryName = iName + "_" + iBatchID;
-                end % if
+                exportItem = exportPlan.exportItem(iBatch);
 
                 try
                     % Create the directory if it does not exist
-                    iLocation = outputLocation.childLocation(directoryName);
+                    iLocation = exportItem.ExportLocation;
 
-                    if isfolder(iLocation.Directory)
+                    if iLocation.directoryExists()
                         msg = "Directory already exists: " + iLocation.Directory;
                         notifyGeneralMessage(obj, "error", msg);
                         continue;
-                    end % if isfolder(iLocation.Directory)
+                    end % if iLocation.directoryExists()
 
                     mkdir(iLocation.Directory);
 
@@ -962,7 +983,12 @@ classdef IOResult < IO
                 notifyGeneralMessage(obj, "info", msg);
 
                 % Save the result data
-                saveResultData(obj, iBatchID, iName, iLocation, "xlsx");
+                saveResultData( ...
+                    obj, ...
+                    exportItem.BatchID, ...
+                    exportItem.BatchName, ...
+                    iLocation, ...
+                    "xlsx");
 
             end % for iBatch
 
@@ -1238,6 +1264,26 @@ classdef IOResult < IO
 
     methods (Access = private)
 
+        function [isSuccess, msg] = exportExcelFile(obj, pathFile, excelData, sheetName, options)
+
+            arguments
+                obj
+                pathFile (1, 1) string
+                excelData
+                sheetName (1, 1) string = ""
+                options.WriteRowNames (1, 1) logical = true
+                options.WriteVariableNames (1, 1) logical = true
+            end
+
+            [isSuccess, msg] = obj.ResultRepository.writeExcelTable( ...
+                pathFile, ...
+                excelData, ...
+                sheetName, ...
+                WriteRowNames = options.WriteRowNames, ...
+                WriteVariableNames = options.WriteVariableNames);
+
+        end % exportExcelFile
+
         function saveResultDataAsCsv(obj, baseName, outputLocation, overview, data, status, batchID)
 
             [isSuccess, msg] = obj.exportCsvTable( ...
@@ -1286,29 +1332,21 @@ classdef IOResult < IO
 
         end % saveResultDataAsCsv
 
-        function [isSuccess, msg] = exportCsvTable(~, pathFile, tableData, options)
+        function [isSuccess, msg] = exportCsvTable(obj, pathFile, tableData, options)
 
             arguments
-                ~
+                obj
                 pathFile (1, 1) string
                 tableData table
                 options.WriteRowNames (1, 1) logical = true
                 options.WriteVariableNames (1, 1) logical = true
             end
 
-            isSuccess = true;
-            msg = "";
-
-            try
-                writetable( ...
-                    tableData, ...
-                    pathFile, ...
-                    "WriteRowNames", options.WriteRowNames, ...
-                    "WriteVariableNames", options.WriteVariableNames);
-            catch ME
-                isSuccess = false;
-                msg = string(ME.message);
-            end
+            [isSuccess, msg] = obj.ResultRepository.writeCsvTable( ...
+                pathFile, ...
+                tableData, ...
+                WriteRowNames = options.WriteRowNames, ...
+                WriteVariableNames = options.WriteVariableNames);
 
         end % exportCsvTable
 

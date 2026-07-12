@@ -25,7 +25,15 @@ classdef ReportResult < handle
 
     methods (Access = public)
 
-        function obj = ReportResult(fileDirectory, model, exp, result)
+        function obj = ReportResult(fileDirectory, model, exp, result, options)
+
+            arguments
+                fileDirectory
+                model
+                exp
+                result
+                options.OpenAfterBuild (1, 1) logical = true
+            end
 
             obj.ResultLocation = ...
                 openmebius.domain.result.ResultLocation.fromInput( ...
@@ -38,13 +46,11 @@ classdef ReportResult < handle
                 return;
             end
 
-            setupReport(obj);
-            addTitlePage(obj);
-            addTableOfContents(obj);
+            build(obj);
 
-            addModelInfo(obj);
-
-            rptview(obj.rpt);
+            if options.OpenAfterBuild
+                view(obj);
+            end
 
         end % ReportResult
 
@@ -52,21 +58,43 @@ classdef ReportResult < handle
 
     methods (Access = public)
 
+        function build(obj)
+
+            setupReport(obj);
+            addTitlePage(obj);
+            addTableOfContents(obj);
+
+            addModelInfo(obj);
+
+        end % build
+
+        function view(obj)
+
+            if isempty(obj.rpt)
+                error( ...
+                    "OpenMebius2:Report:NotBuilt", ...
+                    "Report has not been built.");
+            end
+
+            rptview(obj.rpt);
+
+        end % view
+
+        function outputPath = getOutputPath(obj)
+
+            outputPath = string(obj.filename);
+
+        end % getOutputPath
+
         function setupReport(obj)
 
             import mlreportgen.report.Report;
 
-            generateFilename(obj, "summary");
+            obj.filename = obj.ResultLocation.summaryReportFile();
             obj.rpt = Report(obj.filename, "html");
             obj.rpt.Layout.Landscape = true;
 
         end % setupReport
-
-        function generateFilename(obj, filename)
-
-            obj.filename = obj.ResultLocation.reportFile(filename);
-
-        end % generateFilename
 
         function addTitlePage(obj)
 

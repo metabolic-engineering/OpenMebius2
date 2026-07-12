@@ -1,4 +1,4 @@
-classdef FluxAnalysis < handle & IO
+classdef FluxAnalysis < Status
 
     events
 
@@ -28,6 +28,7 @@ classdef FluxAnalysis < handle & IO
         ResultLocation openmebius.domain.result.ResultLocation
         HDF5FileName = ""
         HDF5FilePath = ""
+        Hdf5ResultRepository
 
         % List of experimental conditions
         expsList = []
@@ -102,18 +103,50 @@ classdef FluxAnalysis < handle & IO
                 config, ...
                 resultInput, ...
                 ID, ...
-                controller ...
+                controller, ...
+                options ...
             )
+
+            arguments
+                model
+                experiments
+                expList
+                config
+                resultInput
+                ID
+                controller = []
+                options.Hdf5ResultRepository = ...
+                    openmebius.infrastructure.result.Hdf5ResultRepository()
+            end
 
             resultLocation = ...
                 openmebius.domain.result.ResultLocation.fromInput( ...
                 resultInput);
 
-            obj@IO(resultLocation.Directory);
-
             obj.ResultLocation = resultLocation;
             obj.HDF5FileName = ID;
             obj.HDF5FilePath = resultLocation.resultFile(ID);
+            obj.Hdf5ResultRepository = options.Hdf5ResultRepository;
+
+            try
+                obj.Hdf5ResultRepository.assertResultDirectory( ...
+                    resultLocation);
+            catch
+                obj.isError = true;
+                updateMsg(obj, ...
+                    "The directory " + resultLocation.Directory + ...
+                    " does not exist.", ...
+                    "Error", ...
+                    obj.logLevel);
+            end
+
+            if ~obj.isError
+                updateMsg(obj, ...
+                    "The directory " + resultLocation.Directory + ...
+                    " exists.", ...
+                    "Info", ...
+                    obj.logLevel);
+            end
 
             if obj.isError
                 obj.isExport = false;
@@ -150,7 +183,7 @@ classdef FluxAnalysis < handle & IO
             obj.config = config;
             obj.status = Status();
 
-            if exist("controller", "var") && ~isempty(controller) && isvalid(controller)
+            if ~isempty(controller) && isa(controller, 'handle') && isvalid(controller)
 
                 if isprop(controller, "CancelRequested") || any(strcmp(events(controller), "CancelRequested"))
                     addlistener(controller, 'CancelRequested', @(src, evt)obj.cancel());
@@ -4852,6 +4885,24 @@ classdef FluxAnalysis < handle & IO
             end % if
 
         end % method setINSTMFA
+
+        function [isSuccess, msg] = writeHDF5File(obj, pathFile, pathData, data, options)
+
+            arguments
+                obj
+                pathFile (1, 1) string
+                pathData (1, 1) string
+                data
+                options.DataType (1, 1) string = "double"
+            end
+
+            [isSuccess, msg] = obj.Hdf5ResultRepository.writeDataset( ...
+                pathFile, ...
+                pathData, ...
+                data, ...
+                DataType = options.DataType);
+
+        end % writeHDF5File
 
     end % methods (Access = private)
 

@@ -4,12 +4,39 @@ classdef LegacyProjectLoader < handle
     %
     % This class must not access App Designer components.
 
+    properties (Access = private)
+        ModelRepository
+        ExperimentRepository
+        BatchRepository
+        ResultRepository
+    end
+
     methods
 
-        function artifacts = load(~, session)
+        function obj = LegacyProjectLoader(options)
 
             arguments
-                ~
+                options.ModelRepository = ...
+                    openmebius.infrastructure.model.ModelRepository()
+                options.ExperimentRepository = ...
+                    openmebius.infrastructure.experiment.ExperimentRepository()
+                options.BatchRepository = ...
+                    openmebius.infrastructure.legacy.LegacyBatchRepository()
+                options.ResultRepository = ...
+                    openmebius.infrastructure.result.ResultRepository()
+            end
+
+            obj.ModelRepository = options.ModelRepository;
+            obj.ExperimentRepository = options.ExperimentRepository;
+            obj.BatchRepository = options.BatchRepository;
+            obj.ResultRepository = options.ResultRepository;
+
+        end % constructor
+
+        function artifacts = load(obj, session)
+
+            arguments
+                obj
                 session openmebius.domain.project.ProjectSession
             end
 
@@ -19,81 +46,29 @@ classdef LegacyProjectLoader < handle
             % -------------------------------------------------------------
             % Model
             % -------------------------------------------------------------
-            model = EMUModel(paths.modelLocation());
-
-            if isempty(model) || ~isvalid(model)
-                error( ...
-                    "OpenMebius2:LegacyProject:InvalidModelObject", ...
-                "Failed to create EMUModel.");
-            end
-
-            if model.isError
-                error( ...
-                    "OpenMebius2:LegacyProject:ModelLoadFailed", ...
-                    "%s", string(model.statusMsg));
-            end
-
-            ioStatus = model.getIOStatus();
-
-            if ~strcmp(ioStatus, "completed")
-                error( ...
-                    "OpenMebius2:LegacyProject:ModelIncomplete", ...
-                    "%s", string(model.statusMsg));
-            end
-
+            model = obj.ModelRepository.load(paths.modelLocation());
             messages(end + 1, 1) = "Model loaded successfully.";
 
             % -------------------------------------------------------------
             % Experiments
             % -------------------------------------------------------------
-            experiments = IOExps( ...
+            experiments = obj.ExperimentRepository.load( ...
                 paths.experimentLocation(), ...
                 model);
-
-            if isempty(experiments) || ~isvalid(experiments)
-                error( ...
-                    "OpenMebius2:LegacyProject:InvalidExperimentObject", ...
-                "Failed to create IOExps.");
-            end
-
-            if experiments.isError
-                error( ...
-                    "OpenMebius2:LegacyProject:ExperimentLoadFailed", ...
-                    "%s", string(experiments.statusMsg));
-            end
-
             messages(end + 1, 1) = "Experiment data loaded successfully.";
 
             % -------------------------------------------------------------
             % Batch
             % -------------------------------------------------------------
-            batch = Batch(experiments);
-
-            if isempty(batch) || ~isvalid(batch)
-                error( ...
-                    "OpenMebius2:LegacyProject:InvalidBatchObject", ...
-                "Failed to create Batch.");
-            end
-
+            batch = obj.BatchRepository.load( ...
+                paths.experimentLocation(), ...
+                experiments);
             messages(end + 1, 1) = "Batch object created successfully.";
 
             % -------------------------------------------------------------
             % Result
             % -------------------------------------------------------------
-            result = IOResult(paths.resultLocation());
-
-            if isempty(result) || ~isvalid(result)
-                error( ...
-                    "OpenMebius2:LegacyProject:InvalidResultObject", ...
-                "Failed to create IOResult.");
-            end
-
-            if result.isError
-                error( ...
-                    "OpenMebius2:LegacyProject:ResultLoadFailed", ...
-                    "%s", string(result.statusMsg));
-            end
-
+            result = obj.ResultRepository.open(paths.resultLocation());
             messages(end + 1, 1) = "Result object created successfully.";
 
             artifacts = ...

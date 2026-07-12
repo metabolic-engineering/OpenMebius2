@@ -122,6 +122,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         RunAddBatchApp
         selection
         selectedConfig
+        MSFragmentTableMetadata
     end
 
     %% Public methods
@@ -195,12 +196,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             algorithm = arrayfun(@(x) x.algorithm, app.selectedConfig, "UniformOutput", false);
             algorithm = algorithm{1};
 
-            switch lower(string(algorithm))
-                case {"interior-point", "ipms"}
-                    app.AlgorithmDropDown.Value = 'IPMs';
-                case {"sqp", "sqp-legacy"}
-                    app.AlgorithmDropDown.Value = 'SQP';
-            end
+            app.AlgorithmDropDown.Value = ...
+                openmebius.presentation.batch.RunConfigMapper.algorithmToView(algorithm);
 
             clear algorithm
 
@@ -228,7 +225,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             ciAlgorithm = arrayfun(@(x) x.CIConf.algorithm, app.selectedConfig, "UniformOutput", false);
             ciAlgorithm = ciAlgorithm{1};
 
-            app.AlgorithmCIDropDown.Value = ciAlgorithm;
+            app.AlgorithmCIDropDown.Value = ...
+                openmebius.presentation.batch.RunConfigMapper.ciAlgorithmToView(ciAlgorithm);
 
             clear ciAlgorithm
 
@@ -244,24 +242,17 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 app.MCFixMIDCheckBox.Value = mcConfig.fixMID;
                 app.MCMIDSDEditField.Value = mcConfig.MIDSD;
 
-                switch mcConfig.optimizationProcedure
-                    case 'single'
-                        app.MCProcedureDropDown.Value = 'Single run';
-                    case 'multiple'
-                        app.MCProcedureDropDown.Value = 'Multiple run';
-                end
+                app.MCProcedureDropDown.Value = ...
+                    openmebius.presentation.batch.RunConfigMapper.mcOptimizationProcedureToView( ...
+                    mcConfig.optimizationProcedure);
 
                 app.MCTTEditField.Value = mcConfig.terminationTolerance;
                 app.MCProximityEditField.Value = mcConfig.proximityThreshold;
                 app.MCNasEditField.Value = mcConfig.certainThreshold;
                 app.MCKNREditField.Value = mcConfig.theNumberOfRuns;
 
-                switch mcConfig.calculationMethod
-                    case 'discarding'
-                        app.MCMethodDropDown.Value = 'Discarding';
-                    case 'mean-varianced'
-                        app.MCMethodDropDown.Value = 'Mean-varianced';
-                end
+                app.MCMethodDropDown.Value = ...
+                    openmebius.presentation.batch.RunConfigMapper.mcCalculationMethodToView(mcConfig.calculationMethod);
 
             end
 
@@ -274,12 +265,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 app.GridintervalDeltaixiEditField.Value = gridConfig.delta;
                 app.IterationtimesforgridsearchEditField.Value = gridConfig.iteration;
 
-                switch gridConfig.threshold
-                    case 'chi-sq'
-                        app.ThresholdDropDown.Value = 'Chi-squared';
-                    case 'F-dist'
-                        app.ThresholdDropDown.Value = 'F-distribution';
-                end
+                app.ThresholdDropDown.Value = ...
+                    openmebius.presentation.batch.RunConfigMapper.gridThresholdToView(gridConfig.threshold);
 
             end
 
@@ -556,13 +543,17 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             clear batchIDUnique
 
-            tableSelected = app.MainApp.batch.getBatchCustomFragment(batchID);
+            fragmentSelections = app.MainApp.batch.getBatchMSFragmentSelections(batchID);
+            viewModel = ...
+                openmebius.presentation.batch.MSFragmentTableMapper.toViewModel( ...
+                fragmentSelections);
+            app.MSFragmentTableMetadata = viewModel.Metadata;
 
             % Fill the MSTable with the selected and available tables
-            app.MSTable.Data = tableSelected;
-            app.MSTable.ColumnName = tableSelected.Properties.VariableNames;
-            app.MSTable.RowName = tableSelected.Properties.RowNames;
-            app.MSTable.ColumnEditable = true(1, size(tableSelected, 2));
+            app.MSTable.Data = viewModel.Data;
+            app.MSTable.ColumnName = viewModel.ColumnName;
+            app.MSTable.RowName = viewModel.RowName;
+            app.MSTable.ColumnEditable = viewModel.ColumnEditable;
 
         end % loadMSFragmentTable
 
@@ -589,12 +580,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Update the configuration with values from the UI
             config.iteration = app.IterationSpinner.Value;
 
-            switch app.AlgorithmDropDown.Value
-                case 'IPMs'
-                    config.algorithm = 'interior-point';
-                case 'SQP'
-                    config.algorithm = 'sqp';
-            end
+            config.algorithm = ...
+                openmebius.presentation.batch.RunConfigMapper.algorithmToConfig(app.AlgorithmDropDown.Value);
 
             config.largeScale = app.LargeScaleCheckBox.Value;
             config.suggestNextFlux = app.SuggestionCheckBox.Value;
@@ -618,7 +605,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             % Update the confidence interval calculation settings
             config.isCalcCI = app.CalcCICheckBox.Value;
-            config.CIConf.algorithm = app.AlgorithmCIDropDown.Value;
+            config.CIConf.algorithm = ...
+                openmebius.presentation.batch.RunConfigMapper.ciAlgorithmToConfig(app.AlgorithmCIDropDown.Value);
 
             config.deleteResultFile = app.DeleteResultButton.Value;
 
@@ -633,20 +621,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 config.CIConf.MC.certainThreshold = app.MCNasEditField.Value;
                 config.CIConf.MC.theNumberOfRuns = app.MCKNREditField.Value;
                 config.CIConf.MC.method = app.MCMethodDropDown.Value;
-
-                switch config.CIConf.MC.procedure
-                    case 'Single run'
-                        config.CIConf.MC.optimizationProcedure = 'single';
-                    case 'Multiple run'
-                        config.CIConf.MC.optimizationProcedure = 'multiple';
-                end
-
-                switch config.CIConf.MC.method
-                    case 'Discarding'
-                        config.CIConf.MC.calculationMethod = 'discarding';
-                    case 'Mean-varianced'
-                        config.CIConf.MC.calculationMethod = 'mean-varianced';
-                end
+                config.CIConf.MC.optimizationProcedure = ...
+                    openmebius.presentation.batch.RunConfigMapper.mcOptimizationProcedureToConfig( ...
+                    app.MCProcedureDropDown.Value);
+                config.CIConf.MC.calculationMethod = ...
+                    openmebius.presentation.batch.RunConfigMapper.mcCalculationMethodToConfig(app.MCMethodDropDown.Value);
 
             end
 
@@ -656,7 +635,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 config.CIConf.grid.points = app.ThenumberofgridpointsEditField.Value;
                 config.CIConf.grid.delta = app.GridintervalDeltaixiEditField.Value;
                 config.CIConf.grid.iteration = app.IterationtimesforgridsearchEditField.Value;
-                config.CIConf.grid.threshold = app.ThresholdDropDown.Value;
+                config.CIConf.grid.threshold = ...
+                    openmebius.presentation.batch.RunConfigMapper.gridThresholdToConfig(app.ThresholdDropDown.Value);
             end
 
             config.isINSTMFA = app.INSTMFACheckBox.Value;
@@ -700,7 +680,12 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             clear batchIDUnique
 
-            app.MainApp.batch.updateBatchConfigFragment(batchID, data)
+            fragmentSelections = ...
+                openmebius.presentation.batch.MSFragmentTableMapper.fromViewTable( ...
+                data, ...
+                app.MSFragmentTableMetadata);
+
+            app.MainApp.batch.updateBatchMSFragmentSelections(fragmentSelections)
 
         end % applyMSFragment
 

@@ -1,0 +1,62 @@
+classdef ResultLoadService < handle
+
+    properties (Access = private)
+        ResultRepository
+    end
+
+    methods
+
+        function obj = ResultLoadService(options)
+
+            arguments
+                options.ResultRepository = ...
+                    openmebius.infrastructure.result.ResultRepository()
+            end
+
+            obj.ResultRepository = options.ResultRepository;
+
+        end
+
+        function result = load(obj, resultLocation)
+
+            arguments
+                obj
+                resultLocation openmebius.domain.result.ResultLocation
+            end
+
+            openmebius.application.result.ResultLoadService ...
+                .validateResultDirectory(resultLocation);
+
+            ioResult = obj.ResultRepository.open(resultLocation);
+
+            result = openmebius.application.result.ResultLoadResult( ...
+                Result = ioResult, ...
+                ResultLocation = resultLocation, ...
+                Messages = "Result object opened successfully.");
+
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function validateResultDirectory(resultLocation)
+
+            if ~resultLocation.hasDirectory()
+                error( ...
+                    "OpenMebius2:ResultLoad:EmptyDirectory", ...
+                    "Result directory is empty.");
+            end
+
+            if ~resultLocation.directoryExists()
+                error( ...
+                    "OpenMebius2:ResultLoad:DirectoryNotFound", ...
+                    "Result directory does not exist: %s", ...
+                    resultLocation.Directory);
+            end
+
+        end
+
+    end
+
+end

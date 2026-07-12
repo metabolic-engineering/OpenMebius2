@@ -198,9 +198,20 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         DialogService openmebius.presentation.dialog.AppDialogService
         ProjectRepository openmebius.infrastructure.project.FileProjectRepository
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
+        CreateProjectUseCase openmebius.application.project.CreateProjectUseCase
         ProjectSession openmebius.domain.project.ProjectSession
+        TemplateModelLoadService openmebius.application.model.TemplateModelLoadService
+        BatchLoadService openmebius.application.batch.BatchLoadService
+        ResultLoadService openmebius.application.result.ResultLoadService
+        ResultExportService openmebius.application.result.ResultExportService
+        ReportGenerationService openmebius.application.report.ReportGenerationService
+        ExperimentImportService openmebius.application.experiment.ExperimentImportService
+        RawMSImportService openmebius.application.experiment.RawMSImportService
+        ExperimentCalculationService openmebius.application.experiment.ExperimentCalculationService
+        ExperimentEditService openmebius.application.experiment.ExperimentEditService
 
         LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
+        LegacyProjectInitializer openmebius.infrastructure.legacy.LegacyProjectInitializer
         LegacyListeners event.listener = event.listener.empty(0, 1)
 
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
@@ -556,6 +567,33 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method renderLegacyProjectArtifacts
+
+        function renderCreatedProjectArtifacts(app)
+
+            app.updateStatus("model", "running");
+
+            app.notifyInfo("Constructing EMU network...");
+
+            pause(0.5)
+
+            loadEMUModel(app)
+
+            if app.model.isError
+                app.LogText(app.model.statusMsg);
+                app.updateStatus("model", "error");
+                return
+            end
+
+            loadPathway(app)
+
+            app.updateStatus("model", "finished");
+            app.notifyInfo("New project created and model loaded successfully.");
+
+            app.updateStatus("experiment", "init");
+            app.updateStatus("batch", "init");
+            app.updateStatus("result", "init");
+
+        end % method renderCreatedProjectArtifacts
 
         function renderBatchTable(app, viewModel)
 
@@ -1985,6 +2023,90 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureDialogService
 
+        function ensureProjectServices(app)
+
+            if isempty(app.ProjectRepository)
+                app.ProjectRepository = ...
+                    openmebius.infrastructure.project.FileProjectRepository();
+            end
+
+            if isempty(app.OpenProjectUseCase)
+                app.OpenProjectUseCase = ...
+                    openmebius.application.project.OpenProjectUseCase( ...
+                    app.ProjectRepository);
+            end
+
+            if isempty(app.CreateProjectUseCase)
+                app.CreateProjectUseCase = ...
+                    openmebius.application.project.CreateProjectUseCase( ...
+                    app.ProjectRepository);
+            end
+
+        end % method ensureProjectServices
+
+        function ensureLegacyProjectInitializer(app)
+
+            if isempty(app.LegacyProjectInitializer)
+                app.LegacyProjectInitializer = ...
+                    openmebius.infrastructure.legacy.LegacyProjectInitializer();
+            end
+
+        end % method ensureLegacyProjectInitializer
+
+        function ensureTemplateModelLoadService(app)
+
+            if isempty(app.TemplateModelLoadService)
+                app.TemplateModelLoadService = ...
+                    openmebius.application.model.TemplateModelLoadService();
+            end
+
+        end % method ensureTemplateModelLoadService
+
+        function ensureExperimentImportService(app)
+
+            if isempty(app.ExperimentImportService)
+                app.ExperimentImportService = ...
+                    openmebius.application.experiment.ExperimentImportService();
+            end
+
+        end % method ensureExperimentImportService
+
+        function ensureBatchLoadService(app)
+
+            if isempty(app.BatchLoadService)
+                app.BatchLoadService = ...
+                    openmebius.application.batch.BatchLoadService();
+            end
+
+        end % method ensureBatchLoadService
+
+        function ensureResultLoadService(app)
+
+            if isempty(app.ResultLoadService)
+                app.ResultLoadService = ...
+                    openmebius.application.result.ResultLoadService();
+            end
+
+        end % method ensureResultLoadService
+
+        function ensureResultExportService(app)
+
+            if isempty(app.ResultExportService)
+                app.ResultExportService = ...
+                    openmebius.application.result.ResultExportService();
+            end
+
+        end % method ensureResultExportService
+
+        function ensureReportGenerationService(app)
+
+            if isempty(app.ReportGenerationService)
+                app.ReportGenerationService = ...
+                    openmebius.application.report.ReportGenerationService();
+            end
+
+        end % method ensureReportGenerationService
+
         function attachLegacyListeners(app)
 
             app.LegacyListeners = event.listener.empty(0, 1);
@@ -2261,6 +2383,119 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method applyLegacyProjectArtifacts
 
+        function applyTemplateModelLoadResult(app, templateModelResult)
+
+            arguments
+                app
+                templateModelResult ...
+                    openmebius.application.model.TemplateModelLoadResult
+            end
+
+            app.model = templateModelResult.Model;
+
+        end % method applyTemplateModelLoadResult
+
+        function applyExperimentImportResult(app, result)
+
+            arguments
+                app
+                result openmebius.application.experiment.ExperimentImportResult
+            end
+
+            app.detachLegacyListeners();
+
+            app.exp = result.Experiments;
+            app.batch = result.Batch;
+
+            app.attachLegacyListeners();
+
+        end % method applyExperimentImportResult
+
+        function applyBatchLoadResult(app, result)
+
+            arguments
+                app
+                result openmebius.application.batch.BatchLoadResult
+            end
+
+            app.detachLegacyListeners();
+
+            app.batch = result.Batch;
+
+            app.attachLegacyListeners();
+
+        end % method applyBatchLoadResult
+
+        function applyResultLoadResult(app, resultLoadResult)
+
+            arguments
+                app
+                resultLoadResult openmebius.application.result.ResultLoadResult
+            end
+
+            app.detachLegacyListeners();
+
+            app.result = resultLoadResult.Result;
+
+            app.attachLegacyListeners();
+
+        end % method applyResultLoadResult
+
+        function applyReportGenerationResult(app, reportGenerationResult)
+
+            arguments
+                app
+                reportGenerationResult ...
+                    openmebius.application.report.ReportGenerationResult
+            end
+
+            app.report = reportGenerationResult.Report;
+
+        end % method applyReportGenerationResult
+
+        function result = reloadExperimentState(app, options)
+
+            arguments
+                app
+                options.LogMessages (1, 1) logical = true
+            end
+
+            app.ensureExperimentImportService();
+
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(app.directoryExp);
+
+            result = app.ExperimentImportService.reload( ...
+                experimentLocation, ...
+                app.model);
+
+            app.renderExperimentImportResult( ...
+                result, ...
+                LogMessages = options.LogMessages);
+
+        end % method reloadExperimentState
+
+        function renderExperimentImportResult(app, result, options)
+
+            arguments
+                app
+                result openmebius.application.experiment.ExperimentImportResult
+                options.LogMessages (1, 1) logical = true
+            end
+
+            app.applyExperimentImportResult(result);
+            app.loadExpData();
+            loadBatchTable(app, reload = true);
+
+            if options.LogMessages
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
+            end
+
+        end % method renderExperimentImportResult
+
         function applyBatchStyleRules(app, styleRules)
 
             if isempty(styleRules)
@@ -2430,28 +2665,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.updateStatus("experiment", "running");
 
-            app.exp = IOExps( ...
-                app.directoryExp, ...
-                app.directoryModel);
-
-            if app.exp.isError
-                app.LogText(app.exp.statusMsg);
-                app.updateStatus("experiment", "error");
-                return
-            end
-
-            loadExpData(app)
-
-            if app.exp.isError
-                app.LogText(app.exp.statusMsg);
+            try
+                result = app.reloadExperimentState(LogMessages = false);
+            catch ME
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Experiment reload failed", ...
+                    Alert = true);
                 app.updateStatus("experiment", "error");
                 return
             end
 
             app.updateStatus("experiment", "finished");
-            app.LogText(app.exp.statusMsg);
 
-            loadBatchTable(app)
+            for i = 1:numel(result.Messages)
+                app.LogTextDate(result.Messages(i), "Info");
+            end
+
             loadResult(app)
 
         end % method loadLegacyProjectObjects
@@ -3053,9 +3283,17 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 updateStatus(app, "batch", "running");
 
-                app.batch = Batch(app.exp);
+                app.ensureBatchLoadService();
 
-                app.attachLegacyListeners();
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation ...
+                    .fromDirectory(app.directoryExp);
+
+                result = app.BatchLoadService.loadForExperiment( ...
+                    experimentLocation, ...
+                    app.exp);
+
+                app.applyBatchLoadResult(result);
 
             end
 
@@ -3092,12 +3330,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 app.updateStatus("result", "running");
 
-                app.result = IOResult(app.directoryResult);
+                app.ensureResultLoadService();
 
-                addlistener( ...
-                    app.result, ...
-                    'GeneralMsg', ...
-                    @(src, event) statusGeneralMsg(app, event));
+                resultLocation = openmebius.domain.result.ResultLocation ...
+                    .fromDirectory(app.directoryResult);
+
+                resultLoadResult = app.ResultLoadService.load(resultLocation);
+
+                app.applyResultLoadResult(resultLoadResult);
 
             end
 
@@ -4051,9 +4291,33 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.OpenProjectUseCase = ...
                 openmebius.application.project.OpenProjectUseCase( ...
                 app.ProjectRepository);
+            app.CreateProjectUseCase = ...
+                openmebius.application.project.CreateProjectUseCase( ...
+                app.ProjectRepository);
+
+            app.TemplateModelLoadService = ...
+                openmebius.application.model.TemplateModelLoadService();
+            app.ExperimentImportService = ...
+                openmebius.application.experiment.ExperimentImportService();
+            app.BatchLoadService = ...
+                openmebius.application.batch.BatchLoadService();
+            app.ResultLoadService = ...
+                openmebius.application.result.ResultLoadService();
+            app.ResultExportService = ...
+                openmebius.application.result.ResultExportService();
+            app.ReportGenerationService = ...
+                openmebius.application.report.ReportGenerationService();
+            app.RawMSImportService = ...
+                openmebius.application.experiment.RawMSImportService();
+            app.ExperimentCalculationService = ...
+                openmebius.application.experiment.ExperimentCalculationService();
+            app.ExperimentEditService = ...
+                openmebius.application.experiment.ExperimentEditService();
 
             app.LegacyProjectLoader = ...
                 openmebius.infrastructure.legacy.LegacyProjectLoader();
+            app.LegacyProjectInitializer = ...
+                openmebius.infrastructure.legacy.LegacyProjectInitializer();
 
             app.BatchPresenter = ...
                 openmebius.presentation.batch.BatchPresenter();
@@ -4223,7 +4487,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ProjectCreateButton
         function ProjectCreateButtonPushed(app, event)
 
-            cleanupPresentation = app.beginPresentationOperation();
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
 
             [answ, ok] = app.uiInputDlgWrap( ...
                 Prompt = "Enter the name of the new project directory:", ...
@@ -4244,12 +4508,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             directoryName = directoryName{1};
 
             if isempty(directoryName)
-                msg = "Project directory name cannot be empty.";
-                LogTextDate(app, msg, "Error");
+                app.notifyError("Project directory name cannot be empty.");
                 return
             end % if isempty(directoryName)
 
-            % Create the project directory
             projectParentDirectory = app.uiGetDirWrap( ...
                 StartPath = app.ProjectDirectoryDropDown.Value, ...
                 Title = "Select Parent Directory for New Project" ...
@@ -4261,128 +4523,58 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             projectParentDirectory = string(projectParentDirectory);
+            templateModelDirectory = string( ...
+                app.TemplateModelDirectoryDropDown.Value);
 
-            % Check if the directory already exists
-            newProjectDirectory = fullfile(projectParentDirectory, directoryName);
-
-            if isfolder(newProjectDirectory)
-                msg = "Project directory already exists: " + newProjectDirectory;
-                LogTextDate(app, msg, "Error");
-                return
-            end % if isfolder(newProjectDirectory)
-
-            % Create the new project directory
             try
-                mkdir(newProjectDirectory);
+                app.ensureProjectServices();
+                app.ensureLegacyProjectInitializer();
+
+                metadata = openmebius.domain.project.ProjectMetadata( ...
+                    Name = string(app.ProjectNameEditField.Value), ...
+                    Author = string(app.ProjectAuthorEditField.Value), ...
+                    Organism = string(app.OrganismEditField.Value));
+
+                createResult = app.CreateProjectUseCase.execute( ...
+                    ParentDirectory = projectParentDirectory, ...
+                    ProjectDirectoryName = string(directoryName), ...
+                    TemplateModelDirectory = templateModelDirectory, ...
+                    Metadata = metadata);
+
+                app.applyProjectSession(createResult.Session);
+
+                items = string(app.ProjectDirectoryDropDown.Items);
+
+                if ~any(items == createResult.Session.Paths.RootDirectory)
+                    items(end + 1) = createResult.Session.Paths.RootDirectory;
+                    app.ProjectDirectoryDropDown.Items = items;
+                end
+
+                app.updateStatus("model", "init");
+
+                for i = 1:numel(createResult.Messages)
+                    app.notifyInfo(createResult.Messages(i));
+                end
+
+                artifacts = app.LegacyProjectInitializer.initialize( ...
+                    createResult.Session);
+
+                app.applyLegacyProjectArtifacts(artifacts);
+
+                for i = 1:numel(artifacts.Messages)
+                    app.notifyInfo(artifacts.Messages(i));
+                end
+
+                app.renderCreatedProjectArtifacts();
+                app.refreshPresentation();
+
             catch ME
-                msg = "Failed to create project directory: " + newProjectDirectory + ". Error: " + ME.message;
-                LogTextDate(app, msg, "Error");
-                return
-            end % try-catch
-
-            % Update the dropdown value
-            app.ProjectDirectoryDropDown.Value = newProjectDirectory;
-            % Add the directory to the item
-            items = string(app.ProjectDirectoryDropDown.Items);
-
-            if ~any(items == string(newProjectDirectory))
-                items(end + 1) = string(newProjectDirectory);
-                app.ProjectDirectoryDropDown.Items = items;
+                app.updateStatus("model", "error");
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Project create failed", ...
+                    Alert = true);
             end
-
-            % Update the status
-            updateStatus(app, "model", "init");
-
-            msg = "New project directory created: " + newProjectDirectory;
-            LogTextDate(app, msg, "Info");
-
-            % Save JSON file
-            objProjectDirectory = IO(newProjectDirectory);
-
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                return
-            end
-
-            json.Name = app.ProjectNameEditField.Value;
-            json.Author = app.ProjectAuthorEditField.Value;
-            json.Organism = app.OrganismEditField.Value;
-
-            projectPaths = openmebius.domain.project.ProjectPaths( ...
-                string(newProjectDirectory));
-
-            objProjectDirectory.exportJSONFile(projectPaths.SettingFile, json);
-
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                return
-            end
-
-            objProjectDirectory.exportJSONFile(projectPaths.LegacySettingFile, json);
-
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                return
-            end
-
-            msg = "Project setting saved to " + projectPaths.SettingFile + ...
-                " and " + projectPaths.LegacySettingFile;
-
-            LogTextDate(app, msg, "Info");
-
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                return
-            end
-
-            msg = "Project setting saved to " + fullfile(newProjectDirectory, "setting.json");
-            LogTextDate(app, msg, "Info");
-
-            % Initialize the directory
-            initDirectory(app, newProjectDirectory);
-
-            % Copy model template to the new project directory
-            templateModelDirectory = app.TemplateModelDirectoryDropDown.Value;
-
-            if ~isfolder(templateModelDirectory)
-                msg = "Template model directory does not exist: " + templateModelDirectory;
-                LogTextDate(app, msg, "Error");
-                return
-            end % if ~isfolder(templateModelDirectory)
-
-            % Copy the template model directory to the new project directory
-            try
-                copyfile(templateModelDirectory, fullfile(newProjectDirectory, "model"), 'f');
-                msg = "Template model copied to " + fullfile(newProjectDirectory, "model");
-                LogTextDate(app, msg, "Info");
-            catch ME
-                msg = "Failed to copy template model: " + ME.message;
-                LogTextDate(app, msg, "Error");
-                return
-            end % try-catch
-
-            % Load the model
-            app.model = EMUModel(fullfile(newProjectDirectory, "model"));
-
-            msg = "Constructing EMU network...";
-            LogTextDate(app, msg, "Info");
-
-            pause(0.5)
-
-            loadEMUModel(app);
-            loadPathway(app);
-
-            updateStatus(app, "model", "finished");
-
-            msg = "New project created and model loaded successfully.";
-            LogTextDate(app, msg, "Info");
-
-            app.exp = IOExps( ...
-                app.directoryExp, ...
-                app.directoryModel ...
-            );
-            app.batch = Batch(app.exp);
-            app.result = IOResult(app.directoryResult);
 
         end
 
@@ -4440,72 +4632,49 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TemplateModelLoadButton
         function TemplateModelLoadButtonPushed(app, event)
 
-            cleanupPresentation = app.beginPresentationOperation();
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
 
-            % Update status
-            updateStatus(app, "model", "running");
+            try
+                app.updateStatus("model", "running");
 
-            projectDirectory = app.TemplateModelDirectoryDropDown.Value;
-            objProjectDirectory = IO(projectDirectory);
+                app.ensureTemplateModelLoadService();
 
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            end
+                modelLocation = openmebius.domain.model.ModelLocation ...
+                    .fromDirectory(string(app.TemplateModelDirectoryDropDown.Value));
 
-            % If the project directory is not empty, load the project
-            if objProjectDirectory.isEmpty
-                msg = objProjectDirectory.returnDateMsg("Project directory is empty", "Info");
-                app.LogText(msg);
+                templateModelResult = ...
+                    app.TemplateModelLoadService.load(modelLocation);
+
+                app.applyTemplateModelLoadResult(templateModelResult);
+
+                for i = 1:numel(templateModelResult.Messages)
+                    app.notifyInfo(templateModelResult.Messages(i));
+                end
+
+                app.notifyInfo("Constructing EMU network...");
+
+                pause(0.5)
+
+                loadEMUModel(app)
+
+                if app.model.isError
+                    app.LogText(app.model.statusMsg);
+                    app.updateStatus("model", "error");
+                    return
+                end
+
+                loadPathway(app)
+
+                app.notifyInfo("EMU network was successfully constructed.");
+                app.updateStatus("model", "finished");
+
+            catch ME
                 app.updateStatus("model", "error");
-                return
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Template model load failed", ...
+                    Alert = true);
             end
-
-            LogText(app, objProjectDirectory.statusMsg);
-
-            clear objProjectDirectory;
-
-            app.model = EMUModel(projectDirectory);
-
-            if app.model.isError
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            else
-                msg = "Model folder found in " + projectDirectory;
-                LogTextDate(app, msg, "Info");
-            end
-
-            IOStatus = app.model.getIOStatus();
-
-            if strcmp(IOStatus, "completed")
-                msg = "Model loaded successfully.";
-                LogTextDate(app, msg, "Info");
-            else
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            end
-
-            msg = "Constructing EMU network...";
-            LogTextDate(app, msg, "Info");
-
-            pause(0.5)
-
-            loadEMUModel(app)
-
-            if app.model.isError
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            end
-
-            loadPathway(app)
-
-            msg = "EMU network was successfully constructed.";
-            LogTextDate(app, msg, "Info");
-            updateStatus(app, "model", "finished");
 
         end
 
@@ -4747,48 +4916,28 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             try
                 app.updateStatus("experiment", "running");
 
-                updateModel(app);
+                result = app.ExperimentCalculationService.calculateMDV( ...
+                    app.model, ...
+                    app.exp, ...
+                    app.batch, ...
+                    app.ExpTable.Data, ...
+                    app.UptakeTable.Data, ...
+                    app.LabelTable.Data);
 
-                err = app.exp.updateExpData(app.ExpTable.Data, "Info");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                err = app.exp.updateExpData(app.UptakeTable.Data, "Uptake");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                err = app.exp.updateExpData(app.LabelTable.Data, "Tracer");
-
-                if err
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                app.exp.calculateMDV();
-
-                if app.exp.isError
-                    app.LogText(app.exp.statusMsg);
-                    app.updateStatus("experiment", "error");
-                    return
-                end
-
-                app.batch.updateExperimentalData(app.exp);
                 app.updateStatus("experiment", "finished");
 
-                app.notifyInfo("MDV-derived tables have been updated successfully.");
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
+
+                app.notifyInfo(result.Messages(end));
 
             catch ME
                 app.updateStatus("experiment", "error");
-                app.notifyError("An error occurred while updating MDV-derived tables: " + ME.message);
+                app.notifyException( ...
+                    ME, ...
+                    Title = "MDV calculation failed", ...
+                    Alert = true);
             end
 
         end
@@ -4797,90 +4946,70 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ExpImportButtonPushed(app, event)
 
             % Wrap
-            [file, ~] = app.uiGetFileWrap( ...
+            [files, isOK] = app.uiGetFileWrap( ...
                 Filter = {'*.xlsx;*.xls', 'Excel Files (*.xlsx, *.xls)'}, ...
                 Title = 'Select Experimental Data File', ...
                 MultiSelect = "on" ...
             );
 
-            if isequal(file, 0)
+            if ~isOK || isempty(files)
                 % User canceled the dialog
                 msg = "No file selected.";
                 app.LogTextDate(msg, "Warning");
                 return
             end
 
-            if ischar(file)
-                file = {file};
-            end
-
-            numFiles = length(file);
+            files = string(files(:));
+            numFiles = length(files);
             msg = "Importing experimental data from " + string(numFiles) + " file(s): ";
             app.LogTextDate(msg, "Info");
 
-            % Get files in directoryExp
-            ToDirectory = app.directoryExp;
-
-            % Get file list of the directory
-            filesInDirectory = dir(fullfile(ToDirectory, '*.xlsx'));
-            filesInDirectory = {filesInDirectory.name};
-
-            for i = 1:numFiles
-
-                filePath = fullfile(file{i});
-
-                % Check if the file exists
-                if ~isfile(filePath)
-                    msg = "File does not exist: " + file{i};
-                    app.LogTextDate(msg, "Error");
-                    continue
-                end
-
-                % Check if the file is already in the directory
-                if any(strcmp(filesInDirectory, file{i}))
-                    msg = "File already exists in the directory: " + file{i};
-                    app.LogTextDate(msg, "Warning");
-                    continue
-                end
-
-                % Copy the file to the directoryExp
-                try
-                    copyfile(filePath, ToDirectory, 'f');
-                    msg = "File imported successfully: " + file{i};
-                    app.LogTextDate(msg, "Info");
-                catch ME
-                    msg = "Failed to import file: " + file{i} + ". Error: " + ME.message;
-                    app.LogTextDate(msg, "Error");
-                    continue
-                end % try-catch
-
-            end % i = 1:numFiles
-
-            % Reload the experimental data
             updateStatus(app, "experiment", "running");
 
-            app.exp.loadExpData();
-            app.loadExpData();
+            try
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation ...
+                    .fromDirectory(app.directoryExp);
 
-            if app.exp.isError
-                app.LogText(app.exp.statusMsg);
+                result = app.ExperimentImportService.importFiles( ...
+                    experimentLocation, ...
+                    files, ...
+                    app.model);
+
+                app.renderExperimentImportResult(result);
+
+                updateStatus(app, "experiment", "finished");
+
+                msg = "Experimental data imported successfully.";
+                app.LogTextDate(msg, "Info");
+            catch ME
                 updateStatus(app, "experiment", "error");
-                return
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Experiment import failed", ...
+                    Alert = true);
             end
-
-            updateStatus(app, "experiment", "finished");
-            msg = "Experimental data imported successfully.";
-            app.LogTextDate(msg, "Info");
 
         end
 
         % Button pushed function: ExpReloadButton
         function ExpReloadButtonPushed(app, event)
 
-            app.exp.loadExpData(app.directoryModel);
-            loadExpData(app)
-            msg = app.model.returnDateMsg("Experimental data reloaded", "Info");
-            app.LogText(msg);
+            updateStatus(app, "experiment", "running");
+
+            try
+                app.reloadExperimentState();
+
+                updateStatus(app, "experiment", "finished");
+                msg = app.model.returnDateMsg("Experimental data reloaded", "Info");
+                app.LogText(msg);
+            catch ME
+                updateStatus(app, "experiment", "error");
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Experiment reload failed", ...
+                    Alert = true);
+            end
 
         end
 
@@ -4889,31 +5018,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             cleanupPresentation = app.beginPresentationOperation();
 
-            updateStatus(app, "experiment", "running");
+            try
+                updateStatus(app, "experiment", "running");
 
-            updateModel(app)
+                result = app.ExperimentEditService.saveInfo( ...
+                    app.model, ...
+                    app.exp, ...
+                    app.batch, ...
+                    app.ExpTable.Data);
 
-            tableExp = app.ExpTable.Data;
-            tableBiomass = app.BiomassTable.Data;
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
 
-            err = updateExpData(app.exp, tableExp, "Info");
-
-            if err
-
-                LogText(app, app.exp.statusMsg);
+                updateStatus(app, "experiment", "finished");
+            catch ME
                 updateStatus(app, "experiment", "error");
-
-                return
-
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Experiment save failed", ...
+                    Alert = true);
             end
-
-            LogTextDate(app, "Experimental data updated", "Info");
-
-            % Save the experimental data
-            saveExpData(app.exp);
-            LogText(app, app.exp.statusMsg);
-
-            updateStatus(app, "experiment", "finished");
 
         end
 
@@ -4982,41 +5107,28 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             cleanupPresentation = app.beginPresentationOperation();
 
-            updateStatus(app, "experiment", "running");
-            updateModel(app)
+            try
+                updateStatus(app, "experiment", "running");
 
-            tableUptake = app.UptakeTable.Data;
-            tableLabel = app.LabelTable.Data;
+                result = app.ExperimentEditService.saveTracer( ...
+                    app.model, ...
+                    app.exp, ...
+                    app.batch, ...
+                    app.UptakeTable.Data, ...
+                    app.LabelTable.Data);
 
-            err = app.exp.updateExpData(tableUptake, "Uptake");
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
 
-            if err
-
-                app.LogText(app.exp.statusMsg);
+                updateStatus(app, "experiment", "finished");
+            catch ME
                 updateStatus(app, "experiment", "error");
-                return
-
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Tracer save failed", ...
+                    Alert = true);
             end
-
-            app.LogTextDate("Uptake table updated", "Info");
-
-            err = app.exp.updateExpData(tableLabel, "Tracer");
-
-            if err
-
-                app.LogText(app.exp.statusMsg);
-                updateStatus(app, "experiment", "error");
-                return
-
-            end
-
-            app.LogTextDate("Tracer table updated", "Info");
-
-            % Save the experimental data
-            saveExpData(app.exp);
-            LogText(app, app.exp.statusMsg);
-
-            updateStatus(app, "experiment", "finished");
 
         end
 
@@ -5314,25 +5426,44 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ResultReportButton
         function ResultReportButtonPushed(app, event)
 
-            % Exit if result data is not available
-            if isempty(app.result) || app.result.isError
-                msg = "Result data is not available.";
-                app.LogTextDate(msg, "Error");
-                return
-            end
+            try
+                app.ensureReportGenerationService();
 
-            if isdeployed
-                msg = "Report generation is not available in the deployed version.";
-                app.LogTextDate(msg, "Warning");
-                return
-            end
+                resultLocation = openmebius.domain.result.ResultLocation ...
+                    .fromDirectory(app.directoryResult);
 
-            app.report = ReportResult( ...
-                app.directoryResult, ...
-                app.model, ...
-                app.exp, ...
-                app.result ...
-            );
+                reportGenerationResult = ...
+                    app.ReportGenerationService.generate( ...
+                    resultLocation, ...
+                    app.model, ...
+                    app.exp, ...
+                    app.result, ...
+                    IsDeployed = isdeployed);
+
+                app.applyReportGenerationResult(reportGenerationResult);
+
+                for i = 1:numel(reportGenerationResult.Messages)
+                    app.notifyInfo(reportGenerationResult.Messages(i));
+                end
+
+            catch ME
+
+                switch string(ME.identifier)
+
+                    case "OpenMebius2:Report:UnavailableInDeployed"
+                        app.notifyWarning(string(ME.message));
+
+                    case "OpenMebius2:Report:DataUnavailable"
+                        app.notifyError(string(ME.message));
+
+                    otherwise
+                        app.notifyException( ...
+                            ME, ...
+                            Title = "Report generation failed", ...
+                            Alert = true);
+                end
+
+            end
 
         end
 
@@ -5348,37 +5479,67 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ResultSaveButton
         function ResultSaveButtonPushed(app, event)
 
-            % Directory dialog to save the result
-            [folder, isOK] = app.uiGetDirWrap( ...
-                StartPath = app.directoryResult, ...
-                Title = "Select Directory to Save Result Files" ...
-            );
+            try
+                app.ensureResultExportService();
 
-            if ~isOK
-                return; % User canceled the dialog
+                [folder, isOK] = app.uiGetDirWrap( ...
+                    StartPath = app.directoryResult, ...
+                    Title = "Select Directory to Save Result Files" ...
+                );
+
+                if ~isOK
+                    return; % User canceled the dialog
+                end
+
+                selectedRows = app.selectedTableRows(app.ResultSubTable);
+
+                if isempty(selectedRows)
+                    app.notifyWarning("Please select a result to save.");
+                    return
+                end % if
+
+                batchIDs = app.ResultSubTable.Data.ID;
+                selectedBatchIDs = string(batchIDs(selectedRows));
+                selectedBatchIDs = selectedBatchIDs(:);
+                batchNames = app.ResultSubTable.Data.Name;
+                selectedBatchNames = string(batchNames(selectedRows));
+                selectedBatchNames = selectedBatchNames(:);
+                outputLocation = openmebius.domain.result.ResultLocation ...
+                    .fromDirectory(folder);
+
+                resultExportResult = app.ResultExportService.export( ...
+                    app.result, ...
+                    selectedBatchIDs, ...
+                    selectedBatchNames, ...
+                    outputLocation);
+
+                for i = 1:numel(resultExportResult.Messages)
+                    app.notifyInfo(resultExportResult.Messages(i));
+                end
+
+            catch ME
+
+                switch string(ME.identifier)
+
+                    case { ...
+                            "OpenMebius2:ResultExport:ResultUnavailable", ...
+                            "OpenMebius2:ResultExport:EmptySelection", ...
+                            "OpenMebius2:ResultExport:SelectionMismatch", ...
+                            "OpenMebius2:ResultExport:OutputDirectoryUnavailable", ...
+                            "OpenMebius2:ResultExport:OutputDirectoryNotFound", ...
+                            "OpenMebius2:ResultExport:OutputDirectoryExists", ...
+                            "OpenMebius2:ResultExport:CreateDirectoryFailed" ...
+                         }
+                        app.notifyError(string(ME.message));
+
+                    otherwise
+                        app.notifyException( ...
+                            ME, ...
+                            Title = "Result export failed", ...
+                            Alert = true);
+                end
+
             end
-
-            % Get selected results
-            selected = app.ResultSubTable.Selection;
-
-            if isempty(selected)
-                msg = "Please select a result to save.";
-                LogTextDate(app, msg, "Warning");
-                return
-            end % if
-
-            batchIDs = app.ResultSubTable.Data.ID;
-            selectedBatchIDs = batchIDs(selected);
-            selectedBatchIDs = string(selectedBatchIDs);
-            batchNames = app.ResultSubTable.Data.Name;
-            selectedBatchNames = batchNames(selected);
-            selectedBatchNames = string(selectedBatchNames);
-
-            app.result.saveResult( ...
-                selectedBatchIDs, ...
-                selectedBatchNames, ...
-                folder ...
-            );
 
         end
 
@@ -5513,20 +5674,25 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            selectedCell = currentData{selected(1, 1), selected(1, 2)};
-            numRows = size(currentData, 1);
+            try
+                result = app.ExperimentEditService.copyTracerToAllEntries( ...
+                    app.model, ...
+                    app.exp, ...
+                    app.batch, ...
+                    currentData, ...
+                    selected);
 
-            for i = 1:numRows
-                currentData{i, selected(1, 2)} = selectedCell;
+                app.LabelTable.Data = result.UpdatedTable;
+
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
+            catch ME
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Tracer copy failed", ...
+                    Alert = true);
             end
-
-            app.LabelTable.Data = currentData;
-
-            msg = "Selected tracer copied to all entries.";
-            LogTextDate(app, msg, "Info");
-
-            % Update the tracer table in exp
-            app.exp.updateExpData(app.LabelTable.Data, "Tracer");
 
         end
 
@@ -5541,19 +5707,30 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            % Check model is loaded
-            if isempty(app.model) || app.model.isError
-                msg = "Model is not loaded. Please load a model before importing MS data.";
-                LogTextDate(app, msg, "Error");
-                return
+            updateStatus(app, "experiment", "running");
+
+            try
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation ...
+                    .fromDirectory(app.directoryExp);
+
+                result = app.RawMSImportService.importShimadzuASCII( ...
+                    importDirectory, ...
+                    experimentLocation, ...
+                    app.model);
+
+                app.renderExperimentImportResult(result);
+
+                updateStatus(app, "experiment", "finished");
+
+                app.notifyInfo("Raw MS data imported successfully.");
+            catch ME
+                updateStatus(app, "experiment", "error");
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Raw MS data import failed", ...
+                    Alert = true);
             end
-
-            fragment = app.model.getAtomTable();
-            fragment = fragment.Properties.RowNames;
-
-            % Import MS data from text files
-            io = IORawFile(importDirectory);
-            io.readMSDataFromShimadzuASCII(app.directoryExp, fragment);
 
         end
 

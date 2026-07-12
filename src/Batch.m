@@ -20,6 +20,7 @@ classdef Batch < handle
 
         % Batch configuration
         filename = 'batch.json'
+        BatchJsonRepository
         batchColumnNamesforGUI = ["ID", "Name", "Experiment", "Description"];
         batchColumnEditableforGUI = [false, true, false, true];
 
@@ -43,6 +44,8 @@ classdef Batch < handle
             % Set properties
             obj.exp = exp;
             obj.model = exp.getModel();
+            obj.BatchJsonRepository = ...
+                openmebius.infrastructure.batch.BatchJsonRepository();
 
             % Initialize table
             initTableBatch(obj);
@@ -276,6 +279,56 @@ classdef Batch < handle
             end % for i
 
         end % getBatchCustomFragment
+
+        function selections = getBatchMSFragmentSelections(obj, ids)
+            % GETBATCHMSFRAGMENTSELECTIONS Get domain MS fragment selections
+            % for the selected batches.
+
+            arguments
+                obj
+                ids (1, :) string
+            end
+
+            expDefault = obj.model.getMSTable();
+            defaultFragmentNames = string(expDefault.Properties.RowNames(:));
+            expDefaultMask = logical(expDefault.Used(:));
+
+            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
+            idx = cell2mat(idx);
+
+            if numel(idx) ~= numel(ids)
+                error("Batch ID not found: %s", ids);
+            end
+
+            selections = repmat( ...
+                struct( ...
+                    'BatchID', "", ...
+                    'ExperimentNames', strings(1, 0), ...
+                    'FragmentNames', strings(0, 1), ...
+                    'Selection', false(0, 0) ...
+                ), ...
+                1, ...
+                numel(ids));
+
+            for i = 1:numel(ids)
+                config = obj.tableBatch.config(idx(i));
+                expListFromBatch = string(obj.getBatchExpList(ids(i))).';
+
+                selections(i).BatchID = ids(i);
+
+                if ~config.isSelectMSFragment || isempty(config.MS.customFragment)
+                    selections(i).ExperimentNames = expListFromBatch;
+                    selections(i).FragmentNames = defaultFragmentNames;
+                    selections(i).Selection = repmat(expDefaultMask, 1, numel(expListFromBatch));
+                    continue
+                end
+
+                selections(i).ExperimentNames = string(config.MS.expList(:)).';
+                selections(i).FragmentNames = string(config.MS.fragmentList(:));
+                selections(i).Selection = logical(config.MS.customFragment);
+            end
+
+        end % getBatchMSFragmentSelections
 
         function [tableRtn, columnEditable] = getBatchEffluxSDTable(obj, ids)
             % GETBATCHEFFLUXSDTABLE Get batch efflux standard deviation table
@@ -656,103 +709,7 @@ classdef Batch < handle
 
         function config = getDefaultConfig(~)
 
-            % Get default configuration
-            config = struct;
-
-            % Flux calculation configuration
-            config.iteration = 30;
-            config.perturbateEfflux = false;
-            config.algorithm = 'sqp';
-            config.largeScale = false;
-            config.fluxLB = -1000;
-            config.fluxUB = 1000;
-            config.numExperiments = 1;
-            config.suggestNextFlux = false;
-            config.isParallel = false;
-            % Status
-            % ready: ready to run
-            % finished: finished
-            % error: error
-            % warning: warning
-            config.status = 'ready';
-            config.deleteResultFile = true;
-
-            config.optimizationMethod = 'gradient-only';
-
-            config.fmincon.maxFunctionEvaluations = 1000000;
-            config.fmincon.maxIterations = 2000;
-            config.fmincon.functionTolerance = 1e-6;
-            config.fmincon.stepTolerance = 1e-10;
-            config.fmincon.optimalityTolerance = 1e-8;
-            config.fmincon.constraintTolerance = 1e-8;
-            config.fmincon.finiteDifferenceType = 'central';
-            config.fmincon.finiteDifferenceStepSize = 1e-6;
-            config.fmincon.finiteDifferenceStepSizeSearch.enabled = true;
-            config.fmincon.finiteDifferenceStepSizeSearch.candidates = [1e-5, 1e-6, 1e-7, 1e-8, 1e-9];
-            config.fmincon.finiteDifferenceStepSizeSearch.includeConfiguredStep = true;
-            config.fmincon.finiteDifferenceStepSizeSearch.maxCandidates = 6;
-            config.fmincon.scaleProblem = 'obj-and-constr';
-            config.fmincon.rejectWorseThanInitial = true;
-            config.fmincon.objectiveIncreaseTolerance = 1e-6;
-            config.fmincon.initialFeasibilityTolerance = 1e-7;
-
-            config.GA.populationSize = 50;
-            config.GA.generations = 40;
-            config.GA.eliteCount = 2;
-            config.GA.tournamentSize = 3;
-            config.GA.crossoverFraction = 0.8;
-            config.GA.mutationRate = 0.2;
-            config.GA.mutationScale = 0.10;
-            config.GA.penaltyScale = 1e6;
-            config.GA.feasibilityTolerance = 1e-8;
-            config.GA.functionTolerance = 1e-9;
-            config.GA.stallGenerations = 10;
-            config.GA.seed = 0;
-            config.GA.maxInitialSeeds = 50;
-
-            % MS fragment selection configuration
-            config.isSelectMSFragment = false;
-            % all: all fragments
-            % custom: custom fragments
-            config.MS.fragment = 'all';
-            config.MS.fragmentList = string([]);
-            config.MS.expList = string([]);
-            config.MS.customFragment = [];
-
-            config.efflux = struct;
-            config.efflux.selection = logical([]);
-            config.efflux.substrate = string([]);
-            config.efflux.substrateSD = [];
-
-            % Confidence interval configuration
-            config.isCalcCI = false;
-            config.CIConf.algorithm = 'Monte Carlo';
-            config.CIConf.grid.delta = 1;
-            config.CIConf.grid.threshold = 'chi-sq';
-            config.CIConf.grid.points = 10;
-            config.CIConf.grid.iteration = config.iteration;
-            config.CIConf.grid.alpha = 0.05;
-            config.CIConf.grid.isParallel = true;
-            config.CIConf.MC.iteration = 500;
-            config.CIConf.MC.fixMID = true;
-            config.CIConf.MC.MIDSD = 0.01;
-            config.CIConf.MC.optimizationProcedure = 'multiple';
-            config.CIConf.MC.terminationTolerance = 1e-4;
-            config.CIConf.MC.proximityThreshold = 1e-4;
-            config.CIConf.MC.certainThreshold = 3;
-            config.CIConf.MC.theNumberOfRuns = 50;
-            config.CIConf.MC.calculationMethod = 'discarding';
-
-            config.suggestionTable = string([]);
-            config.suggestionTableRowNames = string([]);
-            config.suggestionTableVarNames = string([]);
-
-            config.isINSTMFA = false;
-            config.INSTMFA = struct;
-            config.INSTMFA.poolMetabolite = string([]);
-            config.INSTMFA.poolSize = [];
-            config.INSTMFA.timePointsExpName = string([]);
-            config.INSTMFA.timePoints = [];
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
 
         end
 
@@ -799,7 +756,8 @@ classdef Batch < handle
             for i = 1:length(ids)
 
                 % Update batch configuration
-                configFilled = fillMissingFields(obj, config, obj.getDefaultConfig());
+                configFilled = ...
+                    openmebius.domain.batch.BatchConfig.normalize(config);
                 obj.tableBatch.config(idx(i)) = configFilled;
 
             end % for i
@@ -807,6 +765,74 @@ classdef Batch < handle
             updateHash(obj, ids);
 
         end % updateBatchConfig
+
+        function updateBatchMSFragmentSelections(obj, selections)
+            % UPDATEBATCHMSFRAGMENTSELECTIONS Update custom fragments from
+            % domain MS fragment selection structs.
+
+            arguments
+                obj
+                selections (1, :) struct
+            end
+
+            requiredFields = ["BatchID", "ExperimentNames", "FragmentNames", "Selection"];
+
+            for fieldName = requiredFields
+                if ~isfield(selections, fieldName)
+                    error( ...
+                        "OpenMebius2:Batch:InvalidMSFragmentSelection", ...
+                        "MS fragment selection is missing field %s.", ...
+                        fieldName);
+                end
+            end
+
+            expDefaultTable = obj.model.getMSTable();
+            defaultFragmentNames = string(expDefaultTable.Properties.RowNames(:));
+            expDefaultMask = logical(expDefaultTable.Used(:));
+            ids = strings(1, numel(selections));
+
+            for i = 1:numel(selections)
+                selection = selections(i);
+                id = string(selection.BatchID);
+                idx = find(obj.tableBatch.id == id, 1);
+
+                if isempty(idx)
+                    error("Batch ID not found: %s", id);
+                end
+
+                expList = string(selection.ExperimentNames(:)).';
+                fragmentNames = string(selection.FragmentNames(:));
+                selectionData = logical(selection.Selection);
+
+                if size(selectionData, 1) ~= numel(fragmentNames) || ...
+                        size(selectionData, 2) ~= numel(expList)
+                    error( ...
+                        "OpenMebius2:Batch:InvalidMSFragmentSelection", ...
+                        "MS fragment selection size does not match fragments and experiments.");
+                end
+
+                defaultSelection = repmat(expDefaultMask, 1, size(selectionData, 2));
+                isDefault = ...
+                    isequal(fragmentNames, defaultFragmentNames) && ...
+                    isequal(selectionData, defaultSelection);
+
+                obj.tableBatch.config(idx).isSelectMSFragment = ~isDefault;
+
+                if isDefault
+                    obj.tableBatch.config(idx).MS.fragment = 'all';
+                else
+                    obj.tableBatch.config(idx).MS.fragment = 'custom';
+                end
+
+                obj.tableBatch.config(idx).MS.customFragment = selectionData;
+                obj.tableBatch.config(idx).MS.fragmentList = fragmentNames;
+                obj.tableBatch.config(idx).MS.expList = expList;
+                ids(i) = id;
+            end
+
+            updateHash(obj, ids);
+
+        end % updateBatchMSFragmentSelections
 
         function updateBatchConfigFragment(obj, ids, expFrag)
             % UPDATEBATCHCONFIGFRAGMENT Update batch configuration for custom fragments
@@ -868,37 +894,27 @@ classdef Batch < handle
                 error("Batch ID not found: %s", ids);
             end
 
-            expDefaultMask = obj.model.getMSTable();
-            expDefaultMask = expDefaultMask.Used;
+            selections = repmat( ...
+                struct( ...
+                    'BatchID', "", ...
+                    'ExperimentNames', strings(1, 0), ...
+                    'FragmentNames', strings(0, 1), ...
+                    'Selection', false(0, 0) ...
+                ), ...
+                1, ...
+                numel(ids));
 
-            % For each batch ID
             for i = 1:length(ids)
+                expList = string(obj.getBatchExpList(ids(i))).';
+                expFragTable = expFrag(:, cellstr(expList));
 
-                expList = obj.getBatchExpList(ids(i));
+                selections(i).BatchID = ids(i);
+                selections(i).ExperimentNames = expList;
+                selections(i).FragmentNames = string(expFrag.Properties.RowNames(:));
+                selections(i).Selection = logical(table2array(expFragTable));
+            end
 
-                expFragTable = expFrag(:, expList);
-                obj.tableBatch.config(idx(i)).isSelectMSFragment = true;
-
-                if all(expFragTable{:, :}, 1) || all(~expFragTable{:, :}, 1)
-
-                    if all(expFragTable{:, :} == expDefaultMask, 1)
-                        obj.tableBatch.config(idx(i)).MS.fragment = 'all';
-                    else
-                        obj.tableBatch.config(idx(i)).MS.fragment = 'custom';
-                    end
-
-                else
-                    obj.tableBatch.config(idx(i)).MS.fragment = 'custom';
-                end
-
-                obj.tableBatch.config(idx(i)).MS.customFragment = table2array(expFragTable);
-                obj.tableBatch.config(idx(i)).MS.fragmentList = ...
-                    expFrag.Properties.RowNames;
-                obj.tableBatch.config(idx(i)).MS.expList = expList;
-
-            end % for i
-
-            updateHash(obj, ids);
+            obj.updateBatchMSFragmentSelections(selections);
 
         end % updateBatchConfigFragment
 
@@ -1084,7 +1100,20 @@ classdef Batch < handle
 
             arguments
                 obj
-                expObject (1, 1) IOExps
+                expObject
+            end
+
+            if isempty(expObject) || ...
+                    (isa(expObject, 'handle') && ~isvalid(expObject))
+                error( ...
+                    "OpenMebius2:Batch:InvalidExperimentObject", ...
+                    "Experiment object is not valid.");
+            end
+
+            if ~ismethod(expObject, 'getModel')
+                error( ...
+                    "OpenMebius2:Batch:InvalidExperimentObject", ...
+                    "Experiment object must provide getModel.");
             end
 
             obj.exp = expObject;
@@ -1104,8 +1133,7 @@ classdef Batch < handle
             end
 
             % Ensure config has the same fields as the default config
-            defaultConfig = obj.getDefaultConfig();
-            config = obj.fillMissingFields(config, defaultConfig);
+            config = openmebius.domain.batch.BatchConfig.normalize(config);
             config.random = double(rand(1, 1));
 
             id = keyHash({name, exp, config});
@@ -1163,7 +1191,9 @@ classdef Batch < handle
 
             % Fill missing fields with current config
             currentConfig = obj.tableBatch.config(idx);
-            config = obj.fillMissingFields(config, currentConfig);
+            config = openmebius.domain.batch.BatchConfig.fillMissingFields( ...
+                config, ...
+                currentConfig);
             config = obj.updateINSTMFATable( ...
                 config, ...
                 exp{:}', ...
@@ -1272,10 +1302,10 @@ classdef Batch < handle
                     fileDirectory);
             end
 
-            ioInstance = IO(experimentLocation.Directory);
-            filenameBatch = experimentLocation.batchFile(obj.filename);
-
-            ioInstance.exportJSONFile(filenameBatch, obj.tableBatch);
+            obj.BatchJsonRepository.save( ...
+                experimentLocation, ...
+                string(obj.filename), ...
+                obj.tableBatch);
 
         end % saveBatchFile
 
@@ -1306,34 +1336,15 @@ classdef Batch < handle
 
             isError = false;
 
-            ioInstance = IO(experimentLocation.Directory);
-            filenameBatch = experimentLocation.batchFile(obj.filename);
+            [batchLoaded, isImportError, msg] = obj.BatchJsonRepository.load( ...
+                experimentLocation, ...
+                string(obj.filename), ...
+                obj.tableBatch.Properties.VariableNames);
 
-            batch = ioInstance.importJSONFile(filenameBatch);
-            msg = ioInstance.statusMsg();
-
-            if ioInstance.isError
+            if isImportError
                 isError = true;
                 return
-            end % if ioInstance.isError
-
-            % Fill missing fields in config
-            defaultConfig = obj.getDefaultConfig();
-
-            for i = 1:length(batch)
-                batch(i).config = obj.fillMissingFields(batch(i).config, defaultConfig);
-            end
-
-            batchLoaded = table( ...
-                string({batch.id})', ...
-                string({batch.name})', ...
-                {batch.exp}', ...
-                string({batch.description})', ...
-                {batch.config}', ...
-                'VariableNames', obj.tableBatch.Properties.VariableNames ...
-            );
-
-            batchLoaded.config = arrayfun(@(x) x{:}, batchLoaded.config);
+            end % if isImportError
 
             obj.tableBatch = batchLoaded;
 
@@ -1486,14 +1497,8 @@ classdef Batch < handle
 
         function initTableBatch(obj)
 
-            vars = {'id', 'name', 'exp', 'description', 'config'};
-
-            % Create table
-            obj.tableBatch = table( ...
-                'Size', [0, length(vars)], ...
-                'VariableNames', vars, ...
-                'VariableTypes', {'string', 'string', 'cell', 'string', 'struct'} ...
-            );
+            obj.tableBatch = ...
+                openmebius.infrastructure.batch.BatchJsonMapper.emptyTable();
 
         end % initTableBatch
 
@@ -1536,31 +1541,6 @@ classdef Batch < handle
             end % for i
 
         end % updateHash
-
-        function config = fillMissingFields(obj, config, defaultConfig)
-
-            fields = fieldnames(defaultConfig);
-
-            for i = 1:numel(fields)
-                fname = fields{i};
-
-                if ~isfield(config, fname)
-                    % If the field is missing, fill it with the default value
-                    config.(fname) = defaultConfig.(fname);
-
-                else
-                    % Fill missing sub-fields if both are structs
-                    if isstruct(config.(fname)) && isstruct(defaultConfig.(fname))
-                        config.(fname) = obj.fillMissingFields( ...
-                            config.(fname), ...
-                            defaultConfig.(fname));
-                    end % if isstruct(config.(fname)) && isstruct(defaultConfig.(fname))
-
-                end % if ~isfield(config, fname)
-
-            end % for i = 1:numel(fields)
-
-        end % function fillMissingFields
 
         function attachFluxAnalysisListeners(obj, mfa)
 
