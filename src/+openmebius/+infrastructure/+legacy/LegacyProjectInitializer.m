@@ -25,7 +25,7 @@ classdef LegacyProjectInitializer < handle
                 options.BatchRepository = ...
                     openmebius.infrastructure.legacy.LegacyBatchRepository()
                 options.ResultRepository = ...
-                    openmebius.infrastructure.legacy.LegacyResultRepository()
+                    openmebius.infrastructure.result.ResultRepository()
             end
 
             obj.ModelRepository = options.ModelRepository;

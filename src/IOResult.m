@@ -18,21 +18,45 @@ classdef IOResult < Status
     properties (SetAccess = private)
 
         ResultLocation openmebius.domain.result.ResultLocation
+        ResultRepository
 
     end % properties
 
     methods
 
-        function obj = IOResult(resultInput)
+        function obj = IOResult(resultInput, options)
             % Constructor for IOResult class
+
+            arguments
+                resultInput
+                options.ResultRepository = ...
+                    openmebius.infrastructure.result.ResultRepository()
+            end
 
             resultLocation = ...
                 openmebius.domain.result.ResultLocation.fromInput( ...
                 resultInput);
 
             obj.ResultLocation = resultLocation;
-            openmebius.infrastructure.legacy.LegacyFileAccess ...
-                .initializeDirectory(obj, resultLocation.Directory);
+            obj.ResultRepository = options.ResultRepository;
+
+            try
+                obj.ResultRepository.assertResultDirectory(resultLocation);
+            catch
+                obj.isError = true;
+                updateMsg(obj, ...
+                    "The directory " + resultLocation.Directory + ...
+                    " does not exist.", ...
+                    "Error", ...
+                    obj.logLevel);
+                return
+            end
+
+            updateMsg(obj, ...
+                "The directory " + resultLocation.Directory + ...
+                " exists.", ...
+                "Info", ...
+                obj.logLevel);
 
         end % constructor
 
@@ -1240,10 +1264,10 @@ classdef IOResult < Status
 
     methods (Access = private)
 
-        function [isSuccess, msg] = exportExcelFile(~, pathFile, excelData, sheetName, options)
+        function [isSuccess, msg] = exportExcelFile(obj, pathFile, excelData, sheetName, options)
 
             arguments
-                ~
+                obj
                 pathFile (1, 1) string
                 excelData
                 sheetName (1, 1) string = ""
@@ -1251,8 +1275,7 @@ classdef IOResult < Status
                 options.WriteVariableNames (1, 1) logical = true
             end
 
-            [isSuccess, msg] = openmebius.infrastructure.legacy.LegacyFileAccess ...
-                .exportExcelFile( ...
+            [isSuccess, msg] = obj.ResultRepository.writeExcelTable( ...
                 pathFile, ...
                 excelData, ...
                 sheetName, ...
@@ -1309,29 +1332,21 @@ classdef IOResult < Status
 
         end % saveResultDataAsCsv
 
-        function [isSuccess, msg] = exportCsvTable(~, pathFile, tableData, options)
+        function [isSuccess, msg] = exportCsvTable(obj, pathFile, tableData, options)
 
             arguments
-                ~
+                obj
                 pathFile (1, 1) string
                 tableData table
                 options.WriteRowNames (1, 1) logical = true
                 options.WriteVariableNames (1, 1) logical = true
             end
 
-            isSuccess = true;
-            msg = "";
-
-            try
-                writetable( ...
-                    tableData, ...
-                    pathFile, ...
-                    "WriteRowNames", options.WriteRowNames, ...
-                    "WriteVariableNames", options.WriteVariableNames);
-            catch ME
-                isSuccess = false;
-                msg = string(ME.message);
-            end
+            [isSuccess, msg] = obj.ResultRepository.writeCsvTable( ...
+                pathFile, ...
+                tableData, ...
+                WriteRowNames = options.WriteRowNames, ...
+                WriteVariableNames = options.WriteVariableNames);
 
         end % exportCsvTable
 

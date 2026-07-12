@@ -10,7 +10,7 @@ classdef ResultLoadService < handle
 
             arguments
                 options.ResultRepository = ...
-                    openmebius.infrastructure.legacy.LegacyResultRepository()
+                    openmebius.infrastructure.result.ResultRepository()
             end
 
             obj.ResultRepository = options.ResultRepository;
