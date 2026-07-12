@@ -1989,6 +1989,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureDialogService
 
+        function ensureExperimentImportService(app)
+
+            if isempty(app.ExperimentImportService)
+                app.ExperimentImportService = ...
+                    openmebius.application.experiment.ExperimentImportService();
+            end
+
+        end % method ensureExperimentImportService
+
         function attachLegacyListeners(app)
 
             app.LegacyListeners = event.listener.empty(0, 1);
@@ -2281,6 +2290,49 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method applyExperimentImportResult
 
+        function result = reloadExperimentState(app, options)
+
+            arguments
+                app
+                options.LogMessages (1, 1) logical = true
+            end
+
+            app.ensureExperimentImportService();
+
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(app.directoryExp);
+
+            result = app.ExperimentImportService.reload( ...
+                experimentLocation, ...
+                app.model);
+
+            app.renderExperimentImportResult( ...
+                result, ...
+                LogMessages = options.LogMessages);
+
+        end % method reloadExperimentState
+
+        function renderExperimentImportResult(app, result, options)
+
+            arguments
+                app
+                result openmebius.application.experiment.ExperimentImportResult
+                options.LogMessages (1, 1) logical = true
+            end
+
+            app.applyExperimentImportResult(result);
+            app.loadExpData();
+            loadBatchTable(app, reload = true);
+
+            if options.LogMessages
+                for i = 1:numel(result.Messages)
+                    app.LogTextDate(result.Messages(i), "Info");
+                end
+            end
+
+        end % method renderExperimentImportResult
+
         function applyBatchStyleRules(app, styleRules)
 
             if isempty(styleRules)
@@ -2450,28 +2502,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.updateStatus("experiment", "running");
 
-            app.exp = IOExps( ...
-                app.directoryExp, ...
-                app.directoryModel);
-
-            if app.exp.isError
-                app.LogText(app.exp.statusMsg);
-                app.updateStatus("experiment", "error");
-                return
-            end
-
-            loadExpData(app)
-
-            if app.exp.isError
-                app.LogText(app.exp.statusMsg);
+            try
+                result = app.reloadExperimentState(LogMessages = false);
+            catch ME
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Experiment reload failed", ...
+                    Alert = true);
                 app.updateStatus("experiment", "error");
                 return
             end
 
             app.updateStatus("experiment", "finished");
-            app.LogText(app.exp.statusMsg);
 
-            loadBatchTable(app)
+            for i = 1:numel(result.Messages)
+                app.LogTextDate(result.Messages(i), "Info");
+            end
+
             loadResult(app)
 
         end % method loadLegacyProjectObjects
@@ -4836,15 +4883,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     files, ...
                     app.model);
 
-                app.applyExperimentImportResult(result);
-                app.loadExpData();
-                loadBatchTable(app, reload = true);
+                app.renderExperimentImportResult(result);
 
                 updateStatus(app, "experiment", "finished");
-
-                for i = 1:numel(result.Messages)
-                    app.LogTextDate(result.Messages(i), "Info");
-                end
 
                 msg = "Experimental data imported successfully.";
                 app.LogTextDate(msg, "Info");
@@ -4864,17 +4905,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             updateStatus(app, "experiment", "running");
 
             try
-                experimentLocation = ...
-                    openmebius.domain.experiment.ExperimentLocation ...
-                    .fromDirectory(app.directoryExp);
-
-                result = app.ExperimentImportService.reload( ...
-                    experimentLocation, ...
-                    app.model);
-
-                app.applyExperimentImportResult(result);
-                loadExpData(app)
-                loadBatchTable(app, reload = true)
+                app.reloadExperimentState();
 
                 updateStatus(app, "experiment", "finished");
                 msg = app.model.returnDateMsg("Experimental data reloaded", "Info");
@@ -5546,15 +5577,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     experimentLocation, ...
                     app.model);
 
-                app.applyExperimentImportResult(result);
-                app.loadExpData();
-                loadBatchTable(app, reload = true);
+                app.renderExperimentImportResult(result);
 
                 updateStatus(app, "experiment", "finished");
-
-                for i = 1:numel(result.Messages)
-                    app.LogTextDate(result.Messages(i), "Info");
-                end
 
                 app.notifyInfo("Raw MS data imported successfully.");
             catch ME
