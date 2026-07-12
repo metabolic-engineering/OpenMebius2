@@ -668,7 +668,7 @@ classdef IOResult < IO
             obj.IDs = ids;
             obj.dataMask = dataMask;
 
-            if ~isfolder(obj.ResultLocation.Directory)
+            if ~obj.ResultLocation.directoryExists()
                 obj.isError = true;
                 notifyGeneralMessage(obj, "error", "Result directory does not exist.");
                 return;
@@ -734,7 +734,7 @@ classdef IOResult < IO
 
             data = struct;
 
-            if ~isfolder(obj.ResultLocation.Directory)
+            if ~obj.ResultLocation.directoryExists()
                 obj.isError = true;
                 notifyGeneralMessage(obj, "error", "Result directory does not exist.");
                 return;
@@ -943,11 +943,11 @@ classdef IOResult < IO
                     % Create the directory if it does not exist
                     iLocation = outputLocation.childLocation(directoryName);
 
-                    if isfolder(iLocation.Directory)
+                    if iLocation.directoryExists()
                         msg = "Directory already exists: " + iLocation.Directory;
                         notifyGeneralMessage(obj, "error", msg);
                         continue;
-                    end % if isfolder(iLocation.Directory)
+                    end % if iLocation.directoryExists()
 
                     mkdir(iLocation.Directory);
 

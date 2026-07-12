@@ -203,6 +203,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         TemplateModelLoadService openmebius.application.model.TemplateModelLoadService
         BatchLoadService openmebius.application.batch.BatchLoadService
         ResultLoadService openmebius.application.result.ResultLoadService
+        ResultExportService openmebius.application.result.ResultExportService
         ReportGenerationService openmebius.application.report.ReportGenerationService
         ExperimentImportService openmebius.application.experiment.ExperimentImportService
         RawMSImportService openmebius.application.experiment.RawMSImportService
@@ -2087,6 +2088,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method ensureResultLoadService
+
+        function ensureResultExportService(app)
+
+            if isempty(app.ResultExportService)
+                app.ResultExportService = ...
+                    openmebius.application.result.ResultExportService();
+            end
+
+        end % method ensureResultExportService
 
         function ensureReportGenerationService(app)
 
@@ -4293,6 +4303,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.batch.BatchLoadService();
             app.ResultLoadService = ...
                 openmebius.application.result.ResultLoadService();
+            app.ResultExportService = ...
+                openmebius.application.result.ResultExportService();
             app.ReportGenerationService = ...
                 openmebius.application.report.ReportGenerationService();
             app.RawMSImportService = ...
@@ -5467,37 +5479,65 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ResultSaveButton
         function ResultSaveButtonPushed(app, event)
 
-            % Directory dialog to save the result
-            [folder, isOK] = app.uiGetDirWrap( ...
-                StartPath = app.directoryResult, ...
-                Title = "Select Directory to Save Result Files" ...
-            );
+            try
+                app.ensureResultExportService();
 
-            if ~isOK
-                return; % User canceled the dialog
+                [folder, isOK] = app.uiGetDirWrap( ...
+                    StartPath = app.directoryResult, ...
+                    Title = "Select Directory to Save Result Files" ...
+                );
+
+                if ~isOK
+                    return; % User canceled the dialog
+                end
+
+                selectedRows = app.selectedTableRows(app.ResultSubTable);
+
+                if isempty(selectedRows)
+                    app.notifyWarning("Please select a result to save.");
+                    return
+                end % if
+
+                batchIDs = app.ResultSubTable.Data.ID;
+                selectedBatchIDs = string(batchIDs(selectedRows));
+                selectedBatchIDs = selectedBatchIDs(:);
+                batchNames = app.ResultSubTable.Data.Name;
+                selectedBatchNames = string(batchNames(selectedRows));
+                selectedBatchNames = selectedBatchNames(:);
+                outputLocation = openmebius.domain.result.ResultLocation ...
+                    .fromDirectory(folder);
+
+                resultExportResult = app.ResultExportService.export( ...
+                    app.result, ...
+                    selectedBatchIDs, ...
+                    selectedBatchNames, ...
+                    outputLocation);
+
+                for i = 1:numel(resultExportResult.Messages)
+                    app.notifyInfo(resultExportResult.Messages(i));
+                end
+
+            catch ME
+
+                switch string(ME.identifier)
+
+                    case { ...
+                            "OpenMebius2:ResultExport:ResultUnavailable", ...
+                            "OpenMebius2:ResultExport:EmptySelection", ...
+                            "OpenMebius2:ResultExport:SelectionMismatch", ...
+                            "OpenMebius2:ResultExport:OutputDirectoryUnavailable", ...
+                            "OpenMebius2:ResultExport:OutputDirectoryNotFound" ...
+                         }
+                        app.notifyError(string(ME.message));
+
+                    otherwise
+                        app.notifyException( ...
+                            ME, ...
+                            Title = "Result export failed", ...
+                            Alert = true);
+                end
+
             end
-
-            % Get selected results
-            selected = app.ResultSubTable.Selection;
-
-            if isempty(selected)
-                msg = "Please select a result to save.";
-                LogTextDate(app, msg, "Warning");
-                return
-            end % if
-
-            batchIDs = app.ResultSubTable.Data.ID;
-            selectedBatchIDs = batchIDs(selected);
-            selectedBatchIDs = string(selectedBatchIDs);
-            batchNames = app.ResultSubTable.Data.Name;
-            selectedBatchNames = batchNames(selected);
-            selectedBatchNames = string(selectedBatchNames);
-
-            app.result.saveResult( ...
-                selectedBatchIDs, ...
-                selectedBatchNames, ...
-                folder ...
-            );
 
         end
 

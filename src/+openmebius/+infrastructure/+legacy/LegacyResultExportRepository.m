@@ -1,0 +1,33 @@
+classdef LegacyResultExportRepository < handle
+    % Adapter for the legacy IOResult export implementation.
+
+    methods
+
+        function saveResult( ...
+                ~, ...
+                result, ...
+                batchIDs, ...
+                batchNames, ...
+                outputLocation, ...
+                options)
+
+            arguments
+                ~
+                result
+                batchIDs (:, 1) string
+                batchNames (:, 1) string
+                outputLocation openmebius.domain.result.ResultLocation
+                options.AddDatetime (1, 1) logical = true
+            end
+
+            result.saveResult( ...
+                batchIDs, ...
+                batchNames, ...
+                outputLocation, ...
+                addDatetime = options.AddDatetime);
+
+        end
+
+    end
+
+end

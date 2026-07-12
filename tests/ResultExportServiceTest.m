@@ -1,0 +1,203 @@
+classdef ResultExportServiceTest < matlab.unittest.TestCase
+
+    methods (TestMethodSetup)
+
+        function addSourcePath(~)
+
+            addpath(ResultExportServiceTest.sourcePath());
+            addpath(ResultExportServiceTest.testsPath());
+
+        end
+
+    end
+
+    methods (Test)
+
+        function exportDelegatesToExporter(testCase)
+
+            outputDirectory = string(tempname);
+            mkdir(outputDirectory);
+            cleanup = onCleanup(@() ...
+                ResultExportServiceTest.removeDirectory(outputDirectory));
+
+            outputLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(outputDirectory);
+            exporter = helpers.RecordingResultExporter();
+            service = openmebius.application.result.ResultExportService( ...
+                ResultExporter = exporter);
+
+            result = struct("isError", false);
+            batchIDs = ["batch-1"; "batch-2"];
+            batchNames = ["Batch 1"; "Batch 2"];
+
+            exportResult = service.export( ...
+                result, ...
+                batchIDs, ...
+                batchNames, ...
+                outputLocation, ...
+                AddDatetime = false);
+
+            testCase.verifyClass( ...
+                exportResult, ...
+                "openmebius.application.result.ResultExportResult");
+            testCase.verifyTrue(exporter.WasCalled);
+            testCase.verifyEqual(exporter.BatchIDs, batchIDs);
+            testCase.verifyEqual(exporter.BatchNames, batchNames);
+            testCase.verifyEqual( ...
+                exporter.OutputLocation.Directory, ...
+                outputDirectory);
+            testCase.verifyFalse(exporter.AddDatetime);
+            testCase.verifyGreaterThanOrEqual(numel(exportResult.Messages), 1);
+
+        end
+
+        function exportRejectsEmptySelection(testCase)
+
+            outputDirectory = string(tempname);
+            mkdir(outputDirectory);
+            cleanup = onCleanup(@() ...
+                ResultExportServiceTest.removeDirectory(outputDirectory));
+
+            service = openmebius.application.result.ResultExportService( ...
+                ResultExporter = helpers.RecordingResultExporter());
+            outputLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(outputDirectory);
+
+            testCase.verifyError( ...
+                @() service.export( ...
+                struct("isError", false), ...
+                strings(0, 1), ...
+                strings(0, 1), ...
+                outputLocation), ...
+                "OpenMebius2:ResultExport:EmptySelection");
+
+        end
+
+        function exportRejectsSelectionMismatch(testCase)
+
+            outputDirectory = string(tempname);
+            mkdir(outputDirectory);
+            cleanup = onCleanup(@() ...
+                ResultExportServiceTest.removeDirectory(outputDirectory));
+
+            service = openmebius.application.result.ResultExportService( ...
+                ResultExporter = helpers.RecordingResultExporter());
+            outputLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(outputDirectory);
+
+            testCase.verifyError( ...
+                @() service.export( ...
+                struct("isError", false), ...
+                ["batch-1"; "batch-2"], ...
+                "Batch 1", ...
+                outputLocation), ...
+                "OpenMebius2:ResultExport:SelectionMismatch");
+
+        end
+
+        function exportRejectsMissingOutputDirectory(testCase)
+
+            service = openmebius.application.result.ResultExportService( ...
+                ResultExporter = helpers.RecordingResultExporter());
+            outputLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(fullfile(tempdir, "missing-openmebius-export"));
+
+            testCase.verifyError( ...
+                @() service.export( ...
+                struct("isError", false), ...
+                "batch-1", ...
+                "Batch 1", ...
+                outputLocation), ...
+                "OpenMebius2:ResultExport:OutputDirectoryNotFound");
+
+        end
+
+        function exportRejectsErroredResultObject(testCase)
+
+            outputDirectory = string(tempname);
+            mkdir(outputDirectory);
+            cleanup = onCleanup(@() ...
+                ResultExportServiceTest.removeDirectory(outputDirectory));
+
+            service = openmebius.application.result.ResultExportService( ...
+                ResultExporter = helpers.RecordingResultExporter());
+            outputLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(outputDirectory);
+
+            testCase.verifyError( ...
+                @() service.export( ...
+                struct("isError", true), ...
+                "batch-1", ...
+                "Batch 1", ...
+                outputLocation), ...
+                "OpenMebius2:ResultExport:ResultUnavailable");
+
+        end
+
+        function legacyExporterDelegatesToResultSave(testCase)
+
+            outputDirectory = string(tempname);
+            mkdir(outputDirectory);
+            cleanup = onCleanup(@() ...
+                ResultExportServiceTest.removeDirectory(outputDirectory));
+
+            outputLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(outputDirectory);
+            result = helpers.RecordingResult();
+            exporter = ...
+                openmebius.infrastructure.legacy.LegacyResultExportRepository();
+
+            exporter.saveResult( ...
+                result, ...
+                "batch-1", ...
+                "Batch 1", ...
+                outputLocation, ...
+                AddDatetime = false);
+
+            testCase.verifyTrue(result.WasCalled);
+            testCase.verifyEqual(result.BatchIDs, "batch-1");
+            testCase.verifyEqual(result.BatchNames, "Batch 1");
+            testCase.verifyEqual( ...
+                result.OutputLocation.Directory, ...
+                outputDirectory);
+            testCase.verifyFalse(result.AddDatetime);
+
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function path = sourcePath()
+
+            path = fullfile( ...
+                ResultExportServiceTest.repositoryRoot(), ...
+                "src");
+
+        end
+
+        function path = repositoryRoot()
+
+            path = fileparts(fileparts(mfilename("fullpath")));
+
+        end
+
+        function path = testsPath()
+
+            path = fullfile( ...
+                ResultExportServiceTest.repositoryRoot(), ...
+                "tests");
+
+        end
+
+        function removeDirectory(directory)
+
+            if isfolder(directory)
+                rmdir(directory, "s");
+            end
+
+        end
+
+    end
+
+end
