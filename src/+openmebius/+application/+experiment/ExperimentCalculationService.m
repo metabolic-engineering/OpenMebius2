@@ -9,17 +9,17 @@ classdef ExperimentCalculationService < handle
             arguments
                 ~
                 model
-                experiments IOExps
-                batch Batch
+                experiments
+                batch
                 infoTable table
                 uptakeTable table
                 tracerTable table
             end
 
             openmebius.application.experiment.ExperimentCalculationService ...
-                .assertValidHandle(experiments, "Experiment data");
+                .assertValidObject(experiments, "Experiment data");
             openmebius.application.experiment.ExperimentCalculationService ...
-                .assertValidHandle(batch, "Batch data");
+                .assertValidObject(batch, "Batch data");
 
             experiments.updateModel(model);
             batch.updateExperimentalData(experiments);
@@ -66,16 +66,17 @@ classdef ExperimentCalculationService < handle
 
     methods (Static, Access = private)
 
-        function assertValidHandle(value, name)
+        function assertValidObject(value, name)
 
-            if isempty(value) || ~isvalid(value)
+            if isempty(value) || ...
+                    (isa(value, 'handle') && ~isvalid(value))
                 error( ...
                     "OpenMebius2:ExperimentCalculation:InvalidObject", ...
                     "%s is not valid.", ...
                     name);
             end
 
-        end % assertValidHandle
+        end % assertValidObject
 
         function updateExperimentData(experiments, data, type)
 

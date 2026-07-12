@@ -1,6 +1,6 @@
 classdef ExperimentRepository < handle
     % EXPERIMENTREPOSITORY
-    % Filesystem-backed repository for legacy IOExps experiment data.
+    % Filesystem-backed repository for experiment workbook files.
 
     methods
 
@@ -65,37 +65,6 @@ classdef ExperimentRepository < handle
             end
 
         end % importFiles
-
-        function experiments = load(~, experimentLocation, model)
-
-            arguments
-                ~
-                experimentLocation openmebius.domain.experiment.ExperimentLocation
-                model
-            end
-
-            if ~isfolder(experimentLocation.Directory)
-                error( ...
-                    "OpenMebius2:ExperimentRepository:DirectoryNotFound", ...
-                    "Experiment directory does not exist: %s", ...
-                    experimentLocation.Directory);
-            end
-
-            experiments = IOExps(experimentLocation, model);
-
-            if isempty(experiments) || ~isvalid(experiments)
-                error( ...
-                    "OpenMebius2:ExperimentRepository:InvalidExperimentObject", ...
-                    "Failed to create IOExps.");
-            end
-
-            if experiments.isError
-                error( ...
-                    "OpenMebius2:ExperimentRepository:LoadFailed", ...
-                    "%s", string(experiments.statusMsg));
-            end
-
-        end % load
 
     end % methods
 

@@ -4,6 +4,7 @@ classdef ExperimentImportService < handle
 
     properties (Access = private)
         ExperimentRepository
+        ExperimentLoadRepository
         BatchRepository
     end
 
@@ -14,11 +15,14 @@ classdef ExperimentImportService < handle
             arguments
                 options.ExperimentRepository = ...
                     openmebius.infrastructure.experiment.ExperimentRepository()
+                options.ExperimentLoadRepository = ...
+                    openmebius.infrastructure.legacy.LegacyExperimentRepository()
                 options.BatchRepository = ...
                     openmebius.infrastructure.legacy.LegacyBatchRepository()
             end
 
             obj.ExperimentRepository = options.ExperimentRepository;
+            obj.ExperimentLoadRepository = options.ExperimentLoadRepository;
             obj.BatchRepository = options.BatchRepository;
 
         end % constructor
@@ -56,7 +60,7 @@ classdef ExperimentImportService < handle
                 options.SkippedFiles (:, 1) string = strings(0, 1)
             end
 
-            experiments = obj.ExperimentRepository.load( ...
+            experiments = obj.ExperimentLoadRepository.load( ...
                 experimentLocation, ...
                 model);
 

@@ -97,6 +97,50 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
 
         end % savesSchemaVersionedDocumentAtomically
 
+        function returnsEmptyTableWhenBatchFileIsMissing(testCase)
+
+            [experimentLocation, cleanupGuard] = ...
+                testCase.createExperimentLocation();
+            testCase.verifyClass(cleanupGuard, 'onCleanup');
+
+            repository = openmebius.infrastructure.batch.BatchJsonRepository();
+
+            [batchTable, isError, msg] = repository.load( ...
+                experimentLocation, ...
+                "missing_batch.json");
+
+            testCase.verifyTrue(isError);
+            testCase.verifyTrue(contains(msg, "does not exist"));
+            testCase.verifyTrue(istable(batchTable));
+            testCase.verifyEqual(height(batchTable), 0);
+            testCase.verifyEqual( ...
+                batchTable.Properties.VariableNames, ...
+                openmebius.infrastructure.batch.BatchJsonMapper.defaultVariableNames());
+
+        end % returnsEmptyTableWhenBatchFileIsMissing
+
+        function returnsEmptyTableWhenBatchFileIsInvalidJson(testCase)
+
+            [experimentLocation, cleanupGuard] = ...
+                testCase.createExperimentLocation();
+            testCase.verifyClass(cleanupGuard, 'onCleanup');
+
+            batchFile = experimentLocation.batchFile("batch.json");
+            testCase.writeText(batchFile, "{ invalid json");
+
+            repository = openmebius.infrastructure.batch.BatchJsonRepository();
+
+            [batchTable, isError, msg] = repository.load( ...
+                experimentLocation, ...
+                "batch.json");
+
+            testCase.verifyTrue(isError);
+            testCase.verifyTrue(contains(msg, "not a valid JSON file"));
+            testCase.verifyTrue(istable(batchTable));
+            testCase.verifyEqual(height(batchTable), 0);
+
+        end % returnsEmptyTableWhenBatchFileIsInvalidJson
+
     end % methods
 
     methods (Static, Access = private)
@@ -123,6 +167,21 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
                 tempDirectory);
 
         end % createExperimentLocation
+
+        function writeText(pathFile, text)
+
+            fid = fopen(pathFile, 'w');
+
+            if fid < 0
+                error("BatchJsonRepositoryTest:OpenFailed", ...
+                      "Failed to open test file: %s", pathFile);
+            end
+
+            cleanup = onCleanup(@() fclose(fid));
+            fwrite(fid, char(text));
+            clear cleanup
+
+        end % writeText
 
     end % methods
 

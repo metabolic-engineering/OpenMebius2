@@ -1100,7 +1100,20 @@ classdef Batch < handle
 
             arguments
                 obj
-                expObject (1, 1) IOExps
+                expObject
+            end
+
+            if isempty(expObject) || ...
+                    (isa(expObject, 'handle') && ~isvalid(expObject))
+                error( ...
+                    "OpenMebius2:Batch:InvalidExperimentObject", ...
+                    "Experiment object is not valid.");
+            end
+
+            if ~ismethod(expObject, 'getModel')
+                error( ...
+                    "OpenMebius2:Batch:InvalidExperimentObject", ...
+                    "Experiment object must provide getModel.");
             end
 
             obj.exp = expObject;

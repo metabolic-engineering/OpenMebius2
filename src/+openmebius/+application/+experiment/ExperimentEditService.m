@@ -9,8 +9,8 @@ classdef ExperimentEditService < handle
             arguments
                 ~
                 model
-                experiments IOExps
-                batch Batch
+                experiments
+                batch
                 infoTable table
             end
 
@@ -39,8 +39,8 @@ classdef ExperimentEditService < handle
             arguments
                 ~
                 model
-                experiments IOExps
-                batch Batch
+                experiments
+                batch
                 uptakeTable table
                 tracerTable table
             end
@@ -73,8 +73,8 @@ classdef ExperimentEditService < handle
             arguments
                 ~
                 model
-                experiments IOExps
-                batch Batch
+                experiments
+                batch
                 tracerTable table
                 selection (:, :) double
             end
@@ -113,25 +113,26 @@ classdef ExperimentEditService < handle
         function syncModel(model, experiments, batch)
 
             openmebius.application.experiment.ExperimentEditService ...
-                .assertValidHandle(experiments, "Experiment data");
+                .assertValidObject(experiments, "Experiment data");
             openmebius.application.experiment.ExperimentEditService ...
-                .assertValidHandle(batch, "Batch data");
+                .assertValidObject(batch, "Batch data");
 
             experiments.updateModel(model);
             batch.updateExperimentalData(experiments);
 
         end % syncModel
 
-        function assertValidHandle(value, name)
+        function assertValidObject(value, name)
 
-            if isempty(value) || ~isvalid(value)
+            if isempty(value) || ...
+                    (isa(value, 'handle') && ~isvalid(value))
                 error( ...
                     "OpenMebius2:ExperimentEdit:InvalidObject", ...
                     "%s is not valid.", ...
                     name);
             end
 
-        end % assertValidHandle
+        end % assertValidObject
 
         function updateExperimentData(experiments, data, type)
 

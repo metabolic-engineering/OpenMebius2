@@ -925,23 +925,19 @@ classdef IOResult < IO
                 return;
             end % if
 
-            for iBatch = 1:length(batchID)
+            exportPlan = openmebius.application.result.ResultExportPlan.build( ...
+                batchID, ...
+                names, ...
+                outputLocation, ...
+                AddDatetime = options.addDatetime);
 
-                % Get the batch ID and name
-                iBatchID = batchID(iBatch);
-                iName = names(iBatch);
+            for iBatch = 1:exportPlan.count()
 
-                % Create the file name
-                if options.addDatetime
-                    datetimeStr = string(datetime('now', 'Format', 'yyyyMMdd-HHmmss'));
-                    directoryName = iName + "_" + iBatchID + "_" + datetimeStr;
-                else
-                    directoryName = iName + "_" + iBatchID;
-                end % if
+                exportItem = exportPlan.exportItem(iBatch);
 
                 try
                     % Create the directory if it does not exist
-                    iLocation = outputLocation.childLocation(directoryName);
+                    iLocation = exportItem.ExportLocation;
 
                     if iLocation.directoryExists()
                         msg = "Directory already exists: " + iLocation.Directory;
@@ -962,7 +958,12 @@ classdef IOResult < IO
                 notifyGeneralMessage(obj, "info", msg);
 
                 % Save the result data
-                saveResultData(obj, iBatchID, iName, iLocation, "xlsx");
+                saveResultData( ...
+                    obj, ...
+                    exportItem.BatchID, ...
+                    exportItem.BatchName, ...
+                    iLocation, ...
+                    "xlsx");
 
             end % for iBatch
 

@@ -4,7 +4,7 @@ classdef ResultPresenter < handle
 
         function viewModel = presentIndex(obj, result, batch)
 
-            obj.mustBeValidHandle(result, "IOResult");
+            obj.mustBeValidHandle(result, "Result");
             obj.mustBeValidHandle(batch, "Batch");
 
             batchGUI = getBatchForGUI(batch);
@@ -61,7 +61,7 @@ classdef ResultPresenter < handle
                 options.IsDarkTheme (1, 1) logical = false
             end
 
-            obj.mustBeValidHandle(result, "IOResult");
+            obj.mustBeValidHandle(result, "Result");
 
             mode = ...
                 openmebius.presentation.result.ResultViewMode.normalize(mode);
