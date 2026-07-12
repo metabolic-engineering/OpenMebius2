@@ -1,12 +1,7 @@
 classdef ReportGenerationService < handle
 
     properties (Access = private)
-        ReportFactory (1, 1) function_handle = ...
-            @(resultLocation, model, experiments, result) ...
-            ReportResult( ...
-            resultLocation, model, experiments, result, ...
-            OpenAfterBuild = false)
-        ReportViewer (1, 1) function_handle = @(report) view(report)
+        ReportRepository
     end
 
     methods
@@ -14,17 +9,11 @@ classdef ReportGenerationService < handle
         function obj = ReportGenerationService(options)
 
             arguments
-                options.ReportFactory (1, 1) function_handle = ...
-                    @(resultLocation, model, experiments, result) ...
-                    ReportResult( ...
-                    resultLocation, model, experiments, result, ...
-                    OpenAfterBuild = false)
-                options.ReportViewer (1, 1) function_handle = ...
-                    @(report) view(report)
+                options.ReportRepository = ...
+                    openmebius.infrastructure.report.LegacyReportRepository()
             end
 
-            obj.ReportFactory = options.ReportFactory;
-            obj.ReportViewer = options.ReportViewer;
+            obj.ReportRepository = options.ReportRepository;
 
         end
 
@@ -57,18 +46,21 @@ classdef ReportGenerationService < handle
             openmebius.application.report.ReportGenerationService ...
                 .validateData("Result", result);
 
-            report = obj.ReportFactory( ...
+            report = obj.ReportRepository.create( ...
                 resultLocation, ...
                 model, ...
                 experiments, ...
                 result);
 
-            outputPath = ...
+            outputPath = obj.ReportRepository.outputPath( ...
+                report, ...
+                resultLocation);
+            messages = ...
                 openmebius.application.report.ReportGenerationService ...
-                .resolveOutputPath(report, resultLocation);
+                .createMessages(outputPath);
 
             if options.OpenReport
-                obj.ReportViewer(report);
+                obj.ReportRepository.view(report);
             end
 
             generationResult = ...
@@ -76,7 +68,7 @@ classdef ReportGenerationService < handle
                 Report = report, ...
                 ResultLocation = resultLocation, ...
                 OutputPath = outputPath, ...
-                Messages = "Report generated successfully.");
+                Messages = messages);
 
         end
 
@@ -143,22 +135,15 @@ classdef ReportGenerationService < handle
 
         end
 
-        function outputPath = resolveOutputPath(report, resultLocation)
+        function messages = createMessages(outputPath)
 
-            outputPath = resultLocation.reportFile("summary");
+            messages = "Report generated successfully.";
 
-            if isstruct(report) && isfield(report, "OutputPath")
-                outputPath = string(report.OutputPath);
-                return
-            end
-
-            if isobject(report) && ismethod(report, "getOutputPath")
-                outputPath = string(report.getOutputPath());
-                return
-            end
-
-            if isobject(report) && isprop(report, "OutputPath")
-                outputPath = string(report.OutputPath);
+            if outputPath ~= ""
+                messages = [
+                            messages
+                            "Report output: " + outputPath
+                           ];
             end
 
         end
