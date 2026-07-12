@@ -202,6 +202,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProjectSession openmebius.domain.project.ProjectSession
         TemplateModelLoadService openmebius.application.model.TemplateModelLoadService
         BatchLoadService openmebius.application.batch.BatchLoadService
+        ResultLoadService openmebius.application.result.ResultLoadService
         ExperimentImportService openmebius.application.experiment.ExperimentImportService
         RawMSImportService openmebius.application.experiment.RawMSImportService
         ExperimentCalculationService openmebius.application.experiment.ExperimentCalculationService
@@ -2077,6 +2078,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureBatchLoadService
 
+        function ensureResultLoadService(app)
+
+            if isempty(app.ResultLoadService)
+                app.ResultLoadService = ...
+                    openmebius.application.result.ResultLoadService();
+            end
+
+        end % method ensureResultLoadService
+
         function attachLegacyListeners(app)
 
             app.LegacyListeners = event.listener.empty(0, 1);
@@ -2395,6 +2405,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.attachLegacyListeners();
 
         end % method applyBatchLoadResult
+
+        function applyResultLoadResult(app, resultLoadResult)
+
+            arguments
+                app
+                resultLoadResult openmebius.application.result.ResultLoadResult
+            end
+
+            app.detachLegacyListeners();
+
+            app.result = resultLoadResult.Result;
+
+            app.attachLegacyListeners();
+
+        end % method applyResultLoadResult
 
         function result = reloadExperimentState(app, options)
 
@@ -3273,12 +3298,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 app.updateStatus("result", "running");
 
-                app.result = IOResult(app.directoryResult);
+                app.ensureResultLoadService();
 
-                addlistener( ...
-                    app.result, ...
-                    'GeneralMsg', ...
-                    @(src, event) statusGeneralMsg(app, event));
+                resultLocation = openmebius.domain.result.ResultLocation ...
+                    .fromDirectory(app.directoryResult);
+
+                resultLoadResult = app.ResultLoadService.load(resultLocation);
+
+                app.applyResultLoadResult(resultLoadResult);
 
             end
 
@@ -4242,6 +4269,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.experiment.ExperimentImportService();
             app.BatchLoadService = ...
                 openmebius.application.batch.BatchLoadService();
+            app.ResultLoadService = ...
+                openmebius.application.result.ResultLoadService();
             app.RawMSImportService = ...
                 openmebius.application.experiment.RawMSImportService();
             app.ExperimentCalculationService = ...
