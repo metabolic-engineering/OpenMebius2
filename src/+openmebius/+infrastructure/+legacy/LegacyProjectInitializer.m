@@ -8,6 +8,7 @@ classdef LegacyProjectInitializer < handle
 
     properties (Access = private)
         ModelRepository
+        ExperimentRepository
         BatchRepository
         ResultRepository
     end
@@ -19,6 +20,8 @@ classdef LegacyProjectInitializer < handle
             arguments
                 options.ModelRepository = ...
                     openmebius.infrastructure.legacy.LegacyModelRepository()
+                options.ExperimentRepository = ...
+                    openmebius.infrastructure.legacy.LegacyExperimentRepository()
                 options.BatchRepository = ...
                     openmebius.infrastructure.legacy.LegacyBatchRepository()
                 options.ResultRepository = ...
@@ -26,6 +29,7 @@ classdef LegacyProjectInitializer < handle
             end
 
             obj.ModelRepository = options.ModelRepository;
+            obj.ExperimentRepository = options.ExperimentRepository;
             obj.BatchRepository = options.BatchRepository;
             obj.ResultRepository = options.ResultRepository;
 
@@ -44,7 +48,9 @@ classdef LegacyProjectInitializer < handle
             model = obj.ModelRepository.load(paths.modelLocation());
             messages(end + 1, 1) = "Model loaded successfully.";
 
-            experiments = IOExps(paths.experimentLocation(), model);
+            experiments = obj.ExperimentRepository.load( ...
+                paths.experimentLocation(), ...
+                model);
             messages(end + 1, 1) = "Experiment object created successfully.";
 
             batch = obj.BatchRepository.load( ...

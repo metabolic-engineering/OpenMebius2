@@ -49,6 +49,55 @@ classdef LegacyProjectInitializerTest < matlab.unittest.TestCase
 
         end
 
+        function initializeUsesInjectedExperimentRepository(testCase)
+
+            projectDirectory = string(tempname);
+            mkdir(projectDirectory);
+            cleanup = onCleanup(@() ...
+                LegacyProjectInitializerTest.removeDirectory(projectDirectory));
+
+            session = openmebius.domain.project.ProjectSession( ...
+                openmebius.domain.project.ProjectMetadata(), ...
+                openmebius.domain.project.ProjectPaths(projectDirectory));
+
+            modelRepository = helpers.RecordingModelRepository();
+            experimentRepository = helpers.RecordingExperimentRepository();
+            batchRepository = helpers.RecordingBatchRepository();
+            resultRepository = helpers.RecordingResultRepository();
+
+            initializer = ...
+                openmebius.infrastructure.legacy.LegacyProjectInitializer( ...
+                ModelRepository = modelRepository, ...
+                ExperimentRepository = experimentRepository, ...
+                BatchRepository = batchRepository, ...
+                ResultRepository = resultRepository);
+
+            artifacts = initializer.initialize(session);
+
+            testCase.verifyEqual(modelRepository.LoadCount, 1);
+            testCase.verifyEqual(experimentRepository.LoadCount, 1);
+            testCase.verifyEqual(batchRepository.LoadCount, 1);
+            testCase.verifyEqual(resultRepository.OpenCount, 1);
+
+            testCase.verifyEqual( ...
+                experimentRepository.LoadedLocation.Directory, ...
+                session.Paths.ExperimentDirectory);
+            testCase.verifyEqual( ...
+                experimentRepository.LoadedModel, ...
+                modelRepository.Model);
+            testCase.verifyEqual( ...
+                batchRepository.LoadedExperiments, ...
+                experimentRepository.Experiments);
+
+            testCase.verifyEqual(artifacts.Model, modelRepository.Model);
+            testCase.verifyEqual( ...
+                artifacts.Experiments, ...
+                experimentRepository.Experiments);
+            testCase.verifyEqual(artifacts.Batch, batchRepository.Batch);
+            testCase.verifyEqual(artifacts.Result, resultRepository.Result);
+
+        end
+
     end
 
     methods (Static, Access = private)
