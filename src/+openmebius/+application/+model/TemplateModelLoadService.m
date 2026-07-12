@@ -10,7 +10,7 @@ classdef TemplateModelLoadService < handle
 
             arguments
                 options.ModelRepository = ...
-                    openmebius.infrastructure.legacy.LegacyModelRepository()
+                    openmebius.infrastructure.model.ModelRepository()
             end
 
             obj.ModelRepository = options.ModelRepository;

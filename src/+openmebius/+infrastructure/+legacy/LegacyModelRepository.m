@@ -1,40 +1,5 @@
-classdef LegacyModelRepository < handle
+classdef LegacyModelRepository < openmebius.infrastructure.model.ModelRepository
     % LEGACYMODELREPOSITORY
-    % Loads the existing EMUModel object from a model location.
-
-    methods
-
-        function model = load(~, modelLocation)
-
-            arguments
-                ~
-                modelLocation openmebius.domain.model.ModelLocation
-            end
-
-            model = EMUModel(modelLocation);
-
-            if isempty(model) || ~isvalid(model)
-                error( ...
-                    "OpenMebius2:LegacyProject:InvalidModelObject", ...
-                    "Failed to create EMUModel.");
-            end
-
-            if model.isError
-                error( ...
-                    "OpenMebius2:LegacyProject:ModelLoadFailed", ...
-                    "%s", string(model.statusMsg));
-            end
-
-            ioStatus = model.getIOStatus();
-
-            if ~strcmp(ioStatus, "completed")
-                error( ...
-                    "OpenMebius2:LegacyProject:ModelIncomplete", ...
-                    "%s", string(model.statusMsg));
-            end
-
-        end % load
-
-    end % methods
+    % Backward-compatible alias for the explicit model repository.
 
 end % classdef

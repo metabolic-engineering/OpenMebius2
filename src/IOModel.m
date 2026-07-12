@@ -56,6 +56,7 @@ classdef IOModel < Status
         MSMetaboliteReactant table;
         MSMetaboliteProduct table;
         ModelLocation openmebius.domain.model.ModelLocation
+        ModelRepository
 
         errorColumnsModel (1, :) double = [];
         errorColumnsMS (1, :) double = [];
@@ -92,15 +93,38 @@ classdef IOModel < Status
     %% General methods
     methods
 
-        function obj = IOModel(modelInput)
+        function obj = IOModel(modelInput, options)
+
+            arguments
+                modelInput
+                options.ModelRepository = ...
+                    openmebius.infrastructure.model.ModelRepository()
+            end
 
             modelLocation = ...
                 openmebius.domain.model.ModelLocation.fromInput( ...
                 modelInput);
 
             obj.ModelLocation = modelLocation;
-            openmebius.infrastructure.legacy.LegacyFileAccess ...
-                .initializeDirectory(obj, modelLocation.Directory);
+
+            obj.ModelRepository = options.ModelRepository;
+
+            try
+                obj.ModelRepository.assertModelDirectory(modelLocation);
+            catch
+                obj.isError = true;
+                updateMsg(obj, ...
+                    "The directory " + modelLocation.Directory + ...
+                    " does not exist.", ...
+                    "Error", ...
+                    obj.logLevel);
+                return
+            end
+
+            updateMsg(obj, ...
+                "The directory " + modelLocation.Directory + " exists.", ...
+                "Info", ...
+                obj.logLevel);
 
             if obj.isError
                 return;
@@ -393,8 +417,23 @@ classdef IOModel < Status
 
         function loadLabel(obj)
 
-            obj.structLabel = openmebius.infrastructure.legacy.LegacyFileAccess ...
-                .importJSONFile(obj, obj.pathLabel);
+            try
+                obj.structLabel = obj.ModelRepository.readLabel( ...
+                    obj.ModelLocation, ...
+                    obj.fileLabel, ...
+                    obj.fileTypeLabel);
+            catch ME
+                obj.isError = true;
+                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
+                obj.structLabel = struct();
+                return
+            end
+
+            reset(obj);
+            updateMsg(obj, ...
+                obj.pathLabel + " is successfully imported.", ...
+                "Info", ...
+                obj.logLevel);
 
         end % loadLabel
 
@@ -406,32 +445,48 @@ classdef IOModel < Status
 
             convertLabelViewToStruct(obj);
 
-            openmebius.infrastructure.legacy.LegacyFileAccess ...
-                .exportJSONFile(obj, obj.pathLabel, obj.structLabel);
+            try
+                obj.ModelRepository.writeLabel( ...
+                    obj.ModelLocation, ...
+                    obj.fileLabel, ...
+                    obj.fileTypeLabel, ...
+                    obj.structLabel);
+            catch ME
+                obj.isError = true;
+                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
+                return
+            end
+
+            reset(obj);
+            updateMsg(obj, ...
+                "The data is successfully exported to " + obj.pathLabel + ".", ...
+                "Info", ...
+                obj.logLevel);
 
         end % exportLabel
 
-        function hash = getHashFromFile(~, pathFile, options)
+        function hash = getHashFromFile(obj, pathFile, options)
 
             arguments
-                ~
+                obj
                 pathFile (1, 1) string
                 options.Algorithm (1, 1) string = "SHA256"
             end
 
-            hash = openmebius.infrastructure.legacy.LegacyFileAccess ...
-                .getHashFromFile(pathFile, Algorithm = options.Algorithm);
+            hash = obj.ModelRepository.hashFile( ...
+                pathFile, ...
+                Algorithm = options.Algorithm);
 
         end % getHashFromFile
 
-        function saveHashFile(~, pathFile)
+        function saveHashFile(obj, pathFile)
 
             arguments
-                ~
+                obj
                 pathFile (1, 1) string
             end
 
-            openmebius.infrastructure.legacy.LegacyFileAccess.saveHashFile(pathFile);
+            obj.ModelRepository.saveHashFile(pathFile);
 
         end % saveHashFile
 
@@ -859,16 +914,29 @@ classdef IOModel < Status
 
             for i = 1:length(obj.tableList)
 
-                obj.(obj.tableList(i)) = ...
-                    openmebius.infrastructure.legacy.LegacyFileAccess.importExcelFile( ...
-                    obj, obj.pathModel, obj.tableSheetNames(i), ...
-                    "refVariableNames", obj.tableVariableNames.(obj.tableLabelNames(i)), ...
-                    "readRowName", obj.tableReadRowName(i), ...
-                    "refTypes", obj.tableTypes.(obj.tableLabelNames(i)));
-
-                if obj.isError
+                try
+                    obj.(obj.tableList(i)) = ...
+                        obj.ModelRepository.readModelSheet( ...
+                        obj.ModelLocation, ...
+                        obj.fileModel, ...
+                        obj.fileTypeModel, ...
+                        obj.tableSheetNames(i), ...
+                        ReadRowNames = obj.tableReadRowName(i), ...
+                        RefVariableNames = ...
+                        obj.tableVariableNames.(obj.tableLabelNames(i)), ...
+                        RefTypes = obj.tableTypes.(obj.tableLabelNames(i)));
+                catch ME
+                    obj.isError = true;
+                    updateMsg(obj, string(ME.message), "Error", obj.logLevel);
                     return;
                 end
+
+                reset(obj);
+                updateMsg(obj, ...
+                    obj.pathModel + "/" + obj.tableSheetNames(i) + ...
+                    " is successfully imported.", ...
+                    "Info", ...
+                    obj.logLevel);
 
             end % for
 
@@ -877,10 +945,13 @@ classdef IOModel < Status
         function loadPathway(obj)
 
             try
-                obj.imagePathway = imread(obj.pathPathway);
+                obj.imagePathway = obj.ModelRepository.readPathwayImage( ...
+                    obj.ModelLocation, ...
+                    obj.filePathway, ...
+                    obj.fileTypePathway);
                 obj.isPathwayLoaded = true;
-            catch
-                updateMsg(obj, "The pathway image could not be loaded.", "Error", obj.logLevel);
+            catch ME
+                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
                 obj.isPathwayLoaded = false;
             end
 

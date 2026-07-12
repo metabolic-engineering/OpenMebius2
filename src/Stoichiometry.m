@@ -22,9 +22,9 @@ classdef Stoichiometry < IOModel
 
     methods (Access = public)
 
-        function obj = Stoichiometry(modelInput)
+        function obj = Stoichiometry(modelInput, varargin)
 
-            obj = obj@IOModel(modelInput);
+            obj = obj@IOModel(modelInput, varargin{:});
 
             if obj.isError
                 return;
