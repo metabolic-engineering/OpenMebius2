@@ -200,6 +200,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
         CreateProjectUseCase openmebius.application.project.CreateProjectUseCase
         ProjectSession openmebius.domain.project.ProjectSession
+        TemplateModelLoadService openmebius.application.model.TemplateModelLoadService
         BatchLoadService openmebius.application.batch.BatchLoadService
         ExperimentImportService openmebius.application.experiment.ExperimentImportService
         RawMSImportService openmebius.application.experiment.RawMSImportService
@@ -2049,6 +2050,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureLegacyProjectInitializer
 
+        function ensureTemplateModelLoadService(app)
+
+            if isempty(app.TemplateModelLoadService)
+                app.TemplateModelLoadService = ...
+                    openmebius.application.model.TemplateModelLoadService();
+            end
+
+        end % method ensureTemplateModelLoadService
+
         function ensureExperimentImportService(app)
 
             if isempty(app.ExperimentImportService)
@@ -2342,6 +2352,18 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.attachLegacyListeners();
 
         end % method applyLegacyProjectArtifacts
+
+        function applyTemplateModelLoadResult(app, templateModelResult)
+
+            arguments
+                app
+                templateModelResult ...
+                    openmebius.application.model.TemplateModelLoadResult
+            end
+
+            app.model = templateModelResult.Model;
+
+        end % method applyTemplateModelLoadResult
 
         function applyExperimentImportResult(app, result)
 
@@ -4214,6 +4236,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.project.CreateProjectUseCase( ...
                 app.ProjectRepository);
 
+            app.TemplateModelLoadService = ...
+                openmebius.application.model.TemplateModelLoadService();
             app.ExperimentImportService = ...
                 openmebius.application.experiment.ExperimentImportService();
             app.BatchLoadService = ...
@@ -4543,72 +4567,49 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TemplateModelLoadButton
         function TemplateModelLoadButtonPushed(app, event)
 
-            cleanupPresentation = app.beginPresentationOperation();
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
 
-            % Update status
-            updateStatus(app, "model", "running");
+            try
+                app.updateStatus("model", "running");
 
-            projectDirectory = app.TemplateModelDirectoryDropDown.Value;
-            objProjectDirectory = IO(projectDirectory);
+                app.ensureTemplateModelLoadService();
 
-            if objProjectDirectory.isError
-                LogText(app, objProjectDirectory.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            end
+                modelLocation = openmebius.domain.model.ModelLocation ...
+                    .fromDirectory(string(app.TemplateModelDirectoryDropDown.Value));
 
-            % If the project directory is not empty, load the project
-            if objProjectDirectory.isEmpty
-                msg = objProjectDirectory.returnDateMsg("Project directory is empty", "Info");
-                app.LogText(msg);
+                templateModelResult = ...
+                    app.TemplateModelLoadService.load(modelLocation);
+
+                app.applyTemplateModelLoadResult(templateModelResult);
+
+                for i = 1:numel(templateModelResult.Messages)
+                    app.notifyInfo(templateModelResult.Messages(i));
+                end
+
+                app.notifyInfo("Constructing EMU network...");
+
+                pause(0.5)
+
+                loadEMUModel(app)
+
+                if app.model.isError
+                    app.LogText(app.model.statusMsg);
+                    app.updateStatus("model", "error");
+                    return
+                end
+
+                loadPathway(app)
+
+                app.notifyInfo("EMU network was successfully constructed.");
+                app.updateStatus("model", "finished");
+
+            catch ME
                 app.updateStatus("model", "error");
-                return
+                app.notifyException( ...
+                    ME, ...
+                    Title = "Template model load failed", ...
+                    Alert = true);
             end
-
-            LogText(app, objProjectDirectory.statusMsg);
-
-            clear objProjectDirectory;
-
-            app.model = EMUModel(projectDirectory);
-
-            if app.model.isError
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            else
-                msg = "Model folder found in " + projectDirectory;
-                LogTextDate(app, msg, "Info");
-            end
-
-            IOStatus = app.model.getIOStatus();
-
-            if strcmp(IOStatus, "completed")
-                msg = "Model loaded successfully.";
-                LogTextDate(app, msg, "Info");
-            else
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            end
-
-            msg = "Constructing EMU network...";
-            LogTextDate(app, msg, "Info");
-
-            pause(0.5)
-
-            loadEMUModel(app)
-
-            if app.model.isError
-                LogText(app, app.model.statusMsg);
-                updateStatus(app, "model", "error");
-                return
-            end
-
-            loadPathway(app)
-
-            msg = "EMU network was successfully constructed.";
-            LogTextDate(app, msg, "Info");
-            updateStatus(app, "model", "finished");
 
         end
 
