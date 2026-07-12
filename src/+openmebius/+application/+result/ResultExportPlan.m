@@ -43,6 +43,23 @@ classdef ResultExportPlan
 
         end
 
+        function item = exportItem(obj, index)
+
+            arguments
+                obj
+                index (1, 1) double {mustBeInteger, mustBePositive}
+            end
+
+            exportLocation = obj.exportLocation(index);
+
+            item = struct( ...
+                "BatchID", obj.BatchIDs(index), ...
+                "BatchName", obj.BatchNames(index), ...
+                "ExportLocation", exportLocation, ...
+                "ExportDirectory", exportLocation.Directory);
+
+        end
+
     end
 
     methods (Static)
@@ -54,6 +71,8 @@ classdef ResultExportPlan
                 batchNames (:, 1) string
                 outputLocation openmebius.domain.result.ResultLocation
                 options.AddDatetime (1, 1) logical = true
+                options.Timestamp (1, 1) string = ...
+                    string(datetime('now', 'Format', 'yyyyMMdd-HHmmss'))
             end
 
             exportDirectories = strings(numel(batchIDs), 1);
@@ -64,7 +83,8 @@ classdef ResultExportPlan
                     .directoryName( ...
                     batchNames(i), ...
                     batchIDs(i), ...
-                    options.AddDatetime);
+                    options.AddDatetime, ...
+                    options.Timestamp);
                 exportDirectories(i) = ...
                     outputLocation.childLocation(directoryName).Directory;
             end
@@ -81,13 +101,16 @@ classdef ResultExportPlan
 
     methods (Static, Access = private)
 
-        function name = directoryName(batchName, batchID, addDatetime)
+        function name = directoryName( ...
+                batchName, ...
+                batchID, ...
+                addDatetime, ...
+                timestamp)
 
             name = string(batchName) + "_" + string(batchID);
 
             if addDatetime
-                name = name + "_" + ...
-                    string(datetime('now', 'Format', 'yyyyMMdd-HHmmss'));
+                name = name + "_" + string(timestamp);
             end
 
         end
