@@ -199,6 +199,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProjectRepository openmebius.infrastructure.project.FileProjectRepository
         OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
         ProjectSession openmebius.domain.project.ProjectSession
+        BatchLoadService openmebius.application.batch.BatchLoadService
         ExperimentImportService openmebius.application.experiment.ExperimentImportService
         RawMSImportService openmebius.application.experiment.RawMSImportService
         ExperimentCalculationService openmebius.application.experiment.ExperimentCalculationService
@@ -1998,6 +1999,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureExperimentImportService
 
+        function ensureBatchLoadService(app)
+
+            if isempty(app.BatchLoadService)
+                app.BatchLoadService = ...
+                    openmebius.application.batch.BatchLoadService();
+            end
+
+        end % method ensureBatchLoadService
+
         function attachLegacyListeners(app)
 
             app.LegacyListeners = event.listener.empty(0, 1);
@@ -2289,6 +2299,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.attachLegacyListeners();
 
         end % method applyExperimentImportResult
+
+        function applyBatchLoadResult(app, result)
+
+            arguments
+                app
+                result openmebius.application.batch.BatchLoadResult
+            end
+
+            app.detachLegacyListeners();
+
+            app.batch = result.Batch;
+
+            app.attachLegacyListeners();
+
+        end % method applyBatchLoadResult
 
         function result = reloadExperimentState(app, options)
 
@@ -3120,9 +3145,17 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 updateStatus(app, "batch", "running");
 
-                app.batch = Batch(app.exp);
+                app.ensureBatchLoadService();
 
-                app.attachLegacyListeners();
+                experimentLocation = ...
+                    openmebius.domain.experiment.ExperimentLocation ...
+                    .fromDirectory(app.directoryExp);
+
+                result = app.BatchLoadService.loadForExperiment( ...
+                    experimentLocation, ...
+                    app.exp);
+
+                app.applyBatchLoadResult(result);
 
             end
 
@@ -4121,6 +4154,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.ExperimentImportService = ...
                 openmebius.application.experiment.ExperimentImportService();
+            app.BatchLoadService = ...
+                openmebius.application.batch.BatchLoadService();
             app.RawMSImportService = ...
                 openmebius.application.experiment.RawMSImportService();
             app.ExperimentCalculationService = ...
