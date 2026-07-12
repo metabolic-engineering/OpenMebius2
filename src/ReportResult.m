@@ -80,6 +80,12 @@ classdef ReportResult < handle
 
         end % view
 
+        function outputPath = getOutputPath(obj)
+
+            outputPath = string(obj.filename);
+
+        end % getOutputPath
+
         function setupReport(obj)
 
             import mlreportgen.report.Report;

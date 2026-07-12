@@ -63,6 +63,10 @@ classdef ReportGenerationService < handle
                 experiments, ...
                 result);
 
+            outputPath = ...
+                openmebius.application.report.ReportGenerationService ...
+                .resolveOutputPath(report, resultLocation);
+
             if options.OpenReport
                 obj.ReportViewer(report);
             end
@@ -71,6 +75,7 @@ classdef ReportGenerationService < handle
                 openmebius.application.report.ReportGenerationResult( ...
                 Report = report, ...
                 ResultLocation = resultLocation, ...
+                OutputPath = outputPath, ...
                 Messages = "Report generated successfully.");
 
         end
@@ -134,6 +139,26 @@ classdef ReportGenerationService < handle
 
             if isobject(value) && isprop(value, "isError")
                 tf = logical(value.isError);
+            end
+
+        end
+
+        function outputPath = resolveOutputPath(report, resultLocation)
+
+            outputPath = resultLocation.reportFile("summary");
+
+            if isstruct(report) && isfield(report, "OutputPath")
+                outputPath = string(report.OutputPath);
+                return
+            end
+
+            if isobject(report) && ismethod(report, "getOutputPath")
+                outputPath = string(report.getOutputPath());
+                return
+            end
+
+            if isobject(report) && isprop(report, "OutputPath")
+                outputPath = string(report.OutputPath);
             end
 
         end
