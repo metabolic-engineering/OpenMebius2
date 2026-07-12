@@ -134,7 +134,7 @@ classdef ResultExportServiceTest < matlab.unittest.TestCase
 
         end
 
-        function legacyExporterDelegatesToResultSave(testCase)
+        function legacyExporterCreatesBatchDirectoryAndDelegatesToResultData(testCase)
 
             outputDirectory = string(tempname);
             mkdir(outputDirectory);
@@ -154,13 +154,44 @@ classdef ResultExportServiceTest < matlab.unittest.TestCase
                 outputLocation, ...
                 AddDatetime = false);
 
-            testCase.verifyTrue(result.WasCalled);
-            testCase.verifyEqual(result.BatchIDs, "batch-1");
-            testCase.verifyEqual(result.BatchNames, "Batch 1");
+            expectedDirectory = fullfile(outputDirectory, "Batch 1_batch-1");
+
+            testCase.verifyTrue(isfolder(expectedDirectory));
+            testCase.verifyFalse(result.SaveResultWasCalled);
+            testCase.verifyTrue(result.SaveResultDataWasCalled);
+            testCase.verifyEqual(result.ResultDataBatchIDs, "batch-1");
+            testCase.verifyEqual(result.ResultDataNames, "Batch 1");
             testCase.verifyEqual( ...
-                result.OutputLocation.Directory, ...
-                outputDirectory);
-            testCase.verifyFalse(result.AddDatetime);
+                result.ResultDataLocations{1}.Directory, ...
+                expectedDirectory);
+            testCase.verifyEqual(result.ResultDataFormats, "xlsx");
+
+        end
+
+        function legacyExporterRejectsExistingBatchDirectory(testCase)
+
+            outputDirectory = string(tempname);
+            mkdir(outputDirectory);
+            cleanup = onCleanup(@() ...
+                ResultExportServiceTest.removeDirectory(outputDirectory));
+
+            existingDirectory = fullfile(outputDirectory, "Batch 1_batch-1");
+            mkdir(existingDirectory);
+
+            outputLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(outputDirectory);
+            result = helpers.RecordingResult();
+            exporter = ...
+                openmebius.infrastructure.legacy.LegacyResultExportRepository();
+
+            testCase.verifyError( ...
+                @() exporter.saveResult( ...
+                result, ...
+                "batch-1", ...
+                "Batch 1", ...
+                outputLocation, ...
+                AddDatetime = false), ...
+                "OpenMebius2:ResultExport:OutputDirectoryExists");
 
         end
 
