@@ -42,19 +42,17 @@ classdef ResultLoadService < handle
 
         function validateResultDirectory(resultLocation)
 
-            resultDirectory = resultLocation.Directory;
-
-            if resultDirectory == ""
+            if ~resultLocation.hasDirectory()
                 error( ...
                     "OpenMebius2:ResultLoad:EmptyDirectory", ...
                     "Result directory is empty.");
             end
 
-            if ~isfolder(resultDirectory)
+            if ~resultLocation.directoryExists()
                 error( ...
                     "OpenMebius2:ResultLoad:DirectoryNotFound", ...
                     "Result directory does not exist: %s", ...
-                    resultDirectory);
+                    resultLocation.Directory);
             end
 
         end

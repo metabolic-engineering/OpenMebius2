@@ -36,6 +36,41 @@ classdef ResultLocationTest < matlab.unittest.TestCase
 
         end
 
+        function hasDirectoryRejectsEmptyDirectory(testCase)
+
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory("");
+
+            testCase.verifyFalse(resultLocation.hasDirectory());
+            testCase.verifyFalse(resultLocation.directoryExists());
+
+        end
+
+        function directoryExistsDetectsExistingDirectory(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            cleanup = onCleanup(@() ...
+                ResultLocationTest.removeDirectory(resultDirectory));
+
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(resultDirectory);
+
+            testCase.verifyTrue(resultLocation.hasDirectory());
+            testCase.verifyTrue(resultLocation.directoryExists());
+
+        end
+
+        function directoryExistsRejectsMissingDirectory(testCase)
+
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(fullfile(tempdir, "missing-openmebius-results"));
+
+            testCase.verifyTrue(resultLocation.hasDirectory());
+            testCase.verifyFalse(resultLocation.directoryExists());
+
+        end
+
     end
 
     methods (Static, Access = private)
@@ -51,6 +86,14 @@ classdef ResultLocationTest < matlab.unittest.TestCase
         function path = repositoryRoot()
 
             path = fileparts(fileparts(mfilename("fullpath")));
+
+        end
+
+        function removeDirectory(directory)
+
+            if isfolder(directory)
+                rmdir(directory, "s");
+            end
 
         end
 

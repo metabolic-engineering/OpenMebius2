@@ -36,6 +36,18 @@ classdef ResultLocation
 
         end % summaryReportFile
 
+        function tf = hasDirectory(obj)
+
+            tf = obj.Directory ~= "";
+
+        end % hasDirectory
+
+        function tf = directoryExists(obj)
+
+            tf = obj.hasDirectory() && isfolder(obj.Directory);
+
+        end % directoryExists
+
         function path = artifactFile(obj, fileName)
 
             path = fullfile(obj.Directory, string(fileName));
