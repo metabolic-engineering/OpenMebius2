@@ -53,49 +53,12 @@ classdef AppLogs_exported < matlab.apps.AppBase
 
         function loadLogs(app)
 
-            system = System();
-            filepath = system.getCacheDirectory();
-            filename = fullfile(filepath, "openmebius2.log");
+            filename = openmebius.infrastructure.logging.Logger ...
+                .defaultLogFile();
+            logLines = openmebius.infrastructure.logging.Logger ...
+                .readTail(filename, MaxLines = 5000);
 
-            maxLines = 5000;
-            nLines = 0;
-            fid = fopen(filename, 'r');
-
-            if fid == -1
-                app.TextArea.Value = {"Log file not found."};
-                return;
-            end
-
-            while ~feof(fid)
-                fgetl(fid);
-                nLines = nLines + 1;
-            end
-
-            startLine = max(1, nLines - maxLines + 1);
-
-            fid = fopen(filename, 'r');
-
-            if fid == -1
-                app.TextArea.Value = {"Log file not found."};
-                return;
-            end
-
-            currentLine = 0;
-            logLines = {};
-
-            while ~feof(fid)
-                line = fgetl(fid);
-                currentLine = currentLine + 1;
-
-                if currentLine >= startLine
-                    logLines{end + 1} = line; %#ok<AGROW>
-                end
-
-            end
-
-            fclose(fid);
-
-            app.TextArea.Value = logLines;
+            app.TextArea.Value = cellstr(logLines);
 
         end % function loadLogs
 
@@ -120,14 +83,11 @@ classdef AppLogs_exported < matlab.apps.AppBase
                 return;
             end
 
-            system = System();
-            filepath = system.getCacheDirectory();
-            sourceFile = fullfile(filepath, "openmebius2.log");
-            destFile = fullfile(folder, "openmebius2.log");
-
             try
-                copyfile(sourceFile, destFile);
-                msg = "Log file saved to: " + destFile;
+                openmebius.infrastructure.logging.Logger ...
+                    .copyDefaultLogTo(folder);
+                msg = "Log file saved to: " + ...
+                    fullfile(folder, "openmebius2.log");
                 disp(msg);
             catch ME
                 msg = "Failed to save log file: " + ME.message;

@@ -49,7 +49,8 @@ classdef Status < handle
 
         function DateText = get.DateText(~)
 
-            DateText = string(datetime(), 'yyyy-MM-dd HH:mm:ss');
+            DateText = openmebius.infrastructure.logging.Logger ...
+                .timestampText();
 
         end
 
@@ -68,63 +69,33 @@ classdef Status < handle
             % dispNormalMsg(obj, "This is a normal message");
             % >>                    This is a normal message
 
-            if strcmp(logLevel, "Fatal")
-                list = "Fatal";
-            elseif strcmp(logLevel, "Error")
-                list = ["Fatal", "Error"];
-            elseif strcmp(logLevel, "Warning")
-                list = ["Fatal", "Error", "Warning"];
-            elseif strcmp(logLevel, "Notice")
-                list = ["Fatal", "Error", "Warning", "Notice"];
-            elseif strcmp(logLevel, "Info")
-                list = ["Fatal", "Error", "Warning", "Notice", "Info"];
-            elseif strcmp(logLevel, "Debug")
-                list = ["Fatal", "Error", "Warning", "Notice", "Info", "Debug"];
-            end
-
-            if ~ismember(level, list)
+            if ~openmebius.infrastructure.logging.Logger ...
+                    .shouldLog(level, logLevel)
                 return;
-            else
-
-                % 20 spaces
-                space = "                          ";
-                disp(space + text);
-
             end
+
+            openmebius.infrastructure.logging.Logger.writeIndented(text);
 
         end %dispNormalMsg
 
         function updateMsg(obj, text, level, logLevel)
 
-            if strcmp(logLevel, "Fatal")
-                list = "Fatal";
-            elseif strcmp(logLevel, "Error")
-                list = ["Fatal", "Error"];
-            elseif strcmp(logLevel, "Warning")
-                list = ["Fatal", "Error", "Warning"];
-            elseif strcmp(logLevel, "Notice")
-                list = ["Fatal", "Error", "Warning", "Notice"];
-            elseif strcmp(logLevel, "Info")
-                list = ["Fatal", "Error", "Warning", "Notice", "Info"];
-            elseif strcmp(logLevel, "Debug")
-                list = ["Fatal", "Error", "Warning", "Notice", "Info", "Debug"];
-            end
-
-            if ~ismember(level, list)
+            if ~openmebius.infrastructure.logging.Logger ...
+                    .shouldLog(level, logLevel)
                 return;
-            else
-                obj.level = level;
-                obj.msg = obj.returnMsg(text, obj.level);
-                dispMsg(obj);
-
             end
+
+            obj.level = openmebius.infrastructure.logging.Logger ...
+                .normalizeLevel(level);
+            obj.msg = obj.returnMsg(text, obj.level);
+            dispMsg(obj);
 
         end %updateMsg
 
-        function msg = returnDateMsg(obj, text, level)
+        function msg = returnDateMsg(~, text, level)
 
-            msg = returnMsg(obj, text, level);
-            msg = obj.DateText + " " + msg;
+            msg = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage(text, level);
 
         end %returnDateMsg
 
@@ -141,14 +112,15 @@ classdef Status < handle
 
         function msg = returnMsg(~, text, level)
 
-            % Return the text message
-            msg = level + ": " + text;
+            msg = openmebius.infrastructure.logging.Logger ...
+                .formatMessage(text, level);
 
         end
 
         function dispMsg(obj)
 
-            disp(obj.statusMsg);
+            openmebius.infrastructure.logging.Logger.writeText( ...
+                obj.statusMsg);
 
         end
 
