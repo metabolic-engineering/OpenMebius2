@@ -72,6 +72,9 @@ classdef ResultExportPlanTest < matlab.unittest.TestCase
 
             item = plan.exportItem(1);
 
+            testCase.verifyClass( ...
+                item, ...
+                "openmebius.application.result.ResultExportItem");
             testCase.verifyEqual(item.BatchID, "batch-1");
             testCase.verifyEqual(item.BatchName, "Batch 1");
             testCase.verifyClass( ...
