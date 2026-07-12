@@ -13,6 +13,9 @@ classdef LoggerTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 openmebius.infrastructure.logging.Logger.normalizeLevel("information"), ...
                 "Info");
+            testCase.verifyEqual( ...
+                openmebius.infrastructure.logging.Logger.normalizeLevel("completed"), ...
+                "Success");
 
         end
 
@@ -29,7 +32,7 @@ classdef LoggerTest < matlab.unittest.TestCase
 
         end
 
-        function formatDatedMessageMatchesLegacyShape(testCase)
+        function formatDatedMessageUsesUnifiedColumns(testCase)
 
             timestamp = datetime(2026, 7, 12, 23, 10, 11);
 
@@ -41,7 +44,124 @@ classdef LoggerTest < matlab.unittest.TestCase
 
             testCase.verifyEqual( ...
                 actual, ...
-                "2026-07-12 23:10:11 Info: hello");
+                "[2026-07-12 23:10:11]" + char(9) + ...
+                "[INFO]" + char(9) + "hello");
+
+        end
+
+        function formatMessageOmitsTimestamp(testCase)
+
+            actual = openmebius.infrastructure.logging.Logger ...
+                .formatMessage("hello", "Warning");
+
+            testCase.verifyEqual( ...
+                actual, ...
+                "[WARNING]" + char(9) + "hello");
+
+        end
+
+        function formatDatedLinesExpandsMultilineMessages(testCase)
+
+            timestamp = datetime(2026, 7, 12, 23, 10, 11);
+
+            actual = openmebius.infrastructure.logging.Logger ...
+                .formatDatedLines( ...
+                "hello" + newline + "world", ...
+                "Error", ...
+                Timestamp = timestamp);
+
+            expectedPrefix = "[2026-07-12 23:10:11]" + char(9) + ...
+                "[ERROR]" + char(9);
+
+            testCase.verifyEqual( ...
+                actual, ...
+                [expectedPrefix + "hello"; expectedPrefix + "world"]);
+
+        end
+
+        function preformattedLogTextIsNotWrappedAgain(testCase)
+
+            formatted = "[2026-07-12 23:10:11]" + char(9) + ...
+                "[ERROR]" + char(9) + "hello";
+
+            actual = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage(formatted, "Info");
+
+            testCase.verifyEqual(actual, formatted);
+
+        end
+
+        function notificationAcceptsLoggerLevelAliases(testCase)
+
+            import openmebius.presentation.notification.Notification
+
+            notification = Notification("hello", "completed");
+
+            testCase.verifyEqual(notification.Level, "success");
+
+        end
+
+        function notificationUsesLoggerFormat(testCase)
+
+            import openmebius.presentation.notification.Notification
+
+            timestamp = datetime(2026, 7, 12, 23, 10, 11);
+            notification = Notification( ...
+                "hello", ...
+                "warning", ...
+                Timestamp = timestamp);
+
+            testCase.verifyEqual( ...
+                notification.toLogText(), ...
+                "[2026-07-12 23:10:11]" + char(9) + ...
+                "[WARNING]" + char(9) + "hello");
+
+        end
+
+        function notificationFormatsEachMultilineLogRow(testCase)
+
+            import openmebius.presentation.notification.Notification
+
+            timestamp = datetime(2026, 7, 12, 23, 10, 11);
+            notification = Notification( ...
+                "hello" + newline + "world", ...
+                "fatal", ...
+                Timestamp = timestamp);
+
+            expectedPrefix = "[2026-07-12 23:10:11]" + char(9) + ...
+                "[FATAL]" + char(9);
+
+            testCase.verifyEqual( ...
+                notification.toLogText(), ...
+                expectedPrefix + "hello" + newline + ...
+                expectedPrefix + "world");
+
+        end
+
+        function statusUsesLoggerFormat(testCase)
+
+            status = Status();
+            status.updateMsg("hello", "Info", "Info");
+
+            testCase.verifyMatches( ...
+                status.statusMsg, ...
+                "^\[[0-9]{4}-[0-9]{2}-[0-9]{2} " + ...
+                "[0-9]{2}:[0-9]{2}:[0-9]{2}\]\t\[INFO\]\thello$");
+
+        end
+
+        function statusFormatsEachMultilineLogRow(testCase)
+
+            status = Status();
+            status.updateMsg("hello" + newline + "world", "Warning", "Info");
+
+            testCase.verifyMatches( ...
+                status.statusMsg, ...
+                "^\[[0-9]{4}-[0-9]{2}-[0-9]{2} " + ...
+                "[0-9]{2}:[0-9]{2}:[0-9]{2}\]\t\[WARNING\]\thello" + ...
+                newline + ...
+                "\[[0-9]{4}-[0-9]{2}-[0-9]{2} " + ...
+                "[0-9]{2}:[0-9]{2}:[0-9]{2}\]\t\[WARNING\]\tworld$");
 
         end
 

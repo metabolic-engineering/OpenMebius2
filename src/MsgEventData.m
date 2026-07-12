@@ -2,7 +2,7 @@ classdef MsgEventData < event.EventData
 
     properties
         Message string
-        Level (1, 1) string {mustBeMember(Level, ["Info", "Warning", "Error", "Debug"])} = "Info"
+        Level (1, 1) string {mustBeMember(Level, ["Debug", "Info", "Success", "Notice", "Warning", "Error", "Fatal"])} = "Info"
         Timestamp datetime % 生の時刻（ローカルタイムゾーン）
         Caller string % ログ発生元
         DateStr string % 例: "2025-09-24"
@@ -22,14 +22,26 @@ classdef MsgEventData < event.EventData
             end
 
             obj.Message = string(message);
-            obj.Level = string(level);
+            obj.Level = openmebius.infrastructure.logging.Logger ...
+                .normalizeLevel(level);
             % ローカルタイムゾーンの現在時刻を採用（表示を統一）
             t = datetime('now', 'TimeZone', 'local');
             obj.Timestamp = t;
             obj.Caller = string(caller);
             % ▼ ここでフォーマット統一
-            obj.DateStr = string(datestr(t, 'yyyy-mm-dd'));
-            obj.DateTimeStr = string(datestr(t, 'yyyy-mm-dd HH:MM:SS'));
+            obj.DateStr = string(t, "yyyy-MM-dd");
+            obj.DateTimeStr = openmebius.infrastructure.logging.Logger ...
+                .timestampText(t);
+        end
+
+        function text = toLogText(obj)
+
+            text = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage( ...
+                obj.Caller + ": " + obj.Message, ...
+                obj.Level, ...
+                Timestamp = obj.Timestamp);
+
         end
 
     end

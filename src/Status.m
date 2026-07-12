@@ -3,7 +3,7 @@ classdef Status < handle
     properties
 
         isError (1, 1) logical = false;
-        logLevel (1, 1) string {mustBeMember(logLevel, ["Debug", "Info", "Notice", "Warning", "Error", "Fatal"])} = "Info";
+        logLevel (1, 1) string {mustBeMember(logLevel, ["Debug", "Info", "Success", "Notice", "Warning", "Error", "Fatal"])} = "Info";
 
     end
 
@@ -22,7 +22,7 @@ classdef Status < handle
 
     properties (Access = private)
 
-        level (1, 1) string {mustBeMember(level, ["Debug", "Info", "Notice", "Warning", "Error", "Fatal"])} = "Info";
+        level (1, 1) string {mustBeMember(level, ["Debug", "Info", "Success", "Notice", "Warning", "Error", "Fatal"])} = "Info";
 
     end
 
@@ -37,7 +37,10 @@ classdef Status < handle
         function statusMsg = get.statusMsg(obj)
 
             % Get the log message
-            statusMsg = obj.DateText + " " + obj.msg;
+            statusMsg = join( ...
+                openmebius.infrastructure.logging.Logger ...
+                .formatDatedLines(obj.msg, obj.level), ...
+                newline);
 
         end
 
@@ -74,7 +77,11 @@ classdef Status < handle
                 return;
             end
 
-            openmebius.infrastructure.logging.Logger.writeIndented(text);
+            openmebius.infrastructure.logging.Logger.writeText( ...
+                join( ...
+                openmebius.infrastructure.logging.Logger ...
+                .formatDatedLines(text, level), ...
+                newline));
 
         end %dispNormalMsg
 
@@ -94,8 +101,10 @@ classdef Status < handle
 
         function msg = returnDateMsg(~, text, level)
 
-            msg = openmebius.infrastructure.logging.Logger ...
-                .formatDatedMessage(text, level);
+            msg = join( ...
+                openmebius.infrastructure.logging.Logger ...
+                .formatDatedLines(text, level), ...
+                newline);
 
         end %returnDateMsg
 
@@ -110,10 +119,10 @@ classdef Status < handle
 
     methods (Access = private)
 
-        function msg = returnMsg(~, text, level)
+        function msg = returnMsg(~, text, ~)
 
             msg = openmebius.infrastructure.logging.Logger ...
-                .formatMessage(text, level);
+                .messageText(text);
 
         end
 

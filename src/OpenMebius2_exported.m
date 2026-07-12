@@ -1906,7 +1906,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             end
 
-            app.appendLogText(notification.toLogText());
+            app.appendLogText( ...
+                notification.Message, ...
+                notification.Level, ...
+                notification.Timestamp);
 
             if notification.ShowAlert
 
@@ -1921,11 +1924,22 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method showNotification
 
-        function appendLogText(app, text)
+        function appendLogText(app, text, level, timestamp)
             % APPENDLOGTEXT
-            % Raw append operation for LogTextArea.
+            % Normalize and append log text to LogTextArea.
 
-            text = string(text);
+            arguments
+                app
+                text
+                level string = "Info"
+                timestamp (1, 1) datetime = datetime("now")
+            end
+
+            text = openmebius.infrastructure.logging.Logger ...
+                .formatDatedLines( ...
+                text, ...
+                level, ...
+                Timestamp = timestamp);
 
             before = app.LogTextArea.Value;
             app.LogTextArea.Value = [before; text(:)];
@@ -4196,8 +4210,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 % 最低限LogTextAreaへ落とす。
                 try
                     app.appendLogText( ...
-                        "[ERROR] Failed to handle GeneralMsg event: " + ...
-                        string(ME.message));
+                        openmebius.infrastructure.logging.Logger ...
+                        .formatDatedMessage( ...
+                        "Failed to handle GeneralMsg event: " + ...
+                        string(ME.message), ...
+                        "Error"));
                 catch
                     disp(ME.message)
                 end

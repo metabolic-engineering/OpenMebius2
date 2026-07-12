@@ -6,7 +6,8 @@ classdef Logger
 
         function levels = levels()
 
-            levels = ["Debug", "Info", "Notice", "Warning", "Error", "Fatal"];
+            levels = ["Debug", "Info", "Success", "Notice", ...
+                "Warning", "Error", "Fatal"];
 
         end % levels
 
@@ -28,6 +29,9 @@ classdef Logger
                 case {"info", "information"}
                     level = "Info";
 
+                case {"ok", "success", "finished", "complete", "completed"}
+                    level = "Success";
+
                 case "notice"
                     level = "Notice";
 
@@ -43,7 +47,7 @@ classdef Logger
                 otherwise
                     error( ...
                         "OpenMebius2:Logger:InvalidLevel", ...
-                        "Log level must be Debug, Info, Notice, Warning, Error, or Fatal.");
+                        "Log level must be Debug, Info, Success, Notice, Warning, Error, or Fatal.");
             end
 
         end % normalizeLevel
@@ -68,9 +72,14 @@ classdef Logger
             import openmebius.infrastructure.logging.Logger
 
             level = Logger.normalizeLevel(level);
-            message = Logger.firstString(message);
+            message = Logger.messageText(message);
 
-            text = level + ": " + message;
+            if Logger.isFormattedLogText(message)
+                text = message;
+                return
+            end
+
+            text = Logger.levelToken(level) + char(9) + message;
 
         end % formatMessage
 
@@ -84,10 +93,115 @@ classdef Logger
 
             import openmebius.infrastructure.logging.Logger
 
-            text = Logger.timestampText(options.Timestamp) + " " + ...
+            message = Logger.messageText(message);
+
+            if Logger.isFormattedLogText(message)
+                text = message;
+                return
+            end
+
+            text = "[" + Logger.timestampText(options.Timestamp) + "]" + ...
+                char(9) + ...
                 Logger.formatMessage(message, level);
 
         end % formatDatedMessage
+
+        function lines = formatDatedLines(messages, level, options)
+
+            arguments
+                messages
+                level
+                options.Timestamp (1, 1) datetime = datetime("now")
+            end
+
+            import openmebius.infrastructure.logging.Logger
+
+            messages = string(messages);
+
+            if isempty(messages)
+                messages = "";
+            end
+
+            partsByMessage = cell(numel(messages), 1);
+            numberOfLines = 0;
+
+            for i = 1:numel(messages)
+
+                message = messages(i);
+
+                if ismissing(message)
+                    message = "";
+                end
+
+                parts = splitlines(message);
+
+                if isempty(parts)
+                    parts = "";
+                end
+
+                if numel(parts) > 1 && parts(end) == ""
+                    parts(end) = [];
+                end
+
+                partsByMessage{i} = parts(:);
+                numberOfLines = numberOfLines + numel(parts);
+
+            end
+
+            lines = strings(numberOfLines, 1);
+            lineIndex = 1;
+
+            for i = 1:numel(partsByMessage)
+
+                parts = partsByMessage{i};
+
+                for j = 1:numel(parts)
+                    lines(lineIndex) = Logger.formatDatedMessage( ...
+                        parts(j), ...
+                        level, ...
+                        Timestamp = options.Timestamp);
+                    lineIndex = lineIndex + 1;
+                end
+
+            end
+
+        end % formatDatedLines
+
+        function token = levelToken(level)
+
+            import openmebius.infrastructure.logging.Logger
+
+            token = "[" + upper(Logger.normalizeLevel(level)) + "]";
+
+        end % levelToken
+
+        function message = messageText(message)
+
+            message = string(message);
+
+            if isempty(message)
+                message = "";
+            else
+                message = message(1);
+            end
+
+            if ismissing(message)
+                message = "";
+            end
+
+        end % messageText
+
+        function tf = isFormattedLogText(message)
+
+            message = openmebius.infrastructure.logging.Logger ...
+                .messageText(message);
+
+            tf = ~isempty(regexp( ...
+                char(message), ...
+                '^\[[^\]]+\]\t\[[A-Z]+\]\t', ...
+                'once'));
+
+        end % isFormattedLogText
 
         function text = timestampText(timestamp)
 
@@ -229,26 +343,6 @@ classdef Logger
             end
 
         end % copyDefaultLogTo
-
-    end % methods
-
-    methods (Static, Access = private)
-
-        function value = firstString(value)
-
-            value = string(value);
-
-            if isempty(value)
-                value = "";
-            else
-                value = value(1);
-            end
-
-            if ismissing(value)
-                value = "";
-            end
-
-        end % firstString
 
     end % methods
 

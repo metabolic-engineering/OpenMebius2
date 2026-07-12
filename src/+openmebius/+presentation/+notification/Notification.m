@@ -42,10 +42,19 @@ classdef Notification
 
         function text = toLogText(obj)
 
-            stamp = string(datestr(obj.Timestamp, "yyyy-mm-dd HH:MM:SS"));
-            text = "[" + stamp + "] [" + upper(obj.Level) + "] " + obj.Message;
+            text = join(obj.toLogLines(), newline);
 
         end % method toLogText
+
+        function lines = toLogLines(obj)
+
+            lines = openmebius.infrastructure.logging.Logger ...
+                .formatDatedLines( ...
+                obj.Message, ...
+                obj.Level, ...
+                Timestamp = obj.Timestamp);
+
+        end % method toLogLines
 
         function icon = alertIcon(obj)
 
@@ -185,24 +194,14 @@ classdef Notification
 
         function level = normalizeLevel(level)
 
-            level = lower(strtrim(string(level)));
-
-            if any(level == ["info", "information"])
-                level = "info";
-
-            elseif any(level == ["warn", "warning"])
-                level = "warning";
-
-            elseif any(level == ["err", "error", "exception"])
-                level = "error";
-
-            elseif any(level == ["ok", "success", "finished", "complete", "completed"])
-                level = "success";
-
-            else
+            try
+                level = lower( ...
+                    openmebius.infrastructure.logging.Logger ...
+                    .normalizeLevel(level));
+            catch
                 error( ...
                     "OpenMebius2:Notification:InvalidLevel", ...
-                "Notification level must be info, warning, error, or success.");
+                    "Notification level must be a supported Logger level.");
             end
 
         end % method normalizeLevel
@@ -222,6 +221,15 @@ classdef Notification
 
                 case "success"
                     title = "Success";
+
+                case "debug"
+                    title = "Debug";
+
+                case "notice"
+                    title = "Notice";
+
+                case "fatal"
+                    title = "Fatal Error";
 
                 otherwise
                     title = "Notification";
