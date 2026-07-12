@@ -1,4 +1,4 @@
-classdef FluxAnalysis < handle & IO
+classdef FluxAnalysis < Status
 
     events
 
@@ -109,11 +109,12 @@ classdef FluxAnalysis < handle & IO
                 openmebius.domain.result.ResultLocation.fromInput( ...
                 resultInput);
 
-            obj@IO(resultLocation.Directory);
-
             obj.ResultLocation = resultLocation;
             obj.HDF5FileName = ID;
             obj.HDF5FilePath = resultLocation.resultFile(ID);
+
+            openmebius.infrastructure.legacy.LegacyFileAccess ...
+                .initializeDirectory(obj, resultLocation.Directory);
 
             if obj.isError
                 obj.isExport = false;
@@ -4852,6 +4853,25 @@ classdef FluxAnalysis < handle & IO
             end % if
 
         end % method setINSTMFA
+
+        function [isSuccess, msg] = writeHDF5File(~, pathFile, pathData, data, options)
+
+            arguments
+                ~
+                pathFile (1, 1) string
+                pathData (1, 1) string
+                data
+                options.DataType (1, 1) string = "double"
+            end
+
+            [isSuccess, msg] = openmebius.infrastructure.legacy.LegacyFileAccess ...
+                .writeHDF5File( ...
+                pathFile, ...
+                pathData, ...
+                data, ...
+                DataType = options.DataType);
+
+        end % writeHDF5File
 
     end % methods (Access = private)
 

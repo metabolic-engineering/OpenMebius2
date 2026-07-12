@@ -1,4 +1,4 @@
-classdef IOResult < IO
+classdef IOResult < Status
 
     events
 
@@ -30,8 +30,9 @@ classdef IOResult < IO
                 openmebius.domain.result.ResultLocation.fromInput( ...
                 resultInput);
 
-            obj@IO(resultLocation.Directory);
             obj.ResultLocation = resultLocation;
+            openmebius.infrastructure.legacy.LegacyFileAccess ...
+                .initializeDirectory(obj, resultLocation.Directory);
 
         end % constructor
 
@@ -1238,6 +1239,27 @@ classdef IOResult < IO
     end % methods (Access = protected)
 
     methods (Access = private)
+
+        function [isSuccess, msg] = exportExcelFile(~, pathFile, excelData, sheetName, options)
+
+            arguments
+                ~
+                pathFile (1, 1) string
+                excelData
+                sheetName (1, 1) string = ""
+                options.WriteRowNames (1, 1) logical = true
+                options.WriteVariableNames (1, 1) logical = true
+            end
+
+            [isSuccess, msg] = openmebius.infrastructure.legacy.LegacyFileAccess ...
+                .exportExcelFile( ...
+                pathFile, ...
+                excelData, ...
+                sheetName, ...
+                WriteRowNames = options.WriteRowNames, ...
+                WriteVariableNames = options.WriteVariableNames);
+
+        end % exportExcelFile
 
         function saveResultDataAsCsv(obj, baseName, outputLocation, overview, data, status, batchID)
 

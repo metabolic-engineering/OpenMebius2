@@ -1,6 +1,6 @@
 classdef JsonFileStore
     % JSONFILESTORE
-    % Reads and writes JSON files without depending on the legacy IO status
+    % Reads and writes JSON files without depending on legacy status state.
     % object.
 
     methods

@@ -1,4 +1,4 @@
-classdef IOModel < IO
+classdef IOModel < Status
 
     properties
 
@@ -98,8 +98,9 @@ classdef IOModel < IO
                 openmebius.domain.model.ModelLocation.fromInput( ...
                 modelInput);
 
-            obj = obj@IO(modelLocation.Directory);
             obj.ModelLocation = modelLocation;
+            openmebius.infrastructure.legacy.LegacyFileAccess ...
+                .initializeDirectory(obj, modelLocation.Directory);
 
             if obj.isError
                 return;
@@ -392,7 +393,8 @@ classdef IOModel < IO
 
         function loadLabel(obj)
 
-            obj.structLabel = importJSONFile(obj, obj.pathLabel);
+            obj.structLabel = openmebius.infrastructure.legacy.LegacyFileAccess ...
+                .importJSONFile(obj, obj.pathLabel);
 
         end % loadLabel
 
@@ -404,9 +406,34 @@ classdef IOModel < IO
 
             convertLabelViewToStruct(obj);
 
-            exportJSONFile(obj, obj.pathLabel, obj.structLabel);
+            openmebius.infrastructure.legacy.LegacyFileAccess ...
+                .exportJSONFile(obj, obj.pathLabel, obj.structLabel);
 
         end % exportLabel
+
+        function hash = getHashFromFile(~, pathFile, options)
+
+            arguments
+                ~
+                pathFile (1, 1) string
+                options.Algorithm (1, 1) string = "SHA256"
+            end
+
+            hash = openmebius.infrastructure.legacy.LegacyFileAccess ...
+                .getHashFromFile(pathFile, Algorithm = options.Algorithm);
+
+        end % getHashFromFile
+
+        function saveHashFile(~, pathFile)
+
+            arguments
+                ~
+                pathFile (1, 1) string
+            end
+
+            openmebius.infrastructure.legacy.LegacyFileAccess.saveHashFile(pathFile);
+
+        end % saveHashFile
 
         function tableLabel = convertLabelCellToTable(obj, cellLabel)
 
@@ -833,7 +860,8 @@ classdef IOModel < IO
             for i = 1:length(obj.tableList)
 
                 obj.(obj.tableList(i)) = ...
-                    importExcelFile(obj, obj.pathModel, obj.tableSheetNames(i), ...
+                    openmebius.infrastructure.legacy.LegacyFileAccess.importExcelFile( ...
+                    obj, obj.pathModel, obj.tableSheetNames(i), ...
                     "refVariableNames", obj.tableVariableNames.(obj.tableLabelNames(i)), ...
                     "readRowName", obj.tableReadRowName(i), ...
                     "refTypes", obj.tableTypes.(obj.tableLabelNames(i)));

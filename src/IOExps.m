@@ -1,4 +1,4 @@
-classdef IOExps < IO
+classdef IOExps < Status
 
     properties (Access = public)
 
@@ -46,8 +46,9 @@ classdef IOExps < IO
                 openmebius.domain.experiment.ExperimentLocation.fromInput( ...
                 experimentInput);
 
-            obj = obj@IO(experimentLocation.Directory);
             obj.ExperimentLocation = experimentLocation;
+            openmebius.infrastructure.legacy.LegacyFileAccess ...
+                .initializeDirectory(obj, experimentLocation.Directory);
 
             if obj.isError
                 return;
@@ -192,10 +193,13 @@ classdef IOExps < IO
             sourceLocation = ...
                 openmebius.domain.experiment.ExperimentLocation.fromInput( ...
                 fileDir);
-            io = IO(sourceLocation.Directory);
-
-            if io.isError
+            if ~isfolder(sourceLocation.Directory)
                 obj.isError = true;
+                updateMsg(obj, ...
+                    "The directory " + sourceLocation.Directory + ...
+                    " does not exist.", ...
+                    "Error", ...
+                    obj.logLevel);
                 return;
             end
 
