@@ -36,6 +36,7 @@ classdef IOExp < Status
             [false, true, true, true, true, true, true];
         tableVariableNames struct = struct;
         tableVariableTypes struct = struct;
+        ExperimentRepository
 
     end % properties
 
@@ -48,13 +49,36 @@ classdef IOExp < Status
                 options.type (1, 1) string {mustBeMember(options.type, ["xlsx", "csv"])} = "xlsx";
                 options.importMSOnly (1, 1) logical = false;
                 options.loadOnly (1, 1) logical = false;
+                options.ExperimentRepository = ...
+                    openmebius.infrastructure.experiment.ExperimentRepository();
             end % constructor
 
             % pathExpからファイル名を除去する
             [dirExp, ~, ~] = fileparts(pathExp);
 
-            openmebius.infrastructure.legacy.LegacyFileAccess ...
-                .initializeDirectory(obj, dirExp);
+            obj.ExperimentRepository = options.ExperimentRepository;
+
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(dirExp);
+
+            try
+                obj.ExperimentRepository.assertExperimentDirectory( ...
+                    experimentLocation);
+            catch
+                obj.isError = true;
+                updateMsg(obj, ...
+                    "The directory " + string(dirExp) + ...
+                    " does not exist.", ...
+                    "Error", ...
+                    obj.logLevel);
+                return
+            end
+
+            updateMsg(obj, ...
+                "The directory " + string(dirExp) + " exists.", ...
+                "Info", ...
+                obj.logLevel);
 
             if obj.isError
                 return;
@@ -138,45 +162,57 @@ classdef IOExp < Status
 
         function loadExcelData(obj)
 
-            obj.tableInfo = openmebius.infrastructure.legacy.LegacyFileAccess.importExcelFile( ...
-                obj, ...
+            try
+                obj.tableInfo = obj.ExperimentRepository.readWorkbookSheet( ...
                 obj.pathExp, ...
                 "info", ...
                 ReadRowNames = obj.tableReadRowName(1), ...
-                refVariableNames = obj.tableVariableNames.tableInfo, ...
-                refTypes = obj.tableVariableTypes.tableInfo ...
-            );
-
-            if obj.isError
+                RefVariableNames = obj.tableVariableNames.tableInfo, ...
+                RefTypes = obj.tableVariableTypes.tableInfo);
+                reset(obj);
+                updateMsg(obj, ...
+                    obj.pathExp + "/info is successfully imported.", ...
+                    "Info", obj.logLevel);
+            catch ME
+                obj.isError = true;
+                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
                 createNewExpSheetInfo(obj);
                 reset(obj);
                 updateMsg(obj, "Failed to load info data from the Excel file. A new sheet has been created.", "Warning", obj.logLevel);
             end
 
-            obj.tableSubstrate = openmebius.infrastructure.legacy.LegacyFileAccess.importExcelFile( ...
-                obj, ...
+            try
+                obj.tableSubstrate = obj.ExperimentRepository.readWorkbookSheet( ...
                 obj.pathExp, ...
                 "substrate", ...
                 ReadRowNames = obj.tableReadRowName(2), ...
-                refVariableNames = obj.tableVariableNames.tableSubstrate, ...
-                refTypes = obj.tableVariableTypes.tableSubstrate ...
-            );
-
-            if obj.isError
+                RefVariableNames = obj.tableVariableNames.tableSubstrate, ...
+                RefTypes = obj.tableVariableTypes.tableSubstrate);
+                reset(obj);
+                updateMsg(obj, ...
+                    obj.pathExp + "/substrate is successfully imported.", ...
+                    "Info", obj.logLevel);
+            catch ME
+                obj.isError = true;
+                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
                 createNewExpSheetSubstrate(obj);
                 reset(obj);
                 updateMsg(obj, "Failed to load substrate data from the Excel file. A new sheet has been created.", "Warning", obj.logLevel);
             end
 
-            obj.tableMS = openmebius.infrastructure.legacy.LegacyFileAccess.importExcelFile( ...
-                obj, ...
+            try
+                obj.tableMS = obj.ExperimentRepository.readWorkbookSheet( ...
                 obj.pathExp, ...
                 "MS", ...
                 ReadRowNames = obj.tableReadRowName(3), ...
-                checkVariable = false ...
-            );
-
-            if obj.isError
+                CheckVariable = false);
+                reset(obj);
+                updateMsg(obj, ...
+                    obj.pathExp + "/MS is successfully imported.", ...
+                    "Info", obj.logLevel);
+            catch ME
+                obj.isError = true;
+                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
                 obj.tableMS = table();
                 reset(obj);
                 updateMsg(obj, ...
@@ -200,15 +236,19 @@ classdef IOExp < Status
             createNewExpSheetSubstrate(obj);
 
             try
-                obj.tableMS = openmebius.infrastructure.legacy.LegacyFileAccess.importExcelFile( ...
-                    obj, ...
+                obj.tableMS = obj.ExperimentRepository.readWorkbookSheet( ...
                     obj.pathExp, ...
                     sheetName, ...
                     ReadRowNames = obj.tableReadRowName(3), ...
-                    checkVariable = false ...
-                );
-            catch
+                    CheckVariable = false);
+                reset(obj);
+                updateMsg(obj, ...
+                    obj.pathExp + "/" + sheetName + ...
+                    " is successfully imported.", ...
+                    "Info", obj.logLevel);
+            catch ME
                 obj.isError = true;
+                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
                 updateMsg(obj, "Failed to load MS data from the Excel file.", "Error", obj.logLevel);
                 return;
             end
@@ -294,12 +334,19 @@ classdef IOExp < Status
 
                 switch options.type
                     case "xlsx"
-                        openmebius.infrastructure.legacy.LegacyFileAccess.exportExcelFile( ...
+                        [isSuccess, msg] = ...
+                            obj.ExperimentRepository.writeWorkbookSheet( ...
                             obj.pathExp, ...
                             obj.(tableName), ...
                             sheetName, ...
                             WriteRowNames = obj.tableReadRowName(i) ...
                         );
+
+                        if ~isSuccess
+                            obj.isError = true;
+                            updateMsg(obj, string(msg), "Error", obj.logLevel);
+                            return
+                        end
                     case "csv"
                         % Unimplemented: CSV export
                         continue;
@@ -341,15 +388,15 @@ classdef IOExp < Status
                 readRowNames (1, 1) logical
             end
 
-            actualSheetName = resolveOptionalSheetName(obj, sheetName);
+            aliases = getOptionalSheetAliases(obj, sheetName);
 
             try
-                data = readtable( ...
+                data = obj.ExperimentRepository.readOptionalWorkbookSheet( ...
                     obj.pathExp, ...
-                    'Sheet', actualSheetName, ...
-                    'ReadRowNames', readRowNames, ...
-                    'ReadVariableNames', true ...
-                );
+                    sheetName, ...
+                    aliases, ...
+                    ReadRowNames = readRowNames, ...
+                    ReadVariableNames = true);
                 obj.reset();
             catch
                 data = table();
@@ -357,37 +404,6 @@ classdef IOExp < Status
             end
 
         end % importOptionalExcelSheet
-
-        function sheetName = resolveOptionalSheetName(obj, preferredSheetName)
-
-            arguments
-                obj
-                preferredSheetName (1, 1) string
-            end
-
-            sheetName = preferredSheetName;
-            workbookSheets = getWorkbookSheetNames(obj);
-
-            if isempty(workbookSheets)
-                return
-            end
-
-            aliases = getOptionalSheetAliases(obj, preferredSheetName);
-            normalizedWorkbookSheets = normalizeSheetName(obj, workbookSheets);
-
-            for iAlias = 1:length(aliases)
-
-                normalizedAlias = normalizeSheetName(obj, aliases(iAlias));
-                idx = find(normalizedWorkbookSheets == normalizedAlias, 1);
-
-                if ~isempty(idx)
-                    sheetName = workbookSheets(idx);
-                    return
-                end
-
-            end % for iAlias
-
-        end % resolveOptionalSheetName
 
         function aliases = getOptionalSheetAliases(~, preferredSheetName)
             % GETOPTIONALSHEETALIASES Return accepted aliases for derived
@@ -440,32 +456,6 @@ classdef IOExp < Status
             aliases = unique([preferredSheetName aliases], "stable");
 
         end % getOptionalSheetAliases
-
-        function sheetNames = getWorkbookSheetNames(obj)
-
-            try
-                sheetNames = string(sheetnames(obj.pathExp));
-                sheetNames = sheetNames(:);
-                return
-            catch
-            end
-
-            try
-                [~, sheets] = xlsfinfo(obj.pathExp);
-                sheetNames = string(sheets);
-                sheetNames = sheetNames(:);
-            catch
-                sheetNames = strings(0, 1);
-            end
-
-        end % getWorkbookSheetNames
-
-        function normalized = normalizeSheetName(~, sheetNames)
-
-            normalized = lower(string(sheetNames));
-            normalized = regexprep(normalized, "[\s_\-\(\)]", "");
-
-        end % normalizeSheetName
 
         function setupTableVariableNames(obj)
 

@@ -30,6 +30,12 @@ classdef IOExps < Status
 
     end % properties
 
+    properties (Access = private)
+
+        ExperimentRepository
+
+    end % properties
+
     properties (Dependent)
 
         numFile (1, 1) double;
@@ -40,15 +46,40 @@ classdef IOExps < Status
 
     methods
 
-        function obj = IOExps(experimentInput, modelInput)
+        function obj = IOExps(experimentInput, modelInput, options)
+
+            arguments
+                experimentInput
+                modelInput = []
+                options.ExperimentRepository = ...
+                    openmebius.infrastructure.experiment.ExperimentRepository()
+            end
 
             experimentLocation = ...
                 openmebius.domain.experiment.ExperimentLocation.fromInput( ...
                 experimentInput);
 
             obj.ExperimentLocation = experimentLocation;
-            openmebius.infrastructure.legacy.LegacyFileAccess ...
-                .initializeDirectory(obj, experimentLocation.Directory);
+            obj.ExperimentRepository = options.ExperimentRepository;
+
+            try
+                obj.ExperimentRepository.assertExperimentDirectory( ...
+                    experimentLocation);
+            catch
+                obj.isError = true;
+                updateMsg(obj, ...
+                    "The directory " + experimentLocation.Directory + ...
+                    " does not exist.", ...
+                    "Error", ...
+                    obj.logLevel);
+                return;
+            end
+
+            updateMsg(obj, ...
+                "The directory " + experimentLocation.Directory + ...
+                " exists.", ...
+                "Info", ...
+                obj.logLevel);
 
             if obj.isError
                 return;
@@ -87,7 +118,9 @@ classdef IOExps < Status
 
             end
 
-            obj.fileExpList = obj.ExperimentLocation.filesByType("xlsx");
+            obj.fileExpList = obj.ExperimentRepository.listWorkbooks( ...
+                obj.ExperimentLocation, ...
+                "xlsx");
             obj.fieldNames = matlab.lang.makeValidName(obj.fileExpList);
 
             if isempty(obj.fileExpList)
@@ -203,7 +236,9 @@ classdef IOExps < Status
                 return;
             end
 
-            obj.fileExpList = sourceLocation.filesByType(options.type);
+            obj.fileExpList = obj.ExperimentRepository.listWorkbooks( ...
+                sourceLocation, ...
+                options.type);
             obj.fieldNames = matlab.lang.makeValidName(obj.fileExpList);
 
             for i = 1:length(obj.fileExpList)
@@ -214,7 +249,9 @@ classdef IOExps < Status
                 pathFile = sourceLocation.workbookFile(fileExp);
                 structName = fieldName;
 
-                objExp = IOExp(pathFile);
+                objExp = IOExp( ...
+                    pathFile, ...
+                    ExperimentRepository = obj.ExperimentRepository);
 
                 if objExp.isError
                     obj.isError = true;
@@ -258,8 +295,8 @@ classdef IOExps < Status
             for i = 1:length(obj.fileExpList)
 
                 objExp = IOExp( ...
-                    obj.ExperimentLocation.workbookFile(obj.fileExpList(i)) ...
-                );
+                    obj.ExperimentLocation.workbookFile(obj.fileExpList(i)), ...
+                    ExperimentRepository = obj.ExperimentRepository);
 
                 if objExp.isError
                     continue;
@@ -1260,7 +1297,9 @@ classdef IOExps < Status
             pathFile = obj.ExperimentLocation.workbookFile(fileExp);
             structName = fieldName;
 
-            objExp = IOExp(pathFile);
+            objExp = IOExp( ...
+                pathFile, ...
+                ExperimentRepository = obj.ExperimentRepository);
 
             if objExp.isError
                 obj.isError = true;
