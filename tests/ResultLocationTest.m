@@ -20,7 +20,7 @@ classdef ResultLocationTest < matlab.unittest.TestCase
 
             testCase.verifyEqual( ...
                 resultLocation.summaryReportFile(), ...
-                fullfile(resultDirectory, "summary"));
+                fullfile(resultDirectory, "summary.html"));
 
         end
 

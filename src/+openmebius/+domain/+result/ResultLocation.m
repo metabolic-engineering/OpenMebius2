@@ -44,7 +44,7 @@ classdef ResultLocation
 
         function path = summaryReportFile(obj)
 
-            path = obj.reportFile("summary");
+            path = obj.reportFile("summary.html");
 
         end % summaryReportFile
 

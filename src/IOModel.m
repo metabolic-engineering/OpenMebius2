@@ -625,6 +625,12 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
 
         end % function getModelLocation
 
+        function tableOut = getInfoTable(obj)
+
+            tableOut = obj.tableInfo;
+
+        end % function getInfoTable
+
         function tableOut = getModelTable(obj)
 
             tableOut = obj.tableModel;
