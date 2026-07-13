@@ -1,4 +1,4 @@
-classdef FluxAnalysis < Status
+classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
     events
 
@@ -181,7 +181,7 @@ classdef FluxAnalysis < Status
             obj.expsList = val;
 
             obj.config = config;
-            obj.status = Status();
+            obj.status = openmebius.infrastructure.logging.MessageState();
 
             if ~isempty(controller) && isa(controller, 'handle') && isvalid(controller)
 

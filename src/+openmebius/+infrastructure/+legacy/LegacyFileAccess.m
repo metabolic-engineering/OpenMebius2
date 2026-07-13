@@ -1,6 +1,6 @@
 classdef LegacyFileAccess
     % LEGACYFILEACCESS
-    % Status-aware adapter used while legacy file methods are being removed.
+    % MessageState-aware adapter used while legacy file methods are removed.
 
     methods (Static)
 

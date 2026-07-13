@@ -1,4 +1,4 @@
-classdef IOExps < Status
+classdef IOExps < openmebius.infrastructure.logging.MessageState
 
     properties (Access = public)
 

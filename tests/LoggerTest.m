@@ -138,9 +138,9 @@ classdef LoggerTest < matlab.unittest.TestCase
 
         end
 
-        function statusUsesLoggerFormat(testCase)
+        function messageStateUsesLoggerFormat(testCase)
 
-            status = Status();
+            status = openmebius.infrastructure.logging.MessageState();
             status.updateMsg("hello", "Info", "Info");
 
             testCase.verifyMatches( ...
@@ -150,9 +150,9 @@ classdef LoggerTest < matlab.unittest.TestCase
 
         end
 
-        function statusFormatsEachMultilineLogRow(testCase)
+        function messageStateFormatsEachMultilineLogRow(testCase)
 
-            status = Status();
+            status = openmebius.infrastructure.logging.MessageState();
             status.updateMsg("hello" + newline + "world", "Warning", "Info");
 
             testCase.verifyMatches( ...

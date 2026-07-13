@@ -1,4 +1,4 @@
-classdef IOModel < Status
+classdef IOModel < openmebius.infrastructure.logging.MessageState
 
     properties
 
