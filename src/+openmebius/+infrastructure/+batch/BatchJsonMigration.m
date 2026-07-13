@@ -6,7 +6,7 @@ classdef BatchJsonMigration
 
         function schemaVersion = currentSchemaVersion()
 
-            schemaVersion = 1;
+            schemaVersion = 2;
 
         end % currentSchemaVersion
 
@@ -43,6 +43,11 @@ classdef BatchJsonMigration
                     case 0
                         document = ...
                             openmebius.infrastructure.batch.BatchJsonMigration.v0ToV1( ...
+                            document);
+
+                    case 1
+                        document = ...
+                            openmebius.infrastructure.batch.BatchJsonMigration.v1ToV2( ...
                             document);
 
                     otherwise
@@ -115,11 +120,36 @@ classdef BatchJsonMigration
 
         function document = v0ToV1(document)
 
-            document = ...
-                openmebius.infrastructure.batch.BatchJsonMigration.createCurrentDocument( ...
-                document.batches);
+            document = struct( ...
+                'schemaVersion', ...
+                1, ...
+                'batches', ...
+                {document.batches});
 
         end % v0ToV1
+
+        function document = v1ToV2(document)
+
+            batchData = document.batches;
+
+            for i = 1:numel(batchData)
+                if ~isfield(batchData(i), 'id') || ...
+                        strlength(string(batchData(i).id)) == 0
+                    batchData(i).id = ...
+                        openmebius.domain.batch.BatchIdentity.newId();
+                end
+
+                % Source-file hashes are resolved by Batch after loading.
+                batchData(i).contentHash = "";
+            end
+
+            document = struct( ...
+                'schemaVersion', ...
+                2, ...
+                'batches', ...
+                {batchData});
+
+        end % v1ToV2
 
     end % methods
 

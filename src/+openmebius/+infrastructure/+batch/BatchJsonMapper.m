@@ -30,6 +30,7 @@ classdef BatchJsonMapper
             expValues = cell(numBatches, 1);
             descriptions = strings(numBatches, 1);
             configValues = cell(numBatches, 1);
+            contentHashes = strings(numBatches, 1);
 
             for i = 1:numBatches
                 ids(i) = string(batchData(i).id);
@@ -39,6 +40,7 @@ classdef BatchJsonMapper
                 configValues{i} = ...
                     openmebius.domain.batch.BatchConfig.normalize( ...
                     batchData(i).config);
+                contentHashes(i) = string(batchData(i).contentHash);
             end
 
             batchTable = table( ...
@@ -47,6 +49,7 @@ classdef BatchJsonMapper
                 expValues, ...
                 descriptions, ...
                 configValues, ...
+                contentHashes, ...
                 'VariableNames', variableNames ...
             );
 
@@ -95,13 +98,15 @@ classdef BatchJsonMapper
 
         function variableNames = defaultVariableNames()
 
-            variableNames = {'id', 'name', 'exp', 'description', 'config'};
+            variableNames = ...
+                {'id', 'name', 'exp', 'description', 'config', 'contentHash'};
 
         end % defaultVariableNames
 
         function variableTypes = defaultVariableTypes()
 
-            variableTypes = {'string', 'string', 'cell', 'string', 'struct'};
+            variableTypes = ...
+                {'string', 'string', 'cell', 'string', 'struct', 'string'};
 
         end % defaultVariableTypes
 
@@ -116,7 +121,8 @@ classdef BatchJsonMapper
                 'name', {}, ...
                 'exp', {}, ...
                 'description', {}, ...
-                'config', {});
+                'config', {}, ...
+                'contentHash', {});
 
             for i = 1:height(batchTable)
                 batchData(i, 1).id = batchTable.id(i);
@@ -124,6 +130,7 @@ classdef BatchJsonMapper
                 batchData(i, 1).exp = batchTable.exp{i};
                 batchData(i, 1).description = batchTable.description(i);
                 batchData(i, 1).config = batchTable.config(i);
+                batchData(i, 1).contentHash = batchTable.contentHash(i);
             end
 
         end % toBatchData

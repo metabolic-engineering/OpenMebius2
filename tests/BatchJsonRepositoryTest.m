@@ -15,7 +15,7 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
 
     methods (Test)
 
-        function migratesLegacyArrayToSchemaVersionOne(testCase)
+        function migratesLegacyArrayToCurrentSchema(testCase)
 
             legacyData = testCase.legacyBatchData();
 
@@ -23,9 +23,14 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
                 openmebius.infrastructure.batch.BatchJsonMigration.toCurrentDocument( ...
                 legacyData);
 
-            testCase.verifyEqual(document.schemaVersion, 1);
+            testCase.verifyEqual( ...
+                document.schemaVersion, ...
+                openmebius.infrastructure.batch.BatchJsonMigration.currentSchemaVersion());
             testCase.verifyTrue(isfield(document, 'batches'));
             testCase.verifyEqual(numel(document.batches), 1);
+            testCase.verifyEqual(document.batches.id, "batch-id-1");
+            testCase.verifyTrue(isfield(document.batches, 'contentHash'));
+            testCase.verifyEqual(string(document.batches.contentHash), "");
 
             batchTable = ...
                 openmebius.infrastructure.batch.BatchJsonMapper.toTable( ...
@@ -35,11 +40,13 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
             testCase.verifyEqual(height(batchTable), 1);
             testCase.verifyEqual(batchTable.id, "batch-id-1");
             testCase.verifyEqual(batchTable.name, "Δ batch 1");
+            testCase.verifyEqual(batchTable.contentHash, "");
             testCase.verifyEqual(batchTable.config.iteration, 7);
             testCase.verifyTrue(isfield(batchTable.config, 'fmincon'));
             testCase.verifyTrue(isfield(batchTable.config, 'INSTMFA'));
+            testCase.verifyFalse(isfield(batchTable.config, 'random'));
 
-        end % migratesLegacyArrayToSchemaVersionOne
+        end % migratesLegacyArrayToCurrentSchema
 
         function rejectsUnsupportedSchemaVersion(testCase)
 
@@ -66,6 +73,7 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
             batchTable = ...
                 openmebius.infrastructure.batch.BatchJsonMapper.toTable( ...
                 testCase.legacyBatchData());
+            batchTable.contentHash = "sha256:test-content";
 
             repository.save(experimentLocation, "batch.json", batchTable);
 
@@ -74,6 +82,7 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyTrue(isfield(savedDocument, 'schemaVersion'));
             testCase.verifyTrue(isfield(savedDocument, 'batches'));
+            testCase.verifyTrue(isfield(savedDocument.batches, 'contentHash'));
             testCase.verifyEqual( ...
                 savedDocument.schemaVersion, ...
                 openmebius.infrastructure.batch.BatchJsonMigration.currentSchemaVersion());
@@ -90,6 +99,9 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
             testCase.verifyFalse(isError, string(msg));
             testCase.verifyEqual(loadedTable.id, batchTable.id);
             testCase.verifyEqual(loadedTable.name, batchTable.name);
+            testCase.verifyEqual( ...
+                loadedTable.contentHash, ...
+                batchTable.contentHash);
             testCase.verifyEqual( ...
                 loadedTable.config.iteration, ...
                 batchTable.config.iteration);
@@ -152,7 +164,7 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
                 'name', "Δ batch 1", ...
                 'exp', "Δ exp 1", ...
                 'description', "migration test", ...
-                'config', struct('iteration', 7));
+                'config', struct('iteration', 7, 'random', 0.1234));
 
         end % legacyBatchData
 

@@ -57,7 +57,7 @@ classdef Batch < handle
         function tableBatchForGUI = get.tableBatchForGUI(obj)
 
             % Get batch for GUI
-            batch = obj.tableBatch;
+            batch = obj.tableBatch(:, {'id', 'name', 'exp', 'description'});
 
             expStr = strings(height(batch), 1);
 
@@ -78,7 +78,6 @@ classdef Batch < handle
 
             batch.exp = expStr;
 
-            batch.config = [];
             batch.Properties.VariableNames = obj.batchColumnNamesforGUI;
 
             tableBatchForGUI = batch;
@@ -724,7 +723,7 @@ classdef Batch < handle
 
             obj.tableBatch(:, {'id', 'name', 'exp', 'description'}) = batchNow;
 
-            updateHash(obj, batch.ID);
+            updateContentHash(obj, batch.ID);
 
         end % updateBatchFromGUI
 
@@ -762,7 +761,7 @@ classdef Batch < handle
 
             end % for i
 
-            updateHash(obj, ids);
+            updateContentHash(obj, ids);
 
         end % updateBatchConfig
 
@@ -830,7 +829,7 @@ classdef Batch < handle
                 ids(i) = id;
             end
 
-            updateHash(obj, ids);
+            updateContentHash(obj, ids);
 
         end % updateBatchMSFragmentSelections
 
@@ -983,7 +982,7 @@ classdef Batch < handle
 
             end % for i
 
-            updateHash(obj, ids);
+            updateContentHash(obj, ids);
 
         end % updateBatchConfigEffluxSD
 
@@ -1039,6 +1038,8 @@ classdef Batch < handle
                 obj.tableBatch.config(idx(i)).suggestionTableVarNames = suggestionTable.Properties.VariableNames;
 
             end % for i
+
+            updateContentHash(obj, ids);
 
         end % updateBatchConfigSuggestionTable
 
@@ -1134,14 +1135,11 @@ classdef Batch < handle
 
             % Ensure config has the same fields as the default config
             config = openmebius.domain.batch.BatchConfig.normalize(config);
-            config.random = double(rand(1, 1));
-
-            id = keyHash({name, exp, config});
-            idHex = dec2hex(id, 16);
-            idHexStr = string(idHex);
+            id = openmebius.domain.batch.BatchIdentity.newId( ...
+                obj.tableBatch.id);
 
             row = cell2table( ...
-                {idHexStr, name, exp, description, config}, ...
+                {id, name, exp, description, config, ""}, ...
                 'VariableNames', obj.tableBatch.Properties.VariableNames ...
             );
             row.Properties.VariableTypes = obj.tableBatch.Properties.VariableTypes;
@@ -1152,6 +1150,8 @@ classdef Batch < handle
             else
                 obj.tableBatch = [obj.tableBatch; row];
             end
+
+            updateContentHash(obj, id);
 
         end % addBatch
 
@@ -1205,7 +1205,7 @@ classdef Batch < handle
             obj.tableBatch.description(idx) = description;
             obj.tableBatch.config(idx) = config;
 
-            updateHash(obj, id);
+            updateContentHash(obj, id);
 
         end % editBatch
 
@@ -1347,6 +1347,7 @@ classdef Batch < handle
             end % if isImportError
 
             obj.tableBatch = batchLoaded;
+            updateContentHash(obj, obj.tableBatch.id);
 
         end % loadBatchFile
 
@@ -1372,6 +1373,12 @@ classdef Batch < handle
                 ed.msg = "MDV data has not been calculated. Press the Calculate MDV button before running batch jobs.";
                 notify(obj, 'GeneralMsg', BatchProgressEventData(type, ed));
                 return
+            end
+
+            contentChanged = updateContentHash(obj, obj.tableBatch.id);
+
+            if any(contentChanged)
+                saveBatchFile(obj);
             end
 
             for i = 1:height(obj.tableBatch)
@@ -1405,6 +1412,8 @@ classdef Batch < handle
 
                 end
 
+                provenance = buildAnalysisProvenance(obj, i);
+
                 % Instantiate FluxAnalysis object
                 mfa = FluxAnalysis( ...
                     obj.model, ...
@@ -1413,10 +1422,13 @@ classdef Batch < handle
                     obj.tableBatch.config(i), ...
                     resultLocation, ...
                     obj.tableBatch.id(i), ...
-                    obj ...
+                    obj, ...
+                    Provenance = provenance ...
                 );
 
                 obj.attachFluxAnalysisListeners(mfa);
+                runMetadataCleanup = ...
+                    onCleanup(@() mfa.finalizeRunMetadata());
 
                 % Calculate flux distribution
                 mfa.calculateFluxDistribution();
@@ -1502,45 +1514,114 @@ classdef Batch < handle
 
         end % initTableBatch
 
-        function [err, msg] = updateHash(obj, ids)
+        function changed = updateContentHash(obj, ids)
 
             arguments
                 obj
-                ids (1, :) string
+                ids string
             end
 
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
+            ids = string(ids(:));
+            changed = false(size(ids));
 
-            err = false(1, length(ids));
+            for i = 1:numel(ids)
+                idx = find(obj.tableBatch.id == ids(i), 1);
 
-            for i = 1:length(ids)
+                if isempty(idx)
+                    error("Batch ID not found: %s", ids(i));
+                end
 
-                % Update batch ID
-                name = obj.tableBatch.name(idx(i));
-                experiment = obj.tableBatch.exp{idx(i)};
-                config = obj.tableBatch.config(idx(i));
+                provenance = buildAnalysisProvenance(obj, idx);
+                previousHash = obj.tableBatch.contentHash(idx);
+                currentHash = provenance.contentHash;
+                changed(i) = previousHash ~= currentHash;
+                obj.tableBatch.contentHash(idx) = currentHash;
 
-                % Escape the finished batch
-                if strcmp(config.status, 'finished')
+                % Empty hashes belong to migrated legacy data. Initialize them
+                % without invalidating an otherwise usable legacy result.
+                if changed(i) && strlength(previousHash) > 0 && ...
+                        strcmp(obj.tableBatch.config(idx).status, 'finished')
+                    obj.tableBatch.config(idx).status = 'ready';
+                end
+            end
+
+        end % updateContentHash
+
+        function provenance = buildAnalysisProvenance(obj, idx)
+
+            config = obj.tableBatch.config(idx);
+            experimentNames = string(obj.tableBatch.exp{idx});
+            experimentNames = experimentNames(:);
+            [experimentFiles, experimentHashes] = ...
+                resolveExperimentFiles(obj, experimentNames);
+
+            modelPath = string(obj.model.pathModel);
+            [~, modelName, modelExtension] = fileparts(modelPath);
+            modelFileName = string(modelName) + string(modelExtension);
+            modelHash = ...
+                openmebius.infrastructure.filesystem.FileHasher.hashFile( ...
+                modelPath);
+
+            semanticConfig = ...
+                openmebius.domain.batch.BatchIdentity.semanticConfig(config);
+            contentHash = ...
+                openmebius.domain.batch.BatchIdentity.contentHash( ...
+                config, ...
+                modelHash, ...
+                experimentNames, ...
+                experimentHashes);
+
+            provenance = struct( ...
+                'schemaVersion', 1, ...
+                'batchId', obj.tableBatch.id(idx), ...
+                'contentHash', contentHash, ...
+                'contentHashVersion', ...
+                openmebius.domain.batch.BatchIdentity.ContentHashVersion, ...
+                'configJson', ...
+                openmebius.domain.batch.BatchIdentity.canonicalJson( ...
+                semanticConfig), ...
+                'modelFileName', modelFileName, ...
+                'modelSha256', modelHash, ...
+                'experimentNames', experimentNames, ...
+                'experimentFileNames', experimentFiles, ...
+                'experimentSha256', experimentHashes);
+
+        end % buildAnalysisProvenance
+
+        function [fileNames, hashes] = resolveExperimentFiles(obj, experimentNames)
+
+            experimentNames = string(experimentNames(:));
+            availableFiles = string(obj.exp.fileExpList(:));
+            availableNames = strings(size(availableFiles));
+
+            for i = 1:numel(availableFiles)
+                [~, name] = fileparts(availableFiles(i));
+                availableNames(i) = string(name);
+            end
+
+            fileNames = strings(size(experimentNames));
+            hashes = strings(size(experimentNames));
+            experimentLocation = obj.exp.getExperimentLocation();
+
+            for i = 1:numel(experimentNames)
+                idx = find(availableNames == experimentNames(i), 1);
+
+                if isempty(idx)
+                    idx = find(availableFiles == experimentNames(i), 1);
+                end
+
+                if isempty(idx)
                     continue
                 end
 
-                id = keyHash({name, experiment, config});
-                idHex = dec2hex(id, 16);
-                idHexStr = string(idHex);
+                fileNames(i) = availableFiles(idx);
+                pathFile = experimentLocation.workbookFile(fileNames(i));
+                hashes(i) = ...
+                    openmebius.infrastructure.filesystem.FileHasher.hashFile( ...
+                    pathFile);
+            end
 
-                if any(obj.tableBatch.id == idHexStr) && ~strcmp(obj.tableBatch.id(idx(i)), idHexStr)
-                    err(i) = true;
-                    msg = sprintf("Batch ID already exists: %s", idHexStr);
-                    continue
-                end
-
-                obj.tableBatch.id(idx(i)) = idHexStr;
-
-            end % for i
-
-        end % updateHash
+        end % resolveExperimentFiles
 
         function attachFluxAnalysisListeners(obj, mfa)
 
