@@ -210,7 +210,7 @@ classdef ReportResult < handle
 
             section = Section("Stoichiometry");
 
-            stoichiometryList = obj.model.SBefore;
+            stoichiometryList = obj.model.getSBefore();
 
             table = addTable(obj, stoichiometryList);
 

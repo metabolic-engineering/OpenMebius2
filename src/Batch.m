@@ -1404,10 +1404,13 @@ classdef Batch < handle
 
                 % Delete previous result files
                 if obj.tableBatch.config(i).deleteResultFile
-                    filename = resultLocation.resultFile(obj.tableBatch.id(i)); %#ok<PROPLC>
+                    resultArtifacts = resultLocation.resultArtifactFiles( ...
+                        obj.tableBatch.id(i));
 
-                    if isfile(filename) %#ok<PROPLC>
-                        delete(filename); %#ok<PROPLC>
+                    for iArtifact = 1:numel(resultArtifacts)
+                        if isfile(resultArtifacts(iArtifact))
+                            delete(resultArtifacts(iArtifact));
+                        end
                     end
 
                 end
