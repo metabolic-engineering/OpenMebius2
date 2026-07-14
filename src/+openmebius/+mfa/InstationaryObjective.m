@@ -7,8 +7,7 @@ classdef InstationaryObjective
         RightHandSide (:, 1) double
         Model
         SubstrateEMU double
-        PoolSizes (:, 1) double
-        TimePoints (:, 1) double
+        Input
         ExperimentalMDV (:, :) double
         FragmentMask (:, 1) logical
         EffluxPenalty (1, 1) openmebius.mfa.EffluxPenalty
@@ -24,8 +23,7 @@ classdef InstationaryObjective
                 options.RightHandSide (:, 1) double
                 options.Model
                 options.SubstrateEMU double
-                options.PoolSizes (:, 1) double
-                options.TimePoints (:, 1) double
+                options.Input (1, 1) openmebius.mfa.InstationaryInput
                 options.ExperimentalMDV (:, :) double
                 options.FragmentMask (:, 1) logical
                 options.EffluxPenalty (1, 1) ...
@@ -43,27 +41,11 @@ classdef InstationaryObjective
             end
 
             if size(options.ExperimentalMDV, 2) ~= ...
-                    numel(options.TimePoints)
+                    numel(options.Input.TimePoints)
                 error( ...
                     "OpenMebius2:InstationaryObjective:" + ...
                     "TimePointCountMismatch", ...
                     "Experimental MDV columns must match time points.");
-            end
-
-            if numel(options.TimePoints) < 2 || ...
-                    any(~isfinite(options.TimePoints)) || ...
-                    any(options.TimePoints < 0)
-                error( ...
-                    "OpenMebius2:InstationaryObjective:InvalidTimePoints", ...
-                    "At least two finite nonnegative time points are required.");
-            end
-
-            if isempty(options.PoolSizes) || ...
-                    any(~isfinite(options.PoolSizes)) || ...
-                    any(options.PoolSizes <= 0)
-                error( ...
-                    "OpenMebius2:InstationaryObjective:InvalidPoolSize", ...
-                    "Pool sizes must be positive and finite.");
             end
 
             if ~isfinite(options.MeasurementStandardDeviation) || ...
@@ -78,8 +60,7 @@ classdef InstationaryObjective
             obj.RightHandSide = options.RightHandSide;
             obj.Model = options.Model;
             obj.SubstrateEMU = options.SubstrateEMU;
-            obj.PoolSizes = options.PoolSizes;
-            obj.TimePoints = options.TimePoints;
+            obj.Input = options.Input;
             obj.ExperimentalMDV = options.ExperimentalMDV;
             obj.FragmentMask = options.FragmentMask;
             obj.EffluxPenalty = options.EffluxPenalty;
@@ -132,8 +113,8 @@ classdef InstationaryObjective
                 obj.Model, ...
                 flux, ...
                 obj.SubstrateEMU, ...
-                obj.PoolSizes, ...
-                obj.TimePoints);
+                obj.Input.PoolSizes, ...
+                obj.Input.TimePoints);
 
             if ~isequal(size(mdv), size(obj.ExperimentalMDV))
                 error( ...

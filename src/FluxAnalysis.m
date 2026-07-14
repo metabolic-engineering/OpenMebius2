@@ -27,7 +27,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         MFAProblemFactory
         SteadyStateSolver
         EffluxPenaltyFactory
+        InstationaryInputFactory
         MFAProblem = []
+        InstationaryInput = []
 
         % File export
         isExport = true
@@ -83,10 +85,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         % Variables for the optimization
         MDVExpFmincon = [];
-        % Instationary 13C-MFA
-        isInstationary = false
-        poolsize = [];
-        timePoints = []
 
         % The result of the flux calculation
         resultRSS = [];
@@ -137,6 +135,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.SteadyStateSolver()
                 options.EffluxPenaltyFactory = ...
                     openmebius.mfa.EffluxPenaltyFactory()
+                options.InstationaryInputFactory = ...
+                    openmebius.mfa.InstationaryInputFactory()
                 options.Provenance (1, 1) struct = struct
             end
 
@@ -157,6 +157,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.MFAProblemFactory = options.MFAProblemFactory;
             obj.SteadyStateSolver = options.SteadyStateSolver;
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
+            obj.InstationaryInputFactory = ...
+                options.InstationaryInputFactory;
             obj.Provenance = options.Provenance;
 
             try
@@ -334,6 +336,19 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             % Export the initial flux distribution
             exportInitialFluxDistribution(obj, flux, tmpRhs, RSS);
 
+            if obj.config.isINSTMFA
+                try
+                    obj.InstationaryInput = ...
+                        obj.InstationaryInputFactory.create( ...
+                        obj.model, obj.config.INSTMFA);
+                catch ME
+                    msg = "Instationary 13C-MFA: " + string(ME.message);
+                    notifyGeneralMessage(obj, "error", msg, dbstack());
+                    obj.isError = true;
+                    return;
+                end
+            end
+
             % Set the empty flux distribution
             obj.resultRSS = nan(1, obj.config.iteration);
             obj.resultFlux = nan(size(tmpRhs, 1), obj.config.iteration);
@@ -356,16 +371,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                         obj.MDVExpFmincon, ...
                         iterationRightHandSide);
                 else
-
-                    [err, msg] = obj.setINSTMFA();
-                    msg = "Instationary 13C-MFA: " + msg;
-
-                    if err
-                        notifyGeneralMessage(obj, "error", msg, dbstack());
-                        obj.isError = true;
-                        return;
-                    end
-
                     [fval, estimatedFlux, estimatedMDV, exitflag, optimizationOutput] = ...
                         calculateNonLinearOptimizationInstationary( ...
                         obj, ...
@@ -1350,8 +1355,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 RightHandSide = rightHandSide, ...
                 Model = obj.model, ...
                 SubstrateEMU = obj.subsEMUs{1}, ...
-                PoolSizes = obj.poolsize, ...
-                TimePoints = obj.timePoints, ...
+                Input = obj.InstationaryInput, ...
                 ExperimentalMDV = experimentalMDV, ...
                 FragmentMask = obj.MDVFragMask, ...
                 EffluxPenalty = createEffluxPenalty(obj));
@@ -3665,102 +3669,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             end % if
 
         end % function isValidateMDV
-
-        function [poolsize, err, msg] = alignINSTMFAPoolSize(obj, config)
-            % ALIGNINSTMFAPOOLSIZE Align pool sizes to the EMU Cn metabolite order.
-
-            poolsize = [];
-            err = false;
-            msg = "";
-
-            modelMetabolites = string(obj.model.getMetaboliteTableMetabolite());
-            modelMetabolites = modelMetabolites(:);
-            inputPoolSize = double(config.INSTMFA.poolSize(:));
-
-            if isempty(modelMetabolites)
-                msg = "No model metabolites are available for INST-MFA pool-size alignment.";
-                err = true;
-                return;
-            end % if
-
-            if isfield(config.INSTMFA, "poolMetabolite") && ~isempty(config.INSTMFA.poolMetabolite)
-                inputMetabolites = string(config.INSTMFA.poolMetabolite(:));
-
-                if numel(inputMetabolites) ~= numel(inputPoolSize)
-                    msg = "The number of INST-MFA pool-size metabolites does not match the number of pool-size values.";
-                    err = true;
-                    return;
-                end % if
-
-                poolsize = nan(numel(modelMetabolites), 1);
-
-                for iMetabolite = 1:numel(modelMetabolites)
-                    matchedIdx = find(inputMetabolites == modelMetabolites(iMetabolite), 1, "first");
-
-                    if ~isempty(matchedIdx)
-                        poolsize(iMetabolite) = inputPoolSize(matchedIdx);
-                    end % if
-
-                end % for iMetabolite
-
-                missingMetabolites = modelMetabolites(isnan(poolsize));
-
-                if ~isempty(missingMetabolites)
-                    msg = "INST-MFA pool sizes are missing for: " + strjoin(missingMetabolites, ", ") + ".";
-                    err = true;
-                    return;
-                end % if
-
-                return;
-            end % if
-
-            if numel(inputPoolSize) ~= numel(modelMetabolites)
-                msg = "The number of INST-MFA pool-size values does not match the number of model metabolites.";
-                err = true;
-                return;
-            end % if
-
-            poolsize = inputPoolSize;
-
-        end % method alignINSTMFAPoolSize
-
-        function [err, msg] = setINSTMFA(obj)
-
-            config = obj.config;
-
-            obj.isInstationary = config.isINSTMFA;
-            [obj.poolsize, err, msg] = alignINSTMFAPoolSize(obj, config);
-
-            if err
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                return;
-            end % if
-
-            obj.timePoints = double(config.INSTMFA.timePoints(:));
-
-            if numel(obj.timePoints) < 2
-                msg = "At least two time points are required for instationary 13C-MFA.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                err = true;
-                return;
-            end % if
-
-            % NaN check
-            if any(isnan(obj.poolsize)) || any(isnan(obj.timePoints))
-                msg = "Pool sizes and time points must not contain NaN values.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                err = true;
-                return;
-            end % if
-
-            if any(~isfinite(obj.poolsize)) || any(obj.poolsize <= 0)
-                msg = "Pool sizes must be finite positive values for instationary 13C-MFA.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                err = true;
-                return;
-            end % if
-
-        end % method setINSTMFA
 
         function [isSuccess, msg] = writeHDF5File(obj, pathFile, pathData, data, options)
 
