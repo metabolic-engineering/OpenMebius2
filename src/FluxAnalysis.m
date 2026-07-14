@@ -26,6 +26,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         InitialPointGenerator
         MFAProblemFactory
         SteadyStateSolver
+        EffluxPenaltyFactory
         MFAProblem = []
 
         % File export
@@ -134,6 +135,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.MFAProblemFactory()
                 options.SteadyStateSolver = ...
                     openmebius.mfa.SteadyStateSolver()
+                options.EffluxPenaltyFactory = ...
+                    openmebius.mfa.EffluxPenaltyFactory()
                 options.Provenance (1, 1) struct = struct
             end
 
@@ -153,6 +156,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.InitialPointGenerator = options.InitialPointGenerator;
             obj.MFAProblemFactory = options.MFAProblemFactory;
             obj.SteadyStateSolver = options.SteadyStateSolver;
+            obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
             obj.Provenance = options.Provenance;
 
             try
@@ -1061,6 +1065,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
             MDVExpTemp = arrangeMDV(obj, obj.MDVExpFmincon, ...
                 numExperiments = length(subsEMU));
+            effluxPenalty = createEffluxPenalty(obj);
 
             for i = 1:numFlux
 
@@ -1080,7 +1085,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 % Calculate the RSS
                 iRSS = ((iMDV(obj.MDVFragMask) - MDVExpTemp(obj.MDVFragMask)) / ...
                     0.01) .^ 2;
-                RSS(i) = sum(iRSS, 1) + calculateEffluxRSS(obj, fluxes(:, i));
+                RSS(i) = sum(iRSS, 1) + ...
+                    effluxPenalty.evaluate(fluxes(:, i));
 
             end % for
 
@@ -1272,54 +1278,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         end % calculateLinearizedMDV
 
         %% Optimization functions
-        function SSR = calculateObjectiveFunction( ...
-                obj, independentFlux, MDVExpTemp, rightHandSide)
-            % CALCULATEOBJECTIVEFUNCTION Calculate the objective function.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   independentFlux: (n, 1) double
-            %       The independent flux distribution.
-            %       n: number of independent fluxes
-            %   MDVExpTemp: (n, m) double
-            %       The experimental MDV.
-            %       n: number of fragments
-            %       m: number of labeling experiments
-            %
-            % Returns
-            % -------
-            %   SSR: (1, 1) double
-            %       The sum of squares of the residuals.
-
-            tmpFlux = obj.MFAProblem.solveFlux( ...
-                independentFlux, ...
-                BaseRightHandSide = rightHandSide);
-
-            MDVExpTemp = arrangeMDV(obj, MDVExpTemp, numExperiments = length(obj.subsEMUs));
-
-            SSR = 0;
-
-            for i = 1:length(obj.subsEMUs)
-
-                % Get the EMU of the substrate
-                iEMU = obj.subsEMUs{i};
-
-                % Calculate the MDV
-                iMDV = calculateMDV(obj.model, tmpFlux, iEMU);
-
-                % Calculate the RSS
-                iRSS = ((iMDV(obj.MDVFragMask) - MDVExpTemp(obj.MDVFragMask, i)) / ...
-                    0.01) .^ 2;
-                SSR = SSR + sum(iRSS, 1);
-
-            end % for
-
-            SSR = SSR + calculateEffluxRSS(obj, tmpFlux);
-
-        end % calculateObjectiveFunction
-
         function SSR = calculateObjectiveFunctionInstationary( ...
                 obj, ...
                 independentFlux, ...
@@ -1409,39 +1367,41 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 flux (:, :) double
             end
 
-            numFlux = size(flux, 2);
-            RSS = zeros(1, numFlux);
-
-            if isempty(obj.effluxFree) || ~any(obj.effluxFree)
-                return;
-            end
-
-            selectedIdx = find(logical(obj.effluxFree(:)));
-            rxnNames = string(obj.model.getSBefore().Properties.VariableNames);
-            rxnIdx = nan(length(selectedIdx), 1);
-
-            for i = 1:length(selectedIdx)
-
-                iSubstrate = obj.subsList(selectedIdx(i));
-                iRxnID = obj.model.findSubstrateRxnIDFromMetaboliteIrrev(iSubstrate);
-                iRxnIdx = find(rxnNames == iRxnID, 1);
-
-                if isempty(iRxnIdx)
-                    error("Selected efflux reaction was not found in the stoichiometry matrix: %s.", iRxnID);
-                end
-
-                rxnIdx(i) = iRxnIdx;
-
-            end
-
-            effluxExp = obj.efflux(selectedIdx);
-            effluxSDSelected = obj.effluxSD(selectedIdx);
-            effluxSimulated = flux(rxnIdx, :);
-
-            iRSS = ((effluxSimulated - effluxExp) ./ effluxSDSelected) .^ 2;
-            RSS = sum(iRSS, 1);
+            penalty = createEffluxPenalty(obj);
+            RSS = penalty.evaluate(flux);
 
         end % calculateEffluxRSS
+
+        function penalty = createEffluxPenalty(obj)
+            % CREATEEFFLUXPENALTY Resolve selected efflux measurements.
+
+            penalty = obj.EffluxPenaltyFactory.create( ...
+                obj.model, ...
+                obj.subsList, ...
+                obj.efflux, ...
+                obj.effluxSD, ...
+                obj.effluxFree);
+
+        end % createEffluxPenalty
+
+        function objective = createSteadyStateObjective( ...
+                obj, experimentalMDV, rightHandSide)
+            % CREATESTEADYSTATEOBJECTIVE Build immutable run inputs.
+
+            experimentalMDV = arrangeMDV( ...
+                obj, ...
+                experimentalMDV, ...
+                numExperiments = length(obj.subsEMUs));
+            objective = openmebius.mfa.SteadyStateObjective( ...
+                Problem = obj.MFAProblem, ...
+                RightHandSide = rightHandSide, ...
+                Model = obj.model, ...
+                SubstrateEMUs = obj.subsEMUs, ...
+                ExperimentalMDV = experimentalMDV, ...
+                FragmentMask = obj.MDVFragMask, ...
+                EffluxPenalty = createEffluxPenalty(obj));
+
+        end % createSteadyStateObjective
 
         function [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
                 calculateNonLinearOptimization( ...
@@ -1455,9 +1415,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
             tmpInitialFlux = ...
                 obj.MFAProblem.extractIndependentValues(rightHandSide);
-
-            objectiveFcn = @(x) calculateObjectiveFunction( ...
-                obj, x, MDVExpTemp, rightHandSide);
+            objective = createSteadyStateObjective( ...
+                obj, MDVExpTemp, rightHandSide);
+            objectiveFcn = @(x) objective.evaluate(x);
 
             [x, fval, exitflag, output] = ...
                 runConfiguredNonlinearOptimizer( ...
@@ -1470,7 +1430,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             estimatedFlux = obj.MFAProblem.solveFlux( ...
                 x, ...
                 BaseRightHandSide = rightHandSide);
-            estimatedMDV = calculateMDV(obj, estimatedFlux, obj.subsEMUs);
+            estimatedMDV = objective.predictFlux(estimatedFlux);
 
             if isnan(fval)
                 msg = "Nonlinear optimization failed.";
