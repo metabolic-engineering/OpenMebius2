@@ -1,4 +1,4 @@
-classdef IOResult < Status
+classdef IOResult < openmebius.infrastructure.logging.MessageState
 
     events
 

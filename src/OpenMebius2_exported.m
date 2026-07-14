@@ -1906,7 +1906,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             end
 
-            app.appendLogText(notification.toLogText());
+            app.appendLogText( ...
+                notification.Message, ...
+                notification.Level, ...
+                notification.Timestamp);
 
             if notification.ShowAlert
 
@@ -1921,11 +1924,22 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method showNotification
 
-        function appendLogText(app, text)
+        function appendLogText(app, text, level, timestamp)
             % APPENDLOGTEXT
-            % Raw append operation for LogTextArea.
+            % Normalize and append log text to LogTextArea.
 
-            text = string(text);
+            arguments
+                app
+                text
+                level string = "Info"
+                timestamp (1, 1) datetime = datetime("now")
+            end
+
+            text = openmebius.infrastructure.logging.Logger ...
+                .formatDatedLines( ...
+                text, ...
+                level, ...
+                Timestamp = timestamp);
 
             before = app.LogTextArea.Value;
             app.LogTextArea.Value = [before; text(:)];
@@ -3053,31 +3067,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function initStatusTable
 
-        function setLogFile(~)
-
-            system = System();
-            directoryLog = system.getCacheDirectory();
-
-            if ~isfolder(directoryLog)
-
-                try
-                    mkdir(directoryLog);
-                catch ME
-                    msg = "Could not create cache directory for log file: " + directoryLog + newline + ME.message;
-                    obj.LogTextDate(msg, "Error");
-                    return
-                end
-
-            end
-
-            fileLog = fullfile(directoryLog, 'openmebius2.log');
+        function setLogFile(app)
 
             try
-                diary(char(fileLog));
+                openmebius.infrastructure.logging.Logger ...
+                    .configureDefaultDiary();
             catch ME
-                msg = "Could not set log file: " + fileLog + newline + ME.message;
-                obj.LogTextDate(msg, "Error");
-                return
+                msg = "Could not set log file." + newline + ...
+                    string(ME.message);
+                app.LogTextDate(msg, "Error");
             end
 
         end % function setLogFile
@@ -3247,7 +3245,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.MainUIAxes.ContextMenu = app.ContextMenu;
 
-            msg = app.model.returnDateMsg("Pathway loaded successfully", "Info");
+            msg = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage("Pathway loaded successfully", "Info");
             app.LogText(msg);
 
         end % function loadPathway
@@ -4211,8 +4210,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 % 最低限LogTextAreaへ落とす。
                 try
                     app.appendLogText( ...
-                        "[ERROR] Failed to handle GeneralMsg event: " + ...
-                        string(ME.message));
+                        openmebius.infrastructure.logging.Logger ...
+                        .formatDatedMessage( ...
+                        "Failed to handle GeneralMsg event: " + ...
+                        string(ME.message), ...
+                        "Error"));
                 catch
                     disp(ME.message)
                 end
@@ -4805,7 +4807,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             idx = app.ModelTable.Selection;
 
             if isempty(idx)
-                msg = app.model.returnDateMsg("Please select a reaction to add a label.", "Warning");
+                msg = openmebius.infrastructure.logging.Logger ...
+                    .formatDatedMessage( ...
+                    "Please select a reaction to add a label.", ...
+                    "Warning");
                 app.LogText(msg);
                 return
             end
@@ -4823,7 +4828,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             loadPathway(app)
 
             rxnName = dataSelected.Properties.RowNames{1};
-            msg = app.model.returnDateMsg("Label position added to " + rxnName + " x: " + string(x) + " y: " + string(y), "Info");
+            msg = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage( ...
+                "Label position added to " + rxnName + ...
+                " x: " + string(x) + " y: " + string(y), ...
+                "Info");
             app.LogText(msg);
 
         end
@@ -4843,7 +4852,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 loadMSTable(app);
             end
 
-            msg = app.model.returnDateMsg("MS table reloaded", "Info");
+            msg = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage("MS table reloaded", "Info");
             app.LogText(msg);
 
         end
@@ -5001,7 +5011,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.reloadExperimentState();
 
                 updateStatus(app, "experiment", "finished");
-                msg = app.model.returnDateMsg("Experimental data reloaded", "Info");
+                msg = openmebius.infrastructure.logging.Logger ...
+                    .formatDatedMessage( ...
+                    "Experimental data reloaded", ...
+                    "Info");
                 app.LogText(msg);
             catch ME
                 updateStatus(app, "experiment", "error");
@@ -5066,13 +5079,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             idx = app.ExpTable.Selection;
 
             if isempty(idx)
-                msg = app.model.returnDateMsg("Please select an experiment to view MS data.", "Warning");
+                msg = openmebius.infrastructure.logging.Logger ...
+                    .formatDatedMessage( ...
+                    "Please select an experiment to view MS data.", ...
+                    "Warning");
                 app.LogText(msg);
                 return
             end
 
             if size(idx, 1) > 1
-                msg = app.model.returnDateMsg("Please select only one experiment to view MS data.", "Warning");
+                msg = openmebius.infrastructure.logging.Logger ...
+                    .formatDatedMessage( ...
+                    "Please select only one experiment to view MS data.", ...
+                    "Warning");
                 app.LogText(msg);
                 return
             end
@@ -5097,7 +5116,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function TracerReloadButtonPushed(app, event)
 
             app.loadTracerTable();
-            msg = app.model.returnDateMsg("Tracer and uptake tables reloaded", "Info");
+            msg = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage( ...
+                "Tracer and uptake tables reloaded", ...
+                "Info");
             app.LogText(msg);
 
         end
@@ -5139,7 +5161,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             tableNow = app.LabelTable.Data;
 
             if ~isequaln(tableOriginal, tableNow)
-                msg = app.model.returnDateMsg("Label table has been modified. Please save the table before editing.", "Warning");
+                msg = openmebius.infrastructure.logging.Logger ...
+                    .formatDatedMessage( ...
+                    "Label table has been modified. " + ...
+                    "Please save the table before editing.", ...
+                    "Warning");
                 app.LogText(msg);
                 return
             end
@@ -5186,7 +5212,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.batch.autoFillBatch();
             updateBatchTable(app);
 
-            msg = app.model.returnDateMsg("Batch table has been automatically filled.", "Info");
+            msg = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage( ...
+                "Batch table has been automatically filled.", ...
+                "Info");
             app.LogText(msg);
 
         end
@@ -5197,7 +5226,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             selection = app.RunTable.Selection;
 
             if isempty(selection)
-                msg = app.model.returnDateMsg("Please select a batch to configure.", "Warning");
+                msg = openmebius.infrastructure.logging.Logger ...
+                    .formatDatedMessage( ...
+                    "Please select a batch to configure.", ...
+                    "Warning");
                 app.LogText(msg);
                 return
             end
@@ -5214,7 +5246,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function RunReloadButtonPushed(app, event)
 
             updateBatchTable(app);
-            msg = app.model.returnDateMsg("Batch table reloaded", "Info");
+            msg = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage("Batch table reloaded", "Info");
             app.LogText(msg);
 
         end
@@ -5227,7 +5260,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.batch.saveBatchFile()
 
-            msg = app.model.returnDateMsg("Batch table has been saved.", "Info");
+            msg = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage( ...
+                "Batch table has been saved.", ...
+                "Info");
             app.LogText(msg);
 
         end
@@ -5471,7 +5507,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ResultReloadButtonPushed(app, event)
 
             app.updateResult();
-            msg = app.model.returnDateMsg("Result data reloaded", "Info");
+            msg = openmebius.infrastructure.logging.Logger ...
+                .formatDatedMessage("Result data reloaded", "Info");
             app.LogText(msg);
 
         end

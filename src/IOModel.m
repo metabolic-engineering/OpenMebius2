@@ -1,4 +1,4 @@
-classdef IOModel < Status
+classdef IOModel < openmebius.infrastructure.logging.MessageState
 
     properties
 
@@ -624,6 +624,12 @@ classdef IOModel < Status
             modelLocation = obj.ModelLocation;
 
         end % function getModelLocation
+
+        function tableOut = getInfoTable(obj)
+
+            tableOut = obj.tableInfo;
+
+        end % function getInfoTable
 
         function tableOut = getModelTable(obj)
 

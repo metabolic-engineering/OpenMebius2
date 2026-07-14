@@ -119,6 +119,12 @@ classdef BatchConfig
             config = openmebius.domain.batch.BatchConfig.fillMissingFields( ...
                 config, ...
                 baseConfig);
+
+            % Legacy batch IDs used this non-semantic field as random salt.
+            if isfield(config, 'random')
+                config = rmfield(config, 'random');
+            end
+
             openmebius.domain.batch.BatchConfig.validate(config);
 
         end % normalize
