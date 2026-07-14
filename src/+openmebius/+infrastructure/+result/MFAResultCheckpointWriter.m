@@ -1,0 +1,241 @@
+classdef MFAResultCheckpointWriter
+    % MFARESULTCHECKPOINTWRITER
+    % Maps and persists MFA iteration checkpoints and workflow summaries.
+
+    properties (SetAccess = private)
+        Repository
+    end
+
+    methods
+
+        function obj = MFAResultCheckpointWriter(options)
+
+            arguments
+                options.Repository = ...
+                    openmebius.infrastructure.result.Hdf5ResultRepository()
+            end
+
+            obj.Repository = options.Repository;
+
+        end % constructor
+
+        function checkpoint = createIterationCheckpoint( ...
+                ~, iteration, iterationResult, reversibleReactionIndices, ...
+                options)
+
+            arguments
+                ~
+                iteration (1, 1) double {mustBeInteger, mustBePositive}
+                iterationResult (1, 1) openmebius.mfa.MFAIterationResult
+                reversibleReactionIndices (:, 2) double = zeros(0, 2)
+                options.TimestampUnix (1, 1) double = ...
+                    posixtime(datetime("now", "TimeZone", "UTC"))
+            end
+
+            flux = iterationResult.Flux;
+            openmebius.infrastructure.result.MFAResultCheckpointWriter ...
+                .validateReversibleReactionIndices( ...
+                reversibleReactionIndices, numel(flux));
+            forwardFlux = flux;
+
+            if ~isempty(reversibleReactionIndices)
+                forwardIndices = reversibleReactionIndices(:, 1);
+                reverseIndices = reversibleReactionIndices(:, 2);
+                forwardFlux(forwardIndices) = ...
+                    flux(forwardIndices) - flux(reverseIndices);
+                forwardFlux(reverseIndices) = [];
+            end
+
+            [stepSize, candidates, objectives, exitFlags] = ...
+                openmebius.infrastructure.result.MFAResultCheckpointWriter ...
+                .extractStepSizeOutput(iterationResult.Output);
+            iterationText = string(sprintf("%04d", iteration));
+            value = struct;
+            value.flux = flux;
+            value.fluxFwd = forwardFlux;
+            value.RSS = iterationResult.ObjectiveValue;
+            value.MDV = iterationResult.MDV;
+            value.exitflag = iterationResult.ExitFlag;
+            value.finiteDifferenceStepSize = stepSize;
+            value.finiteDifferenceStepSizeCandidates = candidates;
+            value.finiteDifferenceStepSizeObjectives = objectives;
+            value.finiteDifferenceStepSizeExitflags = exitFlags;
+            value.time = options.TimestampUnix;
+            checkpoint = struct( ...
+                FieldName = "fluxResult" + iterationText, ...
+                DataPath = "/fluxResult/" + iterationText, ...
+                Value = value);
+
+        end % createIterationCheckpoint
+
+        function [isSuccess, message] = writeIteration( ...
+                obj, resultFile, checkpoint)
+
+            arguments
+                obj (1, 1) ...
+                    openmebius.infrastructure.result.MFAResultCheckpointWriter
+                resultFile (1, 1) string
+                checkpoint (1, 1) struct
+            end
+
+            value = checkpoint.Value;
+            basePath = string(checkpoint.DataPath);
+            paths = [ ...
+                basePath + "/flux"; ...
+                basePath + "/fluxFwd"; ...
+                basePath + "/RSS"; ...
+                basePath + "/MDV"; ...
+                basePath + "/exitflag"; ...
+                basePath + "/finiteDifferenceStepSize"];
+            values = { ...
+                value.flux; ...
+                value.fluxFwd; ...
+                value.RSS; ...
+                value.MDV; ...
+                value.exitflag; ...
+                value.finiteDifferenceStepSize};
+            dataTypes = repmat("double", numel(paths), 1);
+
+            if ~isempty(value.finiteDifferenceStepSizeCandidates)
+                paths = [paths; ...
+                    basePath + "/finiteDifferenceStepSizeCandidates"; ...
+                    basePath + "/finiteDifferenceStepSizeObjectives"; ...
+                    basePath + "/finiteDifferenceStepSizeExitflags"];
+                values = [values; { ...
+                    value.finiteDifferenceStepSizeCandidates; ...
+                    value.finiteDifferenceStepSizeObjectives; ...
+                    value.finiteDifferenceStepSizeExitflags}];
+                dataTypes = [dataTypes; repmat("double", 3, 1)];
+            end
+
+            paths(end + 1, 1) = basePath + "/time";
+            values{end + 1, 1} = int32(value.time);
+            dataTypes(end + 1, 1) = "int32";
+            [isSuccess, message] = obj.writeDatasets( ...
+                resultFile, paths, values, dataTypes);
+
+        end % writeIteration
+
+        function [isSuccess, message] = writeSummary( ...
+                obj, resultFile, objectiveValues, order, status, threshold)
+
+            arguments
+                obj (1, 1) ...
+                    openmebius.infrastructure.result.MFAResultCheckpointWriter
+                resultFile (1, 1) string
+                objectiveValues (1, :) double
+                order double
+                status double
+                threshold (1, 1) double
+            end
+
+            paths = ["/RSS"; "/RSSIndex"; "/status"; "/threshold"];
+            values = { ...
+                objectiveValues; ...
+                int32(order); ...
+                int8(status); ...
+                threshold};
+            dataTypes = ["double"; "int32"; "int8"; "double"];
+            [isSuccess, message] = obj.writeDatasets( ...
+                resultFile, paths, values, dataTypes);
+
+        end % writeSummary
+
+    end % methods
+
+    methods (Access = private)
+
+        function [isSuccess, message] = writeDatasets( ...
+                obj, resultFile, paths, values, dataTypes)
+
+            isSuccess = true;
+            message = "";
+
+            for i = 1:numel(paths)
+                [isSuccess, message] = obj.Repository.writeDataset( ...
+                    resultFile, ...
+                    paths(i), ...
+                    values{i}, ...
+                    DataType = dataTypes(i));
+
+                if ~isSuccess
+                    message = "Failed to write " + paths(i) + ": " + ...
+                        string(message);
+                    return;
+                end
+            end
+
+        end % writeDatasets
+
+    end % methods (Access = private)
+
+    methods (Static, Access = private)
+
+        function validateReversibleReactionIndices(indices, fluxCount)
+
+            if isempty(indices)
+                return;
+            end
+
+            if any(~isfinite(indices), "all") || ...
+                    any(indices < 1, "all") || ...
+                    any(indices ~= fix(indices), "all") || ...
+                    any(indices > fluxCount, "all") || ...
+                    numel(unique(indices(:, 2))) ~= size(indices, 1)
+                error( ...
+                    "OpenMebius2:MFAResultCheckpointWriter:" + ...
+                    "InvalidReversibleReactionIndices", ...
+                    "Reversible reaction indices must contain valid, " + ...
+                    "unique flux positions.");
+            end
+
+        end % validateReversibleReactionIndices
+
+        function [stepSize, candidates, objectives, exitFlags] = ...
+                extractStepSizeOutput(optimizationOutput)
+
+            stepSize = NaN;
+            candidates = [];
+            objectives = [];
+            exitFlags = [];
+
+            if ~isstruct(optimizationOutput)
+                return;
+            end
+
+            if isfield(optimizationOutput, ...
+                    'fminconFiniteDifferenceStepSize') && ...
+                    ~isempty( ...
+                    optimizationOutput.fminconFiniteDifferenceStepSize)
+                stepSize = double( ...
+                    optimizationOutput ...
+                    .fminconFiniteDifferenceStepSize(1));
+            end
+
+            if ~isfield(optimizationOutput, ...
+                    'fminconFiniteDifferenceStepSizeSearch') || ...
+                    ~isstruct(optimizationOutput ...
+                    .fminconFiniteDifferenceStepSizeSearch)
+                return;
+            end
+
+            searchOutput = optimizationOutput ...
+                .fminconFiniteDifferenceStepSizeSearch;
+
+            if isfield(searchOutput, 'candidates')
+                candidates = double(searchOutput.candidates(:));
+            end
+
+            if isfield(searchOutput, 'objectives')
+                objectives = double(searchOutput.objectives(:));
+            end
+
+            if isfield(searchOutput, 'exitflags')
+                exitFlags = double(searchOutput.exitflags(:));
+            end
+
+        end % extractStepSizeOutput
+
+    end % methods (Static, Access = private)
+
+end % classdef
