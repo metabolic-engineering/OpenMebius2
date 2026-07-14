@@ -22,6 +22,11 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         config % The configuration object
         status % The status of the EMU model
         result % The result of the EMU model
+        FluxVariabilitySolver
+        InitialPointGenerator
+        MFAProblemFactory
+        SteadyStateSolver
+        MFAProblem = []
 
         % File export
         isExport = true
@@ -74,12 +79,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         initialFlux = [];
         initialRhs = []
         initialRSS = []
-        maskIndependent = []
-        maskRxnForBoundary = []
 
         % Variables for the optimization
-        SFmincon;
-        RHSFmincon;
         MDVExpFmincon = [];
         % Instationary 13C-MFA
         isInstationary = false
@@ -125,6 +126,14 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.infrastructure.result.Hdf5ResultRepository()
                 options.ResultManifestRepository = ...
                     openmebius.infrastructure.result.ResultManifestRepository()
+                options.FluxVariabilitySolver = ...
+                    openmebius.mfa.FluxVariabilitySolver()
+                options.InitialPointGenerator = ...
+                    openmebius.mfa.InitialPointGenerator()
+                options.MFAProblemFactory = ...
+                    openmebius.mfa.MFAProblemFactory()
+                options.SteadyStateSolver = ...
+                    openmebius.mfa.SteadyStateSolver()
                 options.Provenance (1, 1) struct = struct
             end
 
@@ -140,6 +149,10 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 openmebius.infrastructure.result.AnalysisRunRepository( ...
                 Hdf5ResultRepository = options.Hdf5ResultRepository, ...
                 ResultManifestRepository = options.ResultManifestRepository);
+            obj.FluxVariabilitySolver = options.FluxVariabilitySolver;
+            obj.InitialPointGenerator = options.InitialPointGenerator;
+            obj.MFAProblemFactory = options.MFAProblemFactory;
+            obj.SteadyStateSolver = options.SteadyStateSolver;
             obj.Provenance = options.Provenance;
 
             try
@@ -330,11 +343,14 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 notifyGeneralMessage(obj, "info", msg, dbstack());
 
                 % Define the initial values for the optimization
-                obj.RHSFmincon = tmpRhs(:, i);
+                iterationRightHandSide = tmpRhs(:, i);
 
                 if ~obj.config.isINSTMFA
                     [fval, estimatedFlux, estimatedMDV, exitflag, optimizationOutput] = ...
-                        calculateNonLinearOptimization(obj, obj.MDVExpFmincon);
+                        calculateNonLinearOptimization( ...
+                        obj, ...
+                        obj.MDVExpFmincon, ...
+                        iterationRightHandSide);
                 else
 
                     [err, msg] = obj.setINSTMFA();
@@ -347,7 +363,10 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     end
 
                     [fval, estimatedFlux, estimatedMDV, exitflag, optimizationOutput] = ...
-                        calculateNonLinearOptimizationInstationary(obj, obj.MDVExpFmincon);
+                        calculateNonLinearOptimizationInstationary( ...
+                        obj, ...
+                        obj.MDVExpFmincon, ...
+                        iterationRightHandSide);
                 end
 
                 exportFluxResult(obj, i, estimatedFlux, fval, estimatedMDV, exitflag, optimizationOutput);
@@ -456,8 +475,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             msg = "Calculating flux variability...";
             notifyGeneralMessage(obj, "info", msg, dbstack());
 
-            err = false;
-
             SBefore = obj.model.getSBefore();
             numFlux = size(SBefore, 2);
 
@@ -481,9 +498,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             idxRevTable = obj.model.getIdxRev();
             maskIrrev = ~ismember(1:numFlux, idxRevTable);
             fluxLB(maskIrrev) = max(fluxLB(maskIrrev), 0);
-
-            UB = nan(numFlux, 1);
-            LB = nan(numFlux, 1);
 
             tmpRhs = calculateRHS(obj);
             tmpRhs = tmpRhs(1:size(SBefore, 1));
@@ -512,87 +526,33 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 notifyGeneralMessage(obj, "info", msg, dbstack());
             end
 
-            % Define the optimization problem
-            options_lp = optimoptions( ...
-                @linprog, ...
-                "Display", "off", ...
-                "Algorithm", "dual-simplex-highs" ...
-            );
+            reverseCounterpartIndices = nan(numFlux, 1);
+            reverseFluxIndices = find(maskRev);
 
-            for i = 1:numFlux
+            for iFlux = reshape(reverseFluxIndices, 1, [])
+                reactionId = SBefore.Properties.VariableNames{iFlux};
+                reverseCounterpartIndices(iFlux) = ...
+                    obj.model.findCounterReaction(reactionId);
+            end
 
-                iObj = zeros(numFlux, 1);
-                iObj(i) = 1;
+            solverResult = obj.FluxVariabilitySolver.solve( ...
+                Aeq, ...
+                beq(:), ...
+                fluxLB(:), ...
+                fluxUB(:), ...
+                reverseCounterpartIndices);
+            UB = solverResult.UpperBounds;
+            LB = solverResult.LowerBounds;
+            err = solverResult.IsError;
+            status = solverResult.ExitFlag;
 
-                [~, fval, exitflag, ~] = linprog( ...
-                    iObj, ...
-                    [], ...
-                    [], ...
-                    Aeq, ...
-                    beq, ...
-                    fluxLB, ...
-                    fluxUB, ...
-                    options_lp ...
-                );
-
-                if exitflag < 0
-
-                    switch exitflag
-                        case -2
-                            msg = "FVA error. No feasible point was found.";
-                        case -3
-                            msg = "FVA error. Problem is unbounded.";
-                        case -4
-                            msg = "FVA error. NaN value was encountered during execution of the algorithm.";
-                        case -5
-                            msg = "FVA error. Both primal and dual problems are infeasible.";
-                        case -6
-                            msg = "FVA error. Search direction became too small. No further progress could be made.";
-                        case -7
-                            msg = "FVA error. Solver lost feasibility.";
-                        otherwise
-                            msg = "Unknown error.";
-                    end % switch
-
-                    notifyGeneralMessage(obj, "error", msg, dbstack());
-                    err = true;
-                    break;
-                end % if
-
-                LB(i) = fval;
-
-                [~, fval, ~, ~] = linprog( ...
-                    -iObj, ...
-                    [], ...
-                    [], ...
-                    Aeq, ...
-                    beq, ...
-                    fluxLB, ...
-                    fluxUB, ...
-                    options_lp ...
-                );
-
-                UB(i) = -fval;
-
-                if maskRev(i)
-
-                    RxnID = SBefore.Properties.VariableNames{i};
-                    idx = obj.model.findCounterReaction(RxnID);
-                    clear RxnID;
-
-                    LB(i) = -UB(idx);
-                    UB(i) = -LB(idx);
-
-                    LB(i) = LB(i) / 2;
-                    UB(i) = UB(i) / 2;
-                    LB(idx) = -UB(i);
-                    UB(idx) = -LB(i);
-
-                end % if
-
-            end % for
-
-            status = exitflag;
+            if err
+                notifyGeneralMessage( ...
+                    obj, ...
+                    "error", ...
+                    solverResult.ErrorMessage, ...
+                    dbstack());
+            end
 
         end % calculateFluxVariability
 
@@ -618,13 +578,32 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             msg = "Calculating initial flux distribution...";
             notifyGeneralMessage(obj, "info", msg, dbstack());
 
+            try
+                obj.MFAProblem = obj.MFAProblemFactory.create( ...
+                    obj.model.getS(), ...
+                    obj.model.getSType(), ...
+                    obj.rhs(:), ...
+                    obj.LB(:), ...
+                    obj.UB(:));
+            catch ME
+                flux = [];
+                rhs = [];
+                RSS = [];
+                err = true;
+                msg = "Failed to create the MFA problem. " + ...
+                    string(ME.message);
+                notifyGeneralMessage(obj, "error", msg, dbstack());
+                return
+            end
+
             switch options.method
 
                 case "random"
                     [flux, rhs] = calculateInitialFluxDistributionRandom( ...
                         obj, ...
                         iterationRate = options.iterationRate, ...
-                        whileIteration = options.whileIteration ...
+                        whileIteration = options.whileIteration, ...
+                        maxTime = options.maxTime ...
                     );
                     msg = "Initial flux distribution calculated randomly.";
                     notifyGeneralMessage(obj, "info", msg, dbstack());
@@ -888,63 +867,50 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
             iteration = obj.config.iteration;
             numInitalFluxReq = iteration * options.iterationRate;
+            generatorResult = obj.InitialPointGenerator.generateRandom( ...
+                obj.MFAProblem, ...
+                numInitalFluxReq, ...
+                IterationsPerBatch = options.whileIteration, ...
+                MaxTime = options.maxTime, ...
+                CancellationRequested = @() obj.isCanceled, ...
+                ProgressReporter = ...
+                @(count, elapsed) obj.notifyRandomInitialPointProgress( ...
+                count, elapsed));
+            flux = generatorResult.Fluxes;
+            rhs = generatorResult.RightHandSides;
 
-            tmpS = obj.model.getS();
-            tmpSType = obj.model.getSType();
-
-            tmpMaskIndependent = strcmp(tmpSType, "independent");
-
-            rowName = tmpS.Properties.RowNames;
-            rxnName = tmpS.Properties.VariableNames;
-            rxnNameIndependent = string(rowName(tmpMaskIndependent));
-            obj.maskIndependent = tmpMaskIndependent;
-
-            maskRxn = ismember(rxnName, rxnNameIndependent);
-            obj.maskRxnForBoundary = maskRxn;
-
-            tmpUB = obj.UB;
-            tmpLB = obj.LB;
-
-            tStart = tic;
-            tmpRhs = obj.rhs;
-
-            numInitialFlux = 0;
-            initlalFlux = nan(size(tmpS, 2), 0);
-            tmpInitialRhs = nan(size(tmpS, 2), 0);
-
-            while (toc(tStart) <= options.maxTime)
-
-                % Generate random flux values within the bounds
-                [rhsRtn, fluxRtn] = getRondomInitialPoint(obj, table2array(tmpS), tmpRhs, tmpUB, tmpLB, maskRxn, options.whileIteration);
-
-                numInitialFlux = numInitialFlux + size(fluxRtn, 2);
-
-                tStop = toc(tStart);
-                datetime = string(seconds(tStop), "hh:mm:ss");
-                msg = "Calculating initial flux distribution randomly" + ...
-                    " (Elapsed time: " + datetime + ", " + ...
-                    "Found " + string(numInitialFlux) + " feasible flux distributions)";
-                notifyGeneralMessage(obj, "info", msg, dbstack());
-
-                if obj.isCanceled
-                    msg = "Initial flux distribution calculation canceled.";
-                    notifyGeneralMessage(obj, "info", msg, dbstack());
-                    break;
-                end % if
-
-                initlalFlux = [initlalFlux, fluxRtn]; %#ok<AGROW>
-                tmpInitialRhs = [tmpInitialRhs, rhsRtn]; %#ok<AGROW>
-
-                if numInitialFlux >= numInitalFluxReq
-                    break;
-                end % if
-
-            end % while
-
-            flux = initlalFlux;
-            rhs = tmpInitialRhs;
+            if generatorResult.IsCanceled
+                notifyGeneralMessage( ...
+                    obj, ...
+                    "info", ...
+                    "Initial flux distribution calculation canceled.", ...
+                    dbstack());
+            end
 
         end % calculateInitialFluxDistributionRandom
+
+        function notifyRandomInitialPointProgress(obj, count, elapsedSeconds)
+
+            elapsed = string(seconds(elapsedSeconds), "hh:mm:ss");
+            msg = "Calculating initial flux distribution randomly" + ...
+                " (Elapsed time: " + elapsed + ", " + ...
+                "Found " + string(count) + ...
+                " feasible flux distributions)";
+            notifyGeneralMessage(obj, "info", msg, dbstack());
+
+        end % notifyRandomInitialPointProgress
+
+        function reportInitialPointMessage(obj, level, message)
+
+            notifyGeneralMessage(obj, level, message, dbstack());
+
+        end % reportInitialPointMessage
+
+        function reportSteadyStateMessage(obj, level, message)
+
+            notifyGeneralMessage(obj, level, message, dbstack());
+
+        end % reportSteadyStateMessage
 
         function [flux, rhs, err] = calculateInitialFluxDistributionHitAndRun(obj, options)
             % CALCULATEINITIALFLUXDISTRIBUTIONHITANDRUN
@@ -969,508 +935,39 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.maxZeroWidth (1, 1) double = 100000
             end
 
-            err = false;
-            flux = [];
-            rhs = [];
-
-            if options.seed ~= 0
-                rng(options.seed);
-            end
-
             iteration = obj.config.iteration;
             numReq = iteration * options.iterationRate;
 
-            S = obj.model.getS();
-            A = table2array(S);
+            randomStream = RandStream.getGlobalStream();
 
-            tmpUB = obj.UB;
-            tmpLB = obj.LB;
-            tmpRhs = obj.rhs;
-
-            tmpSType = obj.model.getSType();
-            rxnName = string(S.Properties.VariableNames);
-            rowName = string(S.Properties.RowNames);
-
-            if numel(tmpSType) == numel(rxnName)
-                maskIndCol = string(tmpSType(:)) == "independent";
-            elseif numel(tmpSType) == numel(rowName)
-                rxnNameIndependent = rowName(string(tmpSType(:)) == "independent");
-                maskIndCol = ismember(rxnName, rxnNameIndependent);
-            else
-                notifyGeneralMessage(obj, "error", ...
-                    "Hit-and-Run: getSType size mismatch. Cannot determine independent reactions.", dbstack());
-                err = true;
-                return;
+            if options.seed ~= 0
+                randomStream = RandStream("mt19937ar", ...
+                    "Seed", options.seed);
             end
 
-            numInd = sum(maskIndCol);
-            nRhs = size(A, 2);
+            generatorResult = obj.InitialPointGenerator.generateHitAndRun( ...
+                obj.MFAProblem, ...
+                numReq, ...
+                iteration, ...
+                BurnIn = options.burnin, ...
+                Thinning = options.thinning, ...
+                MaxStep = options.maxStep, ...
+                MaxTime = options.maxTime, ...
+                FeasibilityTolerance = options.epsFeas, ...
+                EqualityTolerance = options.epsEq, ...
+                MinimumDirectionNorm = options.minDirectionNorm, ...
+                MaxInvalidRange = options.maxInvalidRange, ...
+                MaxZeroWidth = options.maxZeroWidth, ...
+                RandomStream = randomStream, ...
+                CancellationRequested = @() obj.isCanceled, ...
+                ProgressReporter = ...
+                    @(level, message) ...
+                    obj.reportInitialPointMessage(level, message));
+
+            flux = generatorResult.Fluxes;
+            rhs = generatorResult.RightHandSides;
+            err = generatorResult.IsError || generatorResult.IsCanceled;
 
-            if numInd <= 0 || nRhs < numInd
-                notifyGeneralMessage(obj, "error", ...
-                    "Hit-and-Run: invalid independent variable dimension.", dbstack());
-                err = true;
-                return;
-            end
-
-            indIdx = (nRhs - numInd + 1:nRhs)';
-
-            obj.maskIndependent = false(nRhs, 1);
-            obj.maskIndependent(indIdx) = true;
-            obj.maskRxnForBoundary = maskIndCol;
-
-            rhsFixed = tmpRhs;
-            rhsFixed(indIdx) = 0;
-
-            vBase = A \ rhsFixed;
-
-            E = zeros(nRhs, numInd);
-            E(sub2ind([nRhs, numInd], indIdx, (1:numInd)')) = 1;
-            B = A \ E;
-
-            scaleFlux = max(1, max(abs([tmpUB; tmpLB])));
-            tolEq = max(options.epsEq, 1e-6 * scaleFlux);
-
-            maskEqFlux = abs(tmpUB - tmpLB) <= tolEq;
-
-            Aeq = B(maskEqFlux, :);
-            beq = tmpLB(maskEqFlux) - vBase(maskEqFlux);
-
-            Aineq = [B; -B];
-            bineq = [tmpUB - vBase; - (tmpLB - vBase)];
-
-            opts = optimoptions(@linprog, ...
-                "Display", "off", ...
-                "Algorithm", "dual-simplex-highs");
-
-            try
-                [x0, ~, exitflag] = linprog( ...
-                    zeros(numInd, 1), ...
-                    Aineq, ...
-                    bineq, ...
-                    Aeq, ...
-                    beq, ...
-                    [], ...
-                    [], ...
-                    opts ...
-                );
-            catch ME
-                notifyGeneralMessage(obj, "error", ...
-                    "Hit-and-Run: failed to solve initial LP. " + string(ME.message), dbstack());
-                err = true;
-                return;
-            end
-
-            if exitflag ~= 1 || isempty(x0)
-                notifyGeneralMessage(obj, "error", ...
-                    "Hit-and-Run: no feasible initial point was found. exitflag=" + string(exitflag), dbstack());
-                err = true;
-                return;
-            end
-
-            v0 = vBase + B * x0;
-
-            if ~all(v0 >= tmpLB - options.epsFeas & v0 <= tmpUB + options.epsFeas)
-                notifyGeneralMessage(obj, "error", ...
-                    "Hit-and-Run: initial point is infeasible.", dbstack());
-                err = true;
-                return;
-            end
-
-            if isempty(Aeq)
-                N = eye(numInd);
-            else
-                N = null(Aeq, "r");
-            end
-
-            dimZ = size(N, 2);
-
-            notifyGeneralMessage(obj, "info", ...
-                "Hit-and-Run: z-space dimension=" + string(dimZ) + ...
-                "/" + string(numInd) + ...
-                ", equality flux count=" + string(sum(maskEqFlux)) + ...
-                ", initial min(v-LB)=" + string(min(v0 - tmpLB)) + ...
-                ", initial min(UB-v)=" + string(min(tmpUB - v0)) + ".", dbstack());
-
-            flux = nan(nRhs, 0);
-            rhs = nan(nRhs, 0);
-
-            if dimZ == 0
-                notifyGeneralMessage(obj, "warning", ...
-                    "Hit-and-Run: z-space dimension is zero. Reusing the feasible point.", dbstack());
-
-                for i = 1:numReq
-                    iRhs = tmpRhs;
-                    iRhs(indIdx) = x0;
-
-                    rhs = [rhs, iRhs]; %#ok<AGROW>
-                    flux = [flux, v0]; %#ok<AGROW>
-                end
-
-                return;
-            end
-
-            G = B * N;
-
-            [z, okZ, msgZ] = obj.findInitialZHitAndRun(tmpLB, tmpUB, v0, G, ...
-                epsFeas = options.epsFeas, ...
-                epsEq = tolEq, ...
-                minMargin = 1e-10);
-
-            if ~okZ
-                notifyGeneralMessage(obj, "error", ...
-                    "Hit-and-Run: failed to find initial z. " + msgZ, dbstack());
-                err = true;
-                return;
-            end
-
-            vZ = v0 + G * z;
-
-            notifyGeneralMessage(obj, "info", ...
-                "Hit-and-Run: initial z found. min(v-LB)=" + string(min(vZ - tmpLB)) + ...
-                ", min(UB-v)=" + string(min(tmpUB - vZ)) + ".", dbstack());
-
-            saved = 0;
-            step = 0;
-            invalidRangeStreak = 0;
-            zeroWidthStreak = 0;
-
-            tStart = tic;
-
-            notifyGeneralMessage(obj, "info", ...
-                "Hit-and-Run: start in z-space (target=" + string(numReq) + ").", dbstack());
-
-            while toc(tStart) <= options.maxTime && ~obj.isCanceled && saved < numReq
-
-                step = step + 1;
-
-                if step > options.maxStep
-                    break;
-                end
-
-                d = randn(dimZ, 1);
-                nd = norm(d);
-
-                if nd < options.minDirectionNorm
-                    continue;
-                end
-
-                d = d / nd;
-
-                [tmin, tmax, okRange] = obj.localStepRangeZ(tmpLB, tmpUB, v0, G, z, d, ...
-                    epsFeas = options.epsFeas);
-
-                if ~okRange || ~isfinite(tmin) || ~isfinite(tmax)
-                    invalidRangeStreak = invalidRangeStreak + 1;
-
-                    if invalidRangeStreak == 1 || mod(invalidRangeStreak, 10000) == 0
-                        vc = v0 + G * z;
-                        notifyGeneralMessage(obj, "warning", ...
-                            "Hit-and-Run: invalid range. streak=" + string(invalidRangeStreak) + ...
-                            ", step=" + string(step) + ...
-                            ", min(v-LB)=" + string(min(vc - tmpLB)) + ...
-                            ", min(UB-v)=" + string(min(tmpUB - vc)) + ".", dbstack());
-                    end
-
-                    if invalidRangeStreak >= options.maxInvalidRange
-                        notifyGeneralMessage(obj, "error", ...
-                            "Hit-and-Run: too many invalid ranges.", dbstack());
-                        err = true;
-                        return;
-                    end
-
-                    continue;
-                end
-
-                if tmax <= tmin
-                    zeroWidthStreak = zeroWidthStreak + 1;
-
-                    if zeroWidthStreak == 1 || mod(zeroWidthStreak, 10000) == 0
-                        vc = v0 + G * z;
-                        notifyGeneralMessage(obj, "warning", ...
-                            "Hit-and-Run: zero-width range. streak=" + string(zeroWidthStreak) + ...
-                            ", step=" + string(step) + ...
-                            ", min(v-LB)=" + string(min(vc - tmpLB)) + ...
-                            ", min(UB-v)=" + string(min(tmpUB - vc)) + ".", dbstack());
-                    end
-
-                    if zeroWidthStreak >= options.maxZeroWidth
-                        notifyGeneralMessage(obj, "error", ...
-                            "Hit-and-Run: too many zero-width ranges. Feasible region may be lower-dimensional than z-space.", dbstack());
-                        err = true;
-                        return;
-                    end
-
-                    continue;
-                end
-
-                invalidRangeStreak = 0;
-                zeroWidthStreak = 0;
-
-                t = tmin + (tmax - tmin) * rand();
-                z = z + t * d;
-
-                if step <= options.burnin
-                    continue;
-                end
-
-                if mod(step - options.burnin, options.thinning) ~= 0
-                    continue;
-                end
-
-                x = x0 + N * z;
-                v = vBase + B * x;
-
-                if ~all(v >= tmpLB - options.epsFeas & v <= tmpUB + options.epsFeas)
-                    continue;
-                end
-
-                iRhs = tmpRhs;
-                iRhs(indIdx) = x;
-
-                rhs = [rhs, iRhs]; %#ok<AGROW>
-                flux = [flux, v]; %#ok<AGROW>
-
-                saved = saved + 1;
-
-                if saved == 1 || mod(saved, 10) == 0
-                    tStop = toc(tStart);
-                    notifyGeneralMessage(obj, "info", ...
-                        "Hit-and-Run: saved " + string(saved) + "/" + string(numReq) + ...
-                        " (step=" + string(step) + ...
-                        ", elapsed=" + string(seconds(tStop), "hh:mm:ss") + ")", dbstack());
-                end
-
-            end
-
-            if obj.isCanceled
-                notifyGeneralMessage(obj, "info", "Hit-and-Run: canceled.", dbstack());
-                err = true;
-                return;
-            end
-
-            if saved < iteration
-                notifyGeneralMessage(obj, "error", ...
-                    "Hit-and-Run: insufficient samples. Required at least " + ...
-                    string(iteration) + ", but generated " + string(saved) + ".", dbstack());
-                err = true;
-                return;
-            end
-
-            if saved < numReq
-                notifyGeneralMessage(obj, "warning", ...
-                    "Hit-and-Run: generated fewer samples than target. Target=" + ...
-                    string(numReq) + ", generated=" + string(saved) + ".", dbstack());
-            end
-
-        end
-
-        function [z, ok, msg] = findInitialZHitAndRun(obj, LB, UB, v0, G, options)
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                LB (:, 1) double
-                UB (:, 1) double
-                v0 (:, 1) double
-                G (:, :) double
-                options.epsFeas (1, 1) double = 1e-8
-                options.epsEq (1, 1) double = 1e-8
-                options.minMargin (1, 1) double = 1e-10
-            end
-
-            ok = false;
-            msg = "";
-            z = [];
-
-            dimZ = size(G, 2);
-            scaleFlux = max(1, max(abs([LB; UB])));
-            tolEq = max(options.epsEq, 1e-8 * scaleFlux);
-
-            maskMove = abs(UB - LB) > tolEq;
-
-            Gm = G(maskMove, :);
-            LBm = LB(maskMove);
-            UBm = UB(maskMove);
-            v0m = v0(maskMove);
-
-            if isempty(Gm)
-                z = zeros(dimZ, 1);
-                ok = true;
-                msg = "No movable flux constraints.";
-                return;
-            end
-
-            numMove = size(Gm, 1);
-
-            Aineq = [
-                     Gm, ones(numMove, 1)
-                     -Gm, ones(numMove, 1)
-                     ];
-
-            bineq = [
-                     UBm - v0m
-                     - (LBm - v0m)
-                     ];
-
-            f = [zeros(dimZ, 1); -1];
-
-            lb = [-inf(dimZ, 1); 0];
-            ub = [inf(dimZ, 1); inf];
-
-            opts = optimoptions(@linprog, ...
-                "Display", "off", ...
-                "Algorithm", "dual-simplex-highs");
-
-            try
-                [zr, ~, exitflag] = linprog(f, Aineq, bineq, [], [], lb, ub, opts);
-            catch ME
-                msg = "Initial z LP exception: " + string(ME.message);
-                return;
-            end
-
-            if exitflag ~= 1 || isempty(zr)
-                msg = "Initial z LP failed. exitflag=" + string(exitflag);
-                return;
-            end
-
-            z = zr(1:dimZ);
-            r = zr(end);
-
-            vz = v0 + G * z;
-
-            if ~all(vz >= LB - options.epsFeas & vz <= UB + options.epsFeas)
-                msg = "Initial z is infeasible.";
-                z = [];
-                return;
-            end
-
-            if r <= options.minMargin
-                msg = "Initial z found on boundary. r=" + string(r);
-                ok = true;
-                return;
-            end
-
-            msg = "Initial z found. r=" + string(r) + ...
-                ", movable constraint count=" + string(numMove);
-            ok = true;
-        end
-
-        function [tmin, tmax, ok] = localStepRangeZ(~, LB, UB, v0, G, z, d, options)
-            % LOCALSTEPRANGEZ
-            % Compute feasible t range in z-space:
-            %   LB <= v0 + G*(z + t*d) <= UB
-
-            arguments
-                ~
-                LB (:, 1) double
-                UB (:, 1) double
-                v0 (:, 1) double
-                G (:, :) double
-                z (:, 1) double
-                d (:, 1) double
-                options.epsA (1, 1) double = 1e-12
-                options.epsFeas (1, 1) double = 1e-8
-                options.epsWidth (1, 1) double = 1e-12
-            end
-
-            ok = true;
-
-            vc = v0 + G * z;
-            a = G * d;
-
-            tmin = -inf;
-            tmax = inf;
-
-            for i = 1:numel(vc)
-
-                if abs(a(i)) <= options.epsA
-
-                    if vc(i) < LB(i) - options.epsFeas || vc(i) > UB(i) + options.epsFeas
-                        ok = false;
-                        tmin = NaN;
-                        tmax = NaN;
-                        return;
-                    end
-
-                    continue;
-                end
-
-                t1 = (LB(i) - vc(i)) / a(i);
-                t2 = (UB(i) - vc(i)) / a(i);
-
-                lo = min(t1, t2);
-                hi = max(t1, t2);
-
-                tmin = max(tmin, lo);
-                tmax = min(tmax, hi);
-
-                if tmax < tmin - options.epsWidth
-                    ok = false;
-                    tmin = NaN;
-                    tmax = NaN;
-                    return;
-                end
-
-            end
-
-            if ~isfinite(tmin) || ~isfinite(tmax)
-                ok = false;
-                tmin = NaN;
-                tmax = NaN;
-                return;
-            end
-
-        end
-
-        function [maskZeroRangeFlux, msg] = findZeroRangeFluxZ(~, LB, UB, v0, G, options)
-
-            arguments
-                ~
-                LB (:, 1) double
-                UB (:, 1) double
-                v0 (:, 1) double
-                G (:, :) double
-                options.epsRange (1, 1) double = 1e-8
-            end
-
-            numFlux = size(G, 1);
-            dimZ = size(G, 2);
-
-            maskZeroRangeFlux = false(numFlux, 1);
-
-            Aineq = [G; -G];
-            bineq = [UB - v0; - (LB - v0)];
-
-            opts = optimoptions(@linprog, ...
-                "Display", "off", ...
-                "Algorithm", "dual-simplex-highs");
-
-            for i = 1:numFlux
-                c = G(i, :)';
-
-                if norm(c) <= 1e-12
-                    maskZeroRangeFlux(i) = true;
-                    continue;
-                end
-
-                [~, fMin, exitMin] = linprog(c, Aineq, bineq, [], [], [], [], opts);
-                [~, fMaxNeg, exitMax] = linprog(-c, Aineq, bineq, [], [], [], [], opts);
-
-                if exitMin ~= 1 || exitMax ~= 1
-                    continue;
-                end
-
-                fMax = -fMaxNeg;
-
-                if abs(fMax - fMin) <= options.epsRange
-                    maskZeroRangeFlux(i) = true;
-                end
-
-            end
-
-            msg = "zero-range flux count=" + string(sum(maskZeroRangeFlux)) + ...
-                "/" + string(numFlux) + ...
-                ", dimZ=" + string(dimZ);
         end
 
         function [LB, UB, output] = calculateNextLabelPattern(obj, pattern)
@@ -1775,7 +1272,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         end % calculateLinearizedMDV
 
         %% Optimization functions
-        function SSR = calculateObjectiveFunction(obj, independentFlux, MDVExpTemp)
+        function SSR = calculateObjectiveFunction( ...
+                obj, independentFlux, MDVExpTemp, rightHandSide)
             % CALCULATEOBJECTIVEFUNCTION Calculate the objective function.
             %
             % Parameters
@@ -1795,9 +1293,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             %   SSR: (1, 1) double
             %       The sum of squares of the residuals.
 
-            tmpRHS = obj.RHSFmincon;
-            tmpRHS(obj.maskIndependent) = independentFlux;
-            tmpFlux = obj.SFmincon \ tmpRHS;
+            tmpFlux = obj.MFAProblem.solveFlux( ...
+                independentFlux, ...
+                BaseRightHandSide = rightHandSide);
 
             MDVExpTemp = arrangeMDV(obj, MDVExpTemp, numExperiments = length(obj.subsEMUs));
 
@@ -1825,7 +1323,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         function SSR = calculateObjectiveFunctionInstationary( ...
                 obj, ...
                 independentFlux, ...
-                MDVExpTemp ...
+                MDVExpTemp, ...
+                rightHandSide ...
             )
             % CALCULATEOBJECTIVEFUNCTIONINSTATIONARY Calculate the objective function for
             % instationary MFA.
@@ -1847,9 +1346,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             %   SSR: (1, 1) double
             %       The sum of squares of the residuals.
 
-            tmpRHS = obj.RHSFmincon;
-            tmpRHS(obj.maskIndependent) = independentFlux;
-            tmpFlux = obj.SFmincon \ tmpRHS;
+            tmpFlux = obj.MFAProblem.solveFlux( ...
+                independentFlux, ...
+                BaseRightHandSide = rightHandSide);
             MDVSize = size(MDVExpTemp);
             numTimePoints = MDVSize(2);
 
@@ -1870,7 +1369,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % calculateObjectiveFunctionInstationary
 
-        function [c, ceq] = calculateConstraints(obj, independentFlux)
+        function [c, ceq] = calculateConstraints( ...
+                obj, independentFlux, rightHandSide)
             % CALCULATECONSTRAINTS Calculate the constraints.
             %
             % Parameters
@@ -1890,9 +1390,13 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             %       The equality constraints.
             %       n: number of constraints
 
-            tmpRHS = obj.RHSFmincon;
-            tmpRHS(obj.maskIndependent) = independentFlux;
-            c = -1 * obj.SFmincon \ tmpRHS;
+            if nargin < 3
+                rightHandSide = obj.MFAProblem.RightHandSide;
+            end
+
+            c = -obj.MFAProblem.solveFlux( ...
+                independentFlux, ...
+                BaseRightHandSide = rightHandSide);
             ceq = [];
 
         end % calculateConstraints
@@ -1940,7 +1444,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         end % calculateEffluxRSS
 
         function [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
-                calculateNonLinearOptimization(obj, MDVExpTemp)
+                calculateNonLinearOptimization( ...
+                obj, MDVExpTemp, rightHandSide)
             % CALCULATENONLINEAROPTIMIZATION Calculate the nonlinear optimization.
             %
             % Parameters
@@ -1948,24 +1453,23 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             %   obj: FluxAnalysis
             %       The FluxAnalysis object.
 
-            tmpInitialRhs = obj.RHSFmincon;
-            tmpInitialFlux = tmpInitialRhs(obj.maskIndependent);
+            tmpInitialFlux = ...
+                obj.MFAProblem.extractIndependentValues(rightHandSide);
 
-            fmincon_options = buildFminconOptions(obj, tmpInitialFlux);
-
-            objectiveFcn = @(x) calculateObjectiveFunction(obj, x, MDVExpTemp);
+            objectiveFcn = @(x) calculateObjectiveFunction( ...
+                obj, x, MDVExpTemp, rightHandSide);
 
             [x, fval, exitflag, output] = ...
                 runConfiguredNonlinearOptimizer( ...
                 obj, ...
                 objectiveFcn, ...
                 tmpInitialFlux, ...
-                fmincon_options ...
+                rightHandSide ...
             );
 
-            estimatedRhs = tmpInitialRhs;
-            estimatedRhs(obj.maskIndependent) = x;
-            estimatedFlux = obj.SFmincon \ estimatedRhs;
+            estimatedFlux = obj.MFAProblem.solveFlux( ...
+                x, ...
+                BaseRightHandSide = rightHandSide);
             estimatedMDV = calculateMDV(obj, estimatedFlux, obj.subsEMUs);
 
             if isnan(fval)
@@ -1989,7 +1493,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         end % calculateNonLinearOptimization
 
         function [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
-                calculateNonLinearOptimizationInstationary(obj, MDVExpTemp)
+                calculateNonLinearOptimizationInstationary( ...
+                obj, MDVExpTemp, rightHandSide)
             % CALCULATENONLINEAROPTIMIZATIONINSTATIONARY Calculate the nonlinear
             % optimization for instationary MFA.
             %
@@ -2002,24 +1507,23 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             %       n: number of fragments
             %       m: number of time points
 
-            tmpInitialRhs = obj.RHSFmincon;
-            tmpInitialFlux = tmpInitialRhs(obj.maskIndependent);
+            tmpInitialFlux = ...
+                obj.MFAProblem.extractIndependentValues(rightHandSide);
 
-            fmincon_options = buildFminconOptions(obj, tmpInitialFlux);
-
-            objectiveFcn = @(x) calculateObjectiveFunctionInstationary(obj, x, MDVExpTemp);
+            objectiveFcn = @(x) calculateObjectiveFunctionInstationary( ...
+                obj, x, MDVExpTemp, rightHandSide);
 
             [x, fval, exitflag, output] = ...
                 runConfiguredNonlinearOptimizer( ...
                 obj, ...
                 objectiveFcn, ...
                 tmpInitialFlux, ...
-                fmincon_options ...
+                rightHandSide ...
             );
 
-            estimatedRhs = tmpInitialRhs;
-            estimatedRhs(obj.maskIndependent) = x;
-            estimatedFlux = obj.SFmincon \ estimatedRhs;
+            estimatedFlux = obj.MFAProblem.solveFlux( ...
+                x, ...
+                BaseRightHandSide = rightHandSide);
             estimatedMDV = obj.model.calculateMDVTimeCourse( ...
                 estimatedFlux, ...
                 obj.subsEMUs{1}, ...
@@ -2047,7 +1551,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         end % calculateNonLinearOptimizationInstationary
 
         function [x, fval, exitflag, output] = runConfiguredNonlinearOptimizer( ...
-                obj, objectiveFcn, initialFlux, fminconOptions) %#ok<INUSD>
+                obj, objectiveFcn, initialFlux, rightHandSide)
             % RUNCONFIGUREDNONLINEAROPTIMIZER Run FMINCON with safeguards.
             %
             % GA-based hybrid optimization is intentionally disabled for now.
@@ -2066,538 +1570,30 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 notifyGeneralMessage(obj, "warning", msg, dbstack());
             end % if
 
-            fminconConfig = getFminconConfig(obj);
-            initialObjective = evaluateObjectiveForGuard(obj, objectiveFcn, startFlux);
-            initialViolation = calculateConstraintViolationForGuard(obj, startFlux);
+            [solverOptions, optionWarnings] = ...
+                openmebius.mfa.SteadyStateOptions.fromBatchConfig( ...
+                obj.config);
 
-            [Aineq, bineq] = buildLinearFluxInequalityConstraints(obj, startFlux);
+            for iWarning = 1:numel(optionWarnings)
+                notifyGeneralMessage( ...
+                    obj, "warning", optionWarnings(iWarning), dbstack());
+            end
 
-            [x, fval, exitflag, output] = ...
-                runFminconFiniteDifferenceStepSizeSearch( ...
-                obj, ...
+            solverResult = obj.SteadyStateSolver.solve( ...
+                obj.MFAProblem, ...
+                rightHandSide, ...
                 objectiveFcn, ...
-                startFlux, ...
-                Aineq, ...
-                bineq, ...
-                initialObjective, ...
-                initialViolation, ...
-                fminconConfig ...
-            );
+                solverOptions, ...
+                InitialIndependentValues = startFlux, ...
+                MessageReporter = ...
+                    @(level, message) ...
+                    obj.reportSteadyStateMessage(level, message));
+            x = solverResult.IndependentValues;
+            fval = solverResult.ObjectiveValue;
+            exitflag = solverResult.ExitFlag;
+            output = solverResult.Output;
 
         end % runConfiguredNonlinearOptimizer
-
-        function [x, fval, exitflag, output] = ...
-                runFminconFiniteDifferenceStepSizeSearch( ...
-                obj, ...
-                objectiveFcn, ...
-                startFlux, ...
-                Aineq, ...
-                bineq, ...
-                initialObjective, ...
-                initialViolation, ...
-                fminconConfig ...
-            )
-            % RUNFMINCONFINITEDIFFERENCESTEPSIZESEARCH Run FMINCON for
-            % multiple finite-difference step-size candidates and retain the
-            % best feasible result.
-
-            candidateStepSizes = getFiniteDifferenceStepSizeCandidates(obj, fminconConfig);
-            numCandidates = numel(candidateStepSizes);
-
-            trialObjectives = inf(numCandidates, 1);
-            trialExitflags = nan(numCandidates, 1);
-            trialViolations = inf(numCandidates, 1);
-            trialGuardTriggered = false(numCandidates, 1);
-            trialExecutionFailed = false(numCandidates, 1);
-            trialMessages = strings(numCandidates, 1);
-            trialOutputs = cell(numCandidates, 1);
-            trialFluxes = cell(numCandidates, 1);
-            suppressGuardMessage = numCandidates > 1;
-
-            feasibilityTolerance = max([ ...
-                                            fminconConfig.constraintTolerance, ...
-                                            fminconConfig.initialFeasibilityTolerance, ...
-                                            eps ...
-                                        ]);
-
-            bestIndex = 1;
-            bestScore = inf;
-            bestX = startFlux;
-            bestFval = initialObjective;
-            bestExitflag = -101;
-            bestOutput = struct;
-
-            for iCandidate = 1:numCandidates
-
-                iStepSize = candidateStepSizes(iCandidate);
-                iOptions = buildFminconOptions(obj, startFlux, iStepSize);
-
-                [iX, iFval, iExitflag, iOutput] = runFminconOnce( ...
-                    obj, ...
-                    objectiveFcn, ...
-                    startFlux, ...
-                    Aineq, ...
-                    bineq, ...
-                    iOptions, ...
-                    iStepSize ...
-                );
-
-                iOutput.fminconFiniteDifferenceStepSize = iStepSize;
-                iOutput.fminconInitialObjective = initialObjective;
-                iOutput.fminconInitialConstraintViolation = initialViolation;
-                iOutput.fminconFinalObjectiveBeforeGuard = iFval;
-                iOutput.fminconObjectiveGuardTriggered = false;
-
-                [iX, iFval, iExitflag, iOutput] = applyFminconObjectiveGuard( ...
-                    obj, ...
-                    iX, ...
-                    iFval, ...
-                    iExitflag, ...
-                    iOutput, ...
-                    startFlux, ...
-                    initialObjective, ...
-                    initialViolation, ...
-                    fminconConfig, ...
-                    suppressGuardMessage ...
-                );
-
-                iViolation = calculateConstraintViolationForGuard(obj, iX);
-
-                trialObjectives(iCandidate) = iFval;
-                trialExitflags(iCandidate) = iExitflag;
-                trialViolations(iCandidate) = iViolation;
-                trialGuardTriggered(iCandidate) = isfield(iOutput, 'fminconObjectiveGuardTriggered') && ...
-                    logical(iOutput.fminconObjectiveGuardTriggered);
-                trialExecutionFailed(iCandidate) = isfield(iOutput, 'fminconExecutionFailed') && ...
-                    logical(iOutput.fminconExecutionFailed);
-
-                if isfield(iOutput, 'message') && ~isempty(iOutput.message)
-                    trialMessages(iCandidate) = string(iOutput.message);
-                end % if
-
-                trialOutputs{iCandidate} = iOutput;
-                trialFluxes{iCandidate} = iX;
-
-                if isfinite(iFval) && iViolation <= 10 * feasibilityTolerance
-                    iScore = iFval;
-                else
-                    iScore = inf;
-                end % if
-
-                if iScore < bestScore
-                    bestIndex = iCandidate;
-                    bestScore = iScore;
-                    bestX = iX;
-                    bestFval = iFval;
-                    bestExitflag = iExitflag;
-                    bestOutput = iOutput;
-                end % if
-
-            end % for iCandidate
-
-            if ~isfinite(bestScore)
-
-                if isfinite(initialObjective) && initialViolation <= 10 * feasibilityTolerance
-                    bestIndex = 1;
-                    bestX = startFlux;
-                    bestFval = initialObjective;
-                    bestExitflag = -103;
-                    bestOutput = struct;
-                    bestOutput.message = "No FMINCON finite-difference step-size trial improved a feasible initial point.";
-                    bestOutput.fminconExecutionFailed = false;
-                else
-                    finiteMask = isfinite(trialObjectives);
-
-                    if any(finiteMask)
-                        finiteObjectives = trialObjectives;
-                        finiteObjectives(~finiteMask) = inf;
-                        [~, bestIndex] = min(finiteObjectives);
-                        bestX = trialFluxes{bestIndex};
-                        bestFval = trialObjectives(bestIndex);
-                        bestExitflag = trialExitflags(bestIndex);
-                        bestOutput = trialOutputs{bestIndex};
-                    else
-                        bestIndex = 1;
-                        bestX = startFlux;
-                        bestFval = initialObjective;
-                        bestExitflag = -102;
-                        bestOutput = struct;
-                        bestOutput.message = "All FMINCON finite-difference step-size trials failed.";
-                        bestOutput.fminconExecutionFailed = true;
-                    end % if
-
-                end % if
-
-            end % if
-
-            searchOutput = struct;
-            searchOutput.enabled = fminconConfig.finiteDifferenceStepSizeSearch.enabled;
-            searchOutput.candidates = candidateStepSizes(:);
-            searchOutput.objectives = trialObjectives;
-            searchOutput.exitflags = trialExitflags;
-            searchOutput.constraintViolations = trialViolations;
-            searchOutput.objectiveGuardTriggered = trialGuardTriggered;
-            searchOutput.executionFailed = trialExecutionFailed;
-            searchOutput.messages = trialMessages;
-            searchOutput.bestIndex = bestIndex;
-            searchOutput.bestFiniteDifferenceStepSize = candidateStepSizes(bestIndex);
-            searchOutput.bestObjective = bestFval;
-
-            x = bestX;
-            fval = bestFval;
-            exitflag = bestExitflag;
-            output = bestOutput;
-
-            if ~isfield(output, 'fminconInitialObjective')
-                output.fminconInitialObjective = initialObjective;
-            end % if
-
-            if ~isfield(output, 'fminconInitialConstraintViolation')
-                output.fminconInitialConstraintViolation = initialViolation;
-            end % if
-
-            if ~isfield(output, 'fminconFinalObjectiveBeforeGuard')
-                output.fminconFinalObjectiveBeforeGuard = fval;
-            end % if
-
-            if ~isfield(output, 'fminconObjectiveGuardTriggered')
-                output.fminconObjectiveGuardTriggered = false;
-            end % if
-
-            output.fminconFiniteDifferenceStepSize = candidateStepSizes(bestIndex);
-            output.fminconFiniteDifferenceStepSizeSearch = searchOutput;
-
-        end % runFminconFiniteDifferenceStepSizeSearch
-
-        function [x, fval, exitflag, output] = runFminconOnce( ...
-                ~, objectiveFcn, startFlux, Aineq, bineq, fminconOptions, finiteDifferenceStepSize)
-            % RUNFMINCONONCE Run a single guarded FMINCON call.
-
-            try
-                [x, fval, exitflag, output] = fmincon( ...
-                    objectiveFcn, ...
-                    startFlux, ...
-                    Aineq, ...
-                    bineq, ...
-                    [], ...
-                    [], ...
-                    [], ...
-                    [], ...
-                    [], ...
-                    fminconOptions ...
-                );
-
-                if ~isscalar(fval) || ~isfinite(fval)
-                    fval = inf;
-                end % if
-
-                output.fminconExecutionFailed = false;
-
-            catch ME
-                x = startFlux;
-                fval = inf;
-                exitflag = -200;
-                output = struct;
-                output.message = "FMINCON failed at FiniteDifferenceStepSize=" + ...
-                    string(finiteDifferenceStepSize) + ": " + string(ME.message);
-                output.fminconExecutionFailed = true;
-                output.fminconExceptionIdentifier = string(ME.identifier);
-            end % try
-
-        end % runFminconOnce
-
-        function options = buildFminconOptions(obj, initialFlux, finiteDifferenceStepSize)
-            % BUILDFMINCONOPTIONS Create robust FMINCON options.
-
-            fminconConfig = getFminconConfig(obj);
-
-            if nargin < 3 || isempty(finiteDifferenceStepSize)
-                finiteDifferenceStepSize = fminconConfig.finiteDifferenceStepSize;
-            end % if
-
-            algorithm = normalizeFminconAlgorithm(obj);
-            initialFlux = initialFlux(:);
-            typicalX = max(1, abs(initialFlux));
-
-            try
-                options = optimoptions('fmincon');
-                options = setFminconOption(options, 'Algorithm', algorithm);
-                options = setFminconOption(options, 'Display', 'off');
-                options = setFminconOption(options, 'MaxFunctionEvaluations', fminconConfig.maxFunctionEvaluations);
-                options = setFminconOption(options, 'MaxIterations', fminconConfig.maxIterations);
-                options = setFminconOption(options, 'FunctionTolerance', fminconConfig.functionTolerance);
-                options = setFminconOption(options, 'StepTolerance', fminconConfig.stepTolerance);
-                options = setFminconOption(options, 'OptimalityTolerance', fminconConfig.optimalityTolerance);
-                options = setFminconOption(options, 'ConstraintTolerance', fminconConfig.constraintTolerance);
-                options = setFminconOption(options, 'FiniteDifferenceType', fminconConfig.finiteDifferenceType);
-                options = setFminconOption(options, 'FiniteDifferenceStepSize', finiteDifferenceStepSize);
-                options = setFminconOption(options, 'ScaleProblem', fminconConfig.scaleProblem);
-                options = setFminconOption(options, 'TypicalX', typicalX);
-                options = setFminconOption(options, 'UseParallel', false);
-            catch
-                options = optimset( ...
-                    'Algorithm', algorithm, ...
-                    'Display', 'off', ...
-                    'MaxFunEvals', fminconConfig.maxFunctionEvaluations, ...
-                    'MaxIter', fminconConfig.maxIterations, ...
-                    'TolFun', fminconConfig.functionTolerance, ...
-                    'TolX', fminconConfig.stepTolerance, ...
-                    'TolCon', fminconConfig.constraintTolerance, ...
-                    'FinDiffType', fminconConfig.finiteDifferenceType, ...
-                    'FinDiffRelStep', finiteDifferenceStepSize, ...
-                    'TypicalX', typicalX, ...
-                    'UseParallel', false ...
-                );
-            end % try
-
-        end % buildFminconOptions
-
-        function options = setFminconOption(options, optionName, optionValue)
-            % SETFMINCONOPTION Assign an option when supported by MATLAB.
-
-            try
-                options.(optionName) = optionValue;
-            catch
-                % Older MATLAB releases do not expose all newer option names.
-                % Unsupported options are ignored intentionally.
-            end % try
-
-        end % setFminconOption
-
-        function fminconConfig = getFminconConfig(obj)
-            % GETFMINCONCONFIG Read FMINCON configuration with safe defaults.
-
-            userConfig = struct;
-
-            if isfield(obj.config, 'fmincon') && isstruct(obj.config.fmincon)
-                userConfig = obj.config.fmincon;
-            end % if
-
-            fminconConfig = struct;
-            fminconConfig.maxFunctionEvaluations = max(1000, round(readNumericConfig(obj, userConfig, 'maxFunctionEvaluations', 1000000)));
-            fminconConfig.maxIterations = max(100, round(readNumericConfig(obj, userConfig, 'maxIterations', 2000)));
-            fminconConfig.functionTolerance = max(0, readNumericConfig(obj, userConfig, 'functionTolerance', 1e-6));
-            fminconConfig.stepTolerance = max(0, readNumericConfig(obj, userConfig, 'stepTolerance', 1e-10));
-            fminconConfig.optimalityTolerance = max(0, readNumericConfig(obj, userConfig, 'optimalityTolerance', 1e-8));
-            fminconConfig.constraintTolerance = max(0, readNumericConfig(obj, userConfig, 'constraintTolerance', 1e-8));
-            fminconConfig.finiteDifferenceStepSize = max(eps, readNumericConfig(obj, userConfig, 'finiteDifferenceStepSize', 1e-6));
-            fminconConfig.objectiveIncreaseTolerance = max(0, readNumericConfig(obj, userConfig, 'objectiveIncreaseTolerance', 1e-6));
-            fminconConfig.initialFeasibilityTolerance = max(0, readNumericConfig(obj, userConfig, 'initialFeasibilityTolerance', 1e-7));
-            fminconConfig.rejectWorseThanInitial = readLogicalConfig(obj, userConfig, 'rejectWorseThanInitial', true);
-            fminconConfig.finiteDifferenceType = readStringConfig(obj, userConfig, 'finiteDifferenceType', 'central');
-            fminconConfig.scaleProblem = readStringConfig(obj, userConfig, 'scaleProblem', 'obj-and-constr');
-
-            if ~ismember(lower(string(fminconConfig.finiteDifferenceType)), ["forward", "central"])
-                fminconConfig.finiteDifferenceType = 'central';
-            end % if
-
-            searchUserConfig = struct;
-
-            if isfield(userConfig, 'finiteDifferenceStepSizeSearch') && ...
-                    ~isempty(userConfig.finiteDifferenceStepSizeSearch)
-                candidateSearchConfig = userConfig.finiteDifferenceStepSizeSearch;
-
-                if isstruct(candidateSearchConfig)
-                    searchUserConfig = candidateSearchConfig;
-                else
-                    searchUserConfig.enabled = candidateSearchConfig;
-                end % if
-
-            elseif isfield(userConfig, 'stepSizeSearch') && ...
-                    ~isempty(userConfig.stepSizeSearch)
-                candidateSearchConfig = userConfig.stepSizeSearch;
-
-                if isstruct(candidateSearchConfig)
-                    searchUserConfig = candidateSearchConfig;
-                else
-                    searchUserConfig.enabled = candidateSearchConfig;
-                end % if
-
-            end % if
-
-            defaultStepSizeCandidates = [1e-3, 1e-4, 1e-5, 1e-6, 1e-7];
-            fminconConfig.finiteDifferenceStepSizeSearch = struct;
-            fminconConfig.finiteDifferenceStepSizeSearch.enabled = ...
-                readLogicalConfig(obj, searchUserConfig, 'enabled', true);
-            fminconConfig.finiteDifferenceStepSizeSearch.includeConfiguredStep = ...
-                readLogicalConfig(obj, searchUserConfig, 'includeConfiguredStep', true);
-            fminconConfig.finiteDifferenceStepSizeSearch.maxCandidates = ...
-                max(1, round(readNumericConfig(obj, searchUserConfig, 'maxCandidates', numel(defaultStepSizeCandidates) + 1)));
-            fminconConfig.finiteDifferenceStepSizeSearch.candidates = ...
-                readNumericVectorConfig(obj, searchUserConfig, 'candidates', defaultStepSizeCandidates);
-
-        end % getFminconConfig
-
-        function stepSizes = getFiniteDifferenceStepSizeCandidates(~, fminconConfig)
-            % GETFINITEDIFFERENCESTEPSIZECANDIDATES Return FMINCON
-            % FiniteDifferenceStepSize candidates.
-
-            searchConfig = fminconConfig.finiteDifferenceStepSizeSearch;
-
-            if ~searchConfig.enabled
-                stepSizes = fminconConfig.finiteDifferenceStepSize;
-                return;
-            end % if
-
-            stepSizes = searchConfig.candidates(:);
-
-            if searchConfig.includeConfiguredStep
-                stepSizes = [fminconConfig.finiteDifferenceStepSize; stepSizes];
-            end % if
-
-            stepSizes = stepSizes(isfinite(stepSizes) & stepSizes > 0);
-
-            if isempty(stepSizes)
-                stepSizes = fminconConfig.finiteDifferenceStepSize;
-            end % if
-
-            stepSizes = unique(stepSizes, 'stable');
-            stepSizes = stepSizes(1:min(numel(stepSizes), searchConfig.maxCandidates));
-
-        end % getFiniteDifferenceStepSizeCandidates
-
-        function algorithm = normalizeFminconAlgorithm(obj)
-            % NORMALIZEFMINCONALGORITHM Normalize UI/config algorithm names.
-
-            algorithm = "sqp";
-
-            if isfield(obj.config, 'algorithm') && ~isempty(obj.config.algorithm)
-                candidate = lower(string(obj.config.algorithm));
-
-                switch candidate
-                    case {"sqp", "sqp-legacy"}
-                        algorithm = candidate;
-                    case {"ipms", "interior-point", "interior point"}
-                        algorithm = "interior-point";
-                    otherwise
-                        msg = "Unknown FMINCON algorithm '" + candidate + "'. Using sqp.";
-                        notifyGeneralMessage(obj, "warning", msg, dbstack());
-                end % switch
-
-            end % if
-
-            algorithm = char(algorithm);
-
-        end % normalizeFminconAlgorithm
-
-        function [Aineq, bineq] = buildLinearFluxInequalityConstraints(obj, initialFlux)
-            % BUILDLINEARFLUXINEQUALITYCONSTRAINTS Convert flux >= 0 to A*x <= b.
-            %
-            % calculateConstraints defines c(x) = -flux(x) <= 0.  Because
-            % flux(x) = SFmincon \ RHS(x) and RHS(x) is affine in the
-            % independent flux vector, the non-negativity constraint is linear.
-
-            numRhs = numel(obj.RHSFmincon);
-            numIndependent = numel(initialFlux);
-            selector = zeros(numRhs, numIndependent);
-            selector(obj.maskIndependent, :) = eye(numIndependent);
-
-            fixedRhs = obj.RHSFmincon;
-            fixedRhs(obj.maskIndependent) = 0;
-
-            fluxOffset = obj.SFmincon \ fixedRhs;
-            fluxCoef = obj.SFmincon \ selector;
-
-            Aineq = -fluxCoef;
-            bineq = fluxOffset;
-
-        end % buildLinearFluxInequalityConstraints
-
-        function value = evaluateObjectiveForGuard(~, objectiveFcn, flux)
-            % EVALUATEOBJECTIVEFORGUARD Evaluate objective without stopping guard setup.
-
-            try
-                value = objectiveFcn(flux);
-
-                if ~isscalar(value) || ~isfinite(value)
-                    value = inf;
-                end % if
-
-            catch
-                value = inf;
-            end % try
-
-        end % evaluateObjectiveForGuard
-
-        function violation = calculateConstraintViolationForGuard(obj, flux)
-            % CALCULATECONSTRAINTVIOLATIONFORGUARD Return max positive violation.
-
-            try
-                [c, ceq] = calculateConstraints(obj, flux);
-                violation = 0;
-
-                if ~isempty(c)
-                    violation = max(violation, max([0; c(:)]));
-                end % if
-
-                if ~isempty(ceq)
-                    violation = max(violation, max(abs(ceq(:))));
-                end % if
-
-                if ~isfinite(violation)
-                    violation = inf;
-                end % if
-
-            catch
-                violation = inf;
-            end % try
-
-        end % calculateConstraintViolationForGuard
-
-        function [x, fval, exitflag, output] = applyFminconObjectiveGuard( ...
-                obj, ...
-                x, ...
-                fval, ...
-                exitflag, ...
-                output, ...
-                initialFlux, ...
-                initialObjective, ...
-                initialViolation, ...
-                fminconConfig, ...
-                suppressMessage ...
-            )
-            % APPLYFMINCONOBJECTIVEGUARD Reject unstable objective increases.
-
-            if nargin < 10 || isempty(suppressMessage)
-                suppressMessage = false;
-            end % if
-
-            if ~fminconConfig.rejectWorseThanInitial
-                return;
-            end % if
-
-            if ~isfinite(initialObjective)
-                return;
-            end % if
-
-            if initialViolation > fminconConfig.initialFeasibilityTolerance
-                return;
-            end % if
-
-            allowedObjective = initialObjective + ...
-                fminconConfig.objectiveIncreaseTolerance * max(1, abs(initialObjective));
-
-            if isfinite(fval) && fval <= allowedObjective
-                return;
-            end % if
-
-            output.fminconObjectiveGuardTriggered = true;
-            output.fminconRejectedObjective = fval;
-            output.fminconRejectedExitflag = exitflag;
-            output.fminconRejectedMessage = "FMINCON returned a worse objective than the feasible initial point.";
-
-            if ~suppressMessage
-                msg = "FMINCON returned a worse objective (" + string(fval) + ...
-                    ") than the feasible initial objective (" + string(initialObjective) + ...
-                    "). Reverting to the initial point for this trial.";
-                notifyGeneralMessage(obj, "warning", msg, dbstack());
-            end % if
-
-            x = initialFlux;
-            fval = initialObjective;
-            exitflag = -100;
-
-        end % applyFminconObjectiveGuard
 
         function method = getOptimizationMethod(obj)
             % GETOPTIMIZATIONMETHOD Return the normalized nonlinear optimizer name.
@@ -2610,44 +1606,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             end % if
 
         end % getOptimizationMethod
-
-        function value = readLogicalConfig(~, userConfig, fieldName, defaultValue)
-            % READLOGICALCONFIG Read a scalar logical field from a struct.
-
-            value = defaultValue;
-
-            if isstruct(userConfig) && isfield(userConfig, fieldName) && ...
-                    ~isempty(userConfig.(fieldName))
-                candidate = userConfig.(fieldName);
-
-                if islogical(candidate) || isnumeric(candidate)
-                    value = logical(candidate(1));
-                elseif ischar(candidate) || isstring(candidate)
-                    candidateString = lower(string(candidate));
-                    value = ismember(candidateString(1), ["true", "1", "yes", "on"]);
-                end % if
-
-            end % if
-
-        end % readLogicalConfig
-
-        function value = readStringConfig(~, userConfig, fieldName, defaultValue)
-            % READSTRINGCONFIG Read a scalar string-like field from a struct.
-
-            value = char(defaultValue);
-
-            if isstruct(userConfig) && isfield(userConfig, fieldName) && ...
-                    ~isempty(userConfig.(fieldName))
-                candidate = userConfig.(fieldName);
-
-                if ischar(candidate) || isstring(candidate)
-                    candidateString = string(candidate);
-                    value = char(candidateString(1));
-                end % if
-
-            end % if
-
-        end % readStringConfig
 
         function gaConfig = getGAConfig(obj, nVariables)
             % GETGACONFIG Read GA configuration with safe defaults.
@@ -2675,55 +1633,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             gaConfig.maxInitialSeeds = max(1, round(readNumericConfig(obj, userConfig, 'maxInitialSeeds', gaConfig.populationSize)));
 
         end % getGAConfig
-
-        function values = readNumericVectorConfig(obj, userConfig, fieldName, defaultValues)
-            % READNUMERICVECTORCONFIG Read a positive numeric vector field.
-
-            values = double(defaultValues(:));
-
-            if isstruct(userConfig) && isfield(userConfig, fieldName) && ...
-                    ~isempty(userConfig.(fieldName))
-                candidate = userConfig.(fieldName);
-
-                if isnumeric(candidate) || islogical(candidate)
-                    values = double(candidate(:));
-                elseif iscell(candidate)
-                    numericValues = [];
-
-                    for i = 1:numel(candidate)
-
-                        if isnumeric(candidate{i}) || islogical(candidate{i})
-                            numericValues = [numericValues; double(candidate{i}(:))]; %#ok<AGROW>
-                        elseif ischar(candidate{i}) || isstring(candidate{i})
-                            numericValues = [numericValues; parseNumericTokens(obj, candidate{i})]; %#ok<AGROW>
-                        end % if
-
-                    end % for i
-
-                    values = numericValues;
-                elseif ischar(candidate) || isstring(candidate)
-                    values = parseNumericTokens(obj, candidate);
-                end % if
-
-            end % if
-
-            values = values(isfinite(values) & values > 0);
-
-            if isempty(values)
-                values = double(defaultValues(:));
-            end % if
-
-        end % readNumericVectorConfig
-
-        function values = parseNumericTokens(obj, candidate)
-            % PARSENUMERICTOKENS Parse numeric values from a string.
-
-            tokenPattern = '[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?';
-            tokens = regexp(char(candidate), tokenPattern, 'match');
-            values = str2double(tokens(:));
-            values = values(isfinite(values));
-
-        end % parseNumericTokens
 
         function value = readNumericConfig(~, userConfig, fieldName, defaultValue)
             % READNUMERICCONFIG Read a scalar numeric field from a struct.
@@ -2893,8 +1802,11 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             initialFlux = initialFlux(:);
             seedPool = initialFlux;
 
-            if ~isempty(obj.initialRhs) && size(obj.initialRhs, 1) == length(obj.maskIndependent)
-                candidateSeeds = obj.initialRhs(obj.maskIndependent, :);
+            if ~isempty(obj.initialRhs) && ...
+                    size(obj.initialRhs, 1) == ...
+                    numel(obj.MFAProblem.IndependentMask)
+                candidateSeeds = obj.MFAProblem.extractIndependentValues( ...
+                    obj.initialRhs);
                 validColumns = all(isfinite(candidateSeeds), 1);
                 candidateSeeds = candidateSeeds(:, validColumns);
 
@@ -3109,6 +2021,23 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % caluclateThreshold
 
+        function rightHandSide = ...
+                createConfidenceIntervalRightHandSide(obj, bestFlux)
+
+            baseRightHandSide = obj.MFAProblem.RightHandSide;
+
+            if ~isempty(obj.initialRhs)
+                baseRightHandSide = obj.initialRhs(:, end);
+            end
+
+            independentValues = ...
+                bestFlux(obj.MFAProblem.BoundaryReactionMask);
+            rightHandSide = obj.MFAProblem.composeRightHandSide( ...
+                independentValues, ...
+                BaseRightHandSide = baseRightHandSide);
+
+        end % createConfidenceIntervalRightHandSide
+
         %% Monte Carlo method
         function [fluxLB, fluxUB, output] = calculateCIMC(obj, config)
             % CALCULATECIMC Calculate the confidence interval using Monte Carlo method.
@@ -3184,9 +2113,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             MDVExpTemp = obj.MDVExpFmincon;
 
             resultFluxBest = obj.resultFlux(:, 1);
-            RHSTemp = obj.RHSFmincon;
-            RHSTemp(obj.maskIndependent) = resultFluxBest(obj.maskRxnForBoundary);
-            obj.RHSFmincon = RHSTemp;
+            optimizationRightHandSide = ...
+                createConfidenceIntervalRightHandSide( ...
+                obj, resultFluxBest);
 
             numMDVTemp = size(MDVExpTemp, 1);
             numLabelingTemp = size(MDVExpTemp, 2);
@@ -3204,7 +2133,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
                 % Calculate the flux distribution
                 [~, estimatedFlux, ~, ~, ~] = ...
-                    calculateNonLinearOptimization(obj, iMDV);
+                    calculateNonLinearOptimization( ...
+                    obj, iMDV, optimizationRightHandSide);
                 MCFlux(:, i) = estimatedFlux;
 
             end % for
@@ -3267,9 +2197,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             MDVExpTemp = obj.MDVExpFmincon;
 
             resultFluxBest = obj.resultFlux(:, 1);
-            RHSTemp = obj.RHSFmincon;
-            RHSTemp(obj.maskIndependent) = resultFluxBest(obj.maskRxnForBoundary);
-            obj.RHSFmincon = RHSTemp;
+            optimizationRightHandSide = ...
+                createConfidenceIntervalRightHandSide( ...
+                obj, resultFluxBest);
 
             numMDVTemp = size(MDVExpTemp, 1);
             numLabelingTemp = size(MDVExpTemp, 2);
@@ -3305,7 +2235,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
                     % Calculate the flux distribution
                     [fval, estimatedFlux, ~, ~, ~] = ...
-                        calculateNonLinearOptimization(obj, iMDV);
+                        calculateNonLinearOptimization( ...
+                        obj, iMDV, optimizationRightHandSide);
 
                     temporaryFlux = [temporaryFlux, estimatedFlux];
                     temporaryRSS = [temporaryRSS, fval];
@@ -3460,60 +2391,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             end % switch
 
         end % calculateCIMC
-
-        %% Get functions
-        function [rhsRtn, fluxRtn] = getRondomInitialPoint( ...
-                ~, tmpS, tmpRhs, tmpUB, tmpLB, maskIndependent, iteration)
-            % GETRANDO MINITIALPOINT Get a random initial point.
-            %
-            % Parameters
-            % ----------
-            %  obj: FluxAnalysis
-            %      The FluxAnalysis object.
-            %  tmpS: (n, r) double
-            %      The stoichiometry matrix.
-            %  tmpRhs: (r, 1) double
-            %      The right-hand side vector.
-            %  tmpUB: (r, 1) double
-            %      The upper bound vector.
-            %  tmpLB: (r, 1) double
-            %      The lower bound vector.
-            %  maskIndependent: (n, 1) logical
-            %      The mask for independent reactions.
-            %  iteration: (1, 1) double
-            %      The number of iterations.
-            %
-            % Description
-            % -----------
-            % This function generate a rondom feasible flux balues.
-
-            fluxRtn = nan(size(tmpS, 2), 0);
-            rhsRtn = nan(size(tmpS, 2), 0);
-
-            epsilon = 1e-6;
-
-            numIndependent = sum(maskIndependent);
-
-            for i = 1:iteration
-
-                iRhs = tmpRhs;
-
-                iRhs(end - numIndependent + 1:end) = ...
-                    rand(numIndependent, 1) .* (tmpUB(maskIndependent) - tmpLB(maskIndependent)) + tmpLB(maskIndependent);
-
-                iFlux = tmpS \ iRhs;
-
-                if all(iFlux >= tmpLB - epsilon & iFlux <= tmpUB + epsilon)
-                    % if sum(iFlux < tmpLB - epsilon) == 0 && sum(iFlux > tmpUB + epsilon) == 0
-                    % Check if the flux distribution is feasible
-
-                    fluxRtn = [fluxRtn, iFlux]; %#ok<AGROW>
-                    rhsRtn = [rhsRtn, iRhs]; %#ok<AGROW>
-                end % if
-
-            end % for
-
-        end % getRandomInitialPoint
 
         function EMU = getSubstrateEMU(obj, options)
             % GETSUBSTRATEEMU Get the substrate EMU using the EMU model.
@@ -4703,9 +3580,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 msg = "Efflux reactions were set as free variables: " + strjoin(substrateFree, ", ") + ".";
                 notifyGeneralMessage(obj, "info", msg, dbstack());
             end
-
-            tmpS = obj.model.getS();
-            obj.SFmincon = table2array(tmpS);
 
         end % validateData
 
