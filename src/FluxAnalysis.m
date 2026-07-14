@@ -25,7 +25,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         FluxVariabilitySolver
         InitialPointGenerator
         MFAProblemFactory
-        SteadyStateSolver
+        MFAIterationRunner
         EffluxPenaltyFactory
         InstationaryInputFactory
         MFAProblem = []
@@ -133,6 +133,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.MFAProblemFactory()
                 options.SteadyStateSolver = ...
                     openmebius.mfa.SteadyStateSolver()
+                options.MFAIterationRunner = []
                 options.EffluxPenaltyFactory = ...
                     openmebius.mfa.EffluxPenaltyFactory()
                 options.InstationaryInputFactory = ...
@@ -155,7 +156,15 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.FluxVariabilitySolver = options.FluxVariabilitySolver;
             obj.InitialPointGenerator = options.InitialPointGenerator;
             obj.MFAProblemFactory = options.MFAProblemFactory;
-            obj.SteadyStateSolver = options.SteadyStateSolver;
+
+            if isempty(options.MFAIterationRunner)
+                obj.MFAIterationRunner = ...
+                    openmebius.mfa.MFAIterationRunner( ...
+                    Solver = options.SteadyStateSolver);
+            else
+                obj.MFAIterationRunner = options.MFAIterationRunner;
+            end
+
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
             obj.InstationaryInputFactory = ...
                 options.InstationaryInputFactory;
@@ -915,11 +924,11 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % reportInitialPointMessage
 
-        function reportSteadyStateMessage(obj, level, message)
+        function reportOptimizationMessage(obj, level, message)
 
             notifyGeneralMessage(obj, level, message, dbstack());
 
-        end % reportSteadyStateMessage
+        end % reportOptimizationMessage
 
         function [flux, rhs, err] = calculateInitialFluxDistributionHitAndRun(obj, options)
             % CALCULATEINITIALFLUXDISTRIBUTIONHITANDRUN
@@ -1372,42 +1381,11 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             %   obj: FluxAnalysis
             %       The FluxAnalysis object.
 
-            tmpInitialFlux = ...
-                obj.MFAProblem.extractIndependentValues(rightHandSide);
             objective = createSteadyStateObjective( ...
                 obj, MDVExpTemp, rightHandSide);
-            objectiveFcn = @(x) objective.evaluate(x);
-
-            [x, fval, exitflag, output] = ...
-                runConfiguredNonlinearOptimizer( ...
-                obj, ...
-                objectiveFcn, ...
-                tmpInitialFlux, ...
-                rightHandSide ...
-            );
-
-            estimatedFlux = obj.MFAProblem.solveFlux( ...
-                x, ...
-                BaseRightHandSide = rightHandSide);
-            estimatedMDV = objective.predictFlux(estimatedFlux);
-
-            if isnan(fval)
-                msg = "Nonlinear optimization failed.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                return;
-            else
-                stepSizeMsg = "";
-
-                if isfield(output, 'fminconFiniteDifferenceStepSize')
-                    stepSizeMsg = " FiniteDifferenceStepSize: " + ...
-                        string(output.fminconFiniteDifferenceStepSize) + ".";
-                end % if
-
-                msg = "Nonlinear optimization completed. " + ...
-                    "RSS: " + string(fval) + "." + stepSizeMsg;
-            end % if
-
-            notifyGeneralMessage(obj, "info", msg, dbstack());
+            [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
+                executeNonlinearOptimization( ...
+                obj, objective, rightHandSide, "");
 
         end % calculateNonLinearOptimization
 
@@ -1426,47 +1404,58 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             %       n: number of fragments
             %       m: number of time points
 
-            tmpInitialFlux = ...
-                obj.MFAProblem.extractIndependentValues(rightHandSide);
             objective = createInstationaryObjective( ...
                 obj, MDVExpTemp, rightHandSide);
-            objectiveFcn = @(x) objective.evaluate(x);
-
-            [x, fval, exitflag, output] = ...
-                runConfiguredNonlinearOptimizer( ...
+            [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
+                executeNonlinearOptimization( ...
                 obj, ...
-                objectiveFcn, ...
-                tmpInitialFlux, ...
-                rightHandSide ...
-            );
-
-            estimatedFlux = obj.MFAProblem.solveFlux( ...
-                x, ...
-                BaseRightHandSide = rightHandSide);
-            estimatedMDV = objective.predictFlux(estimatedFlux);
-
-            if isnan(fval)
-                msg = "Nonlinear optimization for instationary MFA failed.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                return;
-            else
-                stepSizeMsg = "";
-
-                if isfield(output, 'fminconFiniteDifferenceStepSize')
-                    stepSizeMsg = " FiniteDifferenceStepSize: " + ...
-                        string(output.fminconFiniteDifferenceStepSize) + ".";
-                end % if
-
-                msg = "Nonlinear optimization for instationary MFA completed. " + ...
-                    "RSS: " + string(fval) + "." + stepSizeMsg;
-                notifyGeneralMessage(obj, "info", msg, dbstack());
-            end % if
+                objective, ...
+                rightHandSide, ...
+                " for instationary MFA");
 
         end % calculateNonLinearOptimizationInstationary
 
-        function [x, fval, exitflag, output] = runConfiguredNonlinearOptimizer( ...
-                obj, objectiveFcn, initialFlux, rightHandSide)
-            % RUNCONFIGUREDNONLINEAROPTIMIZER Run FMINCON with safeguards.
+        function [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
+                executeNonlinearOptimization( ...
+                obj, objective, rightHandSide, context)
+            % EXECUTENONLINEAROPTIMIZATION Run and report one MFA iteration.
+
+            iterationResult = runConfiguredMFAIteration( ...
+                obj, objective, rightHandSide);
+            fval = iterationResult.ObjectiveValue;
+            estimatedFlux = iterationResult.Flux;
+            estimatedMDV = iterationResult.MDV;
+            exitflag = iterationResult.ExitFlag;
+            output = iterationResult.Output;
+            subject = "Nonlinear optimization" + context;
+
+            if iterationResult.IsError || ~isfinite(fval)
+                msg = subject + " failed.";
+
+                if strlength(iterationResult.ErrorMessage) > 0
+                    msg = msg + " " + iterationResult.ErrorMessage;
+                end
+
+                notifyGeneralMessage(obj, "error", msg, dbstack());
+                return;
+            end
+
+            stepSizeMsg = "";
+
+            if isfield(output, 'fminconFiniteDifferenceStepSize')
+                stepSizeMsg = " FiniteDifferenceStepSize: " + ...
+                    string(output.fminconFiniteDifferenceStepSize) + ".";
+            end
+
+            msg = subject + " completed. RSS: " + ...
+                string(fval) + "." + stepSizeMsg;
+            notifyGeneralMessage(obj, "info", msg, dbstack());
+
+        end % executeNonlinearOptimization
+
+        function result = runConfiguredMFAIteration( ...
+                obj, objective, rightHandSide)
+            % RUNCONFIGUREDMFAITERATION Run one configured MFA iteration.
             %
             % GA-based hybrid optimization is intentionally disabled for now.
             % FMINCON starts from the supplied feasible initial flux vector.
@@ -1474,7 +1463,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             % and the best feasible FMINCON result is selected.
 
             method = getOptimizationMethod(obj);
-            startFlux = initialFlux(:);
 
             if ismember(method, ["hybrid-ga-gradient", "hybrid", "ga-gradient"])
                 msg = "Hybrid GA optimization is temporarily disabled. Using FMINCON only.";
@@ -1493,21 +1481,16 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     obj, "warning", optionWarnings(iWarning), dbstack());
             end
 
-            solverResult = obj.SteadyStateSolver.solve( ...
+            result = obj.MFAIterationRunner.run( ...
                 obj.MFAProblem, ...
                 rightHandSide, ...
-                objectiveFcn, ...
+                objective, ...
                 solverOptions, ...
-                InitialIndependentValues = startFlux, ...
                 MessageReporter = ...
                     @(level, message) ...
-                    obj.reportSteadyStateMessage(level, message));
-            x = solverResult.IndependentValues;
-            fval = solverResult.ObjectiveValue;
-            exitflag = solverResult.ExitFlag;
-            output = solverResult.Output;
+                    obj.reportOptimizationMessage(level, message));
 
-        end % runConfiguredNonlinearOptimizer
+        end % runConfiguredMFAIteration
 
         function method = getOptimizationMethod(obj)
             % GETOPTIMIZATIONMETHOD Return the normalized nonlinear optimizer name.
