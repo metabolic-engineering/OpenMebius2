@@ -129,9 +129,12 @@ classdef ReportResult < handle
 
             obj.OutputPath = obj.ResultLocation.summaryReportFile();
             obj.TemporaryOutputPath = ...
-                string(tempname(obj.ResultLocation.Directory)) + ".html";
+                string(tempname) + ".html";
             obj.Report = Report(obj.TemporaryOutputPath, "html-file");
             obj.Report.Layout.Landscape = true;
+            obj.Report.TitleBarText = obj.Title;
+            obj.Report.HTMLHeadExt = char( ...
+                openmebius.presentation.report.HtmlReportStyle.headMarkup());
 
         end % setupReport
 
@@ -462,6 +465,7 @@ classdef ReportResult < handle
 
         function addData(obj, parent, data)
 
+            import mlreportgen.dom.CustomAttribute;
             import mlreportgen.dom.FormalTable;
 
             if isempty(data)
@@ -470,7 +474,20 @@ classdef ReportResult < handle
             end
 
             try
-                add(parent, FormalTable(data));
+                [tableHeader, tableBody] = ...
+                    openmebius.presentation.report.ReportTableFormatter ...
+                    .format(data);
+
+                if isempty(tableHeader)
+                    reportTable = FormalTable(tableBody);
+                else
+                    reportTable = FormalTable(tableHeader, tableBody);
+                end
+
+                reportTable.CustomAttributes = ...
+                    CustomAttribute('class', 'openmebius-report-table');
+                reportTable.IsSortable = ReportResult.rowCount(data) ~= "1";
+                add(parent, reportTable);
             catch ME
                 obj.addText(parent, ...
                     "Data could not be rendered: " + ME.message);
@@ -480,9 +497,13 @@ classdef ReportResult < handle
 
         function addText(~, parent, value)
 
+            import mlreportgen.dom.CustomAttribute;
             import mlreportgen.dom.Paragraph;
 
-            add(parent, Paragraph(char(string(value))));
+            paragraph = Paragraph(char(string(value)));
+            paragraph.CustomAttributes = ...
+                CustomAttribute('class', 'openmebius-report-note');
+            add(parent, paragraph);
 
         end % addText
 

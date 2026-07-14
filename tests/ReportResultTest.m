@@ -46,6 +46,11 @@ classdef ReportResultTest < matlab.unittest.TestCase
             testCase.verifyTrue(isfile(outputPath));
             output = string(fileread(outputPath));
             testCase.verifyTrue(contains(output, "OpenMebius2 Analysis Report"));
+            testCase.verifyTrue(contains(output, "openmebius-report-style"));
+            testCase.verifyTrue(contains(output, "--om-accent: #087f72"));
+            testCase.verifyTrue(contains(output, "@media (max-width: 720px)"));
+            testCase.verifyTrue(contains(output, "overflow-x: auto"));
+            testCase.verifyTrue(contains(output, "openmebius-report-table"));
             testCase.verifyTrue(contains(output, "Overview"));
             testCase.verifyTrue(contains( ...
                 output, ...
@@ -55,6 +60,16 @@ classdef ReportResultTest < matlab.unittest.TestCase
             testCase.verifyTrue(contains(output, resultID));
             testCase.verifyTrue(contains(output, "2.4.3"));
             testCase.verifyTrue(contains(output, "model-sha256"));
+            testCase.verifyTrue(contains(output, "<span>Test model</span>"));
+            testCase.verifyFalse(contains( ...
+                output, ...
+                "<span>""Test model""</span>"));
+            testCase.verifyTrue(contains(output, "<span>0.8</span>"));
+            testCase.verifyFalse(contains(output, "0.80000000000000004"));
+            testCase.verifyTrue(contains(output, "<span>Row</span>"));
+            generatedFiles = dir(resultDirectory);
+            generatedNames = string({generatedFiles(~[generatedFiles.isdir]).name});
+            testCase.verifyFalse(any(endsWith(generatedNames, ".tmp")));
 
             clear cleanup
 
