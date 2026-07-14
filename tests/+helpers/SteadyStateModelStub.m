@@ -13,6 +13,13 @@ classdef SteadyStateModelStub < handle
 
         end
 
+        function mdv = calculateMDVTimeCourse( ...
+                ~, flux, emu, poolSizes, timePoints)
+
+            mdv = (emu * flux) * timePoints(:).' / mean(poolSizes);
+
+        end
+
         function stoichiometry = getSBefore(obj)
 
             stoichiometry = array2table( ...

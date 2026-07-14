@@ -1278,55 +1278,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         end % calculateLinearizedMDV
 
         %% Optimization functions
-        function SSR = calculateObjectiveFunctionInstationary( ...
-                obj, ...
-                independentFlux, ...
-                MDVExpTemp, ...
-                rightHandSide ...
-            )
-            % CALCULATEOBJECTIVEFUNCTIONINSTATIONARY Calculate the objective function for
-            % instationary MFA.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   independentFlux: (n, 1) double
-            %       The independent flux distribution.
-            %       n: number of independent fluxes
-            %   MDVExpTemp: (n, m) double
-            %       The experimental MDV.
-            %       n: number of fragments
-            %       m: number of time points
-            %
-            % Returns
-            % -------
-            %   SSR: (1, 1) double
-            %       The sum of squares of the residuals.
-
-            tmpFlux = obj.MFAProblem.solveFlux( ...
-                independentFlux, ...
-                BaseRightHandSide = rightHandSide);
-            MDVSize = size(MDVExpTemp);
-            numTimePoints = MDVSize(2);
-
-            MDVExpTemp = MDVExpTemp(:);
-            MDVMaskUnit = obj.MDVFragMask;
-            MDVMask = repmat(MDVMaskUnit, numTimePoints, 1);
-            MDVExp = obj.model.calculateMDVTimeCourse( ...
-                tmpFlux, ...
-                obj.subsEMUs{1}, ...
-                obj.poolsize, ...
-                obj.timePoints ...
-            ); %#ok<PROPLC>
-            MDVExp = MDVExp(:); %#ok<PROPLC>
-
-            SSR = ((MDVExp(MDVMask) - MDVExpTemp(MDVMask)) / 0.01) .^ 2; %#ok<PROPLC>
-            SSR = sum(SSR, 1);
-            SSR = SSR + calculateEffluxRSS(obj, tmpFlux);
-
-        end % calculateObjectiveFunctionInstationary
-
         function [c, ceq] = calculateConstraints( ...
                 obj, independentFlux, rightHandSide)
             % CALCULATECONSTRAINTS Calculate the constraints.
@@ -1359,19 +1310,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % calculateConstraints
 
-        function RSS = calculateEffluxRSS(obj, flux)
-            % CALCULATEEFFLUXRSS Calculate the RSS contribution of free effluxes.
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                flux (:, :) double
-            end
-
-            penalty = createEffluxPenalty(obj);
-            RSS = penalty.evaluate(flux);
-
-        end % calculateEffluxRSS
-
         function penalty = createEffluxPenalty(obj)
             % CREATEEFFLUXPENALTY Resolve selected efflux measurements.
 
@@ -1402,6 +1340,23 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 EffluxPenalty = createEffluxPenalty(obj));
 
         end % createSteadyStateObjective
+
+        function objective = createInstationaryObjective( ...
+                obj, experimentalMDV, rightHandSide)
+            % CREATEINSTATIONARYOBJECTIVE Build immutable run inputs.
+
+            objective = openmebius.mfa.InstationaryObjective( ...
+                Problem = obj.MFAProblem, ...
+                RightHandSide = rightHandSide, ...
+                Model = obj.model, ...
+                SubstrateEMU = obj.subsEMUs{1}, ...
+                PoolSizes = obj.poolsize, ...
+                TimePoints = obj.timePoints, ...
+                ExperimentalMDV = experimentalMDV, ...
+                FragmentMask = obj.MDVFragMask, ...
+                EffluxPenalty = createEffluxPenalty(obj));
+
+        end % createInstationaryObjective
 
         function [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
                 calculateNonLinearOptimization( ...
@@ -1469,9 +1424,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
             tmpInitialFlux = ...
                 obj.MFAProblem.extractIndependentValues(rightHandSide);
-
-            objectiveFcn = @(x) calculateObjectiveFunctionInstationary( ...
-                obj, x, MDVExpTemp, rightHandSide);
+            objective = createInstationaryObjective( ...
+                obj, MDVExpTemp, rightHandSide);
+            objectiveFcn = @(x) objective.evaluate(x);
 
             [x, fval, exitflag, output] = ...
                 runConfiguredNonlinearOptimizer( ...
@@ -1484,12 +1439,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             estimatedFlux = obj.MFAProblem.solveFlux( ...
                 x, ...
                 BaseRightHandSide = rightHandSide);
-            estimatedMDV = obj.model.calculateMDVTimeCourse( ...
-                estimatedFlux, ...
-                obj.subsEMUs{1}, ...
-                obj.poolsize, ...
-                obj.timePoints ...
-            );
+            estimatedMDV = objective.predictFlux(estimatedFlux);
 
             if isnan(fval)
                 msg = "Nonlinear optimization for instationary MFA failed.";
