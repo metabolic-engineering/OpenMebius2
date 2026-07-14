@@ -26,6 +26,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         InitialPointGenerator
         MFAProblemFactory
         MFAIterationRunner
+        MFAWorkflow
         EffluxPenaltyFactory
         InstationaryInputFactory
         MFAProblem = []
@@ -134,6 +135,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.SteadyStateSolver = ...
                     openmebius.mfa.SteadyStateSolver()
                 options.MFAIterationRunner = []
+                options.MFAWorkflow = openmebius.mfa.MFAWorkflow()
                 options.EffluxPenaltyFactory = ...
                     openmebius.mfa.EffluxPenaltyFactory()
                 options.InstationaryInputFactory = ...
@@ -165,6 +167,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 obj.MFAIterationRunner = options.MFAIterationRunner;
             end
 
+            obj.MFAWorkflow = options.MFAWorkflow;
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
             obj.InstationaryInputFactory = ...
                 options.InstationaryInputFactory;
@@ -358,53 +361,30 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 end
             end
 
-            % Set the empty flux distribution
-            obj.resultRSS = nan(1, obj.config.iteration);
-            obj.resultFlux = nan(size(tmpRhs, 1), obj.config.iteration);
-            obj.resultMDV = nan(obj.numMDV, obj.config.numExperiments, obj.config.iteration);
+            workflowResult = obj.MFAWorkflow.run( ...
+                tmpRhs, ...
+                @(rightHandSide) calculateConfiguredMFAIteration( ...
+                obj, obj.MDVExpFmincon, rightHandSide), ...
+                ProgressReporter = ...
+                    @(iteration, total) ...
+                    notifyMFAIterationProgress(obj, iteration, total), ...
+                IterationCompleted = ...
+                    @(iteration, iterationResult) ...
+                    exportMFAIterationResult( ...
+                    obj, iteration, iterationResult), ...
+                CancellationRequested = @() obj.isCanceled, ...
+                MDVMapper = @(mdv) arrangeMDV(obj, mdv));
+            obj.resultRSS = workflowResult.ObjectiveValues;
+            obj.resultFlux = workflowResult.Fluxes;
+            obj.resultMDV = workflowResult.MDVs;
 
-            % Flux calculation for each iteration
-            for i = 1:obj.config.iteration
-
-                % Notify the initial flux event
-                msg = "Calculating flux distribution (iteration " + string(i) + "/" + string(obj.config.iteration) + ")";
+            if workflowResult.IsCanceled
+                msg = "Nonlinear optimization canceled.";
                 notifyGeneralMessage(obj, "info", msg, dbstack());
+                return;
+            end
 
-                % Define the initial values for the optimization
-                iterationRightHandSide = tmpRhs(:, i);
-
-                if ~obj.config.isINSTMFA
-                    [fval, estimatedFlux, estimatedMDV, exitflag, optimizationOutput] = ...
-                        calculateNonLinearOptimization( ...
-                        obj, ...
-                        obj.MDVExpFmincon, ...
-                        iterationRightHandSide);
-                else
-                    [fval, estimatedFlux, estimatedMDV, exitflag, optimizationOutput] = ...
-                        calculateNonLinearOptimizationInstationary( ...
-                        obj, ...
-                        obj.MDVExpFmincon, ...
-                        iterationRightHandSide);
-                end
-
-                exportFluxResult(obj, i, estimatedFlux, fval, estimatedMDV, exitflag, optimizationOutput);
-
-                obj.resultRSS(i) = fval;
-                obj.resultFlux(:, i) = estimatedFlux;
-                obj.resultMDV(:, :, i) = arrangeMDV(obj, estimatedMDV);
-
-                % Calcel the calculation
-                if obj.isCanceled
-                    msg = "Nonlinear optimization canceled.";
-                    notifyGeneralMessage(obj, "info", msg, dbstack());
-                    return;
-                end % if isCanceled
-
-            end % for
-
-            [obj.resultRSS, idx] = sort(obj.resultRSS);
-            obj.resultFlux = obj.resultFlux(:, idx);
-            obj.resultMDV = obj.resultMDV(:, :, idx);
+            idx = workflowResult.Order;
 
             minRSS = obj.resultRSS(1);
             % Calculate the threshold for chi-squared test
@@ -930,6 +910,14 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % reportOptimizationMessage
 
+        function notifyMFAIterationProgress(obj, iteration, total)
+
+            msg = "Calculating flux distribution (iteration " + ...
+                string(iteration) + "/" + string(total) + ")";
+            notifyGeneralMessage(obj, "info", msg, dbstack());
+
+        end % notifyMFAIterationProgress
+
         function [flux, rhs, err] = calculateInitialFluxDistributionHitAndRun(obj, options)
             % CALCULATEINITIALFLUXDISTRIBUTIONHITANDRUN
             % Standard Hit-and-Run in z-space.
@@ -1371,6 +1359,25 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % createInstationaryObjective
 
+        function result = calculateConfiguredMFAIteration( ...
+                obj, experimentalMDV, rightHandSide)
+            % CALCULATECONFIGUREDMFAITERATION Run the configured MFA mode.
+
+            if obj.config.isINSTMFA
+                objective = createInstationaryObjective( ...
+                    obj, experimentalMDV, rightHandSide);
+                context = " for instationary MFA";
+            else
+                objective = createSteadyStateObjective( ...
+                    obj, experimentalMDV, rightHandSide);
+                context = "";
+            end
+
+            result = runAndReportMFAIteration( ...
+                obj, objective, rightHandSide, context);
+
+        end % calculateConfiguredMFAIteration
+
         function [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
                 calculateNonLinearOptimization( ...
                 obj, MDVExpTemp, rightHandSide)
@@ -1420,13 +1427,23 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 obj, objective, rightHandSide, context)
             % EXECUTENONLINEAROPTIMIZATION Run and report one MFA iteration.
 
-            iterationResult = runConfiguredMFAIteration( ...
-                obj, objective, rightHandSide);
+            iterationResult = runAndReportMFAIteration( ...
+                obj, objective, rightHandSide, context);
             fval = iterationResult.ObjectiveValue;
             estimatedFlux = iterationResult.Flux;
             estimatedMDV = iterationResult.MDV;
             exitflag = iterationResult.ExitFlag;
             output = iterationResult.Output;
+
+        end % executeNonlinearOptimization
+
+        function iterationResult = runAndReportMFAIteration( ...
+                obj, objective, rightHandSide, context)
+            % RUNANDREPORTMFAITERATION Run and report one MFA iteration.
+
+            iterationResult = runConfiguredMFAIteration( ...
+                obj, objective, rightHandSide);
+            fval = iterationResult.ObjectiveValue;
             subject = "Nonlinear optimization" + context;
 
             if iterationResult.IsError || ~isfinite(fval)
@@ -1441,17 +1458,33 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             end
 
             stepSizeMsg = "";
+            optimizationOutput = iterationResult.Output;
 
-            if isfield(output, 'fminconFiniteDifferenceStepSize')
+            if isfield(optimizationOutput, ...
+                    'fminconFiniteDifferenceStepSize')
                 stepSizeMsg = " FiniteDifferenceStepSize: " + ...
-                    string(output.fminconFiniteDifferenceStepSize) + ".";
+                    string(optimizationOutput.fminconFiniteDifferenceStepSize) + ".";
             end
 
             msg = subject + " completed. RSS: " + ...
                 string(fval) + "." + stepSizeMsg;
             notifyGeneralMessage(obj, "info", msg, dbstack());
 
-        end % executeNonlinearOptimization
+        end % runAndReportMFAIteration
+
+        function exportMFAIterationResult(obj, iteration, result)
+            % EXPORTMFAITERATIONRESULT Persist one completed iteration.
+
+            exportFluxResult( ...
+                obj, ...
+                iteration, ...
+                result.Flux, ...
+                result.ObjectiveValue, ...
+                result.MDV, ...
+                result.ExitFlag, ...
+                result.Output);
+
+        end % exportMFAIterationResult
 
         function result = runConfiguredMFAIteration( ...
                 obj, objective, rightHandSide)
