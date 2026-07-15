@@ -3,6 +3,7 @@ classdef IOExps < handle
     properties (Access = private)
 
         Collection openmebius.domain.experiment.ExperimentCollection
+        ComparisonBuilder
         ExperimentRepository
         TableAssembler
         MessagePublisher
@@ -45,6 +46,8 @@ classdef IOExps < handle
                 modelInput = []
                 options.ExperimentRepository = ...
                     openmebius.infrastructure.experiment.ExperimentRepository()
+                options.ComparisonBuilder = openmebius.domain.experiment ...
+                    .ExperimentComparisonBuilder()
                 options.TableAssembler = openmebius.domain.experiment ...
                     .ExperimentTableAssembler()
                 options.AllowEmpty (1, 1) logical = false
@@ -56,6 +59,7 @@ classdef IOExps < handle
 
             obj.Collection = openmebius.domain.experiment ...
                 .ExperimentCollection(experimentLocation);
+            obj.ComparisonBuilder = options.ComparisonBuilder;
             obj.ExperimentRepository = options.ExperimentRepository;
             obj.TableAssembler = options.TableAssembler;
             obj.MessagePublisher = openmebius.presentation ...
@@ -701,36 +705,14 @@ classdef IOExps < handle
                 fragName (1, 1) string
             end
 
-            numData = length(obj.fieldNames);
-            expList = obj.getExpList;
-            tableRtn = table();
+            result = obj.ComparisonBuilder.buildMSNormalized( ...
+                obj.Collection, fragName);
 
-            for i = 1:numData
+            if ~result.IsAvailable
+                updateMsg(obj, result.Message, "Error", obj.logLevel);
+            end
 
-                iTableMS = getMSNormalizedTable(obj, expList(i));
-                iTableMS = iTableMS(:, fragName);
-                iTableMS.Properties.VariableNames = expList(i);
-                iRowNames = iTableMS.Properties.RowNames;
-                iTableMS.RowNamesTemp = iRowNames;
-
-                if isempty(tableRtn)
-                    tableRtn = iTableMS;
-                    continue
-                end % if
-
-                tableRtn = outerjoin( ...
-                    tableRtn, ...
-                    iTableMS, ...
-                    'Keys', "RowNamesTemp", ...
-                    'MergeKeys', true ...
-                );
-
-            end % for i
-
-            tableRtn = removevars(tableRtn, "RowNamesTemp");
-
-            isAllNaNOrZero = all(isnan(tableRtn{:, :}) | tableRtn{:, :} == 0, 2);
-            tableRtn(isAllNaNOrZero, :) = [];
+            tableRtn = result.Data;
 
         end % getMSNormalizedComparison
 
@@ -799,36 +781,14 @@ classdef IOExps < handle
                 fragName (1, 1) string
             end
 
-            numData = length(obj.fieldNames);
-            expList = obj.getExpList;
-            tableRtn = table();
+            result = obj.ComparisonBuilder.buildMDVBiomass( ...
+                obj.Collection, fragName);
 
-            for i = 1:numData
+            if ~result.IsAvailable
+                updateMsg(obj, result.Message, "Error", obj.logLevel);
+            end
 
-                iTableMS = getMDVBiomassTable(obj, expList(i));
-                iTableMS = iTableMS(:, fragName);
-                iTableMS.Properties.VariableNames = expList(i);
-                iRowNames = iTableMS.Properties.RowNames;
-                iTableMS.RowNamesTemp = iRowNames;
-
-                if isempty(tableRtn)
-                    tableRtn = iTableMS;
-                    continue
-                end % if
-
-                tableRtn = outerjoin( ...
-                    tableRtn, ...
-                    iTableMS, ...
-                    'Keys', "RowNamesTemp", ...
-                    'MergeKeys', true ...
-                );
-
-            end % for i
-
-            tableRtn = removevars(tableRtn, "RowNamesTemp");
-
-            isAllNaNOrZero = all(isnan(tableRtn{:, :}) | tableRtn{:, :} == 0, 2);
-            tableRtn(isAllNaNOrZero, :) = [];
+            tableRtn = result.Data;
 
         end % getMDVBiomassComparison
 
@@ -898,7 +858,14 @@ classdef IOExps < handle
                 obj IOExps
             end % arguments
 
-            [tableRtn, tableRtnErr] = combineEnrichmentData(obj);
+            result = obj.ComparisonBuilder.buildEnrichment(obj.Collection);
+
+            if ~result.IsAvailable
+                updateMsg(obj, result.Message, "Error", obj.logLevel);
+            end
+
+            tableRtn = result.Data;
+            tableRtnErr = result.ErrorMask;
 
         end % getEnrichmentComparison
 
@@ -977,7 +944,14 @@ classdef IOExps < handle
                 obj IOExps
             end % arguments
 
-            [tableRtnSelect, tableRtnAvailable] = combineSelectionData(obj);
+            result = obj.ComparisonBuilder.buildSelection(obj.Collection);
+
+            if ~result.IsAvailable
+                updateMsg(obj, result.Message, "Error", obj.logLevel);
+            end
+
+            tableRtnSelect = result.Selected;
+            tableRtnAvailable = result.Available;
         end % getSelectionComparison
 
         %% Public update methods
@@ -1481,168 +1455,6 @@ classdef IOExps < handle
                 CreateSubstrateTemplate = true);
 
         end % loadExpFile
-
-        function [tableRtn, err] = combineEnrichmentData(obj)
-            % COMBINEENRICHMENTDATA: Create a table of enrichment data
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            %
-            % Returns:
-            % --------
-            % tableRtn: table
-            %     The table of enrichment data.
-            % err: logical
-            %     The error flag for the enrichment data.
-            %     true if there is an error, false otherwise.
-            %     Conditiions:
-            %     - The table of enrichment data is empty.
-            %     - The range of the table is not valid.
-            %       0 <= enrichment <= 1
-            %
-            % Example:
-            % >> obj = IOExps("path/to/your/file", "fileName");
-            % >> tableRtn = combineEnrichmentData(obj)
-            %     tableRtn = 3x3 table
-            %     | Fragment | Sample1 | Sample2 | Sample3 |
-            %     |----------|---------|---------|---------|
-            %     |    Ala57 | 0.1234  | 0.5678  | 0.9101  |
-            %     |    Ala85 | 0.2345  | 0.6789  | 0.0123  |
-            %     |   Ala157 | 0.2345  | 0.6789  | 0.0123  |
-            %
-            %     err = 3x3 logical array
-            %           [0 0 0; 0 0 0; 0 0 0]
-
-            numData = obj.numFile;
-
-            tableRtn = table();
-
-            for i = 1:numData
-
-                iFieldName = obj.fieldNames(i);
-                iExperimentName = obj.fileListWOExt(i);
-
-                if ~isfield(obj.dataExp.(iFieldName), "tableEnrichment") || ...
-                        isempty(obj.dataExp.(iFieldName).tableEnrichment)
-                    updateMsg(obj, ...
-                        "The enrichment table is not available. Press Calculate MDV before viewing enrichment data.", ...
-                        "Error", obj.logLevel);
-                    tableRtn = table();
-                    err = [];
-                    return
-                end
-
-                iTableEnrichment = obj.dataExp.(iFieldName).tableEnrichment;
-                iTableEnrichment.Properties.VariableNames = iExperimentName;
-                iTableEnrichmentRowNames = iTableEnrichment.Properties.RowNames;
-                iTableEnrichment.RowNamesTemp = iTableEnrichmentRowNames;
-
-                if isempty(tableRtn)
-                    tableRtn = iTableEnrichment;
-                    continue;
-                end
-
-                tableRtn = outerjoin( ...
-                    tableRtn, ...
-                    iTableEnrichment, ...
-                    'Keys', "RowNamesTemp", ...
-                    'MergeKeys', true ...
-                );
-
-            end % for i
-
-            % Set the row names of the table
-            tableRtn.Properties.RowNames = tableRtn.RowNamesTemp;
-            tableRtn = removevars(tableRtn, "RowNamesTemp");
-
-            % Check for empty table
-            if isempty(tableRtn)
-                updateMsg(obj, "The enrichment table is empty.", "Error", obj.logLevel);
-                err = [];
-                return;
-            end
-
-            enrichmentArray = tableRtn{:, :};
-            err = false(size(enrichmentArray));
-            err = logical(err);
-
-            % Check for valid range of enrichment values
-            err(enrichmentArray < 0) = true;
-            err(enrichmentArray > 1) = true;
-            err(isnan(enrichmentArray)) = true;
-
-        end % combineEnrichmentData
-
-        function [tableRtnSelect, tableRtnAvailable] = combineSelectionData(obj)
-            % COMBINESELECTIONDATA: Create a table of selection data
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            %
-            % Returns:
-            % --------
-            % tableRtn: table
-            %     The table of selection data.
-
-            numData = obj.numFile;
-            tableRtnSelect = table();
-            tableRtnAvailable = table();
-
-            for i = 1:numData
-
-                iFieldName = obj.fieldNames(i);
-                iExperimentName = obj.fileListWOExt(i);
-
-                if ~isfield(obj.dataExp.(iFieldName), "tableSelection") || ...
-                        isempty(obj.dataExp.(iFieldName).tableSelection)
-                    updateMsg(obj, ...
-                        "The fragment selection table is not available. Press Calculate MDV before configuring MDV-dependent analysis.", ...
-                        "Error", obj.logLevel);
-                    tableRtnSelect = table();
-                    tableRtnAvailable = table();
-                    return
-                end
-
-                iTableSelection = obj.dataExp.(iFieldName).tableSelection;
-                iTableSelectionSelect = iTableSelection(:, "Select");
-                iTableSelectionAvailable = iTableSelection(:, "Available");
-                iTableSelectionSelect.Properties.VariableNames = iExperimentName;
-                iTableSelectionAvailable.Properties.VariableNames = iExperimentName;
-                iTableSelectionSelect.RowNamesTemp = iTableSelectionSelect.Properties.RowNames;
-                iTableSelectionAvailable.RowNamesTemp = iTableSelectionAvailable.Properties.RowNames;
-
-                if isempty(tableRtnSelect)
-                    tableRtnSelect = iTableSelectionSelect;
-                    tableRtnAvailable = iTableSelectionAvailable;
-                    continue;
-                end
-
-                tableRtnSelect = outerjoin( ...
-                    tableRtnSelect, ...
-                    iTableSelectionSelect, ...
-                    'Keys', "RowNamesTemp", ...
-                    'MergeKeys', true ...
-                );
-                tableRtnAvailable = outerjoin( ...
-                    tableRtnAvailable, ...
-                    iTableSelectionAvailable, ...
-                    'Keys', "RowNamesTemp", ...
-                    'MergeKeys', true ...
-                );
-
-            end % for i
-
-            % Set the row names of the table
-            tableRtnSelect.Properties.RowNames = tableRtnSelect.RowNamesTemp;
-            tableRtnSelect = removevars(tableRtnSelect, "RowNamesTemp");
-            tableRtnAvailable.Properties.RowNames = tableRtnAvailable.RowNamesTemp;
-            tableRtnAvailable = removevars(tableRtnAvailable, "RowNamesTemp");
-
-        end % combineSelectionData
 
         function tableRtn = createExperimentVsSubstrateTable(obj, variable)
 

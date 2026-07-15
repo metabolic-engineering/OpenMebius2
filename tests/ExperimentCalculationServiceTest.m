@@ -49,6 +49,24 @@ classdef ExperimentCalculationServiceTest < matlab.unittest.TestCase
                 "is not found in the model.")));
             testCase.verifyFalse(ismethod(result.Experiments, "calculateMDV"));
 
+            [enrichment, enrichmentErrors] = ...
+                result.Experiments.getEnrichmentComparison();
+            [selected, available] = ...
+                result.Experiments.getSelectionComparison();
+            experimentName = result.Experiments.getExpName(1);
+            [mdvBiomass, ~] = ...
+                result.Experiments.getMDVBiomassTable(experimentName);
+            fragmentName = string( ...
+                mdvBiomass.Properties.VariableNames(1));
+            mdvComparison = ...
+                result.Experiments.getMDVBiomassComparison(fragmentName);
+
+            testCase.verifyNotEmpty(enrichment);
+            testCase.verifySize(enrichmentErrors, size(enrichment));
+            testCase.verifyNotEmpty(selected);
+            testCase.verifyEqual(size(selected), size(available));
+            testCase.verifyNotEmpty(mdvComparison);
+
         end % calculateMDVUpdatesExperimentAndBatch
 
         function invalidInfoTableRaisesUpdateError(testCase)
