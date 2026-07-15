@@ -22,7 +22,7 @@ classdef Batch < handle
         filename = 'batch.json'
         BatchJsonRepository
         AnalysisProvenanceBuilder
-        BatchRunService
+        BatchExecutionCoordinator
         MessagePublisher
         batchColumnNamesforGUI = ["ID", "Name", "Experiment", "Description"];
         batchColumnEditableforGUI = [false, true, false, true];
@@ -47,6 +47,7 @@ classdef Batch < handle
                     .AnalysisProvenanceBuilder()
                 options.BatchRunService = ...
                     openmebius.application.batch.BatchRunService()
+                options.BatchExecutionCoordinator = []
             end
 
             % Set properties
@@ -56,7 +57,17 @@ classdef Batch < handle
                 openmebius.infrastructure.batch.BatchJsonRepository();
             obj.AnalysisProvenanceBuilder = ...
                 options.AnalysisProvenanceBuilder;
-            obj.BatchRunService = options.BatchRunService;
+            if isempty(options.BatchExecutionCoordinator)
+                obj.BatchExecutionCoordinator = ...
+                    openmebius.application.batch ...
+                    .BatchExecutionCoordinator( ...
+                    RunService = options.BatchRunService, ...
+                    ProvenanceBuilder = ...
+                    obj.AnalysisProvenanceBuilder);
+            else
+                obj.BatchExecutionCoordinator = ...
+                    options.BatchExecutionCoordinator;
+            end
             obj.MessagePublisher = openmebius.presentation ...
                 .notification.GeneralMessagePublisher();
 
@@ -1369,8 +1380,6 @@ classdef Batch < handle
             resultLocation = ...
                 openmebius.domain.result.ResultLocation.fromInput( ...
                 fileDirectory);
-            status = "finished";
-
             if ~obj.exp.hasCalculatedMDV()
                 status = "error";
 
@@ -1388,77 +1397,21 @@ classdef Batch < handle
                 saveBatchFile(obj);
             end
 
-            for i = 1:height(obj.tableBatch)
-
-                type = "BatchIteration";
-                ed.id = obj.tableBatch.id(i);
-                ed.status = "finished";
-                ed.rate = i / height(obj.tableBatch);
-
-                % if the status is finished, skip
-                if strcmp(obj.tableBatch.config(i).status, 'finished')
-                    ed.status = "finished";
-                    notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-                    continue
-                end
-
-                % If the status is not ready, skip
-                if ~strcmp(obj.tableBatch.config(i).status, 'ready')
-                    ed.status = "question";
-                    notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-                    continue
-                end
-
-                % Delete previous result files
-                if obj.tableBatch.config(i).deleteResultFile
-                    resultArtifacts = resultLocation.resultArtifactFiles( ...
-                        obj.tableBatch.id(i));
-
-                    for iArtifact = 1:numel(resultArtifacts)
-                        if isfile(resultArtifacts(iArtifact))
-                            delete(resultArtifacts(iArtifact));
-                        end
-                    end
-
-                end
-
-                provenance = buildAnalysisProvenance(obj, i);
-
-                analysisStatus = obj.BatchRunService.run( ...
-                    obj.model, ...
-                    obj.exp, ...
-                    obj.tableBatch.exp(i), ...
-                    obj.tableBatch.config(i), ...
-                    resultLocation, ...
-                    obj.tableBatch.id(i), ...
-                    Controller = obj, ...
-                    Provenance = provenance, ...
-                    MessageReporter = @(eventData) ...
-                    notify(obj, 'GeneralMsg', eventData), ...
-                    ResultReporter = @(eventData) ...
-                    notify(obj, 'FluxResult', eventData));
-
-                if analysisStatus == "canceled"
-                    ed.status = "canceled";
-                    status = "canceled";
-                    break
-                elseif analysisStatus == "error"
-                    ed.status = "error";
-                    status = "error";
-                    obj.tableBatch.config(i).status = "error";
-                    notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-                    saveBatchFile(obj);
-                    continue
-                end
-
-                % Update status
-                obj.tableBatch.config(i).status = "finished";
-
-                notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-
-                saveBatchFile(obj);
-
-            end % for i
+            [updatedTable, status] = obj.BatchExecutionCoordinator.run( ...
+                obj.tableBatch, ...
+                obj.model, ...
+                obj.exp, ...
+                resultLocation, ...
+                Controller = obj, ...
+                ProgressReporter = @(progress) ...
+                publishBatchProgress(obj, progress), ...
+                CheckpointWriter = @(batchTable) ...
+                checkpointBatch(obj, batchTable), ...
+                MessageReporter = @(eventData) ...
+                notify(obj, 'GeneralMsg', eventData), ...
+                ResultReporter = @(eventData) ...
+                notify(obj, 'FluxResult', eventData));
+            obj.tableBatch = updatedTable;
 
         end % runBatch
 
@@ -1524,6 +1477,22 @@ classdef Batch < handle
                 experimentNames);
 
         end % buildAnalysisProvenance
+
+        function publishBatchProgress(obj, progress)
+
+            notify( ...
+                obj, ...
+                'ProgressUpdate', ...
+                BatchProgressEventData("BatchIteration", progress));
+
+        end % publishBatchProgress
+
+        function checkpointBatch(obj, batchTable)
+
+            obj.tableBatch = batchTable;
+            saveBatchFile(obj);
+
+        end % checkpointBatch
 
         function publishGeneralMessage(obj, level, message)
 
