@@ -61,6 +61,9 @@ classdef MFAFluxDistributionWorkflowTest < matlab.unittest.TestCase
                 'openmebius.mfa.MFAIterationInput');
             testCase.verifyFalse( ...
                 fixture.IterationService.LastInput.ForceSteadyState);
+            testCase.verifyFalse( ...
+                fixture.IterationService.LastInput.Settings ...
+                .UseInstationaryMFA);
             testCase.verifyEqual(fixture.InputWorkflow.CallCount, 1);
             testCase.verifyEqual(fixture.FVAWorkflow.CallCount, 1);
             testCase.verifyEqual(fixture.InitialWorkflow.CallCount, 1);

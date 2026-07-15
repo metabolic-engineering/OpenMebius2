@@ -2,7 +2,7 @@ classdef MFAIterationInput
     % MFAITERATIONINPUT Validated input for one nonlinear MFA fit.
 
     properties (SetAccess = private)
-        AnalysisConfig (1, 1) struct
+        Settings
         Problem
         Model
         ExperimentalData
@@ -22,7 +22,8 @@ classdef MFAIterationInput
         function obj = MFAIterationInput(options)
 
             arguments
-                options.AnalysisConfig (1, 1) struct
+                options.Settings (1, 1) ...
+                    openmebius.mfa.MFAIterationSettings
                 options.Problem (1, 1) openmebius.mfa.MFAProblem
                 options.Model
                 options.ExperimentalData (1, 1) ...
@@ -36,25 +37,6 @@ classdef MFAIterationInput
                 options.EffluxStandardDeviation double
                 options.EffluxFree
                 options.ForceSteadyState (1, 1) logical = false
-            end
-
-            config = options.AnalysisConfig;
-            analysisMode = [];
-
-            if isfield(config, 'isINSTMFA')
-                analysisMode = config.isINSTMFA;
-            end
-
-            if isempty(analysisMode) || ~isscalar(analysisMode) || ...
-                    ~(islogical(analysisMode) || ...
-                    isnumeric(analysisMode)) || ...
-                    (isnumeric(analysisMode) && ...
-                    (~isfinite(analysisMode) || ...
-                    ~ismember(analysisMode, [0, 1])))
-                error( ...
-                    "OpenMebius2:MFAIterationInput:InvalidAnalysisMode", ...
-                    "The analysis configuration must define a scalar " + ...
-                    "isINSTMFA flag.");
             end
 
             options.Problem.extractIndependentValues( ...
@@ -75,7 +57,7 @@ classdef MFAIterationInput
                     "Efflux values must match the substrate list.");
             end
 
-            useInstationary = logical(analysisMode) && ...
+            useInstationary = options.Settings.UseInstationaryMFA && ...
                 ~options.ForceSteadyState;
 
             if useInstationary && isempty(options.InstationaryInput)
@@ -98,7 +80,7 @@ classdef MFAIterationInput
                     ExperimentCount = numel(options.SubstrateEMUs));
             end
 
-            obj.AnalysisConfig = config;
+            obj.Settings = options.Settings;
             obj.Problem = options.Problem;
             obj.Model = options.Model;
             obj.ExperimentalData = options.ExperimentalData;
@@ -116,7 +98,7 @@ classdef MFAIterationInput
 
         function value = usesInstationaryMFA(obj)
 
-            value = logical(obj.AnalysisConfig.isINSTMFA) && ...
+            value = obj.Settings.UseInstationaryMFA && ...
                 ~obj.ForceSteadyState;
 
         end % usesInstationaryMFA
