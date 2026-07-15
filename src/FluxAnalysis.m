@@ -30,10 +30,12 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         MonteCarloConfidenceIntervalSolver
         MFAInputValidator
         MFAFitStatistics
+        MFAExperimentalDataBuilder
         EffluxPenaltyFactory
         InstationaryInputFactory
         MFAProblem = []
         InstationaryInput = []
+        MFAExperimentalData = []
 
         % File export
         isExport = true
@@ -150,6 +152,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.MFAInputValidator()
                 options.MFAFitStatistics = ...
                     openmebius.mfa.MFAFitStatistics()
+                options.MFAExperimentalDataBuilder = ...
+                    openmebius.mfa.MFAExperimentalDataBuilder()
                 options.EffluxPenaltyFactory = ...
                     openmebius.mfa.EffluxPenaltyFactory()
                 options.InstationaryInputFactory = ...
@@ -215,6 +219,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.MonteCarloConfidenceIntervalSolver;
             obj.MFAInputValidator = options.MFAInputValidator;
             obj.MFAFitStatistics = options.MFAFitStatistics;
+            obj.MFAExperimentalDataBuilder = ...
+                options.MFAExperimentalDataBuilder;
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
             obj.InstationaryInputFactory = ...
                 options.InstationaryInputFactory;
@@ -1204,111 +1210,28 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.numExperiments (1, 1) double = length(obj.expsList)
             end % arguments
 
-            MDVAll = nan(obj.numMDV, options.numExperiments);
-
-            for i = 1:options.numExperiments
-
-                idxStart = (i - 1) * obj.numMDV + 1;
-                idxEnd = i * obj.numMDV;
-
-                MDVAll(:, i) = MDV(idxStart:idxEnd);
-
-            end % for
+            MDVAll = obj.MFAExperimentalData.arrangeMDV( ...
+                MDV, ...
+                ExperimentCount = options.numExperiments);
 
         end % arrangeMDV
 
         function calculateLinearizedMDV(obj)
             % CALCULATELINEARIZEDMDV Create the linearized MDV for fmincon.
 
-            % Get the fragment list from the EMU model
-            fragmentList = getTargetMetaboliteList(obj.model);
-            MSMetabolite = getMSMetaboliteTable(obj.model);
-
-            % Generate mask
-            if strcmp(obj.config.MS.fragment, "all")
-
-                MSTable = getMSTable(obj.model);
-                selectedFragmentMask = MSTable.Used;
-                selectedFragmentList = ...
-                    MSTable.Properties.RowNames(selectedFragmentMask);
-                selectedFragmentList = string(selectedFragmentList);
-
-                clear MSTable selectedFragmentMask;
-
-            else
-
-                list = obj.config.MS.fragmentList;
-                mask = obj.config.MS.customFragment;
-
-            end % if
-
-            MDV = [];
-            MDVFragListTemp = string();
-            tempFragmentMask = [];
-
-            for iLabel = 1:length(obj.expsList)
-
-                MDVExpTable = getMDVBiomassTable(obj.exps, obj.expsList(iLabel));
-                ExpFragList = MDVExpTable.Properties.VariableNames;
-                MDVLabel = [];
-
-                % For custom fragments
-                if ~strcmp(obj.config.MS.fragment, "all")
-
-                    [fragmentList, sortIdx] = sort(string(list));
-                    selectedFragmentList = fragmentList(mask(sortIdx));
-
-                end % if
-
-                for iFragment = 1:length(fragmentList)
-
-                    idx = find(ismember(MSMetabolite.Metabolite, fragmentList(iFragment)));
-                    numAtom = cell2mat(MSMetabolite.Carbon(idx));
-
-                    % Search for the fragment in the MDV table
-                    if any(strcmp(ExpFragList, fragmentList(iFragment)))
-
-                        iMDV = MDVExpTable.(fragmentList(iFragment));
-                        iMDV = iMDV(1:numAtom + 1);
-                        MDVLabel = [MDVLabel; iMDV]; %#ok<AGROW>
-
-                    else
-
-                        % If the fragment is not found, set it to NaN
-                        iMDV = nan(numAtom + 1, 1);
-                        MDVLabel = [MDVLabel; iMDV]; %#ok<AGROW>
-
-                    end % if
-
-                    if iLabel == 1
-
-                        % Add the fragment to the MDVFragList
-                        iFragList = repmat(fragmentList(iFragment), numAtom + 1, 1);
-                        MDVFragListTemp = [MDVFragListTemp; iFragList]; %#ok<AGROW>
-
-                        if any(ismember(fragmentList(iFragment), selectedFragmentList))
-                            tempFragmentMask = ...
-                                [tempFragmentMask; true(numAtom + 1, 1)]; %#ok<AGROW>
-                        else
-                            tempFragmentMask = ...
-                                [tempFragmentMask; false(numAtom + 1, 1)]; %#ok<AGROW>
-                        end % if
-
-                    end % if
-
-                end % for iFragment
-
-                MDV = [MDV, MDVLabel]; %#ok<AGROW>
-
-            end % for iLabel
-
-            obj.MDVExp = MDV;
-            obj.MDVFragList = MDVFragListTemp(2:end);
-            obj.MDVFragMask = logical(tempFragmentMask);
+            obj.MFAExperimentalData = ...
+                obj.MFAExperimentalDataBuilder.build( ...
+                obj.model, ...
+                obj.exps, ...
+                obj.expsList, ...
+                obj.config.MS);
+            obj.MDVExp = obj.MFAExperimentalData.ExperimentalMDV;
+            obj.MDVFragList = obj.MFAExperimentalData.FragmentLabels;
+            obj.MDVFragMask = obj.MFAExperimentalData.FragmentMask;
 
             % Set the number of MDV and labeling experiments
-            obj.numMDV = size(MDV, 1);
-            obj.numLabeling = size(MDV, 2);
+            obj.numMDV = obj.MFAExperimentalData.FragmentCount;
+            obj.numLabeling = obj.MFAExperimentalData.ExperimentCount;
 
         end % calculateLinearizedMDV
 
