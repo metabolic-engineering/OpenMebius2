@@ -84,13 +84,67 @@ classdef AnalysisWorkflowRefactorTest < matlab.unittest.TestCase
             context.setWorkflowResult(fitted);
 
             testCase.verifyEqual(context.ExperimentalData, data);
-            testCase.verifyEqual(context.OptimizationMDV, [0.2; 0.8]);
+            testCase.verifyEqual(context.experimentalMDV(), [0.2; 0.8]);
             testCase.verifyEqual(context.LowerBounds, [0; 1]);
             testCase.verifyEqual(context.UpperBounds, [2; 3]);
-            testCase.verifyEqual(context.Problem, 42);
-            testCase.verifyEqual(context.InitialObjectiveValues, 5);
-            testCase.verifyEqual(context.ObjectiveValues, 6);
-            testCase.verifyEqual(context.Fluxes, [7; 8]);
+            testCase.verifyEqual(context.InitialResult, initial);
+            testCase.verifyEqual(context.InitialResult.Problem, 42);
+            testCase.verifyEqual( ...
+                context.InitialResult.ObjectiveValues, 5);
+            testCase.verifyEqual(context.WorkflowResult, fitted);
+            testCase.verifyEqual( ...
+                context.WorkflowResult.ObjectiveValues, 6);
+            testCase.verifyEqual(context.workflowFluxes(), [7; 8]);
+            testCase.verifyFalse(isprop(context, 'Problem'));
+            testCase.verifyFalse(isprop(context, 'OptimizationMDV'));
+            testCase.verifyFalse(isprop(context, 'InitialFlux'));
+            testCase.verifyFalse( ...
+                isprop(context, 'InitialRightHandSides'));
+            testCase.verifyFalse( ...
+                isprop(context, 'InitialObjectiveValues'));
+            testCase.verifyFalse(isprop(context, 'ObjectiveValues'));
+            testCase.verifyFalse(isprop(context, 'Fluxes'));
+            testCase.verifyFalse(isprop(context, 'MDVs'));
+
+        end
+
+        function runContextRejectsUnsuccessfulInitialResult(testCase)
+
+            context = openmebius.application.analysis ...
+                .MFAAnalysisRunContext();
+            failed = openmebius.mfa.InitialFluxWorkflowResult.failure( ...
+                "generation failed");
+
+            testCase.verifyError( ...
+                @() context.setInitialResult(failed), ...
+                "OpenMebius2:MFAAnalysisRunContext:" + ...
+                "UnsuccessfulInitialResult");
+
+        end
+
+        function runContextRequiresInitialResultExplicitly(testCase)
+
+            context = openmebius.application.analysis ...
+                .MFAAnalysisRunContext();
+
+            testCase.verifyEmpty(context.experimentalMDV());
+            testCase.verifyError( ...
+                @() context.requireInitialResult(), ...
+                "OpenMebius2:MFAAnalysisRunContext:" + ...
+                "MissingInitialResult");
+
+        end
+
+        function runContextRequiresWorkflowResultExplicitly(testCase)
+
+            context = openmebius.application.analysis ...
+                .MFAAnalysisRunContext();
+
+            testCase.verifyEmpty(context.workflowFluxes());
+            testCase.verifyError( ...
+                @() context.requireWorkflowResult(), ...
+                "OpenMebius2:MFAAnalysisRunContext:" + ...
+                "MissingWorkflowResult");
 
         end
 
@@ -396,7 +450,6 @@ classdef AnalysisWorkflowRefactorTest < matlab.unittest.TestCase
                 UpperBounds = [10; 1], ...
                 SubstrateEMUs = {1}, ...
                 ExperimentalData = data, ...
-                OptimizationMDV = data.ExperimentalMDV, ...
                 EffluxPenalty = openmebius.mfa.EffluxPenalty());
 
             result = workflow.run( ...

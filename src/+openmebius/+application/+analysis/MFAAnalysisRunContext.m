@@ -3,20 +3,14 @@ classdef MFAAnalysisRunContext < handle
     % Owns mutable values that exist only for one FluxAnalysis run.
 
     properties (SetAccess = private)
-        Problem = []
         InstationaryInput = []
         ExperimentalData = []
+        InitialResult = []
+        WorkflowResult = []
         LowerBounds double = []
         UpperBounds double = []
         RightHandSide double = []
         SubstrateEMUs cell = {}
-        OptimizationMDV double = []
-        InitialFlux double = []
-        InitialRightHandSides double = []
-        InitialObjectiveValues double = []
-        ObjectiveValues double = []
-        Fluxes double = []
-        MDVs double = []
     end
 
     methods
@@ -24,7 +18,6 @@ classdef MFAAnalysisRunContext < handle
         function setExperimentalData(obj, data)
 
             obj.ExperimentalData = data;
-            obj.OptimizationMDV = data.ExperimentalMDV;
 
         end
 
@@ -49,20 +42,84 @@ classdef MFAAnalysisRunContext < handle
 
         function setInitialResult(obj, result)
 
-            obj.Problem = result.Problem;
-            obj.InitialFlux = result.Fluxes;
-            obj.InitialRightHandSides = result.RightHandSides;
-            obj.InitialObjectiveValues = result.ObjectiveValues;
+            arguments
+                obj (1, 1) openmebius.application.analysis ...
+                    .MFAAnalysisRunContext
+                result (1, 1) openmebius.mfa ...
+                    .InitialFluxWorkflowResult
+            end
+
+            if result.IsError || result.IsCanceled
+                error( ...
+                    "OpenMebius2:MFAAnalysisRunContext:" + ...
+                    "UnsuccessfulInitialResult", ...
+                    "Only a successful initial-flux result can be " + ...
+                    "stored in the analysis context.");
+            end
+
+            obj.InitialResult = result;
 
         end
+
+        function values = experimentalMDV(obj)
+
+            if isempty(obj.ExperimentalData)
+                values = [];
+            else
+                values = obj.ExperimentalData.ExperimentalMDV;
+            end
+
+        end % experimentalMDV
+
+        function result = requireInitialResult(obj)
+
+            if isempty(obj.InitialResult)
+                error( ...
+                    "OpenMebius2:MFAAnalysisRunContext:" + ...
+                    "MissingInitialResult", ...
+                    "The analysis context does not contain a " + ...
+                    "successful initial-flux result.");
+            end
+
+            result = obj.InitialResult;
+
+        end % requireInitialResult
 
         function setWorkflowResult(obj, result)
 
-            obj.ObjectiveValues = result.ObjectiveValues;
-            obj.Fluxes = result.Fluxes;
-            obj.MDVs = result.MDVs;
+            arguments
+                obj (1, 1) openmebius.application.analysis ...
+                    .MFAAnalysisRunContext
+                result (1, 1) openmebius.mfa.MFAWorkflowResult
+            end
+
+            obj.WorkflowResult = result;
 
         end
+
+        function fluxes = workflowFluxes(obj)
+
+            if isempty(obj.WorkflowResult)
+                fluxes = [];
+            else
+                fluxes = obj.WorkflowResult.Fluxes;
+            end
+
+        end % workflowFluxes
+
+        function result = requireWorkflowResult(obj)
+
+            if isempty(obj.WorkflowResult)
+                error( ...
+                    "OpenMebius2:MFAAnalysisRunContext:" + ...
+                    "MissingWorkflowResult", ...
+                    "The analysis context does not contain an MFA " + ...
+                    "workflow result.");
+            end
+
+            result = obj.WorkflowResult;
+
+        end % requireWorkflowResult
 
         function setInstationaryInput(obj, input)
 

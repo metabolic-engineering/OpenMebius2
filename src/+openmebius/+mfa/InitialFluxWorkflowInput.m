@@ -9,7 +9,6 @@ classdef InitialFluxWorkflowInput
         UpperBounds (:, 1) double
         SubstrateEMUs cell
         ExperimentalData
-        OptimizationMDV double
         EffluxPenalty
     end
 
@@ -26,7 +25,6 @@ classdef InitialFluxWorkflowInput
                 options.SubstrateEMUs cell
                 options.ExperimentalData (1, 1) ...
                     openmebius.mfa.MFAExperimentalData
-                options.OptimizationMDV double
                 options.EffluxPenalty
             end
 
@@ -81,7 +79,6 @@ classdef InitialFluxWorkflowInput
             obj.UpperBounds = options.UpperBounds;
             obj.SubstrateEMUs = options.SubstrateEMUs;
             obj.ExperimentalData = options.ExperimentalData;
-            obj.OptimizationMDV = options.OptimizationMDV;
             obj.EffluxPenalty = options.EffluxPenalty;
 
         end % constructor
@@ -110,7 +107,7 @@ classdef InitialFluxWorkflowInput
             end
 
             arrangedMDV = obj.ExperimentalData.arrangeMDV( ...
-                obj.OptimizationMDV, ...
+                obj.ExperimentalData.ExperimentalMDV, ...
                 ExperimentCount = experimentCount);
 
         end % arrangeMDV
