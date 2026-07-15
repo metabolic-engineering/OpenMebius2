@@ -5,6 +5,7 @@ classdef FluxAnalysisDependencies
     properties (SetAccess = private)
         FluxVariabilitySolver
         FluxVariabilityProblemFactory
+        FluxVariabilityWorkflow
         InitialFluxWorkflow
         MFAIterationRunner
         MFAIterationService
@@ -149,6 +150,18 @@ classdef FluxAnalysisDependencies
 
             obj.FluxVariabilitySolver = ...
                 options.FluxVariabilitySolver;
+            obj.FluxVariabilityWorkflow = ...
+                options.FluxVariabilityWorkflow;
+
+            if isempty(obj.FluxVariabilityWorkflow)
+                obj.FluxVariabilityWorkflow = ...
+                    openmebius.mfa.FluxVariabilityWorkflow( ...
+                    ConstraintBuilder = obj.MFAConstraintBuilder, ...
+                    ProblemFactory = ...
+                    obj.FluxVariabilityProblemFactory, ...
+                    Solver = obj.FluxVariabilitySolver);
+            end
+
             obj.MFAWorkflow = options.MFAWorkflow;
             obj.MFAInputValidator = options.MFAInputValidator;
             obj.MFAExperimentalDataBuilder = ...
