@@ -22,6 +22,7 @@ classdef Batch < handle
         filename = 'batch.json'
         BatchJsonRepository
         AnalysisProvenanceBuilder
+        BatchRunService
         MessagePublisher
         batchColumnNamesforGUI = ["ID", "Name", "Experiment", "Description"];
         batchColumnEditableforGUI = [false, true, false, true];
@@ -34,10 +35,6 @@ classdef Batch < handle
 
     end % properties (Dependent)
 
-    properties (Access = private)
-        FluxAnalysisListeners event.listener = event.listener.empty(0, 1)
-    end % properties (Access = private)
-
     methods
 
         % Constructor
@@ -48,6 +45,8 @@ classdef Batch < handle
                 options.AnalysisProvenanceBuilder = ...
                     openmebius.application.analysis ...
                     .AnalysisProvenanceBuilder()
+                options.BatchRunService = ...
+                    openmebius.application.batch.BatchRunService()
             end
 
             % Set properties
@@ -57,6 +56,7 @@ classdef Batch < handle
                 openmebius.infrastructure.batch.BatchJsonRepository();
             obj.AnalysisProvenanceBuilder = ...
                 options.AnalysisProvenanceBuilder;
+            obj.BatchRunService = options.BatchRunService;
             obj.MessagePublisher = openmebius.presentation ...
                 .notification.GeneralMessagePublisher();
 
@@ -1424,70 +1424,25 @@ classdef Batch < handle
 
                 provenance = buildAnalysisProvenance(obj, i);
 
-                % Instantiate FluxAnalysis object
-                mfa = FluxAnalysis( ...
+                analysisStatus = obj.BatchRunService.run( ...
                     obj.model, ...
                     obj.exp, ...
                     obj.tableBatch.exp(i), ...
                     obj.tableBatch.config(i), ...
                     resultLocation, ...
                     obj.tableBatch.id(i), ...
-                    obj, ...
-                    Provenance = provenance ...
-                );
+                    Controller = obj, ...
+                    Provenance = provenance, ...
+                    MessageReporter = @(eventData) ...
+                    notify(obj, 'GeneralMsg', eventData), ...
+                    ResultReporter = @(eventData) ...
+                    notify(obj, 'FluxResult', eventData));
 
-                obj.attachFluxAnalysisListeners(mfa);
-                runMetadataCleanup = ...
-                    onCleanup(@() mfa.finalizeRun());
-
-                % Calculate flux distribution
-                mfa.calculateFluxDistribution();
-
-                if mfa.isCanceled
+                if analysisStatus == "canceled"
                     ed.status = "canceled";
                     status = "canceled";
                     break
-                elseif mfa.isError
-                    ed.status = "error";
-                    status = "error";
-                    obj.tableBatch.config(i).status = "error";
-                    notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-                    saveBatchFile(obj);
-                    continue
-                end
-
-                isSuggestNextFlux = mfa.getConfig().suggestNextFlux;
-
-                if isSuggestNextFlux
-                    % Suggest next flux experiment
-                    mfa.suggestNextFluxExperiment();
-                end
-
-                isCalcCI = mfa.getConfig().isCalcCI;
-
-                if mfa.isCanceled
-                    ed.status = "canceled";
-                    status = "canceled";
-                    break
-                elseif mfa.isError
-                    ed.status = "error";
-                    status = "error";
-                    obj.tableBatch.config(i).status = "error";
-                    notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-                    saveBatchFile(obj);
-                    continue
-                end
-
-                if isCalcCI && ~isSuggestNextFlux
-                    % Calculate confidence interval
-                    mfa.calculateConfidenceInterval();
-                end
-
-                if mfa.isCanceled
-                    ed.status = "canceled";
-                    status = "canceled";
-                    break
-                elseif mfa.isError
+                elseif analysisStatus == "error"
                     ed.status = "error";
                     status = "error";
                     obj.tableBatch.config(i).status = "error";
@@ -1569,45 +1524,6 @@ classdef Batch < handle
                 experimentNames);
 
         end % buildAnalysisProvenance
-
-        function attachFluxAnalysisListeners(obj, mfa)
-
-            obj.clearFluxAnalysisListeners();
-
-            obj.FluxAnalysisListeners(end + 1, 1) = addlistener( ...
-                mfa, ...
-                'GeneralMsg', ...
-                @(src, event) notify(obj, 'GeneralMsg', event));
-
-            obj.FluxAnalysisListeners(end + 1, 1) = addlistener( ...
-                mfa, ...
-                'FluxResult', ...
-                @(src, event) notify(obj, 'FluxResult', event));
-
-        end % method attachFluxAnalysisListeners
-
-        function clearFluxAnalysisListeners(obj)
-
-            if isempty(obj.FluxAnalysisListeners)
-                return
-            end
-
-            for i = 1:numel(obj.FluxAnalysisListeners)
-
-                try
-
-                    if isvalid(obj.FluxAnalysisListeners(i))
-                        delete(obj.FluxAnalysisListeners(i));
-                    end
-
-                catch
-                end
-
-            end
-
-            obj.FluxAnalysisListeners = event.listener.empty(0, 1);
-
-        end % method clearFluxAnalysisListeners
 
         function publishGeneralMessage(obj, level, message)
 
