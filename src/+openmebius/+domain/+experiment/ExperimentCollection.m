@@ -115,6 +115,22 @@ classdef ExperimentCollection < handle
 
         end % replaceUptakeTables
 
+        function replaceAggregateTables(obj, aggregateTables)
+
+            arguments
+                obj
+                aggregateTables openmebius.domain.experiment ...
+                    .ExperimentAggregateTables
+            end
+
+            obj.InfoTable = aggregateTables.Info;
+            obj.TracerTable = aggregateTables.Tracer;
+            obj.TracerTableFull = aggregateTables.TracerFull;
+            obj.UptakeTable = aggregateTables.Uptake;
+            obj.UptakeTableFull = aggregateTables.UptakeFull;
+
+        end % replaceAggregateTables
+
         function replaceDefaultSubstrateMetadata( ...
                 obj, variableNames, variableTypes)
 

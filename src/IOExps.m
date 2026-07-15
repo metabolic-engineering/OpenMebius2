@@ -4,6 +4,7 @@ classdef IOExps < handle
 
         Collection openmebius.domain.experiment.ExperimentCollection
         ExperimentRepository
+        TableAssembler
         MessagePublisher
         ValidationErrors (:, 1) string = strings(0, 1)
         ValidationWarnings (:, 1) string = strings(0, 1)
@@ -44,6 +45,8 @@ classdef IOExps < handle
                 modelInput = []
                 options.ExperimentRepository = ...
                     openmebius.infrastructure.experiment.ExperimentRepository()
+                options.TableAssembler = openmebius.domain.experiment ...
+                    .ExperimentTableAssembler()
                 options.AllowEmpty (1, 1) logical = false
             end
 
@@ -54,6 +57,7 @@ classdef IOExps < handle
             obj.Collection = openmebius.domain.experiment ...
                 .ExperimentCollection(experimentLocation);
             obj.ExperimentRepository = options.ExperimentRepository;
+            obj.TableAssembler = options.TableAssembler;
             obj.MessagePublisher = openmebius.presentation ...
                 .notification.GeneralMessagePublisher( ...
                 LogLevel = obj.logLevel);
@@ -261,9 +265,8 @@ classdef IOExps < handle
 
             loadExpFiles(obj);
 
-            combineInfoData(obj);
-            combineTraceData(obj);
-            combineUptakeData(obj);
+            aggregateTables = obj.TableAssembler.assemble(obj.Collection);
+            obj.Collection.replaceAggregateTables(aggregateTables);
 
         end % loadExpData
 
@@ -1479,136 +1482,6 @@ classdef IOExps < handle
 
         end % loadExpFile
 
-        function combineInfoData(obj)
-
-            % 各Infoテーブルを結合する
-            % RowNameとして，ファイル名を使用する
-
-            obj.tableExpsInfo = table;
-
-            for i = 1:obj.numFile
-
-                fieldName = obj.fieldNames(i);
-
-                tableInfo = obj.dataExp.(fieldName).tableInfo;
-                tableInfo.Properties.RowNames = obj.fileListWOExt(i);
-
-                if isempty(obj.tableExpsInfo)
-                    obj.tableExpsInfo = tableInfo;
-                else
-                    obj.tableExpsInfo = [obj.tableExpsInfo; tableInfo];
-                end
-
-            end
-
-        end % combineInfoData
-
-        function combineTraceData(obj)
-
-            [tableRtn, tableFullRtn] = combineTableData(obj, "Label");
-
-            obj.tableTracersInfo = tableRtn;
-            obj.tableTracersInfoFull = tableFullRtn;
-
-        end % combineTraceData
-
-        function combineUptakeData(obj)
-
-            [tableRtn, tableFullRtn] = combineTableData(obj, "Uptake");
-
-            obj.tableUptakesInfo = tableRtn;
-            obj.tableUptakesInfoFull = tableFullRtn;
-
-        end % combineUptakeData
-
-        function [tableRtn, tableFullRtn] = combineTableData(obj, type)
-
-            mTableTracersInfoFull = table;
-            mNumFile = obj.numFile;
-            mFieldNames = obj.fieldNames;
-            rowNames = obj.fileListWOExt;
-
-            for i = 1:mNumFile
-
-                fieldName = mFieldNames(i);
-                rowName = rowNames(i);
-
-                iTableSubstrate = obj.dataExp.(fieldName).tableSubstrate;
-                iTableUptake = arrangeExperimentVsSubstrateTable(obj, iTableSubstrate, type, rowName);
-
-                if isempty(mTableTracersInfoFull)
-                    mTableTracersInfoFull = iTableUptake;
-                else
-                    mTableTracersInfoFull = joinTableByRow(obj, mTableTracersInfoFull, iTableUptake);
-                end
-
-            end % for i
-
-            subs = obj.objModel.getSubstrateTable();
-            metabolties = subs.Metabolite;
-            metabolitesColumn = transpose(metabolties);
-            mTableTracersInfo = extractNSVars(obj, mTableTracersInfoFull, metabolitesColumn, type);
-
-            % Diff
-            missingSample = setdiff(rowNames, string(mTableTracersInfo.Properties.RowNames));
-
-            if ~isempty(missingSample)
-
-                tableRtn = mTableTracersInfo;
-                tableFullRtn = mTableTracersInfoFull;
-
-                switch type
-                    case "Uptake"
-
-                        tableAdd = table('Size', [length(missingSample) length(metabolties)], ...
-                            'VariableTypes', repmat("double", 1, length(metabolties)), ...
-                            'VariableNames', mTableTracersInfo.Properties.VariableNames, ...
-                            'RowNames', missingSample);
-                        tableAdd{:, :} = nan;
-
-                        fullMetabolite = mTableTracersInfoFull.Properties.VariableNames;
-                        tableAddFull = table('Size', [length(missingSample) length(fullMetabolite)], ...
-                            'VariableTypes', repmat("double", 1, length(fullMetabolite)), ...
-                            'VariableNames', fullMetabolite, ...
-                            'RowNames', missingSample);
-                        tableAddFull{:, :} = nan;
-
-                    case "Label"
-
-                        tableAdd = table('Size', [length(missingSample) length(metabolties)], ...
-                            'VariableTypes', repmat("string", 1, length(metabolties)), ...
-                            'VariableNames', mTableTracersInfo.Properties.VariableNames, ...
-                            'RowNames', missingSample);
-                        tableAdd{:, :} = {""};
-
-                        fullMetabolite = mTableTracersInfoFull.Properties.VariableNames;
-                        tableAddFull = table('Size', [length(missingSample) length(fullMetabolite)], ...
-                            'VariableTypes', repmat("string", 1, length(fullMetabolite)), ...
-                            'VariableNames', fullMetabolite, ...
-                            'RowNames', missingSample);
-                        tableAddFull{:, :} = {""};
-
-                end
-
-                tableRtn = [tableRtn; tableAdd];
-                tableFullRtn = [tableFullRtn; tableAddFull];
-
-                % Sort by RowNames
-                idxRtn = sortrows(tableRtn.Properties.RowNames, 'ascend');
-                tableRtn = tableRtn(idxRtn, :);
-                tableFullRtn = tableFullRtn(idxRtn, :);
-
-                return
-
-            end
-
-            % Sort by RowNames
-            idxRtn = sortrows(mTableTracersInfo.Properties.RowNames, 'ascend');
-            tableRtn = mTableTracersInfo(idxRtn, :);
-            tableFullRtn = mTableTracersInfoFull(idxRtn, :);
-
-        end % combineTraceData
-
         function [tableRtn, err] = combineEnrichmentData(obj)
             % COMBINEENRICHMENTDATA: Create a table of enrichment data
             %
@@ -1771,24 +1644,6 @@ classdef IOExps < handle
 
         end % combineSelectionData
 
-        function tableRtn = arrangeExperimentVsSubstrateTable(~, data, column, rowName)
-
-            % Extract the column using variable names
-            tableFiltered = data(:, column);
-
-            if isempty(tableFiltered.Properties.RowNames)
-                % If the table has only one row, transpose it
-                tableRtn = table();
-                return
-            end
-
-            tableTransposed = rows2vars(tableFiltered);
-            tableTransposed.Properties.RowNames = rowName;
-            % Delete the OriginalVariableNames
-            tableRtn = removevars(tableTransposed, "OriginalVariableNames");
-
-        end % arrangeExperimentVsSubstrateTable
-
         function tableRtn = createExperimentVsSubstrateTable(obj, variable)
 
             % Create a table with the same size as the number of experiments
@@ -1849,72 +1704,6 @@ classdef IOExps < handle
             tableRtn.Uptake = defaultUptake;
 
         end % createTemplateSubstrateTable
-
-        function tableRtn = joinTableByRow(~, table1, table2)
-
-            table1Row = table1;
-            table2Row = table2;
-
-            table1Row.Rownames = table1.Properties.RowNames;
-            table2Row.Rownames = table2.Properties.RowNames;
-
-            table1Var = table1Row.Properties.VariableNames;
-            table2Var = table2Row.Properties.VariableNames;
-
-            commonRowNames = intersect(table1Var, table2Var);
-
-            tableJoined = outerjoin(table1Row, table2Row, 'Keys', commonRowNames, 'MergeKeys', true);
-
-            tableJoined.Properties.RowNames = tableJoined.Rownames;
-            tableJoined = removevars(tableJoined, 'Rownames');
-
-            tableRtn = tableJoined;
-
-        end % joinTable
-
-        function tableRtn = extractNSVars(~, tableIn, vars, type)
-
-            VariableNames = tableIn.Properties.VariableNames;
-            missingVars = setdiff(vars, VariableNames);
-            numMissingVars = length(missingVars);
-
-            tableHeight = height(tableIn);
-            nanRow = nan(tableHeight, 1);
-
-            if strcmp(type, "Label")
-                nanRow = cell(tableHeight, 1);
-            end
-
-            for i = 1:numMissingVars
-
-                tableIn.(missingVars{i}) = nanRow;
-
-            end % for i
-
-            tableExtracted = tableIn(:, vars);
-            tableSorted = tableExtracted(:, vars);
-            tableRtn = tableSorted;
-
-        end % extractNSVars
-
-        function tableRtn = joinFullVars(~, table1, table2)
-
-            variableNames1 = table1.Properties.VariableNames;
-            variableNames2 = table2.Properties.VariableNames;
-
-            missingVars = setdiff(variableNames2, variableNames1);
-            numMissingVars = length(missingVars);
-
-            for i = 1:numMissingVars
-
-                table1.(missingVars{i}) = table2.(missingVars{i});
-
-            end % for i
-
-            tableSorted = table1(:, variableNames2);
-            tableRtn = tableSorted;
-
-        end
 
         function tableRtn = substituteDataToFullTable(~, tableFull, tableIn, type)
             % SUBSTITUTEDATATOFULLTABLE: Substitute data to the full table
