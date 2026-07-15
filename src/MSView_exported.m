@@ -1,5 +1,9 @@
 classdef MSView_exported < matlab.apps.AppBase
 
+    events
+        ComparisonRequested
+    end
+
     % Properties that correspond to app components
     properties (Access = public)
         MSViewerUIFigure matlab.ui.Figure
@@ -15,8 +19,9 @@ classdef MSView_exported < matlab.apps.AppBase
     end
 
     properties (Access = private)
-        MainApp % Description
-        ComparisonApp
+        Presenter openmebius.presentation.experiment.MSViewPresenter
+        IsDarkTheme (1, 1) logical = false
+        ErrorStyle
         color
     end
 
@@ -24,90 +29,63 @@ classdef MSView_exported < matlab.apps.AppBase
 
         function changeMSTable(app, expName, Type)
 
-            % Get error columns
-            [tableMS, err] = app.MainApp.exp.getMDVBiomassTable(expName);
+            viewModel = app.Presenter.presentTable( ...
+                string(expName), string(Type));
+            tableMS = viewModel.Data;
 
-            switch Type
-                case 'MS raw data'
-                    tableMS = app.MainApp.exp.getMSTable(expName);
-                    app.ExpDropDown.Enable = "on";
-                case 'MS normarized data'
-                    tableMS = app.MainApp.exp.getMSNormalizedTable(expName);
-                    app.ExpDropDown.Enable = "on";
-                case 'MDV (Mass distribution vectors)'
-                    tableMS = app.MainApp.exp.getMDVTable(expName);
-                    app.ExpDropDown.Enable = "on";
-                case 'Biomass corrected MDV'
-                    app.ExpDropDown.Enable = "on";
-                case 'Enrichment'
-                    [tableMS, err] = app.MainApp.exp.getEnrichmentComparison();
-                    app.ExpDropDown.Enable = "off";
+            if viewModel.ExperimentSelectionEnabled
+                app.ExpDropDown.Enable = "on";
+            else
+                app.ExpDropDown.Enable = "off";
             end
 
             app.MSTable.Data = tableMS;
             app.MSTable.ColumnName = tableMS.Properties.VariableNames;
             app.MSTable.RowName = tableMS.Properties.RowNames;
-
-            isDark = isDarkTheme(app.MainApp);
+            removeStyle(app.MSTable);
             drawnow();
 
-            if strcmp(Type, "Enrichment")
-
-                removeStyle(app.MSTable);
+            if viewModel.UseHeatmap
                 numRow = height(tableMS);
                 numCol = width(tableMS);
-
                 app.MSTable.ColumnWidth = repmat({100}, 1, numCol);
-
                 data = tableMS{:, :};
 
                 for i = 1:numCol
-
                     hex = app.color.getColorValue( ...
                         data(:, i), ...
                         "color", "cmthermallight", ...
-                        "isDark", isDark ...
+                        "isDark", app.IsDarkTheme ...
                     );
 
                     for j = 1:numRow
-
                         ui = uistyle('BackgroundColor', hex(j));
                         addStyle(app.MSTable, ui, 'cell', [j, i]);
                         clear ui;
-
                     end
-
                 end
 
                 clear data;
-
-                % Change columns color if there are errors
-                if ~isempty(err)
-
-                    if isDark
-                        addStyle(app.MSTable, app.MainApp.styleErrorDark, 'column', find(err));
-                    else
-                        addStyle(app.MSTable, app.MainApp.styleError, 'column', find(err));
-                    end % if isDark
-
-                end
-
             else
-
                 app.MSTable.ColumnWidth = {'auto'};
+            end
 
-                % Change columns color if there are errors
-                if ~isempty(err)
-                    removeStyle(app.MSTable);
+            if any(viewModel.ErrorColumns)
+                addStyle( ...
+                    app.MSTable, ...
+                    app.ErrorStyle, ...
+                    'column', ...
+                    find(viewModel.ErrorColumns));
+            end
 
-                    if isDark
-                        addStyle(app.MSTable, app.MainApp.styleErrorDark, 'column', find(err));
-                    else
-                        addStyle(app.MSTable, app.MainApp.styleError, 'column', find(err));
-                    end % if isDark
-
-                end % if isempty(err)
-
+            if any(viewModel.ErrorMask, 'all')
+                [errorRows, errorColumns] = ...
+                    find(viewModel.ErrorMask);
+                addStyle( ...
+                    app.MSTable, ...
+                    app.ErrorStyle, ...
+                    'cell', ...
+                    [errorRows, errorColumns]);
             end
 
         end % end changeMSTable
@@ -118,31 +96,31 @@ classdef MSView_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, MainApp, idx)
+        function startupFcn(app, Presenter, idx, isDarkTheme)
 
-            app.MainApp = MainApp;
+            app.Presenter = Presenter;
+            app.IsDarkTheme = logical(isDarkTheme);
+            app.ExpDropDown.Items = cellstr(Presenter.experimentNames());
+            app.color = Color();
 
-            app.ExpDropDown.Items = MainApp.exp.getExpList();
-
-            if ~MainApp.exp.hasCalculatedMDV()
-                MainApp.LogTextDate( ...
-                    "MDV-derived tables have not been calculated. Press Calculate MDV in the Experiment tab before viewing MDV, biomass-corrected MDV or enrichment data.", ...
-                    "Warning" ...
-                );
+            if app.IsDarkTheme
+                app.ErrorStyle = ...
+                    uistyle('BackgroundColor', '#332225');
+            else
+                app.ErrorStyle = ...
+                    uistyle('BackgroundColor', '#FFAABB');
             end
 
-            expName = MainApp.exp.getExpName(idx);
+            expName = Presenter.experimentNameAt(idx);
 
             changeMSTable(app, expName, app.TableTypeDropDown.Value);
 
             app.ExpDropDown.Value = expName;
 
-            app.color = Color();
-
         end
 
         % Value changed function: ExpDropDown
-        function ExpDropDownValueChanged(app, event)
+        function ExpDropDownValueChanged(app, ~)
 
             value = app.ExpDropDown.Value;
             app.changeMSTable(value, app.TableTypeDropDown.Value);
@@ -150,7 +128,7 @@ classdef MSView_exported < matlab.apps.AppBase
         end
 
         % Value changed function: TableTypeDropDown
-        function TableTypeDropDownValueChanged(app, event)
+        function TableTypeDropDownValueChanged(app, ~)
 
             value = app.TableTypeDropDown.Value;
             app.changeMSTable(app.ExpDropDown.Value, value);
@@ -158,19 +136,19 @@ classdef MSView_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: PlotButton
-        function PlotButtonPushed(app, event)
+        function PlotButtonPushed(app, ~)
 
-            app.ComparisonApp = ComparisonView(app.MainApp, "ms");
+            notify(app, 'ComparisonRequested');
 
         end
 
         % Button pushed function: ReloadButton
-        function ReloadButtonPushed(app, event)
+        function ReloadButtonPushed(~, ~)
 
         end
 
         % Button pushed function: SaveButton
-        function SaveButtonPushed(app, event)
+        function SaveButtonPushed(app, ~)
 
             [file, path] = uiputfile('MS_data.csv', 'Save MS data as');
 
@@ -204,7 +182,7 @@ classdef MSView_exported < matlab.apps.AppBase
         end
 
         % Close request function: MSViewerUIFigure
-        function MSViewerUIFigureCloseRequest(app, event)
+        function MSViewerUIFigureCloseRequest(app, ~)
 
             delete(app)
 

@@ -143,6 +143,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         TracerConfigApp;
         RunConfigApp;
         MSViewApp;
+        ComparisonViewApp;
         RunAddBatchApp;
         ViewSuggestionApp;
         LogApp;
@@ -218,6 +219,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         PreferencesApp
         PreferencesListeners event.listener = event.listener.empty(0, 1)
+        MSViewListeners event.listener = event.listener.empty(0, 1)
 
         MainInteractionSnapshot cell = {}
 
@@ -1467,6 +1469,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                                            app.isLoadedObject(app.TracerConfigApp)
                                            app.isLoadedObject(app.RunConfigApp)
                                            app.isLoadedObject(app.MSViewApp)
+                                           app.isLoadedObject(app.ComparisonViewApp)
                                            app.isLoadedObject(app.RunAddBatchApp)
                                            app.isLoadedObject(app.ViewSuggestionApp)
                                            app.isLoadedObject(app.LogApp)
@@ -1905,6 +1908,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method showNotification
+
+        function openMSComparison(app)
+
+            app.ComparisonViewApp = ComparisonView(app, "ms");
+
+        end % method openMSComparison
 
         function appendLogText(app, text, level, timestamp)
             % APPENDLOGTEXT
@@ -5074,8 +5083,22 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             idxRow = idx(1, 1);
 
             cleanupPresentation = app.beginPresentationOperation();
+            presenter = openmebius.presentation.experiment ...
+                .MSViewPresenter(app.exp);
 
-            app.MSViewApp = MSView(app, idxRow);
+            if ~presenter.hasCalculatedMDV()
+                app.notifyWarning( ...
+                    "MDV-derived tables have not been calculated. " + ...
+                    "Press Calculate MDV in the Experiment tab before " + ...
+                    "viewing MDV, biomass-corrected MDV or enrichment data.");
+            end
+
+            app.MSViewApp = MSView( ...
+                presenter, idxRow, app.isDarkTheme());
+            app.MSViewListeners = addlistener( ...
+                app.MSViewApp, ...
+                'ComparisonRequested', ...
+                @(~, ~) app.openMSComparison());
         end
 
         % Button pushed function: TracerConfigButton
