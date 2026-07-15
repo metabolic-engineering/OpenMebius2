@@ -138,33 +138,6 @@ classdef LoggerTest < matlab.unittest.TestCase
 
         end
 
-        function messageStateUsesLoggerFormat(testCase)
-
-            status = openmebius.infrastructure.logging.MessageState();
-            status.updateMsg("hello", "Info", "Info");
-
-            testCase.verifyMatches( ...
-                status.statusMsg, ...
-                "^\[[0-9]{4}-[0-9]{2}-[0-9]{2} " + ...
-                "[0-9]{2}:[0-9]{2}:[0-9]{2}\]\t\[INFO\]\thello$");
-
-        end
-
-        function messageStateFormatsEachMultilineLogRow(testCase)
-
-            status = openmebius.infrastructure.logging.MessageState();
-            status.updateMsg("hello" + newline + "world", "Warning", "Info");
-
-            testCase.verifyMatches( ...
-                status.statusMsg, ...
-                "^\[[0-9]{4}-[0-9]{2}-[0-9]{2} " + ...
-                "[0-9]{2}:[0-9]{2}:[0-9]{2}\]\t\[WARNING\]\thello" + ...
-                newline + ...
-                "\[[0-9]{4}-[0-9]{2}-[0-9]{2} " + ...
-                "[0-9]{2}:[0-9]{2}:[0-9]{2}\]\t\[WARNING\]\tworld$");
-
-        end
-
         function readTailReturnsRequestedLastLines(testCase)
 
             pathFile = string(fullfile(tempdir, "openmebius2-logger-test.log"));

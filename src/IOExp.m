@@ -1,4 +1,4 @@
-classdef IOExp < openmebius.infrastructure.logging.MessageState
+classdef IOExp < handle
 
     properties
 
@@ -37,8 +37,13 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
         tableVariableNames struct = struct;
         tableVariableTypes struct = struct;
         ExperimentRepository
+        MessagePublisher
 
     end % properties
+
+    properties (Access = protected)
+        logLevel (1, 1) string = "Info"
+    end
 
     methods
 
@@ -57,32 +62,21 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
             [dirExp, ~, ~] = fileparts(pathExp);
 
             obj.ExperimentRepository = options.ExperimentRepository;
+            obj.MessagePublisher = openmebius.presentation ...
+                .notification.GeneralMessagePublisher( ...
+                LogLevel = obj.logLevel);
 
             experimentLocation = ...
                 openmebius.domain.experiment.ExperimentLocation ...
                 .fromDirectory(dirExp);
 
-            try
-                obj.ExperimentRepository.assertExperimentDirectory( ...
-                    experimentLocation);
-            catch
-                obj.isError = true;
-                updateMsg(obj, ...
-                    "The directory " + string(dirExp) + ...
-                    " does not exist.", ...
-                    "Error", ...
-                    obj.logLevel);
-                return
-            end
+            obj.ExperimentRepository.assertExperimentDirectory( ...
+                experimentLocation);
 
             updateMsg(obj, ...
                 "The directory " + string(dirExp) + " exists.", ...
                 "Info", ...
                 obj.logLevel);
-
-            if obj.isError
-                return;
-            end
 
             obj.pathExp = pathExp;
 
@@ -169,16 +163,15 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
                 ReadRowNames = obj.tableReadRowName(1), ...
                 RefVariableNames = obj.tableVariableNames.tableInfo, ...
                 RefTypes = obj.tableVariableTypes.tableInfo);
-                reset(obj);
                 updateMsg(obj, ...
                     obj.pathExp + "/info is successfully imported.", ...
                     "Info", obj.logLevel);
             catch ME
-                obj.isError = true;
-                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
                 createNewExpSheetInfo(obj);
-                reset(obj);
-                updateMsg(obj, "Failed to load info data from the Excel file. A new sheet has been created.", "Warning", obj.logLevel);
+                updateMsg(obj, ...
+                    "Failed to load info data from the Excel file. " + ...
+                    "A new sheet has been created. " + string(ME.message), ...
+                    "Warning", obj.logLevel);
             end
 
             try
@@ -188,16 +181,15 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
                 ReadRowNames = obj.tableReadRowName(2), ...
                 RefVariableNames = obj.tableVariableNames.tableSubstrate, ...
                 RefTypes = obj.tableVariableTypes.tableSubstrate);
-                reset(obj);
                 updateMsg(obj, ...
                     obj.pathExp + "/substrate is successfully imported.", ...
                     "Info", obj.logLevel);
             catch ME
-                obj.isError = true;
-                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
                 createNewExpSheetSubstrate(obj);
-                reset(obj);
-                updateMsg(obj, "Failed to load substrate data from the Excel file. A new sheet has been created.", "Warning", obj.logLevel);
+                updateMsg(obj, ...
+                    "Failed to load substrate data from the Excel file. " + ...
+                    "A new sheet has been created. " + string(ME.message), ...
+                    "Warning", obj.logLevel);
             end
 
             try
@@ -206,17 +198,14 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
                 "MS", ...
                 ReadRowNames = obj.tableReadRowName(3), ...
                 CheckVariable = false);
-                reset(obj);
                 updateMsg(obj, ...
                     obj.pathExp + "/MS is successfully imported.", ...
                     "Info", obj.logLevel);
             catch ME
-                obj.isError = true;
-                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
                 obj.tableMS = table();
-                reset(obj);
                 updateMsg(obj, ...
-                    "The MS sheet was not loaded. Stored MDV-derived sheets will still be checked.", ...
+                    "The MS sheet was not loaded. Stored MDV-derived " + ...
+                    "sheets will still be checked. " + string(ME.message), ...
                     "Warning", obj.logLevel);
             end
 
@@ -232,26 +221,25 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
                 options.type (1, 1) string {mustBeMember(options.type, ["xlsx", "csv"])} = "xlsx";
             end
 
+            if options.type ~= "xlsx"
+                error( ...
+                    "OpenMebius2:IOExp:UnsupportedFileType", ...
+                    "Loading MS data from %s is not supported.", ...
+                    options.type);
+            end
+
             createNewExpSheetInfo(obj);
             createNewExpSheetSubstrate(obj);
 
-            try
-                obj.tableMS = obj.ExperimentRepository.readWorkbookSheet( ...
-                    obj.pathExp, ...
-                    sheetName, ...
-                    ReadRowNames = obj.tableReadRowName(3), ...
-                    CheckVariable = false);
-                reset(obj);
-                updateMsg(obj, ...
-                    obj.pathExp + "/" + sheetName + ...
-                    " is successfully imported.", ...
-                    "Info", obj.logLevel);
-            catch ME
-                obj.isError = true;
-                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
-                updateMsg(obj, "Failed to load MS data from the Excel file.", "Error", obj.logLevel);
-                return;
-            end
+            obj.tableMS = obj.ExperimentRepository.readWorkbookSheet( ...
+                obj.pathExp, ...
+                sheetName, ...
+                ReadRowNames = obj.tableReadRowName(3), ...
+                CheckVariable = false);
+            updateMsg(obj, ...
+                obj.pathExp + "/" + sheetName + ...
+                " is successfully imported.", ...
+                "Info", obj.logLevel);
 
         end % loadMSData
 
@@ -291,17 +279,6 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
 
         end % createNewExpSheetSubstrate
 
-        function createNewExpSheetMS(obj)
-            % 未完成
-
-            obj.tableMS = table();
-
-            if ~obj.isModelLoaded
-                return;
-            end
-
-        end % createNewExpSheetMS
-
         function saveExcelData(obj, options)
             % SAVEEXCELDATA Save the experiment data to an Excel file.
             %
@@ -323,10 +300,6 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
                 options.type (1, 1) string {mustBeMember(options.type, ["xlsx", "csv"])} = "xlsx";
             end % constructor
 
-            if obj.isError
-                return;
-            end
-
             for i = 1:length(obj.strTableList)
 
                 tableName = obj.strTableList(i);
@@ -343,9 +316,10 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
                         );
 
                         if ~isSuccess
-                            obj.isError = true;
                             updateMsg(obj, string(msg), "Error", obj.logLevel);
-                            return
+                            error( ...
+                                "OpenMebius2:IOExp:WorkbookSaveFailed", ...
+                                "%s", string(msg));
                         end
                     case "csv"
                         % Unimplemented: CSV export
@@ -357,6 +331,17 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
         end % saveExcelData
 
     end % methods
+
+    methods (Access = protected)
+
+        function updateMsg(obj, text, level, ~)
+
+            message = join(string(text(:)), newline);
+            obj.MessagePublisher.write(lower(string(level)), message);
+
+        end % updateMsg
+
+    end % methods (Access = protected)
 
     methods (Access = private)
 
@@ -397,10 +382,8 @@ classdef IOExp < openmebius.infrastructure.logging.MessageState
                     aliases, ...
                     ReadRowNames = readRowNames, ...
                     ReadVariableNames = true);
-                obj.reset();
             catch
                 data = table();
-                obj.reset();
             end
 
         end % importOptionalExcelSheet

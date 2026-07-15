@@ -106,11 +106,6 @@ classdef FluxAnalysis < handle
             obj.model = model;
             obj.exps = experiments;
 
-            if obj.exps.isError
-                obj.isError = true;
-                return;
-            end
-
             obj.expsList = obj.Dependencies ...
                 .MFAExperimentListNormalizer.normalize( ...
                 expList);

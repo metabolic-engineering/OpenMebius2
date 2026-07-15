@@ -137,7 +137,7 @@ classdef ExperimentEditService < handle
         function updateExperimentData(experiments, data, type)
 
             try
-                isUpdateError = experiments.updateExpData(data, type);
+                report = experiments.updateExpData(data, type);
             catch ME
                 error( ...
                     "OpenMebius2:ExperimentEdit:UpdateFailed", ...
@@ -146,13 +146,12 @@ classdef ExperimentEditService < handle
                     string(ME.message));
             end
 
-            if isUpdateError
+            if ~report.IsValid
                 error( ...
                     "OpenMebius2:ExperimentEdit:UpdateFailed", ...
                     "Failed to update %s experiment data: %s", ...
                     type, ...
-                    openmebius.application.experiment.ExperimentEditService ...
-                    .statusMessage(experiments, "Unknown update error."));
+                    report.ErrorMessage);
             end
 
         end % updateExperimentData
@@ -180,7 +179,7 @@ classdef ExperimentEditService < handle
         function saveExperiments(experiments)
 
             try
-                isSaveError = experiments.saveExpData();
+                report = experiments.saveExpData();
             catch ME
                 error( ...
                     "OpenMebius2:ExperimentEdit:SaveFailed", ...
@@ -188,34 +187,14 @@ classdef ExperimentEditService < handle
                     string(ME.message));
             end
 
-            if isSaveError
+            if ~report.IsValid
                 error( ...
                     "OpenMebius2:ExperimentEdit:SaveFailed", ...
                     "%s", ...
-                    openmebius.application.experiment.ExperimentEditService ...
-                    .statusMessage(experiments, "Experiment save failed."));
+                    report.ErrorMessage);
             end
 
         end % saveExperiments
-
-        function message = statusMessage(experiments, fallback)
-
-            message = string(fallback);
-
-            try
-                statusMessage = string(experiments.statusMsg);
-
-                if ~isempty(statusMessage)
-                    statusMessage = statusMessage(strlength(statusMessage) > 0);
-                end
-
-                if ~isempty(statusMessage)
-                    message = strjoin(statusMessage(:), newline);
-                end
-            catch
-            end
-
-        end % statusMessage
 
     end % methods (Static, Access = private)
 

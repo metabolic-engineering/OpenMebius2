@@ -26,6 +26,28 @@ classdef ExperimentRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyClass(experiments, "IOExps");
             testCase.verifyEqual(experiments.numFile, 1);
+            testCase.verifyFalse(isprop(experiments, "isError"));
+            testCase.verifyFalse(isprop(experiments, "statusMsg"));
+
+            invalidReport = experiments.updateExpData(table(), "Info");
+
+            testCase.verifyClass( ...
+                invalidReport, ...
+                "openmebius.domain.experiment.ExperimentValidationReport");
+            testCase.verifyFalse(invalidReport.IsValid);
+            testCase.verifyNotEmpty(invalidReport.ErrorMessage);
+
+            validReport = experiments.updateExpData( ...
+                experiments.getInfoTable(), ...
+                "Info");
+
+            testCase.verifyTrue(validReport.IsValid);
+
+            experiment = IOExp( ...
+                fixture.Location.workbookFile("WT_ecoli.xlsx"), ...
+                ExperimentRepository = repository);
+            testCase.verifyFalse(isprop(experiment, "isError"));
+            testCase.verifyFalse(isprop(experiment, "statusMsg"));
 
             clear cleanup
 
@@ -42,6 +64,21 @@ classdef ExperimentRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyTrue(istable(msTable));
             testCase.verifyGreaterThan(width(msTable), 0);
+
+        end
+
+        function loadRejectsMissingExperimentDirectory(testCase)
+
+            repository = ...
+                openmebius.infrastructure.experiment.ExperimentRepository();
+            location = openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(fullfile( ...
+                tempdir, ...
+                "missing-openmebius-experiment-repository"));
+
+            testCase.verifyError( ...
+                @() repository.load(location, []), ...
+                "OpenMebius2:ExperimentRepository:DirectoryNotFound");
 
         end
 

@@ -136,9 +136,6 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
             model = repository.load( ...
                 ModelRepositoryTest.templateModelLocation());
 
-            testCase.verifyFalse(isa( ...
-                model, ...
-                "openmebius.infrastructure.logging.MessageState"));
             testCase.verifyFalse(isprop(model, "isError"));
             testCase.verifyFalse(isprop(model, "statusMsg"));
 

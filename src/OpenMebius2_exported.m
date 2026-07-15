@@ -527,12 +527,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadExpData(app)
 
-            if app.exp.isError
-                app.LogText(app.exp.statusMsg);
-                app.updateStatus("experiment", "error");
-                return
-            end
-
             app.updateStatus("experiment", "finished");
 
             % -------------------------------------------------------------

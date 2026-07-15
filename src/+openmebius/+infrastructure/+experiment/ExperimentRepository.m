@@ -23,13 +23,30 @@ classdef ExperimentRepository < handle
                     "Failed to create IOExps.");
             end
 
-            if experiments.isError
-                error( ...
-                    "OpenMebius2:ExperimentRepository:ExperimentLoadFailed", ...
-                    "%s", string(experiments.statusMsg));
+        end % load
+
+        function experiments = initialize(obj, experimentLocation, model)
+
+            arguments
+                obj
+                experimentLocation openmebius.domain.experiment.ExperimentLocation
+                model
             end
 
-        end % load
+            experiments = IOExps( ...
+                experimentLocation, ...
+                model, ...
+                ExperimentRepository = obj, ...
+                AllowEmpty = true);
+
+            if isempty(experiments) || ~isvalid(experiments)
+                error( ...
+                    "OpenMebius2:ExperimentRepository:" + ...
+                    "InvalidExperimentObject", ...
+                    "Failed to initialize IOExps.");
+            end
+
+        end % initialize
 
         function assertExperimentDirectory(~, experimentLocation)
 

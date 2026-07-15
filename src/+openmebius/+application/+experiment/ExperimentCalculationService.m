@@ -2,12 +2,31 @@ classdef ExperimentCalculationService < handle
     % EXPERIMENTCALCULATIONSERVICE
     % Coordinates experiment table updates and MDV calculation outside UI.
 
+    properties (Access = private)
+        MDVCalculator
+        MessagePublisher
+    end
+
     methods
 
-        function result = calculateMDV(~, model, experiments, batch, infoTable, uptakeTable, tracerTable)
+        function obj = ExperimentCalculationService(options)
 
             arguments
-                ~
+                options.MDVCalculator = openmebius.domain.experiment ...
+                    .ExperimentMDVCalculator()
+                options.MessagePublisher = openmebius.presentation ...
+                    .notification.GeneralMessagePublisher()
+            end
+
+            obj.MDVCalculator = options.MDVCalculator;
+            obj.MessagePublisher = options.MessagePublisher;
+
+        end % constructor
+
+        function result = calculateMDV(obj, model, experiments, batch, infoTable, uptakeTable, tracerTable)
+
+            arguments
+                obj
                 model
                 experiments
                 batch
@@ -31,15 +50,7 @@ classdef ExperimentCalculationService < handle
             openmebius.application.experiment.ExperimentCalculationService ...
                 .updateExperimentData(experiments, tracerTable, "Tracer");
 
-            experiments.calculateMDV();
-
-            if experiments.isError
-                error( ...
-                    "OpenMebius2:ExperimentCalculation:CalculationFailed", ...
-                    "%s", ...
-                    openmebius.application.experiment.ExperimentCalculationService ...
-                    .statusMessage(experiments, "MDV calculation failed."));
-            end
+            warnings = obj.calculateDerivedData(experiments);
 
             batch.updateExperimentalData(experiments);
 
@@ -58,11 +69,76 @@ classdef ExperimentCalculationService < handle
                             "Experiment tables updated successfully."
                             "MDV-derived tables have been updated successfully."
                            ], ...
+                Warnings = warnings, ...
                 HasCalculatedMDV = hasCalculatedMDV);
 
         end % calculateMDV
 
     end % methods
+
+    methods (Access = private)
+
+        function warnings = calculateDerivedData(obj, experiments)
+
+            experimentNames = string(experiments.getExpList());
+            experimentNames = experimentNames(:);
+            numExperiments = numel(experimentNames);
+
+            if numExperiments == 0
+                error( ...
+                    "OpenMebius2:ExperimentCalculation:CalculationFailed", ...
+                    "No experiments are available for MDV calculation.");
+            end
+
+            derivedData = cell(numExperiments, 1);
+            warningGroups = repmat({strings(0, 1)}, numExperiments, 1);
+            errors = strings(numExperiments, 1);
+            numErrors = 0;
+
+            for iExperiment = 1:numExperiments
+                experimentName = experimentNames(iExperiment);
+
+                try
+                    input = experiments.getMDVCalculationInput( ...
+                        experimentName);
+                    derivedData{iExperiment} = ...
+                        obj.MDVCalculator.calculate(input);
+                    warningGroups{iExperiment} = ...
+                        derivedData{iExperiment}.Warnings;
+                catch ME
+                    numErrors = numErrors + 1;
+                    errors(numErrors) = ...
+                        "Failed to calculate MDV-derived data for " + ...
+                        experimentName + ": " + string(ME.message);
+                end
+            end
+
+            if numErrors > 0
+                error( ...
+                    "OpenMebius2:ExperimentCalculation:CalculationFailed", ...
+                    "%s", ...
+                    join(errors(1:numErrors), newline));
+            end
+
+            for iExperiment = 1:numExperiments
+                experiments.applyMDVDerivedData( ...
+                    experimentNames(iExperiment), ...
+                    derivedData{iExperiment});
+            end
+
+            warnings = unique(vertcat(warningGroups{:}), "stable");
+
+            for iWarning = 1:numel(warnings)
+                obj.MessagePublisher.write("warning", warnings(iWarning));
+            end
+
+            obj.MessagePublisher.write( ...
+                "info", ...
+                "MDV calculation completed.");
+
+        end % calculateDerivedData
+
+    end % methods (Access = private)
 
     methods (Static, Access = private)
 
@@ -81,7 +157,7 @@ classdef ExperimentCalculationService < handle
         function updateExperimentData(experiments, data, type)
 
             try
-                isUpdateError = experiments.updateExpData(data, type);
+                report = experiments.updateExpData(data, type);
             catch ME
                 error( ...
                     "OpenMebius2:ExperimentCalculation:UpdateFailed", ...
@@ -90,35 +166,15 @@ classdef ExperimentCalculationService < handle
                     string(ME.message));
             end
 
-            if isUpdateError
+            if ~report.IsValid
                 error( ...
                     "OpenMebius2:ExperimentCalculation:UpdateFailed", ...
                     "Failed to update %s experiment data: %s", ...
                     type, ...
-                    openmebius.application.experiment.ExperimentCalculationService ...
-                    .statusMessage(experiments, "Unknown update error."));
+                    report.ErrorMessage);
             end
 
         end % updateExperimentData
-
-        function message = statusMessage(experiments, fallback)
-
-            message = string(fallback);
-
-            try
-                statusMessage = string(experiments.statusMsg);
-
-                if ~isempty(statusMessage)
-                    statusMessage = statusMessage(strlength(statusMessage) > 0);
-                end
-
-                if ~isempty(statusMessage)
-                    message = strjoin(statusMessage(:), newline);
-                end
-            catch
-            end
-
-        end % statusMessage
 
     end % methods (Static, Access = private)
 

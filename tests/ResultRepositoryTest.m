@@ -46,7 +46,7 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
         end
 
-        function openedResultDoesNotExposeLegacyMessageState(testCase)
+        function openedResultDoesNotExposeLegacyStatusProperties(testCase)
 
             resultDirectory = string(tempname);
             mkdir(resultDirectory);
@@ -59,9 +59,6 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
             result = repository.open(resultLocation);
 
-            testCase.verifyFalse(isa( ...
-                result, ...
-                "openmebius.infrastructure.logging.MessageState"));
             testCase.verifyFalse(isprop(result, "isError"));
             testCase.verifyFalse(isprop(result, "statusMsg"));
 
