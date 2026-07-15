@@ -4,6 +4,7 @@ classdef BatchRunServiceQueueStub < handle
         Statuses (:, 1) string
         CallCount (1, 1) double = 0
         BatchIds (:, 1) string = strings(0, 1)
+        Provenances cell = {}
         CreateArguments cell = {}
         EmitCallbacks (1, 1) logical = false
     end
@@ -28,6 +29,13 @@ classdef BatchRunServiceQueueStub < handle
             obj.BatchIds(end + 1, 1) = string(varargin{6});
             obj.CreateArguments = varargin;
             status = obj.Statuses(obj.CallCount);
+            provenanceIndex = obj.namedArgumentIndex( ...
+                varargin, "Provenance");
+
+            if ~isempty(provenanceIndex)
+                obj.Provenances{end + 1, 1} = ...
+                    varargin{provenanceIndex + 1};
+            end
 
             if obj.EmitCallbacks
                 obj.invokeCallback(varargin, "MessageReporter", "message");
@@ -42,6 +50,17 @@ classdef BatchRunServiceQueueStub < handle
 
         function invokeCallback(arguments, name, payload)
 
+            index = helpers.BatchRunServiceQueueStub ...
+                .namedArgumentIndex(arguments, name);
+
+            if ~isempty(index)
+                arguments{index + 1}(payload);
+            end
+
+        end
+
+        function index = namedArgumentIndex(arguments, name)
+
             index = [];
 
             for i = 1:numel(arguments)
@@ -52,10 +71,6 @@ classdef BatchRunServiceQueueStub < handle
                     index = i;
                     break
                 end
-            end
-
-            if ~isempty(index)
-                arguments{index + 1}(payload);
             end
 
         end

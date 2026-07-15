@@ -43,6 +43,7 @@ classdef BatchExecutionIntegrationTest < matlab.unittest.TestCase
                 'ProgressUpdate', ...
                 @(~, eventData) observer.publish(eventData));
             listenerCleanup = onCleanup(@() delete(listener));
+            buildCountBeforeRun = numel(provenanceBuilder.BatchIds);
 
             status = batch.runBatch(resultDirectory);
 
@@ -60,6 +61,9 @@ classdef BatchExecutionIntegrationTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 string(document.batches.config.status), "finished");
             testCase.verifyEqual(runService.CallCount, 1);
+            testCase.verifyEqual( ...
+                numel(provenanceBuilder.BatchIds), ...
+                buildCountBeforeRun + 1);
             testCase.verifyEqual( ...
                 provenanceBuilder.BatchIds(end), updatedTable.id);
 
