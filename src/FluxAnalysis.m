@@ -27,6 +27,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         MFAProblemFactory
         MFAIterationRunner
         MFAWorkflow
+        MonteCarloConfidenceIntervalSolver
         EffluxPenaltyFactory
         InstationaryInputFactory
         MFAProblem = []
@@ -141,6 +142,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.SteadyStateSolver()
                 options.MFAIterationRunner = []
                 options.MFAWorkflow = openmebius.mfa.MFAWorkflow()
+                options.MonteCarloConfidenceIntervalSolver = ...
+                    openmebius.mfa.MonteCarloConfidenceIntervalSolver()
                 options.EffluxPenaltyFactory = ...
                     openmebius.mfa.EffluxPenaltyFactory()
                 options.InstationaryInputFactory = ...
@@ -202,6 +205,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             end
 
             obj.MFAWorkflow = options.MFAWorkflow;
+            obj.MonteCarloConfidenceIntervalSolver = ...
+                options.MonteCarloConfidenceIntervalSolver;
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
             obj.InstationaryInputFactory = ...
                 options.InstationaryInputFactory;
@@ -944,6 +949,12 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % reportOptimizationMessage
 
+        function reportConfidenceIntervalMessage(obj, level, message)
+
+            notifyGeneralMessage(obj, level, message, dbstack());
+
+        end % reportConfidenceIntervalMessage
+
         function notifyMFAIterationProgress(obj, iteration, total)
 
             msg = "Calculating flux distribution (iteration " + ...
@@ -1412,64 +1423,16 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % calculateConfiguredMFAIteration
 
-        function [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
-                calculateNonLinearOptimization( ...
-                obj, MDVExpTemp, rightHandSide)
-            % CALCULATENONLINEAROPTIMIZATION Calculate the nonlinear optimization.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
+        function result = calculateMonteCarloMFAIteration( ...
+                obj, experimentalMDV, rightHandSide)
+            % CALCULATEMONTECARLOMFAITERATION Run one steady-state CI fit.
 
             objective = createSteadyStateObjective( ...
-                obj, MDVExpTemp, rightHandSide);
-            [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
-                executeNonlinearOptimization( ...
+                obj, experimentalMDV, rightHandSide);
+            result = runAndReportMFAIteration( ...
                 obj, objective, rightHandSide, "");
 
-        end % calculateNonLinearOptimization
-
-        function [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
-                calculateNonLinearOptimizationInstationary( ...
-                obj, MDVExpTemp, rightHandSide)
-            % CALCULATENONLINEAROPTIMIZATIONINSTATIONARY Calculate the nonlinear
-            % optimization for instationary MFA.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   MDVExpTemp: (n, m) double
-            %       The experimental MDV.
-            %       n: number of fragments
-            %       m: number of time points
-
-            objective = createInstationaryObjective( ...
-                obj, MDVExpTemp, rightHandSide);
-            [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
-                executeNonlinearOptimization( ...
-                obj, ...
-                objective, ...
-                rightHandSide, ...
-                " for instationary MFA");
-
-        end % calculateNonLinearOptimizationInstationary
-
-        function [fval, estimatedFlux, estimatedMDV, exitflag, output] = ...
-                executeNonlinearOptimization( ...
-                obj, objective, rightHandSide, context)
-            % EXECUTENONLINEAROPTIMIZATION Run and report one MFA iteration.
-
-            iterationResult = runAndReportMFAIteration( ...
-                obj, objective, rightHandSide, context);
-            fval = iterationResult.ObjectiveValue;
-            estimatedFlux = iterationResult.Flux;
-            estimatedMDV = iterationResult.MDV;
-            exitflag = iterationResult.ExitFlag;
-            output = iterationResult.Output;
-
-        end % executeNonlinearOptimization
+        end % calculateMonteCarloMFAIteration
 
         function iterationResult = runAndReportMFAIteration( ...
                 obj, objective, rightHandSide, context)
@@ -2013,354 +1976,70 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         %% Monte Carlo method
         function [fluxLB, fluxUB, output] = calculateCIMC(obj, config)
             % CALCULATECIMC Calculate the confidence interval using Monte Carlo method.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   options: (1, 1) struct
-            %       The options for the Monte Carlo method.
 
             arguments
                 obj (1, 1) FluxAnalysis
                 config (1, 1) struct
             end % arguments
 
-            if isfield(config, "procedure")
-                procedure = config.procedure;
-            else
-                procedure = "Single run";
+            fluxLB = [];
+            fluxUB = [];
+            output = struct;
+
+            msg = "Calculating confidence interval using Monte Carlo " + ...
+                "method. It may take a while " + ...
+                "(Cancel button is not available).";
+            notifyGeneralMessage(obj, "info", msg, dbstack());
+
+            if obj.statusFlag(2) ~= 1
+                msg = "Flux distribution is not calculated.";
+                notifyGeneralMessage(obj, "error", msg, dbstack());
+                return;
             end
 
-            switch procedure
-                case "Single run"
-                    [fluxLB, fluxUB, output] = ...
-                        calculateCIMCSingleRun(obj, config);
-                case "Multiple run"
-                    [fluxLB, fluxUB, output] = ...
-                        calculateCIMCMultiRun(obj, config);
-                otherwise
-                    msg = "Unknown procedure: " + string(procedure) + ...
-                        ". Use 'Single' or 'Multi'.";
-                    notifyGeneralMessage(obj, "error", msg, dbstack());
-                    return;
-            end % switch
+            bestFlux = obj.resultFlux(:, 1);
+            rightHandSide = createConfidenceIntervalRightHandSide( ...
+                obj, bestFlux);
 
-        end % calculateCIMC
-
-        function [fluxLB, fluxUB, output] = calculateCIMCSingleRun(obj, config)
-            % CALCULATECIMCMULTIRUN Calculate the confidence interval using Monte Carlo method with multiple runs.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   config: (1, 1) struct
-            %       The configuration for the Monte Carlo method.
-
-            tStart = tic;
-
-            fluxLB = [];
-            fluxUB = [];
-            output = struct();
-
-            % Notify the initial flux event
-            msg = "Calculating confidence interval using Monte Carlo method. " + ...
-                "It may take a while (Cancel button is not available).";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-            % If the flux distribution is not calculated, return
-            if obj.statusFlag(2) ~= 1
-                msg = "Flux distribution is not calculated.";
+            try
+                confidenceIntervalResult = ...
+                    obj.MonteCarloConfidenceIntervalSolver.solve( ...
+                    obj.MDVExpFmincon, ...
+                    size(obj.resultFlux, 1), ...
+                    config, ...
+                    @(mdv) calculateMonteCarloMFAIteration( ...
+                    obj, mdv, rightHandSide), ...
+                    obj.model.getIdxRev(), ...
+                    MessageReporter = ...
+                    @(level, message) ...
+                    reportConfidenceIntervalMessage( ...
+                    obj, level, message), ...
+                    CancellationRequested = @() obj.isCanceled);
+            catch ME
+                msg = "Confidence interval calculation failed. " + ...
+                    string(ME.message);
                 notifyGeneralMessage(obj, "error", msg, dbstack());
                 return;
-            end % if
+            end
 
-            % Set up the experimental conditions
-            Lmax = config.iteration;
-            SD = config.MIDSD;
+            fluxLB = confidenceIntervalResult.LowerBounds;
+            fluxUB = confidenceIntervalResult.UpperBounds;
+            output.MDV = confidenceIntervalResult.PerturbedMDVs;
+            output.flux = confidenceIntervalResult.Fluxes;
+            output.iteration = ...
+                confidenceIntervalResult.IterationCount;
+            output.time = confidenceIntervalResult.ElapsedTime;
 
-            % MDV calculation
-            numFlux = size(obj.resultFlux, 1);
-            MDVExpTemp = obj.MDVExpFmincon;
-
-            resultFluxBest = obj.resultFlux(:, 1);
-            optimizationRightHandSide = ...
-                createConfidenceIntervalRightHandSide( ...
-                obj, resultFluxBest);
-
-            numMDVTemp = size(MDVExpTemp, 1);
-            numLabelingTemp = size(MDVExpTemp, 2);
-            MCMDV = nan(numMDVTemp, numLabelingTemp, Lmax);
-            MCFlux = nan(numFlux, Lmax);
-
-            parfor i = 1:Lmax
-
-                % Corruppt randomly the MDV
-                iMDV = MDVExpTemp + ...
-                    randn(numMDVTemp, numLabelingTemp) * SD;
-
-                % Save the MDV
-                MCMDV(:, :, i) = iMDV;
-
-                % Calculate the flux distribution
-                [~, estimatedFlux, ~, ~, ~] = ...
-                    calculateNonLinearOptimization( ...
-                    obj, iMDV, optimizationRightHandSide);
-                MCFlux(:, i) = estimatedFlux;
-
-            end % for
-
-            idxRev = obj.model.getIdxRev();
-            fluxFwd = MCFlux;
-            fluxFwd(idxRev(:, 1), :) = fluxFwd(idxRev(:, 1), :) - fluxFwd(idxRev(:, 2), :);
-            fluxFwd(idxRev(:, 2), :) = [];
-
-            % Change the sign of the fluxes for reversible reactions
-
-            [fluxLB, fluxUB] = ...
-                calculateConfidenceIntervalFromMonteCarlo(obj, fluxFwd, 0.95);
-
-            output.MDV = MCMDV;
-            output.flux = fluxFwd;
-            output.iteration = Lmax;
-            output.time = toc(tStart);
-
-            msg = "Confidence interval calculated successfully." + ...
-                " (Elapsed time: " + string(seconds(output.time), "hh:mm:ss") + ")";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-        end % calculateCIMCSingleRun
-
-        function [fluxLB, fluxUB, output] = calculateCIMCMultiRun(obj, config)
-            % CALCULATECIMCMULTIRUN Calculate the confidence interval using Monte Carlo method with multiple runs.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   config: (1, 1) struct
-            %       The configuration for the Monte Carlo method.
-
-            tStart = tic;
-
-            fluxLB = [];
-            fluxUB = [];
-            output = struct();
-
-            % Notify the initial flux event
-            msg = "Calculating confidence interval using Monte Carlo method. " + ...
-                "It may take a while (Cancel button is not available).";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-            % If the flux distribution is not calculated, return
-            if obj.statusFlag(2) ~= 1
-                msg = "Flux distribution is not calculated.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                return;
-            end % if
-
-            % Set up the experimental conditions
-            Lmax = config.iteration;
-            SD = config.MIDSD;
-
-            % MDV calculation
-            numFlux = size(obj.resultFlux, 1);
-            MDVExpTemp = obj.MDVExpFmincon;
-
-            resultFluxBest = obj.resultFlux(:, 1);
-            optimizationRightHandSide = ...
-                createConfidenceIntervalRightHandSide( ...
-                obj, resultFluxBest);
-
-            numMDVTemp = size(MDVExpTemp, 1);
-            numLabelingTemp = size(MDVExpTemp, 2);
-            MCMDV = nan(numMDVTemp, numLabelingTemp, Lmax);
-            MCFlux = nan(numFlux, Lmax);
-
-            trials = config.theNumberOfRuns;
-            certainThreshold = config.certainThreshold;
-            proximityThreshold = config.proximityThreshold;
-
-            parfor i = 1:Lmax
-
-                % Corruppt randomly the MDV
-                iMDV = MDVExpTemp + ...
-                    randn(numMDVTemp, numLabelingTemp) * SD;
-
-                % Save the MDV
-                MCMDV(:, :, i) = iMDV;
-
-                msg = "Monte Carlo iteration: " + string(i) + "/" + string(Lmax);
+            if confidenceIntervalResult.IsCanceled
+                msg = "Confidence interval calculation canceled.";
                 notifyGeneralMessage(obj, "info", msg, dbstack());
-
-                temporaryFlux = [];
-                temporaryRSS = [];
-                numTrials = 1;
-                bestRSS = inf;
-
-                while numTrials <= trials || length(temporaryRSS) < certainThreshold
-
-                    msg = "Monte Carlo iteration: " + string(i) + "/" + string(Lmax) + ...
-                        ", Trial: " + string(numTrials) + "/" + string(trials);
-                    notifyGeneralMessage(obj, "info", msg, dbstack());
-
-                    % Calculate the flux distribution
-                    [fval, estimatedFlux, ~, ~, ~] = ...
-                        calculateNonLinearOptimization( ...
-                        obj, iMDV, optimizationRightHandSide);
-
-                    temporaryFlux = [temporaryFlux, estimatedFlux];
-                    temporaryRSS = [temporaryRSS, fval];
-
-                    proximity = calculateProximity(obj, bestRSS, fval);
-
-                    if proximity < proximityThreshold || bestRSS == inf
-                        temporaryFlux = [temporaryFlux, estimatedFlux];
-                        temporaryRSS = [temporaryRSS, fval];
-                        bestRSS = min(temporaryRSS);
-                    end
-
-                    numTrials = numTrials + 1;
-
-                end % while
-
-                minIdx = find(temporaryRSS == min(temporaryRSS), 1);
-                MCFlux(:, i) = temporaryFlux(:, minIdx);
-
-            end % for
-
-            idxRev = obj.model.getIdxRev();
-            fluxFwd = MCFlux;
-            fluxFwd(idxRev(:, 1), :) = fluxFwd(idxRev(:, 1), :) - fluxFwd(idxRev(:, 2), :);
-            fluxFwd(idxRev(:, 2), :) = [];
-
-            % Change the sign of the fluxes for reversible reactions
-
-            [fluxLB, fluxUB] = ...
-                calculateConfidenceIntervalFromMonteCarlo(obj, fluxFwd, 0.95);
-
-            output.MDV = MCMDV;
-            output.flux = fluxFwd;
-            output.iteration = Lmax;
-            output.time = toc(tStart);
-
-            msg = "Confidence interval calculated successfully." + ...
-                " (Elapsed time: " + string(seconds(output.time), "hh:mm:ss") + ")";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-        end % calculateCIMCMultiRun
-
-        function epsilon = calculateProximity(~, rssOld, rssNew)
-            % CALCULATEPROXIMITY Calculate the proximity threshold.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   rssOld: (1, 1) double
-            %       The RSS of the previous iteration.
-            %   rssNew: (1, 1) double
-            %       The RSS of the current iteration.
-            %
-            % Returns
-            % -------
-            %   epsilon: (1, 1) double
-            %       The proximity.
-
-            arguments
-                ~
-                rssOld (1, 1) double
-                rssNew (1, 1) double
+                return;
             end
 
-            epsilon = abs(rssNew - rssOld) / rssOld;
-
-        end % method calculateProximity
-
-        function [LB, UB] = calculateConfidenceIntervalFromMonteCarlo(obj, flux, gamma)
-            % CALCULATECIMC Calculate the confidence interval.
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   flux: (n, m) double
-            %       The flux distribution.
-            %       n: number of fluxes
-            %       m: number of iterations (Lmax)
-            %   gamma: (1, 1) double
-            %       The confidence level.
-            %       Default is 0.05 (95% confidence level).
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                flux (:, :) double
-                gamma (1, 1) double {mustBeGreaterThanOrEqual(gamma, 0), ...
-                                         mustBeLessThanOrEqual(gamma, 1)} = 0.95
-            end % arguments
-
-            flux = rmmissing(flux, 2);
-            numFlux = size(flux, 1);
-            numL = size(flux, 2);
-
-            LB = nan(numFlux, numL);
-            UB = nan(numFlux, numL);
-
-            method = obj.config.CIConf.MC.calculationMethod;
-
-            msg = "Calculating confidence interval using " + method + " method.";
+            msg = "Confidence interval calculated successfully." + ...
+                " (Elapsed time: " + ...
+                string(seconds(output.time), "hh:mm:ss") + ")";
             notifyGeneralMessage(obj, "info", msg, dbstack());
-
-            switch method
-                case "discarding"
-
-                    % Calculate the threshold
-                    threshold = (1 - gamma) / 2;
-
-                    for iL = 1:numL
-
-                        iFlux = flux(:, 1:iL);
-                        iThreshold = fix(threshold * iL) + 1;
-
-                        for jFlux = 1:numFlux
-
-                            % Sort the flux values
-                            iFluxj = iFlux(jFlux, :);
-                            iSortedFlux = sort(iFluxj, 2);
-
-                            % Calculate the lower and upper bounds
-                            if iThreshold <= length(iSortedFlux)
-                                LB(jFlux, iL) = iSortedFlux(iThreshold);
-                                UB(jFlux, iL) = iSortedFlux(end - iThreshold + 1);
-                            else
-                                LB(jFlux, iL) = NaN;
-                                UB(jFlux, iL) = NaN;
-                            end % if
-
-                        end % for jFlux
-
-                        % Cancel event
-                        if obj.isCanceled
-                            msg = "Confidence interval calculation canceled.";
-                            notifyGeneralMessage(obj, "info", msg, dbstack());
-                            return;
-                        end % if
-
-                    end % for iL
-
-                case "mean-varianced"
-
-                    msg = "Mean-varianced method is not implemented yet.";
-                    notifyGeneralMessage(obj, "error", msg, dbstack());
-                    return;
-
-                otherwise
-
-                    msg = "Unknown method for calculating confidence interval.";
-                    notifyGeneralMessage(obj, "error", msg, dbstack());
-                    return;
-
-            end % switch
 
         end % calculateCIMC
 
