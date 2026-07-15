@@ -21,6 +21,7 @@ classdef Batch < handle
         % Batch configuration
         filename = 'batch.json'
         BatchJsonRepository
+        AnalysisProvenanceBuilder
         MessagePublisher
         batchColumnNamesforGUI = ["ID", "Name", "Experiment", "Description"];
         batchColumnEditableforGUI = [false, true, false, true];
@@ -40,13 +41,22 @@ classdef Batch < handle
     methods
 
         % Constructor
-        function obj = Batch(exp)
+        function obj = Batch(exp, options)
+
+            arguments
+                exp
+                options.AnalysisProvenanceBuilder = ...
+                    openmebius.application.analysis ...
+                    .AnalysisProvenanceBuilder()
+            end
 
             % Set properties
             obj.exp = exp;
             obj.model = exp.getModel();
             obj.BatchJsonRepository = ...
                 openmebius.infrastructure.batch.BatchJsonRepository();
+            obj.AnalysisProvenanceBuilder = ...
+                options.AnalysisProvenanceBuilder;
             obj.MessagePublisher = openmebius.presentation ...
                 .notification.GeneralMessagePublisher();
 
@@ -1551,77 +1561,14 @@ classdef Batch < handle
 
             config = obj.tableBatch.config(idx);
             experimentNames = string(obj.tableBatch.exp{idx});
-            experimentNames = experimentNames(:);
-            [experimentFiles, experimentHashes] = ...
-                resolveExperimentFiles(obj, experimentNames);
-
-            modelPath = string(obj.model.pathModel);
-            [~, modelName, modelExtension] = fileparts(modelPath);
-            modelFileName = string(modelName) + string(modelExtension);
-            modelHash = ...
-                openmebius.infrastructure.filesystem.FileHasher.hashFile( ...
-                modelPath);
-
-            semanticConfig = ...
-                openmebius.domain.batch.BatchIdentity.semanticConfig(config);
-            contentHash = ...
-                openmebius.domain.batch.BatchIdentity.contentHash( ...
+            provenance = obj.AnalysisProvenanceBuilder.build( ...
                 config, ...
-                modelHash, ...
-                experimentNames, ...
-                experimentHashes);
-
-            provenance = struct( ...
-                'schemaVersion', 1, ...
-                'batchId', obj.tableBatch.id(idx), ...
-                'contentHash', contentHash, ...
-                'contentHashVersion', ...
-                openmebius.domain.batch.BatchIdentity.ContentHashVersion, ...
-                'configJson', ...
-                openmebius.domain.batch.BatchIdentity.canonicalJson( ...
-                semanticConfig), ...
-                'modelFileName', modelFileName, ...
-                'modelSha256', modelHash, ...
-                'experimentNames', experimentNames, ...
-                'experimentFileNames', experimentFiles, ...
-                'experimentSha256', experimentHashes);
+                obj.tableBatch.id(idx), ...
+                obj.model, ...
+                obj.exp, ...
+                experimentNames);
 
         end % buildAnalysisProvenance
-
-        function [fileNames, hashes] = resolveExperimentFiles(obj, experimentNames)
-
-            experimentNames = string(experimentNames(:));
-            availableFiles = string(obj.exp.fileExpList(:));
-            availableNames = strings(size(availableFiles));
-
-            for i = 1:numel(availableFiles)
-                [~, name] = fileparts(availableFiles(i));
-                availableNames(i) = string(name);
-            end
-
-            fileNames = strings(size(experimentNames));
-            hashes = strings(size(experimentNames));
-            experimentLocation = obj.exp.getExperimentLocation();
-
-            for i = 1:numel(experimentNames)
-                idx = find(availableNames == experimentNames(i), 1);
-
-                if isempty(idx)
-                    idx = find(availableFiles == experimentNames(i), 1);
-                end
-
-                if isempty(idx)
-                    continue
-                end
-
-                fileNames(i) = availableFiles(idx);
-                pathFile = experimentLocation.workbookFile(fileNames(i));
-                hashes(i) = ...
-                    openmebius.infrastructure.filesystem.FileHasher.hashFile( ...
-                    pathFile);
-            end
-
-        end % resolveExperimentFiles
 
         function attachFluxAnalysisListeners(obj, mfa)
 
