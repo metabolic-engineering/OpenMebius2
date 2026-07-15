@@ -3,6 +3,7 @@ classdef MFAIterationServiceStub < handle
     properties (SetAccess = private)
         Result
         CallCount (1, 1) double = 0
+        LastInput = []
     end
 
     methods
@@ -13,9 +14,10 @@ classdef MFAIterationServiceStub < handle
 
         end
 
-        function result = run(obj, varargin)
+        function result = run(obj, input, varargin)
 
             obj.CallCount = obj.CallCount + 1;
+            obj.LastInput = input;
             result = obj.Result;
 
         end
