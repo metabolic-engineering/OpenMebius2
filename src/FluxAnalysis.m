@@ -32,6 +32,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         MFAFitStatistics
         MFAExperimentalDataBuilder
         MFAConstraintBuilder
+        SubstrateEMUFactory
         EffluxPenaltyFactory
         InstationaryInputFactory
         MFAProblem = []
@@ -157,6 +158,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.MFAExperimentalDataBuilder()
                 options.MFAConstraintBuilder = ...
                     openmebius.mfa.MFAConstraintBuilder()
+                options.SubstrateEMUFactory = ...
+                    openmebius.mfa.SubstrateEMUFactory()
                 options.EffluxPenaltyFactory = ...
                     openmebius.mfa.EffluxPenaltyFactory()
                 options.InstationaryInputFactory = ...
@@ -225,6 +228,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.MFAExperimentalDataBuilder = ...
                 options.MFAExperimentalDataBuilder;
             obj.MFAConstraintBuilder = options.MFAConstraintBuilder;
+            obj.SubstrateEMUFactory = options.SubstrateEMUFactory;
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
             obj.InstationaryInputFactory = ...
                 options.InstationaryInputFactory;
@@ -375,7 +379,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.subsEMUs = cell(numExperiments, 1);
 
             for i = 1:numExperiments
-                obj.subsEMUs{i} = getSubstrateEMU(obj, "experiment", obj.expsList(i));
+                obj.subsEMUs{i} = ...
+                    obj.SubstrateEMUFactory.fromExperiment( ...
+                    obj.model, obj.exps, obj.expsList(i));
             end % for
 
             % Find initial flux distribution
@@ -763,7 +769,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.subsEMUs = cell(numExperiments, 1);
 
             for i = 1:numExperiments - 1
-                obj.subsEMUs{i} = getSubstrateEMU(obj, "experiment", obj.expsList(i));
+                obj.subsEMUs{i} = ...
+                    obj.SubstrateEMUFactory.fromExperiment( ...
+                    obj.model, obj.exps, obj.expsList(i));
             end % for
 
             for iPattern = 1:numPattern
@@ -1033,9 +1041,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             msg = "Generating EMU model for the pattern...";
             notifyGeneralMessage(obj, "info", msg, dbstack());
 
-            EMU = getSubstrateEMU(obj, ...
-                "useCustomEMU", true, ...
-                "customPattern", pattern);
+            EMU = obj.SubstrateEMUFactory.fromPattern( ...
+                obj.model, obj.exps, pattern);
 
             % Store the EMU of the substrate
             obj.subsEMUs{end} = EMU;
@@ -1847,60 +1854,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             notifyGeneralMessage(obj, "info", msg, dbstack());
 
         end % calculateCIMC
-
-        function EMU = getSubstrateEMU(obj, options)
-            % GETSUBSTRATEEMU Get the substrate EMU using the EMU model.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                options.experiment (1, 1) string = obj.expsList(1)
-                options.useCustomEMU (1, 1) logical = false
-                options.customPattern (1, :) cell = {}
-            end % arguments
-
-            obj.model.substrateEMUsAll()
-
-            tableTracer = obj.exps.getTracerTable();
-            tableTemplateTracer = obj.model.getLabelStructEMU();
-            fieldNamesTableTemplateTracer = fieldnames(tableTemplateTracer);
-
-            % Extract the necessary columns and rows
-            tracer = tableTracer{options.experiment, :};
-
-            if options.useCustomEMU
-                tracer = options.customPattern;
-                tracer = string(tracer);
-            end % if
-
-            [~, subsListIdx] = sort(tableTracer.Properties.VariableNames);
-            tracer = tracer(:, subsListIdx);
-            tracer = regexprep(tracer, "~.*", "");
-
-            tracerList = obj.model.getTableLabelView();
-
-            tracerPattern = nan(1, size(tracer, 2));
-
-            for i = 1:length(tracer)
-
-                tracerPattern(i) = find(strcmp(tracerList.Name, tracer(i)));
-
-            end % for
-
-            EMU = [];
-
-            for i = 1:length(tracerPattern)
-
-                iFieldName = fieldNamesTableTemplateTracer{tracerPattern(i)};
-                iEMU = tableTemplateTracer.(iFieldName);
-                EMU = [EMU; iEMU]; %#ok<AGROW>
-
-            end % for
-
-        end % getSubstrateEMU
 
         %% Export functions
         function initializeRunMetadata(obj)
