@@ -1,33 +1,8 @@
 classdef IOExps < handle
 
-    properties (Access = public)
-
-        fileExpList (1, :) string = strings(1, 0);
-        dataExp (1, :) = struct;
-        % "tableInfo", table, ...
-        % "tableSubstrate", table, ...
-        % "tableMS", table ...
-        % "tableMSNormalized", table, ...
-        fieldNames string = strings(1, 0);
-        pathModel (1, 1) string = "";
-        ExperimentLocation openmebius.domain.experiment.ExperimentLocation
-
-        tableExpsInfo table;
-        tableTracersInfoFull table;
-        tableTracersInfo table;
-        tableUptakesInfoFull table;
-        tableUptakesInfo table;
-        tableAtom table;
-
-        objModel;
-
-        defaultVariableNamesListSubstrate string;
-        defaultVariableTypesListSubstrate string;
-
-    end % properties
-
     properties (Access = private)
 
+        Collection openmebius.domain.experiment.ExperimentCollection
         ExperimentRepository
         MessagePublisher
         ValidationErrors (:, 1) string = strings(0, 1)
@@ -39,10 +14,23 @@ classdef IOExps < handle
         logLevel (1, 1) string = "Info"
     end
 
-    properties (Dependent)
+    properties (Dependent, SetAccess = private)
 
+        fileExpList (1, :) string
+        dataExp (1, :)
+        fieldNames (1, :) string
+        pathModel (1, 1) string
+        ExperimentLocation openmebius.domain.experiment.ExperimentLocation
+        tableExpsInfo table
+        tableTracersInfoFull table
+        tableTracersInfo table
+        tableUptakesInfoFull table
+        tableUptakesInfo table
+        tableAtom table
+        objModel
+        defaultVariableNamesListSubstrate (1, :) string
+        defaultVariableTypesListSubstrate (1, :) string
         numFile (1, 1) double;
-
         fileListWOExt (1, :) string;
 
     end % properties
@@ -63,7 +51,8 @@ classdef IOExps < handle
                 openmebius.domain.experiment.ExperimentLocation.fromInput( ...
                 experimentInput);
 
-            obj.ExperimentLocation = experimentLocation;
+            obj.Collection = openmebius.domain.experiment ...
+                .ExperimentCollection(experimentLocation);
             obj.ExperimentRepository = options.ExperimentRepository;
             obj.MessagePublisher = openmebius.presentation ...
                 .notification.GeneralMessagePublisher( ...
@@ -85,15 +74,137 @@ classdef IOExps < handle
 
         end % constructor
 
+        function value = get.fileExpList(obj)
+
+            value = obj.Collection.FileNames;
+
+        end % get.fileExpList
+
+        function value = get.dataExp(obj)
+
+            value = obj.Collection.Data;
+
+        end % get.dataExp
+
+        function set.dataExp(obj, value)
+
+            obj.Collection.replaceData(value);
+
+        end % set.dataExp
+
+        function value = get.fieldNames(obj)
+
+            value = obj.Collection.FieldNames;
+
+        end % get.fieldNames
+
+        function value = get.pathModel(obj)
+
+            value = obj.Collection.ModelPath;
+
+        end % get.pathModel
+
+        function value = get.ExperimentLocation(obj)
+
+            value = obj.Collection.Location;
+
+        end % get.ExperimentLocation
+
+        function value = get.tableExpsInfo(obj)
+
+            value = obj.Collection.InfoTable;
+
+        end % get.tableExpsInfo
+
+        function set.tableExpsInfo(obj, value)
+
+            obj.Collection.replaceInfoTable(value);
+
+        end % set.tableExpsInfo
+
+        function value = get.tableTracersInfoFull(obj)
+
+            value = obj.Collection.TracerTableFull;
+
+        end % get.tableTracersInfoFull
+
+        function set.tableTracersInfoFull(obj, value)
+
+            obj.Collection.replaceTracerTables( ...
+                obj.Collection.TracerTable, value);
+
+        end % set.tableTracersInfoFull
+
+        function value = get.tableTracersInfo(obj)
+
+            value = obj.Collection.TracerTable;
+
+        end % get.tableTracersInfo
+
+        function set.tableTracersInfo(obj, value)
+
+            obj.Collection.replaceTracerTables(value);
+
+        end % set.tableTracersInfo
+
+        function value = get.tableUptakesInfoFull(obj)
+
+            value = obj.Collection.UptakeTableFull;
+
+        end % get.tableUptakesInfoFull
+
+        function set.tableUptakesInfoFull(obj, value)
+
+            obj.Collection.replaceUptakeTables( ...
+                obj.Collection.UptakeTable, value);
+
+        end % set.tableUptakesInfoFull
+
+        function value = get.tableUptakesInfo(obj)
+
+            value = obj.Collection.UptakeTable;
+
+        end % get.tableUptakesInfo
+
+        function set.tableUptakesInfo(obj, value)
+
+            obj.Collection.replaceUptakeTables(value);
+
+        end % set.tableUptakesInfo
+
+        function value = get.tableAtom(obj)
+
+            value = obj.Collection.AtomTable;
+
+        end % get.tableAtom
+
+        function value = get.objModel(obj)
+
+            value = obj.Collection.Model;
+
+        end % get.objModel
+
+        function value = get.defaultVariableNamesListSubstrate(obj)
+
+            value = obj.Collection.DefaultSubstrateVariableNames;
+
+        end % get.defaultVariableNamesListSubstrate
+
+        function value = get.defaultVariableTypesListSubstrate(obj)
+
+            value = obj.Collection.DefaultSubstrateVariableTypes;
+
+        end % get.defaultVariableTypesListSubstrate
+
         function numFile = get.numFile(obj)
 
-            numFile = length(obj.fileExpList);
+            numFile = obj.Collection.Count;
 
         end % get.numFile
 
         function fileListWOExt = get.fileListWOExt(obj)
 
-            fileListWOExt = erase(obj.fileExpList, ".xlsx");
+            fileListWOExt = obj.Collection.FileBaseNames;
 
         end % get.fileListWOExt
 
@@ -118,16 +229,15 @@ classdef IOExps < handle
 
             end
 
-            obj.fileExpList = obj.ExperimentRepository.listWorkbooks( ...
+            obj.Collection.replaceFiles( ...
+                obj.ExperimentRepository.listWorkbooks( ...
                 obj.ExperimentLocation, ...
-                "xlsx");
-            obj.fieldNames = matlab.lang.makeValidName(obj.fileExpList);
+                "xlsx"));
 
             if isempty(obj.fileExpList)
                 if options.AllowEmpty
-                    [obj.objModel, obj.pathModel] = ...
-                        obj.resolveModelInput(modelInput);
-                    obj.tableAtom = obj.objModel.tableAtom;
+                    [model, modelPath] = obj.resolveModelInput(modelInput);
+                    obj.Collection.replaceModel(model, modelPath);
                     obj.dataExp = struct;
                     obj.tableExpsInfo = table();
                     obj.tableTracersInfoFull = table();
@@ -146,9 +256,8 @@ classdef IOExps < handle
                     "The experiment file does not exist.");
             end
 
-            [obj.objModel, obj.pathModel] = obj.resolveModelInput(modelInput);
-
-            obj.tableAtom = obj.objModel.tableAtom;
+            [model, modelPath] = obj.resolveModelInput(modelInput);
+            obj.Collection.replaceModel(model, modelPath);
 
             loadExpFiles(obj);
 
@@ -255,10 +364,10 @@ classdef IOExps < handle
             obj.ExperimentRepository.assertExperimentDirectory( ...
                 sourceLocation);
 
-            obj.fileExpList = obj.ExperimentRepository.listWorkbooks( ...
+            obj.Collection.replaceFiles( ...
+                obj.ExperimentRepository.listWorkbooks( ...
                 sourceLocation, ...
-                options.type);
-            obj.fieldNames = matlab.lang.makeValidName(obj.fileExpList);
+                options.type));
 
             for i = 1:length(obj.fileExpList)
 
@@ -466,6 +575,12 @@ classdef IOExps < handle
             model = obj.objModel;
 
         end % getModel
+
+        function collection = getCollection(obj)
+
+            collection = obj.Collection;
+
+        end % getCollection
 
         function experimentLocation = getExperimentLocation(obj)
 
@@ -878,8 +993,7 @@ classdef IOExps < handle
                 model IOModel
             end
 
-            obj.objModel = model;
-            obj.tableAtom = model.tableAtom;
+            obj.Collection.replaceModel(model);
 
         end % updateModel
 
@@ -1243,10 +1357,9 @@ classdef IOExps < handle
             end
 
             if options.UpdateDefaults
-                obj.defaultVariableNamesListSubstrate = ...
-                    workbook.DefaultSubstrateVariableNames;
-                obj.defaultVariableTypesListSubstrate = ...
-                    workbook.DefaultSubstrateVariableTypes;
+                obj.Collection.replaceDefaultSubstrateMetadata( ...
+                    workbook.DefaultSubstrateVariableNames, ...
+                    workbook.DefaultSubstrateVariableTypes);
             end
 
             obj.dataExp.(structName).tableInfo = workbook.Info;
