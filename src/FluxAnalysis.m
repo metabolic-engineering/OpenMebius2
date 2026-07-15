@@ -28,6 +28,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         MFAIterationRunner
         MFAWorkflow
         MonteCarloConfidenceIntervalSolver
+        MFAInputValidator
         EffluxPenaltyFactory
         InstationaryInputFactory
         MFAProblem = []
@@ -144,6 +145,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.MFAWorkflow = openmebius.mfa.MFAWorkflow()
                 options.MonteCarloConfidenceIntervalSolver = ...
                     openmebius.mfa.MonteCarloConfidenceIntervalSolver()
+                options.MFAInputValidator = ...
+                    openmebius.mfa.MFAInputValidator()
                 options.EffluxPenaltyFactory = ...
                     openmebius.mfa.EffluxPenaltyFactory()
                 options.InstationaryInputFactory = ...
@@ -207,6 +210,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.MFAWorkflow = options.MFAWorkflow;
             obj.MonteCarloConfidenceIntervalSolver = ...
                 options.MonteCarloConfidenceIntervalSolver;
+            obj.MFAInputValidator = options.MFAInputValidator;
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
             obj.InstationaryInputFactory = ...
                 options.InstationaryInputFactory;
@@ -2535,13 +2539,32 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 obj (1, 1) FluxAnalysis
             end % arguments
 
-            tf = isValidateEfflux(obj);
+            validation = obj.MFAInputValidator.validateEfflux( ...
+                obj.model, ...
+                obj.exps, ...
+                obj.expsList, ...
+                obj.config);
+            tf = validation.IsValid;
 
-            if ~tf
+            if ~validation.IsValid
+                notifyGeneralMessage( ...
+                    obj, ...
+                    "error", ...
+                    validation.ErrorMessage, ...
+                    dbstack());
                 return;
-            end % if
+            end
 
-            if isfield(obj.config, "perturbateEfflux") && obj.config.perturbateEfflux && any(obj.effluxFree)
+            obj.mu = validation.Value.GrowthRate;
+            obj.subsList = validation.Value.SubstrateList;
+            obj.efflux = validation.Value.Efflux;
+            obj.effluxSD = ...
+                validation.Value.EffluxStandardDeviation;
+            obj.effluxFree = validation.Value.EffluxFree;
+
+            if isfield(obj.config, "perturbateEfflux") && ...
+                    obj.config.perturbateEfflux && ...
+                    any(obj.effluxFree)
                 substrateFree = obj.subsList(logical(obj.effluxFree));
                 obj.effluxFreeRxnID = strings(length(substrateFree), 1);
                 obj.effluxFreeOriginalIndependent = false(length(substrateFree), 1);
@@ -2559,133 +2582,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % validateData
 
-        function tf = isValidateEfflux(obj)
-            % VALIDATEEFFLUX Validate the efflux.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-
-            arguments
-                obj (1, 1) FluxAnalysis
-            end % arguments
-
-            tf = true;
-
-            info = obj.exps.getInfoTable();
-
-            if isempty(info)
-                msg = "No information available for efflux validation.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                tf = false;
-                return;
-            end % if
-
-            try
-                tmpMu = info{obj.expsList, "mu"};
-                tmpMu = mean(tmpMu, 1);
-                obj.mu = tmpMu;
-            catch
-                msg = "Information table is no valid";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                tf = false;
-                return;
-            end
-
-            if ~all(tmpMu > 0)
-                msg = "No growth rate available for efflux validation.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                tf = false;
-                return;
-            end % if
-
-            tmpS = obj.model.getSBefore();
-            RxnName = tmpS.Properties.RowNames;
-            SType = obj.model.getSType();
-            rxn = RxnName(strcmp(SType, "efflux"));
-            rxn = string(rxn);
-            substrate = repmat("", length(rxn), 1);
-            % getSubstrateNameFromRxnID
-            for i = 1:length(rxn)
-                substrate(i) = obj.model.getSubstrateNameFromRxnID(rxn(i));
-            end % for
-
-            % Check if each substrate is identical
-            if length(unique(substrate)) ~= length(substrate)
-                msg = "Substrates was duplicated.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                tf = false;
-                return;
-            end % if
-
-            % Assign the substrate list to the object
-            obj.subsList = substrate;
-
-            effluxTable = obj.exps.getUptakeTable();
-            effluxExtracted = effluxTable{obj.expsList, obj.subsList};
-            effluxExtracted = mean(effluxExtracted, 1);
-
-            if any(isnan(effluxExtracted))
-                msg = "Some efflux values are NaN. Please check the experimental data.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                tf = false;
-                return;
-            end % if
-
-            obj.efflux = effluxExtracted';
-
-            % Efflux free
-            isPerturbate = obj.config.perturbateEfflux;
-
-            if isPerturbate
-
-                perturbateSubstrateName = obj.config.efflux.substrate;
-                perturbateSubstrateSelection = obj.config.efflux.selection;
-                perturbateSubstrateSD = obj.config.efflux.substrateSD;
-
-                if isempty(perturbateSubstrateName)
-                    msg = "No substrate selected for efflux perturbation.";
-                    notifyGeneralMessage(obj, "error", msg, dbstack());
-                    tf = false;
-                    return;
-                end % if
-
-                [~, ia, ib] = intersect(perturbateSubstrateName, obj.subsList);
-
-                if isempty(ia)
-                    msg = "No matching substrate found for efflux perturbation.";
-                    notifyGeneralMessage(obj, "error", msg, dbstack());
-                    tf = false;
-                    return;
-                end % if
-
-                extractedPerturbateSelection = perturbateSubstrateSelection(ia);
-                extractedPerturbateSD = perturbateSubstrateSD(ia);
-                extractedPerturbateSelection = extractedPerturbateSelection(ib);
-                extractedPerturbateSD = extractedPerturbateSD(ib);
-
-                obj.effluxSD = extractedPerturbateSD;
-                obj.effluxFree = extractedPerturbateSelection;
-                effluxFree = obj.effluxSD(obj.effluxFree); %#ok<PROP>
-
-                if any(effluxFree <= 0) %#ok<PROP>
-                    msg = "Efflux standard deviation must be positive for perturbation.";
-                    notifyGeneralMessage(obj, "error", msg, dbstack());
-                    tf = false;
-                    return;
-                end % if
-
-                if any(isnan(effluxFree)) %#ok<PROP>
-                    msg = "Efflux standard deviation contains NaN values for perturbation.";
-                    notifyGeneralMessage(obj, "error", msg, dbstack());
-                    tf = false;
-                    return;
-                end % if
-
-            end % if isPerturbate
-
-        end % function validateEfflux
-
         function tf = isValidateMDV(obj)
             % ISVALIDATEMDV Validate the MDV.
             %
@@ -2701,34 +2597,19 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 obj (1, 1) FluxAnalysis
             end % arguments
 
-            tf = true;
+            validation = obj.MFAInputValidator.validateMDV( ...
+                obj.MDVExp, ...
+                obj.MDVFragList, ...
+                obj.MDVFragMask);
+            tf = validation.IsValid;
 
-            if isempty(obj.MDVExp)
-                msg = "MDV experimental data is not available.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                tf = false;
-                return;
-            end % if
-
-            usedMDV = obj.MDVExp(obj.MDVFragMask, :);
-            % MDV list
-            MDVList = obj.MDVFragList;
-            usedMDVList = MDVList(obj.MDVFragMask, :);
-
-            % NaN check
-            if any(isnan(usedMDV(:)))
-
-                isnanListMDVNameList = usedMDVList(any(isnan(usedMDV), 2), :);
-                % Remove empty strings
-                isnanListMDVNameList = isnanListMDVNameList(isnanListMDVNameList ~= "");
-                isnanListMDVNameList = unique(isnanListMDVNameList);
-                isnanListStr = strjoin(isnanListMDVNameList, ", ");
-
-                msg = "MDV experimental data contains NaN values in the following fragments: " + isnanListStr + ".";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                tf = false;
-                return;
-            end % if
+            if ~validation.IsValid
+                notifyGeneralMessage( ...
+                    obj, ...
+                    "error", ...
+                    validation.ErrorMessage, ...
+                    dbstack());
+            end
 
         end % function isValidateMDV
 
