@@ -26,6 +26,12 @@ classdef FluxDistributionModelStub
 
         end
 
+        function value = getSplittedFlux(~, flux)
+
+            value = flux;
+
+        end
+
     end
 
 end

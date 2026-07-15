@@ -21,6 +21,7 @@ classdef Batch < handle
         % Batch configuration
         filename = 'batch.json'
         BatchJsonRepository
+        MessagePublisher
         batchColumnNamesforGUI = ["ID", "Name", "Experiment", "Description"];
         batchColumnEditableforGUI = [false, true, false, true];
 
@@ -46,6 +47,8 @@ classdef Batch < handle
             obj.model = exp.getModel();
             obj.BatchJsonRepository = ...
                 openmebius.infrastructure.batch.BatchJsonRepository();
+            obj.MessagePublisher = openmebius.presentation ...
+                .notification.GeneralMessagePublisher();
 
             % Initialize table
             initTableBatch(obj);
@@ -1232,13 +1235,7 @@ classdef Batch < handle
 
                 msg = sprintf("Batch ID %s is finished. Cannot remove.", id);
 
-                % Event data
-                type = "GeneralMsg";
-                ed = struct;
-                ed.status = "error";
-                ed.msg = msg;
-
-                notify(obj, 'GeneralMsg', BatchProgressEventData(type, ed));
+                publishGeneralMessage(obj, "error", string(msg));
                 return
 
             end
@@ -1367,11 +1364,11 @@ classdef Batch < handle
             if ~obj.exp.hasCalculatedMDV()
                 status = "error";
 
-                type = "GeneralMsg";
-                ed = struct;
-                ed.status = "error";
-                ed.msg = "MDV data has not been calculated. Press the Calculate MDV button before running batch jobs.";
-                notify(obj, 'GeneralMsg', BatchProgressEventData(type, ed));
+                publishGeneralMessage( ...
+                    obj, ...
+                    "error", ...
+                    "MDV data has not been calculated. Press the " + ...
+                    "Calculate MDV button before running batch jobs.");
                 return
             end
 
@@ -1664,6 +1661,15 @@ classdef Batch < handle
             obj.FluxAnalysisListeners = event.listener.empty(0, 1);
 
         end % method clearFluxAnalysisListeners
+
+        function publishGeneralMessage(obj, level, message)
+
+            obj.MessagePublisher.report( ...
+                level, ...
+                message, ...
+                @(eventData) notify(obj, 'GeneralMsg', eventData));
+
+        end % method publishGeneralMessage
 
         function experimentLocation = getExperimentLocation(obj)
 

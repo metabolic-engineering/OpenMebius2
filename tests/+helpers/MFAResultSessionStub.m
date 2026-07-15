@@ -51,6 +51,24 @@ classdef MFAResultSessionStub < handle
 
         end
 
+        function writeMonteCarloConfidenceInterval(obj, varargin)
+
+            obj.record("monte-carlo");
+
+        end
+
+        function writeSuggestionTable(obj, varargin)
+
+            obj.record("suggestion");
+
+        end
+
+        function writeNextLabelConfidenceInterval(obj, varargin)
+
+            obj.record("next-label");
+
+        end
+
     end
 
     methods (Access = private)

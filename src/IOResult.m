@@ -22,6 +22,10 @@ classdef IOResult < openmebius.infrastructure.logging.MessageState
 
     end % properties
 
+    properties (Access = private)
+        MessagePublisher
+    end
+
     methods
 
         function obj = IOResult(resultInput, options)
@@ -39,6 +43,8 @@ classdef IOResult < openmebius.infrastructure.logging.MessageState
 
             obj.ResultLocation = resultLocation;
             obj.ResultRepository = options.ResultRepository;
+            obj.MessagePublisher = openmebius.presentation ...
+                .notification.GeneralMessagePublisher();
 
             try
                 obj.ResultRepository.assertResultDirectory(resultLocation);
@@ -1249,16 +1255,12 @@ classdef IOResult < openmebius.infrastructure.logging.MessageState
                 msg (1, 1) string
             end % arguments
 
-            % Event data
-            type = "GeneralMsg";
-            ed = struct;
-            ed.status = status;
-            ed.msg = msg;
+            obj.MessagePublisher.report( ...
+                status, ...
+                msg, ...
+                @(eventData) notify(obj, 'GeneralMsg', eventData));
 
-            notify(obj, 'GeneralMsg', BatchProgressEventData(type, ed));
-            % obj.status.updateMsg(msg, "Info", "Info");
-
-        end % notifyInitialFluxEvent
+        end % notifyGeneralMessage
 
     end % methods (Access = protected)
 
