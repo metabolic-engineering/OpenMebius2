@@ -33,6 +33,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         MFAExperimentalDataBuilder
         MFAConstraintBuilder
         SubstrateEMUFactory
+        SteadyStateMDVPredictor
         EffluxPenaltyFactory
         InstationaryInputFactory
         MFAProblem = []
@@ -160,6 +161,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.MFAConstraintBuilder()
                 options.SubstrateEMUFactory = ...
                     openmebius.mfa.SubstrateEMUFactory()
+                options.SteadyStateMDVPredictor = ...
+                    openmebius.mfa.SteadyStateMDVPredictor()
                 options.EffluxPenaltyFactory = ...
                     openmebius.mfa.EffluxPenaltyFactory()
                 options.InstationaryInputFactory = ...
@@ -229,6 +232,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.MFAExperimentalDataBuilder;
             obj.MFAConstraintBuilder = options.MFAConstraintBuilder;
             obj.SubstrateEMUFactory = options.SubstrateEMUFactory;
+            obj.SteadyStateMDVPredictor = ...
+                options.SteadyStateMDVPredictor;
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
             obj.InstationaryInputFactory = ...
                 options.InstationaryInputFactory;
@@ -1053,7 +1058,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 return;
             end % if
 
-            MDV = calculateMDV(obj, obj.resultFlux(:, 1), obj.subsEMUs);
+            MDV = obj.SteadyStateMDVPredictor.predictLinearized( ...
+                obj.model, obj.resultFlux(:, 1), obj.subsEMUs);
             obj.MDVExpFmincon = MDV;
 
             % CI calculation
@@ -1097,7 +1103,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 fluxes, ...
                 MDVExpTemp, ...
                 obj.MDVFragMask, ...
-                @(flux) calculateMDV(obj, flux, subsEMU), ...
+                @(flux) obj.SteadyStateMDVPredictor ...
+                .predictLinearized(obj.model, flux, subsEMU), ...
                 effluxPenalty, ...
                 CancellationRequested = @() obj.isCanceled);
             RSS = evaluation.ObjectiveValues;
@@ -1107,52 +1114,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             notifyGeneralMessage(obj, "info", msg, dbstack());
 
         end % calculateRSS
-
-        function MDV = calculateMDV(obj, flux, subsEMU)
-            % CALCULATEMDV Calculate the MDV.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   flux: (n, 1) double
-            %       The flux distribution.
-            %       n: number of reactions
-            %   subsEMU: (1, n) cell
-            %       The EMU of the substrate.
-            %       n: number of tracers
-            %
-            %       subsEMU{i}: (n, m) double
-            %       EMU of the i-th tracer
-            %       n: number of EMUs
-            %       m: The maximum number of atoms in the EMU
-            %
-            % Returns
-            % -------
-            %   MDV: (n, m) double
-            %       The MDV of the substrate.
-            %       n: The number of fragments
-            %       m: The number of tracers
-
-            MDV = [];
-
-            for i = 1:length(subsEMU)
-
-                % Get the EMU of the substrate
-                iEMU = subsEMU{i};
-
-                % Get the flux distribution
-                iFlux = flux;
-
-                % Calculate the MDV
-                iMDV = calculateMDV(obj.model, iFlux, iEMU);
-
-                % Store the MDV
-                MDV = [MDV; iMDV]; %#ok<AGROW>
-
-            end % for
-
-        end % calculateMDV
 
         function MDVAll = arrangeMDV(obj, MDV, options)
             % ARRANGEMDV Arrange the MDV.
@@ -1262,7 +1223,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 SubstrateEMUs = obj.subsEMUs, ...
                 ExperimentalMDV = experimentalMDV, ...
                 FragmentMask = obj.MDVFragMask, ...
-                EffluxPenalty = createEffluxPenalty(obj));
+                EffluxPenalty = createEffluxPenalty(obj), ...
+                MDVPredictor = obj.SteadyStateMDVPredictor);
 
         end % createSteadyStateObjective
 

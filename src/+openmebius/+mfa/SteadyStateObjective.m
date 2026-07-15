@@ -11,6 +11,7 @@ classdef SteadyStateObjective
         FragmentMask (:, 1) logical
         EffluxPenalty (1, 1) openmebius.mfa.EffluxPenalty
         MeasurementStandardDeviation (1, 1) double
+        MDVPredictor (1, 1) openmebius.mfa.SteadyStateMDVPredictor
     end
 
     methods
@@ -28,6 +29,9 @@ classdef SteadyStateObjective
                     openmebius.mfa.EffluxPenalty = ...
                     openmebius.mfa.EffluxPenalty()
                 options.MeasurementStandardDeviation (1, 1) double = 0.01
+                options.MDVPredictor (1, 1) ...
+                    openmebius.mfa.SteadyStateMDVPredictor = ...
+                    openmebius.mfa.SteadyStateMDVPredictor()
             end
 
             experimentCount = numel(options.SubstrateEMUs);
@@ -62,6 +66,7 @@ classdef SteadyStateObjective
             obj.EffluxPenalty = options.EffluxPenalty;
             obj.MeasurementStandardDeviation = ...
                 options.MeasurementStandardDeviation;
+            obj.MDVPredictor = options.MDVPredictor;
 
             obj.Problem.extractIndependentValues(obj.RightHandSide);
 
@@ -88,28 +93,22 @@ classdef SteadyStateObjective
                 flux (:, 1) double
             end
 
-            rss = 0;
+            predictedMDV = obj.MDVPredictor.predictByExperiment( ...
+                obj.Model, flux, obj.SubstrateEMUs);
 
-            for i = 1:numel(obj.SubstrateEMUs)
-                predictedMDV = calculateMDV( ...
-                    obj.Model, flux, obj.SubstrateEMUs{i});
-
-                if numel(predictedMDV) ~= ...
-                        size(obj.ExperimentalMDV, 1)
-                    error( ...
-                        "OpenMebius2:SteadyStateObjective:" + ...
-                        "PredictedMDVDimensionMismatch", ...
-                        "Predicted and experimental MDV sizes must match.");
-                end
-
-                residual = ...
-                    (predictedMDV(obj.FragmentMask) - ...
-                    obj.ExperimentalMDV(obj.FragmentMask, i)) ./ ...
-                    obj.MeasurementStandardDeviation;
-                rss = rss + sum(residual .^ 2, 1);
+            if ~isequal(size(predictedMDV), size(obj.ExperimentalMDV))
+                error( ...
+                    "OpenMebius2:SteadyStateObjective:" + ...
+                    "PredictedMDVDimensionMismatch", ...
+                    "Predicted and experimental MDV sizes must match.");
             end
 
-            rss = rss + obj.EffluxPenalty.evaluate(flux);
+            residual = ...
+                (predictedMDV(obj.FragmentMask, :) - ...
+                obj.ExperimentalMDV(obj.FragmentMask, :)) ./ ...
+                obj.MeasurementStandardDeviation;
+            rss = sum(residual .^ 2, "all") + ...
+                obj.EffluxPenalty.evaluate(flux);
 
         end % evaluateFlux
 
@@ -120,15 +119,8 @@ classdef SteadyStateObjective
                 flux (:, 1) double
             end
 
-            experimentCount = numel(obj.SubstrateEMUs);
-            predicted = cell(experimentCount, 1);
-
-            for i = 1:experimentCount
-                predicted{i} = calculateMDV( ...
-                    obj.Model, flux, obj.SubstrateEMUs{i});
-            end
-
-            mdv = vertcat(predicted{:});
+            mdv = obj.MDVPredictor.predictLinearized( ...
+                obj.Model, flux, obj.SubstrateEMUs);
 
         end % predictFlux
 
