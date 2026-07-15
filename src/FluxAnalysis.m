@@ -23,6 +23,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         status % The status of the EMU model
         result % The result of the EMU model
         FluxVariabilitySolver
+        FluxVariabilityProblemFactory
         InitialPointGenerator
         MFAProblemFactory
         MFAIterationRunner
@@ -32,6 +33,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         MFAFitStatistics
         MFAExperimentalDataBuilder
         MFAConstraintBuilder
+        MFAExperimentListNormalizer
         SubstrateEMUFactory
         SteadyStateMDVPredictor
         EffluxPenaltyFactory
@@ -48,7 +50,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         MFAInputSnapshotWriter
         MFAResultCheckpointWriter
         NextLabelResultCheckpointWriter
+        MFAResultCoordinator
         AnalysisRunRepository
+        AnalysisRunLifecycle
         Provenance = struct
         AnalysisMetadata = struct
         RunStartedAtUtc (1, 1) string = ""
@@ -137,10 +141,12 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.MFAInputSnapshotWriter = []
                 options.MFAResultCheckpointWriter = []
                 options.NextLabelResultCheckpointWriter = []
+                options.MFAResultCoordinator = []
                 options.ResultManifestRepository = ...
                     openmebius.infrastructure.result.ResultManifestRepository()
                 options.FluxVariabilitySolver = ...
                     openmebius.mfa.FluxVariabilitySolver()
+                options.FluxVariabilityProblemFactory = []
                 options.InitialPointGenerator = ...
                     openmebius.mfa.InitialPointGenerator()
                 options.MFAProblemFactory = ...
@@ -159,6 +165,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.MFAExperimentalDataBuilder()
                 options.MFAConstraintBuilder = ...
                     openmebius.mfa.MFAConstraintBuilder()
+                options.MFAExperimentListNormalizer = ...
+                    openmebius.mfa.MFAExperimentListNormalizer()
                 options.SubstrateEMUFactory = ...
                     openmebius.mfa.SubstrateEMUFactory()
                 options.SteadyStateMDVPredictor = ...
@@ -167,6 +175,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.EffluxPenaltyFactory()
                 options.InstationaryInputFactory = ...
                     openmebius.mfa.InstationaryInputFactory()
+                options.AnalysisRunLifecycle = []
                 options.Provenance (1, 1) struct = struct
             end
 
@@ -211,6 +220,15 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 openmebius.infrastructure.result.AnalysisRunRepository( ...
                 Hdf5ResultRepository = options.Hdf5ResultRepository, ...
                 ResultManifestRepository = options.ResultManifestRepository);
+
+            if isempty(options.AnalysisRunLifecycle)
+                obj.AnalysisRunLifecycle = ...
+                    openmebius.application.analysis.AnalysisRunLifecycle( ...
+                    Repository = obj.AnalysisRunRepository);
+            else
+                obj.AnalysisRunLifecycle = options.AnalysisRunLifecycle;
+            end
+
             obj.FluxVariabilitySolver = options.FluxVariabilitySolver;
             obj.InitialPointGenerator = options.InitialPointGenerator;
             obj.MFAProblemFactory = options.MFAProblemFactory;
@@ -231,6 +249,18 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.MFAExperimentalDataBuilder = ...
                 options.MFAExperimentalDataBuilder;
             obj.MFAConstraintBuilder = options.MFAConstraintBuilder;
+
+            if isempty(options.FluxVariabilityProblemFactory)
+                obj.FluxVariabilityProblemFactory = ...
+                    openmebius.mfa.FluxVariabilityProblemFactory( ...
+                    ConstraintBuilder = obj.MFAConstraintBuilder);
+            else
+                obj.FluxVariabilityProblemFactory = ...
+                    options.FluxVariabilityProblemFactory;
+            end
+
+            obj.MFAExperimentListNormalizer = ...
+                options.MFAExperimentListNormalizer;
             obj.SubstrateEMUFactory = options.SubstrateEMUFactory;
             obj.SteadyStateMDVPredictor = ...
                 options.SteadyStateMDVPredictor;
@@ -263,6 +293,20 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 obj.isExport = false;
             end
 
+            if isempty(options.MFAResultCoordinator)
+                obj.MFAResultCoordinator = ...
+                    openmebius.infrastructure.result.MFAResultCoordinator( ...
+                    InputSnapshotWriter = obj.MFAInputSnapshotWriter, ...
+                    ResultCheckpointWriter = ...
+                    obj.MFAResultCheckpointWriter, ...
+                    NextLabelCheckpointWriter = ...
+                    obj.NextLabelResultCheckpointWriter, ...
+                    HDF5FilePath = obj.HDF5FilePath, ...
+                    IsExport = obj.isExport);
+            else
+                obj.MFAResultCoordinator = options.MFAResultCoordinator;
+            end
+
             obj.model = model;
             obj.exps = experiments;
 
@@ -271,25 +315,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 return;
             end
 
-            val = expList;
-
-            while iscell(val) && isscalar(val)
-                val = val{1};
-            end
-
-            if iscell(val)
-                val = string(val(:));
-            elseif isstring(val)
-                val = val(:);
-            elseif ischar(val)
-                val = string(val);
-            elseif isnumeric(val)
-                val = val(:);
-            else
-                error("Invalid experiment list.");
-            end
-
-            obj.expsList = val;
+            obj.expsList = obj.MFAExperimentListNormalizer.normalize( ...
+                expList);
 
             obj.config = config;
             obj.status = openmebius.infrastructure.logging.MessageState();
@@ -338,7 +365,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 return;
             end % if
 
-            cleanupEffluxFreeModel = onCleanup(@() restoreEffluxFreeModel(obj)); %#ok<NASGU>
+            cleanupEffluxFreeModel = onCleanup( ...
+                @() restoreEffluxFreeModel(obj));
 
             calculateLinearizedMDV(obj);
 
@@ -545,72 +573,37 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             msg = "Calculating flux variability...";
             notifyGeneralMessage(obj, "info", msg, dbstack());
 
-            SBefore = obj.model.getSBefore();
-            numFlux = size(SBefore, 2);
-
-            % Get maximum efflux of the flux
             maxEfflux = max(obj.efflux);
+            rightHandSide = calculateRHS(obj);
+            problem = obj.FluxVariabilityProblemFactory.create( ...
+                obj.model, ...
+                rightHandSide, ...
+                maxEfflux, ...
+                obj.subsList, ...
+                obj.effluxFree, ...
+                UseCustomBounds = options.customBoundary, ...
+                LowerBounds = options.fluxLB, ...
+                UpperBounds = options.fluxUB);
 
-            if isempty(maxEfflux) || maxEfflux <= 0
-                maxEfflux = 1000;
-                msg = "Maximum efflux is not set or non-positive. Using default value: " + string(maxEfflux) + ".";
+            if problem.UsedDefaultMaximumEfflux
+                msg = "Maximum efflux is not set or non-positive. " + ...
+                    "Using default value: " + ...
+                    string(problem.MaximumEfflux) + ".";
                 notifyGeneralMessage(obj, "warning", msg, dbstack());
             end
 
-            fluxUB = repmat(maxEfflux * 1000, numFlux, 1);
-            fluxLB = repmat(-maxEfflux * 1000, numFlux, 1);
-
-            if options.customBoundary
-                fluxLB = options.fluxLB;
-                fluxUB = options.fluxUB;
-            end % if
-
-            idxRevTable = obj.model.getIdxRev();
-            maskIrrev = ~ismember(1:numFlux, idxRevTable);
-            fluxLB(maskIrrev) = max(fluxLB(maskIrrev), 0);
-
-            tmpRhs = calculateRHS(obj);
-            tmpRhs = tmpRhs(1:size(SBefore, 1));
-
-            RxnName = string(SBefore.Properties.VariableNames);
-            idxRev = regexp(RxnName, "_rev$", "match");
-            maskRev = ~cellfun(@isempty, idxRev);
-            SBefore{:, maskRev} = 0;
-
-            Aeq = table2array(SBefore);
-            beq = tmpRhs;
-
-            % Efflux-free reactions must not be fixed during FVA.  In some
-            % model states the efflux rows can still remain in SBefore even
-            % after the corresponding reactions have been promoted to
-            % independent variables; remove those equality constraints
-            % explicitly for the FVA LPs.
-            maskEffluxFreeRows = getEffluxFreeConstraintRowMask(obj, SBefore);
-
-            if any(maskEffluxFreeRows)
-                Aeq(maskEffluxFreeRows, :) = [];
-                beq(maskEffluxFreeRows) = [];
-
+            if ~isempty(problem.FreeConstraintIDs)
                 msg = "FVA will not fix efflux-free reactions: " + ...
-                    strjoin(string(SBefore.Properties.RowNames(maskEffluxFreeRows)), ", ") + ".";
+                    strjoin(problem.FreeConstraintIDs, ", ") + ".";
                 notifyGeneralMessage(obj, "info", msg, dbstack());
             end
 
-            reverseCounterpartIndices = nan(numFlux, 1);
-            reverseFluxIndices = find(maskRev);
-
-            for iFlux = reshape(reverseFluxIndices, 1, [])
-                reactionId = SBefore.Properties.VariableNames{iFlux};
-                reverseCounterpartIndices(iFlux) = ...
-                    obj.model.findCounterReaction(reactionId);
-            end
-
             solverResult = obj.FluxVariabilitySolver.solve( ...
-                Aeq, ...
-                beq(:), ...
-                fluxLB(:), ...
-                fluxUB(:), ...
-                reverseCounterpartIndices);
+                problem.EqualityMatrix, ...
+                problem.EqualityRightHandSide, ...
+                problem.LowerBounds, ...
+                problem.UpperBounds, ...
+                problem.ReverseCounterpartIndices);
             UB = solverResult.UpperBounds;
             LB = solverResult.LowerBounds;
             err = solverResult.IsError;
@@ -828,28 +821,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
     end % methods
 
     methods (Access = private)
-
-        function maskEffluxFreeRows = getEffluxFreeConstraintRowMask(obj, SBefore)
-            % GETEFFLUXFREECONSTRAINTROWMASK Return efflux rows excluded from FVA.
-            %
-            % Efflux-free reactions are fitted through the objective function
-            % using their experimental values and standard deviations.  They
-            % must therefore not be fixed as equality constraints during FVA.
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                SBefore table
-            end % arguments
-
-            maskEffluxFreeRows = ...
-                obj.MFAConstraintBuilder ...
-                .effluxFreeConstraintRowMask( ...
-                obj.model, ...
-                SBefore, ...
-                obj.subsList, ...
-                obj.effluxFree);
-
-        end % getEffluxFreeConstraintRowMask
 
         function rhs = calculateRHS(obj)
             % CALCULATERHS Calculate the right-hand side.
@@ -1164,37 +1135,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         end % calculateLinearizedMDV
 
         %% Optimization functions
-        function [c, ceq] = calculateConstraints( ...
-                obj, independentFlux, rightHandSide)
-            % CALCULATECONSTRAINTS Calculate the constraints.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   independentFlux: (n, 1) double
-            %       The independent flux distribution.
-            %       n: number of independent fluxes
-            %
-            % Returns
-            % -------
-            %   c: (n, 1) double
-            %       The inequality constraints.
-            %       n: number of constraints
-            %   ceq: (n, 1) double
-            %       The equality constraints.
-            %       n: number of constraints
-
-            if nargin < 3
-                rightHandSide = obj.MFAProblem.RightHandSide;
-            end
-
-            c = -obj.MFAProblem.solveFlux( ...
-                independentFlux, ...
-                BaseRightHandSide = rightHandSide);
-            ceq = [];
-
-        end % calculateConstraints
 
         function penalty = createEffluxPenalty(obj)
             % CREATEEFFLUXPENALTY Resolve selected efflux measurements.
@@ -1310,23 +1250,14 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         end % runAndReportMFAIteration
 
         function exportMFAIterationResult(obj, iteration, result)
-            % EXPORTMFAITERATIONRESULT Persist one completed iteration.
 
-            checkpoint = ...
-                obj.MFAResultCheckpointWriter.createIterationCheckpoint( ...
+            [obj.result, obj.statusFlag, isSuccess, msg] = ...
+                obj.MFAResultCoordinator.writeIteration( ...
+                obj.result, ...
+                obj.statusFlag, ...
                 iteration, ...
                 result, ...
                 obj.model.getIdxRev());
-            obj.result.(checkpoint.FieldName) = checkpoint.Value;
-            obj.result.status = obj.statusFlag;
-
-            if ~obj.isExport
-                return;
-            end
-
-            [isSuccess, msg] = ...
-                obj.MFAResultCheckpointWriter.writeIteration( ...
-                obj.HDF5FilePath, checkpoint);
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportMFAIterationResult
@@ -1382,352 +1313,15 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % getOptimizationMethod
 
-        function gaConfig = getGAConfig(obj, nVariables)
-            % GETGACONFIG Read GA configuration with safe defaults.
 
-            userConfig = struct;
 
-            if isfield(obj.config, 'GA') && isstruct(obj.config.GA)
-                userConfig = obj.config.GA;
-            end % if
 
-            gaConfig = struct;
-            gaConfig.populationSize = max(4, round(readNumericConfig(obj, userConfig, 'populationSize', max(50, 4 * nVariables))));
-            gaConfig.generations = max(1, round(readNumericConfig(obj, userConfig, 'generations', 40)));
-            gaConfig.eliteCount = max(1, round(readNumericConfig(obj, userConfig, 'eliteCount', 2)));
-            gaConfig.eliteCount = min(gaConfig.eliteCount, gaConfig.populationSize);
-            gaConfig.tournamentSize = max(2, round(readNumericConfig(obj, userConfig, 'tournamentSize', 3)));
-            gaConfig.crossoverFraction = min(1, max(0, readNumericConfig(obj, userConfig, 'crossoverFraction', 0.80)));
-            gaConfig.mutationRate = min(1, max(0, readNumericConfig(obj, userConfig, 'mutationRate', 0.20)));
-            gaConfig.mutationScale = max(0, readNumericConfig(obj, userConfig, 'mutationScale', 0.10));
-            gaConfig.penaltyScale = max(0, readNumericConfig(obj, userConfig, 'penaltyScale', 1e6));
-            gaConfig.feasibilityTolerance = max(0, readNumericConfig(obj, userConfig, 'feasibilityTolerance', 1e-8));
-            gaConfig.functionTolerance = max(0, readNumericConfig(obj, userConfig, 'functionTolerance', 1e-9));
-            gaConfig.stallGenerations = max(1, round(readNumericConfig(obj, userConfig, 'stallGenerations', 10)));
-            gaConfig.seed = round(readNumericConfig(obj, userConfig, 'seed', 0));
-            gaConfig.maxInitialSeeds = max(1, round(readNumericConfig(obj, userConfig, 'maxInitialSeeds', gaConfig.populationSize)));
 
-        end % getGAConfig
 
-        function value = readNumericConfig(~, userConfig, fieldName, defaultValue)
-            % READNUMERICCONFIG Read a scalar numeric field from a struct.
 
-            value = defaultValue;
 
-            if isstruct(userConfig) && isfield(userConfig, fieldName) && ...
-                    ~isempty(userConfig.(fieldName))
-                candidate = userConfig.(fieldName);
 
-                if isnumeric(candidate) || islogical(candidate)
-                    value = double(candidate(1));
-                end % if
 
-            end % if
-
-        end % readNumericConfig
-
-        function [bestStart, gaOutput] = calculateGAStartPoint(obj, objectiveFcn, initialFlux)
-            % CALCULATEGASTARTPOINT Search a FMINCON start point by GA.
-
-            msg = "Initializing GA global-search stage for hybrid optimization...";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-            initialFlux = initialFlux(:);
-            nVariables = length(initialFlux);
-            gaConfig = getGAConfig(obj, nVariables);
-            [lowerBound, upperBound, seedPool] = deriveGABoundsFromInitialPopulation(obj, initialFlux, gaConfig);
-            variableSpan = upperBound - lowerBound;
-
-            if gaConfig.seed > 0
-                previousRandomState = rng;
-                cleanupRandomState = onCleanup(@() rng(previousRandomState));
-                rng(gaConfig.seed, 'twister');
-            end % if
-
-            population = initializeGAPopulation(obj, initialFlux, seedPool, lowerBound, upperBound, gaConfig);
-            [score, rawScore, violation] = evaluateGAPopulation(obj, population, objectiveFcn, gaConfig);
-
-            [bestPenaltyObjective, bestPenaltyIndex] = min(score);
-            bestPenaltyFlux = population(:, bestPenaltyIndex);
-            bestFeasibleObjective = inf;
-            bestFeasibleFlux = initialFlux;
-            feasible = violation <= gaConfig.feasibilityTolerance;
-
-            if any(feasible)
-                feasibleRawScore = rawScore;
-                feasibleRawScore(~feasible) = inf;
-                [bestFeasibleObjective, bestFeasibleIndex] = min(feasibleRawScore);
-                bestFeasibleFlux = population(:, bestFeasibleIndex);
-            end % if
-
-            initialObjective = safeObjectiveEvaluation(obj, objectiveFcn, initialFlux);
-            bestHistory = nan(gaConfig.generations, 1);
-            stallCount = 0;
-            previousBest = bestPenaltyObjective;
-            performedGenerations = 0;
-
-            for generation = 1:gaConfig.generations
-
-                if obj.isCanceled
-                    break;
-                end % if
-
-                performedGenerations = generation;
-                [~, order] = sort(score, 'ascend');
-                nextPopulation = zeros(nVariables, gaConfig.populationSize);
-                nextPopulation(:, 1:gaConfig.eliteCount) = population(:, order(1:gaConfig.eliteCount));
-
-                nextIndex = gaConfig.eliteCount + 1;
-
-                while nextIndex <= gaConfig.populationSize
-
-                    parent1 = population(:, tournamentSelect(obj, score, gaConfig.tournamentSize));
-                    parent2 = population(:, tournamentSelect(obj, score, gaConfig.tournamentSize));
-
-                    [child1, child2] = crossoverGAIndividuals(obj, parent1, parent2, gaConfig);
-                    child1 = mutateGAIndividual(obj, child1, variableSpan, gaConfig);
-                    child2 = mutateGAIndividual(obj, child2, variableSpan, gaConfig);
-                    child1 = min(max(child1, lowerBound), upperBound);
-                    child2 = min(max(child2, lowerBound), upperBound);
-
-                    nextPopulation(:, nextIndex) = child1;
-                    nextIndex = nextIndex + 1;
-
-                    if nextIndex <= gaConfig.populationSize
-                        nextPopulation(:, nextIndex) = child2;
-                        nextIndex = nextIndex + 1;
-                    end % if
-
-                end % while
-
-                population = nextPopulation;
-                [score, rawScore, violation] = evaluateGAPopulation(obj, population, objectiveFcn, gaConfig);
-
-                [currentBestPenaltyObjective, currentBestPenaltyIndex] = min(score);
-
-                if currentBestPenaltyObjective < bestPenaltyObjective
-                    bestPenaltyObjective = currentBestPenaltyObjective;
-                    bestPenaltyFlux = population(:, currentBestPenaltyIndex);
-                end % if
-
-                feasible = violation <= gaConfig.feasibilityTolerance;
-
-                if any(feasible)
-                    feasibleRawScore = rawScore;
-                    feasibleRawScore(~feasible) = inf;
-                    [currentBestFeasibleObjective, currentBestFeasibleIndex] = min(feasibleRawScore);
-
-                    if currentBestFeasibleObjective < bestFeasibleObjective
-                        bestFeasibleObjective = currentBestFeasibleObjective;
-                        bestFeasibleFlux = population(:, currentBestFeasibleIndex);
-                    end % if
-
-                end % if
-
-                bestHistory(generation) = bestPenaltyObjective;
-
-                if abs(previousBest - bestPenaltyObjective) <= gaConfig.functionTolerance * max(1, abs(previousBest))
-                    stallCount = stallCount + 1;
-                else
-                    stallCount = 0;
-                end % if
-
-                previousBest = bestPenaltyObjective;
-
-                if stallCount >= gaConfig.stallGenerations
-                    break;
-                end % if
-
-            end % for
-
-            if isfinite(bestFeasibleObjective)
-                bestStart = bestFeasibleFlux;
-            else
-                bestStart = bestPenaltyFlux;
-            end % if
-
-            gaOutput = struct;
-            gaOutput.enabled = true;
-            gaOutput.method = "hybrid-ga-gradient";
-            gaOutput.populationSize = gaConfig.populationSize;
-            gaOutput.generations = performedGenerations;
-            gaOutput.initialObjective = initialObjective;
-            gaOutput.bestPenaltyObjective = bestPenaltyObjective;
-            gaOutput.bestFeasibleObjective = bestFeasibleObjective;
-            gaOutput.bestHistory = bestHistory(1:max(performedGenerations, 1));
-            gaOutput.feasibilityTolerance = gaConfig.feasibilityTolerance;
-            gaOutput.message = "GA global-search stage completed.";
-
-            msg = "Hybrid optimization stage 1 (GA) completed. Initial RSS: " + ...
-                string(initialObjective) + ", GA best feasible RSS: " + ...
-                string(bestFeasibleObjective) + ", GA best penalized objective: " + ...
-                string(bestPenaltyObjective) + ".";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-        end % calculateGAStartPoint
-
-        function [lowerBound, upperBound, seedPool] = deriveGABoundsFromInitialPopulation(obj, initialFlux, gaConfig)
-            % DERIVEGABOUNDSFROMINITIALPOPULATION Build GA search bounds.
-            %
-            % The hit-and-run initial flux distribution already generated by
-            % OpenMebius2 is used as a data-driven box. This keeps the GA in
-            % a physically meaningful region while preserving a global search
-            % stage before FMINCON.
-
-            initialFlux = initialFlux(:);
-            seedPool = initialFlux;
-
-            if ~isempty(obj.initialRhs) && ...
-                    size(obj.initialRhs, 1) == ...
-                    numel(obj.MFAProblem.IndependentMask)
-                candidateSeeds = obj.MFAProblem.extractIndependentValues( ...
-                    obj.initialRhs);
-                validColumns = all(isfinite(candidateSeeds), 1);
-                candidateSeeds = candidateSeeds(:, validColumns);
-
-                if ~isempty(candidateSeeds)
-                    candidateSeeds = candidateSeeds(:, 1:min(size(candidateSeeds, 2), gaConfig.maxInitialSeeds));
-                    seedPool = [seedPool, candidateSeeds]; %#ok<AGROW>
-                end % if
-
-            end % if
-
-            seedPool = seedPool(:, all(isfinite(seedPool), 1));
-
-            if isempty(seedPool)
-                seedPool = initialFlux;
-            end % if
-
-            lowerBound = min(seedPool, [], 2);
-            upperBound = max(seedPool, [], 2);
-            span = upperBound - lowerBound;
-            globalScale = max([1; abs(seedPool(:)); abs(initialFlux(:))]);
-            minWidth = max(1e-9, 1e-6 * max(1, abs(initialFlux)));
-            degenerate = span < minWidth;
-            lowerBound(degenerate) = initialFlux(degenerate) - max(1, 0.5 * globalScale);
-            upperBound(degenerate) = initialFlux(degenerate) + max(1, 0.5 * globalScale);
-
-            span = upperBound - lowerBound;
-            padding = 0.05 * max(span, minWidth);
-            lowerBound = lowerBound - padding;
-            upperBound = upperBound + padding;
-
-            invalid = ~isfinite(lowerBound) | ~isfinite(upperBound) | lowerBound >= upperBound;
-
-            if any(invalid)
-                fallbackWidth = max(1, 0.5 * globalScale);
-                lowerBound(invalid) = initialFlux(invalid) - fallbackWidth;
-                upperBound(invalid) = initialFlux(invalid) + fallbackWidth;
-            end % if
-
-        end % deriveGABoundsFromInitialPopulation
-
-        function population = initializeGAPopulation(obj, initialFlux, seedPool, lowerBound, upperBound, gaConfig)
-            % INITIALIZEGAPOPULATION Create the initial GA population.
-
-            nVariables = length(initialFlux);
-            population = zeros(nVariables, gaConfig.populationSize);
-            seedCount = min(size(seedPool, 2), gaConfig.populationSize);
-            population(:, 1:seedCount) = seedPool(:, 1:seedCount);
-
-            if seedCount < gaConfig.populationSize
-                span = upperBound - lowerBound;
-                randomCount = gaConfig.populationSize - seedCount;
-                population(:, seedCount + 1:gaConfig.populationSize) = ...
-                    repmat(lowerBound, 1, randomCount) + ...
-                    repmat(span, 1, randomCount) .* rand(nVariables, randomCount);
-            end % if
-
-            population = min( ...
-                max(population, repmat(lowerBound, 1, gaConfig.populationSize)), ...
-                repmat(upperBound, 1, gaConfig.populationSize) ...
-            );
-
-        end % initializeGAPopulation
-
-        function [score, rawScore, violation] = evaluateGAPopulation(obj, population, objectiveFcn, gaConfig)
-            % EVALUATEGAPOPULATION Evaluate objective plus constraint penalty.
-
-            populationSize = size(population, 2);
-            score = inf(1, populationSize);
-            rawScore = inf(1, populationSize);
-            violation = inf(1, populationSize);
-
-            for i = 1:populationSize
-
-                if obj.isCanceled
-                    return;
-                end % if
-
-                currentFlux = population(:, i);
-                rawScore(i) = safeObjectiveEvaluation(obj, objectiveFcn, currentFlux);
-
-                try
-                    [c, ceq] = calculateConstraints(obj, currentFlux);
-                    violation(i) = sum(max(c(:), 0) .^ 2) + sum(abs(ceq(:)) .^ 2);
-                catch
-                    violation(i) = inf;
-                end % try
-
-                if isfinite(rawScore(i)) && isfinite(violation(i))
-                    score(i) = rawScore(i) + gaConfig.penaltyScale * ...
-                        max(1, abs(rawScore(i))) * violation(i);
-                end % if
-
-            end % for
-
-        end % evaluateGAPopulation
-
-        function objectiveValue = safeObjectiveEvaluation(~, objectiveFcn, flux)
-            % SAFEOBJECTIVEEVALUATION Robust objective evaluation for GA.
-
-            try
-                objectiveValue = objectiveFcn(flux(:));
-                objectiveValue = double(objectiveValue(1));
-            catch
-                objectiveValue = inf;
-            end % try
-
-            if ~isfinite(objectiveValue) || isnan(objectiveValue)
-                objectiveValue = inf;
-            end % if
-
-        end % safeObjectiveEvaluation
-
-        function selectedIndex = tournamentSelect(~, score, tournamentSize)
-            % TOURNAMENTSELECT Select one individual by tournament selection.
-
-            candidates = randi(length(score), tournamentSize, 1);
-            [~, bestCandidateIndex] = min(score(candidates));
-            selectedIndex = candidates(bestCandidateIndex);
-
-        end % tournamentSelect
-
-        function [child1, child2] = crossoverGAIndividuals(~, parent1, parent2, gaConfig)
-            % CROSSOVERGAINDIVIDUALS Arithmetic crossover for real-valued genes.
-
-            if rand() < gaConfig.crossoverFraction
-                alpha = rand(size(parent1));
-                child1 = alpha .* parent1 + (1 - alpha) .* parent2;
-                child2 = alpha .* parent2 + (1 - alpha) .* parent1;
-            else
-                child1 = parent1;
-                child2 = parent2;
-            end % if
-
-        end % crossoverGAIndividuals
-
-        function individual = mutateGAIndividual(~, individual, variableSpan, gaConfig)
-            % MUTATEGAINDIVIDUAL Gaussian mutation for real-valued genes.
-
-            mutationMask = rand(size(individual)) < gaConfig.mutationRate;
-
-            if any(mutationMask)
-                mutationStep = gaConfig.mutationScale .* max(variableSpan, eps) .* randn(size(individual));
-                individual(mutationMask) = individual(mutationMask) + mutationStep(mutationMask);
-            end % if
-
-        end % mutateGAIndividual
 
         %% Tools
         function rightHandSide = ...
@@ -1824,20 +1418,18 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 return
             end
 
-            metadata = ...
-                openmebius.application.analysis.AnalysisMetadataFactory.create( ...
+            [metadata, isSuccess, msg] = ...
+                obj.AnalysisRunLifecycle.start( ...
                 obj.config, ...
                 obj.HDF5FileName, ...
                 obj.model, ...
                 obj.expsList, ...
                 obj.Provenance, ...
                 obj.RunStartedAtUtc, ...
-                obj.RandomStateAtStart);
-            obj.AnalysisMetadata = metadata;
-            [isSuccess, msg] = obj.AnalysisRunRepository.writeStarted( ...
+                obj.RandomStateAtStart, ...
                 obj.ResultLocation, ...
-                obj.HDF5FilePath, ...
-                metadata);
+                obj.HDF5FilePath);
+            obj.AnalysisMetadata = metadata;
 
             if ~isSuccess
                 obj.isError = true;
@@ -1859,15 +1451,10 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 return
             end
 
-            finishedAtUtc = string(datetime( ...
-                "now", ...
-                "TimeZone", "UTC", ...
-                "Format", "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"));
-            errors = obj.AnalysisRunRepository.writeCompleted( ...
+            errors = obj.AnalysisRunLifecycle.finish( ...
                 obj.ResultLocation, ...
                 obj.HDF5FilePath, ...
                 obj.AnalysisMetadata, ...
-                finishedAtUtc, ...
                 obj.isError, ...
                 obj.isCanceled);
 
@@ -1885,298 +1472,119 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         end % finalizeRunMetadata
 
         function exportGeneralInformation(obj)
-            % EXPORTGENERALINFORMATION Export the general information.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
 
-            checkpoint = obj.MFAInputSnapshotWriter ...
-                .createGeneralCheckpoint( ...
+            [obj.result, obj.statusFlag, isSuccess, msg] = ...
+                obj.MFAResultCoordinator.writeGeneral( ...
+                obj.result, ...
                 obj.statusFlag, ...
                 obj.HDF5FileName, ...
                 obj.MDVExp, ...
                 obj.MDVFragList, ...
                 obj.MDVFragMask);
-            obj.result.status = checkpoint.Value.status;
-            obj.result.ID = checkpoint.Value.ID;
-            obj.result.MDVExp = checkpoint.Value.MDVExp;
-            obj.result.MDVFragList = checkpoint.Value.MDVFragList;
-            obj.result.MDVFragMask = checkpoint.Value.MDVFragMask;
-
-            if ~obj.isExport
-                return;
-            end % if
-
-            [isSuccess, msg] = obj.MFAInputSnapshotWriter.writeGeneral( ...
-                obj.HDF5FilePath, checkpoint);
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportGeneralInformation
 
         function exportModelInformation(obj)
-            % EXPORTMODELINFORMATION Export the model information.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
 
-            if ~obj.isExport
-                return;
-            end % if
-
-            checkpoint = obj.MFAInputSnapshotWriter ...
-                .createModelCheckpoint( ...
+            [obj.result, obj.statusFlag, isSuccess, msg] = ...
+                obj.MFAResultCoordinator.writeModel( ...
+                obj.result, ...
+                obj.statusFlag, ...
                 obj.model.getModelTable(), ...
                 obj.model.getModelTableRev());
-            obj.result.model = checkpoint.Value;
-            [isSuccess, msg] = obj.MFAInputSnapshotWriter.writeModel( ...
-                obj.HDF5FilePath, checkpoint);
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportModelInformation
 
         function exportFluxVariability(obj, fluxLB, fluxUB)
-            % EXPORTFVA Export the flux variability analysis results.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   fluxLB: (n, 1) double
-            %       The lower bound of the flux distribution.
-            %       n: number of reactions
-            %   fluxUB: (n, 1) double
-            %       The upper bound of the flux distribution.
-            %       n: number of reactions
 
-            checkpoint = obj.MFAResultCheckpointWriter ...
-                .createFluxVariabilityCheckpoint( ...
-                fluxLB, fluxUB, obj.model.getIdxRev());
-            obj.result.fluxVariability = checkpoint.Value;
-            obj.result.status = obj.statusFlag;
-
-            if ~obj.isExport
-                return;
-            end % if
-
-            [isSuccess, msg] = obj.MFAResultCheckpointWriter ...
-                .writeFluxVariability( ...
-                obj.HDF5FilePath, checkpoint, obj.statusFlag);
+            [obj.result, obj.statusFlag, isSuccess, msg] = ...
+                obj.MFAResultCoordinator.writeFluxVariability( ...
+                obj.result, ...
+                obj.statusFlag, ...
+                fluxLB, ...
+                fluxUB, ...
+                obj.model.getIdxRev());
             handleResultWriteFailure(obj, isSuccess, msg);
 
-        end % exportFVA
+        end % exportFluxVariability
 
         function exportInitialFluxDistribution(obj, flux, rhs, RSS)
-            % EXPORTINITIALFLUXDISTRIBUTION Export the initial flux distribution.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   flux: (n, m) double
-            %       The flux distribution.
-            %       n: number of reactions
-            %       m: The number of fluxes
-            %   rhs: (n, m) double
-            %       The right-hand side vector.
-            %       n: number of reactions
-            %       m: The number of fluxes
-            %   RSS: (1, m) double
-            %       The residual sum of squares.
-            %       m: The number of fluxes
 
-            checkpoint = obj.MFAResultCheckpointWriter ...
-                .createInitialFluxCheckpoint( ...
-                flux, rhs, RSS, obj.model.getIdxRev());
-            obj.result.initialFlux = checkpoint.Value;
-
-            % status
-            obj.statusFlag(1) = 1;
-            obj.result.status = obj.statusFlag;
-
-            if ~obj.isExport
-                return;
-            end % if
-
-            [isSuccess, msg] = obj.MFAResultCheckpointWriter ...
-                .writeInitialFlux( ...
-                obj.HDF5FilePath, checkpoint, obj.statusFlag);
+            [obj.result, obj.statusFlag, isSuccess, msg] = ...
+                obj.MFAResultCoordinator.writeInitialFlux( ...
+                obj.result, ...
+                obj.statusFlag, ...
+                flux, ...
+                rhs, ...
+                RSS, ...
+                obj.model.getIdxRev());
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportInitialFluxDistribution
 
         function exportFluxResultRSS(obj, RSS, idx, threshold)
-            % EXPORTFLUXRESULTRSS Export the flux result RSS.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   RSS: (1, m) double
-            %       The residual sum of squares.
-            %       m: The number of fluxes
-            %   idx: (1, 1) double
-            %       The index of the flux result.
-            %   threshold: (1, 1) double
-            %       The threshold for the flux result.
 
-            % Set status
-            obj.statusFlag(2) = 1;
-
-            obj.result.RSS = RSS;
-            obj.result.RSSIdx = idx;
-            obj.result.status = obj.statusFlag;
-            obj.result.threshold = threshold;
-
-            if ~obj.isExport
-                return;
-            end % if
-
-            [isSuccess, msg] = ...
-                obj.MFAResultCheckpointWriter.writeSummary( ...
-                obj.HDF5FilePath, ...
-                RSS, ...
-                idx, ...
-                obj.statusFlag, ...
-                threshold);
+            [obj.result, obj.statusFlag, isSuccess, msg] = ...
+                obj.MFAResultCoordinator.writeSummary( ...
+                obj.result, obj.statusFlag, RSS, idx, threshold);
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportFluxResultRSS
 
         function exportConfidenceIntervalMC(obj, fluxLB, fluxUB, output)
-            % EXPORTCONFIDENCEINTERVALMC Export the confidence interval using Monte Carlo method.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   fluxLB: (n, m) double
-            %       The lower bound of the flux distribution.
-            %       n: number of reactions
-            %       m: number of iterations
-            %   fluxUB: (n, m) double
-            %       The upper bound of the flux distribution.
-            %       n: number of reactions
-            %       m: number of iterations
-            %   output: (1, 1) struct
-            %       The output of the Monte Carlo method.
 
-            if ~obj.isExport
-                return;
-            end % if
-
-            checkpoint = obj.MFAResultCheckpointWriter ...
-                .createMonteCarloConfidenceIntervalCheckpoint( ...
+            [obj.result, obj.statusFlag, isSuccess, msg] = ...
+                obj.MFAResultCoordinator ...
+                .writeMonteCarloConfidenceInterval( ...
+                obj.result, ...
+                obj.statusFlag, ...
                 fluxLB, ...
                 fluxUB, ...
                 obj.config.CIConf, ...
                 output);
-
-            % Set status
-            obj.statusFlag(3) = 1;
-            obj.result.status = obj.statusFlag;
-            obj.result.CI = checkpoint.Value;
-            obj.result.fluxLB = checkpoint.FinalFluxLB;
-            obj.result.fluxUB = checkpoint.FinalFluxUB;
-
-            if string(checkpoint.Value.algorithm) ~= "Monte Carlo"
-                return;
-            end
-
-            [isSuccess, msg] = obj.MFAResultCheckpointWriter ...
-                .writeMonteCarloConfidenceInterval( ...
-                obj.HDF5FilePath, checkpoint, obj.statusFlag);
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportConfidenceIntervalMC
 
         function exportNextLabelPatternGeneralInformation(obj)
-            % EXPORTNEXTLABELPATTERNGENERALINFORMATION Export the next label pattern general information.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
 
-            if ~obj.isExport
-                return;
-            end % if
-
-            checkpoint = obj.NextLabelResultCheckpointWriter ...
-                .createSuggestionTableCheckpoint( ...
+            [isSuccess, msg] = ...
+                obj.MFAResultCoordinator.writeSuggestionTable( ...
                 obj.config.suggestionTable, ...
                 obj.config.suggestionTableVarNames);
-            [isSuccess, msg] = obj.NextLabelResultCheckpointWriter ...
-                .writeSuggestionTable(obj.HDF5FilePath, checkpoint);
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportNextLabelPatternGeneralInformation
 
-        function exportNextLabelPatternInitialFlux(obj, pattern, flux, tmpRhs, RSS)
-            % EXPORTNEXTLABELPATTERNINITIALFLUX Export the next label pattern initial flux.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   pattern: (1, p) cell
-            %       The label pattern.
-            %   flux: (n, m) double
-            %       The flux distribution.
-            %       n: number of reactions
-            %       m: The number of fluxes
-            %   tmpRhs: (n, m) double
-            %       The right-hand side vector.
-            %       n: number of reactions
-            %       m: The number of fluxes
-            %   RSS: (1, m) double
-            %       The residual sum of squares.
-            %       m: The number of fluxes
+        function exportNextLabelPatternInitialFlux( ...
+                obj, pattern, flux, tmpRhs, RSS)
 
-            if ~obj.isExport
-                return;
-            end % if
-
-            checkpoint = obj.NextLabelResultCheckpointWriter ...
-                .createInitialFluxCheckpoint( ...
+            [obj.result, obj.statusFlag, isSuccess, msg] = ...
+                obj.MFAResultCoordinator.writeNextLabelInitialFlux( ...
+                obj.result, ...
+                obj.statusFlag, ...
                 pattern, ...
                 flux, ...
                 tmpRhs, ...
                 RSS, ...
                 obj.model.getIdxRev());
-            applyNextLabelCheckpoint(obj, checkpoint);
-            obj.result.status = obj.statusFlag;
-
-            [isSuccess, msg] = obj.NextLabelResultCheckpointWriter ...
-                .writeInitialFlux(obj.HDF5FilePath, checkpoint);
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportNextLabelPatternInitialFlux
 
-        function exportNextLabelPatternCIMC(obj, pattern, fluxLB, fluxUB)
-            % EXPORTNEXTLABELPATTERNCIMC Export the next label pattern confidence interval using Monte Carlo method.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   pattern: (1, p) cell
-            %       The label pattern.
-            %   fluxLB: (n, m) double
-            %       The lower bound of the flux distribution.
-            %       n: number of reactions
-            %       m: number of iterations
-            %   fluxUB: (n, m) double
-            %       The upper bound of the flux distribution.
-            %       n: number of reactions
-            %       m: number of iterations
+        function exportNextLabelPatternCIMC( ...
+                obj, pattern, fluxLB, fluxUB)
 
-            if ~obj.isExport
-                return;
-            end % if
-
-            checkpoint = obj.NextLabelResultCheckpointWriter ...
-                .createConfidenceIntervalCheckpoint( ...
-                pattern, fluxLB, fluxUB);
-            applyNextLabelCheckpoint(obj, checkpoint);
-            obj.result.status = obj.statusFlag;
-
-            [isSuccess, msg] = obj.NextLabelResultCheckpointWriter ...
-                .writeConfidenceInterval(obj.HDF5FilePath, checkpoint);
+            [obj.result, obj.statusFlag, isSuccess, msg] = ...
+                obj.MFAResultCoordinator ...
+                .writeNextLabelConfidenceInterval( ...
+                obj.result, ...
+                obj.statusFlag, ...
+                pattern, ...
+                fluxLB, ...
+                fluxUB);
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportNextLabelPatternCIMC
@@ -2329,31 +1737,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % function isValidateMDV
 
-        function applyNextLabelCheckpoint(obj, checkpoint)
-
-            if ~isfield(obj.result, 'nextLabelPattern') || ...
-                    ~isstruct(obj.result.nextLabelPattern)
-                obj.result.nextLabelPattern = struct;
-            end
-
-            fieldName = char(checkpoint.FieldName);
-
-            if isfield(obj.result.nextLabelPattern, fieldName)
-                value = obj.result.nextLabelPattern.(fieldName);
-            else
-                value = struct;
-            end
-
-            sourceFields = fieldnames(checkpoint.Value);
-
-            for i = 1:numel(sourceFields)
-                sourceField = sourceFields{i};
-                value.(sourceField) = checkpoint.Value.(sourceField);
-            end
-
-            obj.result.nextLabelPattern.(fieldName) = value;
-
-        end % applyNextLabelCheckpoint
 
         function handleResultWriteFailure(obj, isSuccess, message)
 
