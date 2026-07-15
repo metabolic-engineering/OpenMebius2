@@ -1,0 +1,174 @@
+classdef FluxAnalysisDependencies
+    % FLUXANALYSISDEPENDENCIES
+    % Composes the services used by the FluxAnalysis compatibility facade.
+
+    properties (SetAccess = private)
+        FluxVariabilitySolver
+        FluxVariabilityProblemFactory
+        InitialFluxWorkflow
+        MFAIterationRunner
+        MFAIterationService
+        MFAWorkflow
+        ConfidenceIntervalWorkflow
+        NextLabelExperimentWorkflow
+        MFAInputValidator
+        MFAFitStatistics
+        MFAExperimentalDataBuilder
+        MFAConstraintBuilder
+        MFAExperimentListNormalizer
+        SubstrateEMUFactory
+        SteadyStateMDVPredictor
+        EffluxPenaltyFactory
+        InstationaryInputFactory
+        MFAResultCoordinator
+        AnalysisRunLifecycle
+        RunContext (1, 1) ...
+            openmebius.application.analysis.MFAAnalysisRunContext
+    end
+
+    methods
+
+        function obj = FluxAnalysisDependencies( ...
+                options, hdf5FilePath, isExport)
+
+            arguments
+                options (1, 1) struct
+                hdf5FilePath (1, 1) string
+                isExport (1, 1) logical
+            end
+
+            inputWriter = options.MFAInputSnapshotWriter;
+
+            if isempty(inputWriter)
+                inputWriter = openmebius.infrastructure.result ...
+                    .MFAInputSnapshotWriter( ...
+                    Repository = options.Hdf5ResultRepository);
+            end
+
+            resultWriter = options.MFAResultCheckpointWriter;
+
+            if isempty(resultWriter)
+                resultWriter = openmebius.infrastructure.result ...
+                    .MFAResultCheckpointWriter( ...
+                    Repository = options.Hdf5ResultRepository);
+            end
+
+            nextLabelWriter = options.NextLabelResultCheckpointWriter;
+
+            if isempty(nextLabelWriter)
+                nextLabelWriter = openmebius.infrastructure.result ...
+                    .NextLabelResultCheckpointWriter( ...
+                    Repository = options.Hdf5ResultRepository);
+            end
+
+            runRepository = openmebius.infrastructure.result ...
+                .AnalysisRunRepository( ...
+                Hdf5ResultRepository = ...
+                options.Hdf5ResultRepository, ...
+                ResultManifestRepository = ...
+                options.ResultManifestRepository);
+            obj.AnalysisRunLifecycle = options.AnalysisRunLifecycle;
+
+            if isempty(obj.AnalysisRunLifecycle)
+                obj.AnalysisRunLifecycle = openmebius.application ...
+                    .analysis.AnalysisRunLifecycle( ...
+                    Repository = runRepository);
+            end
+
+            obj.MFAConstraintBuilder = options.MFAConstraintBuilder;
+            obj.FluxVariabilityProblemFactory = ...
+                options.FluxVariabilityProblemFactory;
+
+            if isempty(obj.FluxVariabilityProblemFactory)
+                obj.FluxVariabilityProblemFactory = ...
+                    openmebius.mfa.FluxVariabilityProblemFactory( ...
+                    ConstraintBuilder = obj.MFAConstraintBuilder);
+            end
+
+            obj.MFAIterationRunner = options.MFAIterationRunner;
+
+            if isempty(obj.MFAIterationRunner)
+                obj.MFAIterationRunner = ...
+                    openmebius.mfa.MFAIterationRunner( ...
+                    Solver = options.SteadyStateSolver);
+            end
+
+            obj.MFAFitStatistics = options.MFAFitStatistics;
+            obj.InitialFluxWorkflow = options.InitialFluxWorkflow;
+
+            if isempty(obj.InitialFluxWorkflow)
+                obj.InitialFluxWorkflow = ...
+                    openmebius.mfa.InitialFluxWorkflow( ...
+                    ProblemFactory = options.MFAProblemFactory, ...
+                    PointGenerator = options.InitialPointGenerator, ...
+                    FitStatistics = obj.MFAFitStatistics);
+            end
+
+            obj.ConfidenceIntervalWorkflow = ...
+                options.ConfidenceIntervalWorkflow;
+
+            if isempty(obj.ConfidenceIntervalWorkflow)
+                obj.ConfidenceIntervalWorkflow = ...
+                    openmebius.mfa.ConfidenceIntervalWorkflow( ...
+                    MonteCarloSolver = ...
+                    options.MonteCarloConfidenceIntervalSolver);
+            end
+
+            obj.SubstrateEMUFactory = options.SubstrateEMUFactory;
+            obj.SteadyStateMDVPredictor = ...
+                options.SteadyStateMDVPredictor;
+            obj.NextLabelExperimentWorkflow = ...
+                options.NextLabelExperimentWorkflow;
+
+            if isempty(obj.NextLabelExperimentWorkflow)
+                obj.NextLabelExperimentWorkflow = ...
+                    openmebius.mfa.NextLabelExperimentWorkflow( ...
+                    SubstrateEMUFactory = obj.SubstrateEMUFactory, ...
+                    MDVPredictor = obj.SteadyStateMDVPredictor);
+            end
+
+            obj.MFAIterationService = openmebius.mfa ...
+                .MFAIterationService( ...
+                Runner = obj.MFAIterationRunner, ...
+                MDVPredictor = obj.SteadyStateMDVPredictor, ...
+                EffluxPenaltyFactory = ...
+                options.EffluxPenaltyFactory);
+
+            obj.MFAResultCoordinator = options.MFAResultCoordinator;
+
+            if isempty(obj.MFAResultCoordinator)
+                obj.MFAResultCoordinator = ...
+                    openmebius.infrastructure.result ...
+                    .MFAResultCoordinator( ...
+                    InputSnapshotWriter = inputWriter, ...
+                    ResultCheckpointWriter = resultWriter, ...
+                    NextLabelCheckpointWriter = nextLabelWriter, ...
+                    HDF5FilePath = hdf5FilePath, ...
+                    IsExport = isExport);
+            end
+
+            obj.FluxVariabilitySolver = ...
+                options.FluxVariabilitySolver;
+            obj.MFAWorkflow = options.MFAWorkflow;
+            obj.MFAInputValidator = options.MFAInputValidator;
+            obj.MFAExperimentalDataBuilder = ...
+                options.MFAExperimentalDataBuilder;
+            obj.MFAExperimentListNormalizer = ...
+                options.MFAExperimentListNormalizer;
+            obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
+            obj.InstationaryInputFactory = ...
+                options.InstationaryInputFactory;
+            runContext = options.RunContext;
+
+            if isempty(runContext)
+                runContext = openmebius.application.analysis ...
+                    .MFAAnalysisRunContext();
+            end
+
+            obj.RunContext = runContext;
+
+        end
+
+    end
+
+end

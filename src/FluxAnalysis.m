@@ -22,37 +22,15 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         config % The configuration object
         status % The status of the EMU model
         result % The result of the EMU model
-        FluxVariabilitySolver
-        FluxVariabilityProblemFactory
-        InitialPointGenerator
-        MFAProblemFactory
-        MFAIterationRunner
-        MFAWorkflow
-        MonteCarloConfidenceIntervalSolver
-        MFAInputValidator
-        MFAFitStatistics
-        MFAExperimentalDataBuilder
-        MFAConstraintBuilder
-        MFAExperimentListNormalizer
-        SubstrateEMUFactory
-        SteadyStateMDVPredictor
-        EffluxPenaltyFactory
-        InstationaryInputFactory
-        MFAProblem = []
-        InstationaryInput = []
-        MFAExperimentalData = []
+        Dependencies
+        RunContext (1, 1) ...
+            openmebius.application.analysis.MFAAnalysisRunContext
 
         % File export
         isExport = true
         ResultLocation openmebius.domain.result.ResultLocation
         HDF5FileName = ""
         HDF5FilePath = ""
-        MFAInputSnapshotWriter
-        MFAResultCheckpointWriter
-        NextLabelResultCheckpointWriter
-        MFAResultCoordinator
-        AnalysisRunRepository
-        AnalysisRunLifecycle
         Provenance = struct
         AnalysisMetadata = struct
         RunStartedAtUtc (1, 1) string = ""
@@ -74,38 +52,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         efflux = []
         effluxSD = []
         effluxFree = []
-        effluxFreeRxnID = string([])
-        effluxFreeOriginalIndependent = logical([])
-
-        % Flux bounds
-        UB = []
-        LB = []
-        rhs = []
-
-        numMDV
-        numLabeling
-
-        % Substrate EMU
-        subsEMUs
-
-        % MDVExp
-        MDVExp = [];
-        MDVFragList = []
-        MDVFragMask = []
-
-        % Initial flux distribution
-        initialFlux = [];
-        initialRhs = []
-        initialRSS = []
-
-        % Variables for the optimization
-        MDVExpFmincon = [];
-
-        % The result of the flux calculation
-        resultRSS = [];
-        resultFlux = []
-        resultMDV = [];
-
         % Status flag
         statusFlag
         % 1: Initial flux distribution calculation
@@ -149,6 +95,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.FluxVariabilityProblemFactory = []
                 options.InitialPointGenerator = ...
                     openmebius.mfa.InitialPointGenerator()
+                options.InitialFluxWorkflow = []
                 options.MFAProblemFactory = ...
                     openmebius.mfa.MFAProblemFactory()
                 options.SteadyStateSolver = ...
@@ -157,6 +104,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.MFAWorkflow = openmebius.mfa.MFAWorkflow()
                 options.MonteCarloConfidenceIntervalSolver = ...
                     openmebius.mfa.MonteCarloConfidenceIntervalSolver()
+                options.ConfidenceIntervalWorkflow = []
+                options.NextLabelExperimentWorkflow = []
                 options.MFAInputValidator = ...
                     openmebius.mfa.MFAInputValidator()
                 options.MFAFitStatistics = ...
@@ -176,6 +125,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.InstationaryInputFactory = ...
                     openmebius.mfa.InstationaryInputFactory()
                 options.AnalysisRunLifecycle = []
+                options.RunContext = []
                 options.Provenance (1, 1) struct = struct
             end
 
@@ -187,86 +137,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.HDF5FileName = ID;
             obj.HDF5FilePath = resultLocation.resultFile(ID);
 
-            if isempty(options.MFAInputSnapshotWriter)
-                obj.MFAInputSnapshotWriter = ...
-                    openmebius.infrastructure.result.MFAInputSnapshotWriter( ...
-                    Repository = options.Hdf5ResultRepository);
-            else
-                obj.MFAInputSnapshotWriter = ...
-                    options.MFAInputSnapshotWriter;
-            end
-
-            if isempty(options.MFAResultCheckpointWriter)
-                obj.MFAResultCheckpointWriter = ...
-                    openmebius.infrastructure.result ...
-                    .MFAResultCheckpointWriter( ...
-                    Repository = options.Hdf5ResultRepository);
-            else
-                obj.MFAResultCheckpointWriter = ...
-                    options.MFAResultCheckpointWriter;
-            end
-
-            if isempty(options.NextLabelResultCheckpointWriter)
-                obj.NextLabelResultCheckpointWriter = ...
-                    openmebius.infrastructure.result ...
-                    .NextLabelResultCheckpointWriter( ...
-                    Repository = options.Hdf5ResultRepository);
-            else
-                obj.NextLabelResultCheckpointWriter = ...
-                    options.NextLabelResultCheckpointWriter;
-            end
-
-            obj.AnalysisRunRepository = ...
-                openmebius.infrastructure.result.AnalysisRunRepository( ...
-                Hdf5ResultRepository = options.Hdf5ResultRepository, ...
-                ResultManifestRepository = options.ResultManifestRepository);
-
-            if isempty(options.AnalysisRunLifecycle)
-                obj.AnalysisRunLifecycle = ...
-                    openmebius.application.analysis.AnalysisRunLifecycle( ...
-                    Repository = obj.AnalysisRunRepository);
-            else
-                obj.AnalysisRunLifecycle = options.AnalysisRunLifecycle;
-            end
-
-            obj.FluxVariabilitySolver = options.FluxVariabilitySolver;
-            obj.InitialPointGenerator = options.InitialPointGenerator;
-            obj.MFAProblemFactory = options.MFAProblemFactory;
-
-            if isempty(options.MFAIterationRunner)
-                obj.MFAIterationRunner = ...
-                    openmebius.mfa.MFAIterationRunner( ...
-                    Solver = options.SteadyStateSolver);
-            else
-                obj.MFAIterationRunner = options.MFAIterationRunner;
-            end
-
-            obj.MFAWorkflow = options.MFAWorkflow;
-            obj.MonteCarloConfidenceIntervalSolver = ...
-                options.MonteCarloConfidenceIntervalSolver;
-            obj.MFAInputValidator = options.MFAInputValidator;
-            obj.MFAFitStatistics = options.MFAFitStatistics;
-            obj.MFAExperimentalDataBuilder = ...
-                options.MFAExperimentalDataBuilder;
-            obj.MFAConstraintBuilder = options.MFAConstraintBuilder;
-
-            if isempty(options.FluxVariabilityProblemFactory)
-                obj.FluxVariabilityProblemFactory = ...
-                    openmebius.mfa.FluxVariabilityProblemFactory( ...
-                    ConstraintBuilder = obj.MFAConstraintBuilder);
-            else
-                obj.FluxVariabilityProblemFactory = ...
-                    options.FluxVariabilityProblemFactory;
-            end
-
-            obj.MFAExperimentListNormalizer = ...
-                options.MFAExperimentListNormalizer;
-            obj.SubstrateEMUFactory = options.SubstrateEMUFactory;
-            obj.SteadyStateMDVPredictor = ...
-                options.SteadyStateMDVPredictor;
-            obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
-            obj.InstationaryInputFactory = ...
-                options.InstationaryInputFactory;
             obj.Provenance = options.Provenance;
 
             try
@@ -293,19 +163,10 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 obj.isExport = false;
             end
 
-            if isempty(options.MFAResultCoordinator)
-                obj.MFAResultCoordinator = ...
-                    openmebius.infrastructure.result.MFAResultCoordinator( ...
-                    InputSnapshotWriter = obj.MFAInputSnapshotWriter, ...
-                    ResultCheckpointWriter = ...
-                    obj.MFAResultCheckpointWriter, ...
-                    NextLabelCheckpointWriter = ...
-                    obj.NextLabelResultCheckpointWriter, ...
-                    HDF5FilePath = obj.HDF5FilePath, ...
-                    IsExport = obj.isExport);
-            else
-                obj.MFAResultCoordinator = options.MFAResultCoordinator;
-            end
+            obj.Dependencies = openmebius.application.analysis ...
+                .FluxAnalysisDependencies( ...
+                options, string(obj.HDF5FilePath), obj.isExport);
+            obj.RunContext = obj.Dependencies.RunContext;
 
             obj.model = model;
             obj.exps = experiments;
@@ -315,7 +176,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 return;
             end
 
-            obj.expsList = obj.MFAExperimentListNormalizer.normalize( ...
+            obj.expsList = obj.Dependencies ...
+                .MFAExperimentListNormalizer.normalize( ...
                 expList);
 
             obj.config = config;
@@ -357,7 +219,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             end
 
             % Data validation
-            if ~isValidateData(obj)
+            [isDataValid, effluxFreeSession] = isValidateData(obj);
+
+            if ~isDataValid
                 % Notify the initial flux event
                 msg = "Data validation failed.";
                 notifyGeneralMessage(obj, "error", msg, dbstack());
@@ -366,7 +230,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             end % if
 
             cleanupEffluxFreeModel = onCleanup( ...
-                @() restoreEffluxFreeModel(obj));
+                @() restoreEffluxFreeSession( ...
+                obj, effluxFreeSession));
 
             calculateLinearizedMDV(obj);
 
@@ -382,8 +247,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             exportModelInformation(obj);
 
             % Set the experimental values for the optimization
-            obj.MDVExpFmincon = obj.MDVExp;
-
             % FVA
             [fluxUB, fluxLB, err, ~] = calculateFluxVariability(obj);
 
@@ -396,26 +259,29 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 notifyGeneralMessage(obj, "info", msg, dbstack());
             end % if
 
-            obj.UB = fluxUB;
-            obj.LB = fluxLB;
+            obj.RunContext.setBounds(fluxLB, fluxUB);
 
             % Export the result of FVA
             exportFluxVariability(obj, fluxLB, fluxUB);
 
-            fluxRange = obj.UB - obj.LB;
+            fluxRange = obj.RunContext.UpperBounds - ...
+                obj.RunContext.LowerBounds;
             averageFlux = mean(fluxRange);
             msg = "Average flux range: " + string(averageFlux) + " mmol/g/h";
             notifyGeneralMessage(obj, "info", msg, dbstack());
 
             % Construct the EMU of the substrate
             numExperiments = length(obj.expsList);
-            obj.subsEMUs = cell(numExperiments, 1);
+            substrateEMUs = cell(numExperiments, 1);
 
             for i = 1:numExperiments
-                obj.subsEMUs{i} = ...
-                    obj.SubstrateEMUFactory.fromExperiment( ...
+                substrateEMUs{i} = ...
+                    obj.Dependencies.SubstrateEMUFactory ...
+                    .fromExperiment( ...
                     obj.model, obj.exps, obj.expsList(i));
             end % for
+
+            obj.RunContext.setSubstrateEMUs(substrateEMUs);
 
             % Find initial flux distribution
             [flux, tmpRhs, RSS, err] = calculateInitialFluxDistribution(obj);
@@ -437,18 +303,17 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 notifyGeneralMessage(obj, "info", msg, dbstack());
             end % if
 
-            obj.initialFlux = flux;
-            obj.initialRhs = tmpRhs;
-            obj.initialRSS = RSS;
-
             % Export the initial flux distribution
             exportInitialFluxDistribution(obj, flux, tmpRhs, RSS);
 
             if obj.config.isINSTMFA
                 try
-                    obj.InstationaryInput = ...
-                        obj.InstationaryInputFactory.create( ...
+                    instationaryInput = ...
+                        obj.Dependencies.InstationaryInputFactory ...
+                        .create( ...
                         obj.model, obj.config.INSTMFA);
+                    obj.RunContext.setInstationaryInput( ...
+                        instationaryInput);
                 catch ME
                     msg = "Instationary 13C-MFA: " + string(ME.message);
                     notifyGeneralMessage(obj, "error", msg, dbstack());
@@ -457,10 +322,14 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 end
             end
 
-            workflowResult = obj.MFAWorkflow.run( ...
+            workflowResult = obj.Dependencies.MFAWorkflow.run( ...
                 tmpRhs, ...
-                @(rightHandSide) calculateConfiguredMFAIteration( ...
-                obj, obj.MDVExpFmincon, rightHandSide), ...
+                @(rightHandSide) runMFAIteration( ...
+                obj, ...
+                obj.RunContext.OptimizationMDV, ...
+                rightHandSide, ...
+                obj.RunContext.SubstrateEMUs, ...
+                false), ...
                 ProgressReporter = ...
                     @(iteration, total) ...
                     notifyMFAIterationProgress(obj, iteration, total), ...
@@ -469,10 +338,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     exportMFAIterationResult( ...
                     obj, iteration, iterationResult), ...
                 CancellationRequested = @() obj.isCanceled, ...
-                MDVMapper = @(mdv) arrangeMDV(obj, mdv));
-            obj.resultRSS = workflowResult.ObjectiveValues;
-            obj.resultFlux = workflowResult.Fluxes;
-            obj.resultMDV = workflowResult.MDVs;
+                MDVMapper = @(mdv) ...
+                obj.RunContext.ExperimentalData.arrangeMDV(mdv));
+            obj.RunContext.setWorkflowResult(workflowResult);
 
             if workflowResult.IsCanceled
                 msg = "Nonlinear optimization canceled.";
@@ -482,14 +350,16 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
             idx = workflowResult.Order;
 
-            minRSS = obj.resultRSS(1);
+            minRSS = obj.RunContext.ObjectiveValues(1);
             % Calculate the threshold for chi-squared test
-            threshold = obj.MFAFitStatistics.chiSquareThreshold( ...
+            threshold = obj.Dependencies.MFAFitStatistics ...
+                .chiSquareThreshold( ...
                 getDOF(obj.model), ...
-                obj.MDVFragList, ...
-                obj.MDVFragMask, ...
+                obj.RunContext.ExperimentalData.FragmentLabels, ...
+                obj.RunContext.ExperimentalData.FragmentMask, ...
                 0.05);
-            exportFluxResultRSS(obj, obj.resultRSS, idx, threshold);
+            exportFluxResultRSS( ...
+                obj, obj.RunContext.ObjectiveValues, idx, threshold);
 
             % Notify the result of the flux calculation
             notify(obj, 'FluxResult', BatchProgressEventData("FluxResult", obj.result));
@@ -516,42 +386,20 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.forNextSuggestion (1, 1) logical = false
             end % arguments
 
-            fluxLB = [];
-            fluxUB = [];
-            output = struct();
             runMetadataCleanup = onCleanup(@() finalizeRunMetadata(obj));
+            workflowResult = runConfidenceInterval( ...
+                obj, ...
+                obj.RunContext.OptimizationMDV, ...
+                obj.RunContext.SubstrateEMUs);
+            fluxLB = workflowResult.LowerBounds;
+            fluxUB = workflowResult.UpperBounds;
+            output = workflowResult.Output;
 
-            msg = "Calculating confidence interval...";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-            % calculation conditions
-            if ~obj.config.isCalcCI
-                return;
-            end % if
-
-            method = obj.config.CIConf.algorithm;
-
-            switch method
-
-                case "Monte Carlo"
-
-                    tmpConfig = obj.config.CIConf.MC;
-                    [fluxLB, fluxUB, output] = calculateCIMC(obj, tmpConfig);
-
-                    if ~options.forNextSuggestion
-                        % Export the result of the Monte Carlo method
-                        exportConfidenceIntervalMC(obj, fluxLB, fluxUB, output);
-                    end % if
-
-                    msg = "Confidence interval calculated using Monte Carlo method.";
-                    notifyGeneralMessage(obj, "info", msg, dbstack());
-
-                otherwise
-                    msg = "Unknown method for calculating confidence interval.";
-                    notifyGeneralMessage(obj, "error", msg, dbstack());
-                    return;
-
-            end % switch
+            if workflowResult.Method == "Monte Carlo" && ...
+                    ~options.forNextSuggestion
+                exportConfidenceIntervalMC( ...
+                    obj, fluxLB, fluxUB, output);
+            end
 
         end % calculateConfidenceInterval
 
@@ -575,7 +423,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
             maxEfflux = max(obj.efflux);
             rightHandSide = calculateRHS(obj);
-            problem = obj.FluxVariabilityProblemFactory.create( ...
+            problem = obj.Dependencies.FluxVariabilityProblemFactory ...
+                .create( ...
                 obj.model, ...
                 rightHandSide, ...
                 maxEfflux, ...
@@ -598,7 +447,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 notifyGeneralMessage(obj, "info", msg, dbstack());
             end
 
-            solverResult = obj.FluxVariabilitySolver.solve( ...
+            solverResult = obj.Dependencies.FluxVariabilitySolver ...
+                .solve( ...
                 problem.EqualityMatrix, ...
                 problem.EqualityRightHandSide, ...
                 problem.LowerBounds, ...
@@ -636,77 +486,35 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 options.failStreakMax (1, 1) double = 2000
             end
 
-            err = false;
-
-            msg = "Calculating initial flux distribution...";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-            try
-                obj.MFAProblem = obj.MFAProblemFactory.create( ...
-                    obj.model.getS(), ...
-                    obj.model.getSType(), ...
-                    obj.rhs(:), ...
-                    obj.LB(:), ...
-                    obj.UB(:));
-            catch ME
-                flux = [];
-                rhs = [];
-                RSS = [];
-                err = true;
-                msg = "Failed to create the MFA problem. " + ...
-                    string(ME.message);
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                return
-            end
-
-            switch options.method
-
-                case "random"
-                    [flux, rhs] = calculateInitialFluxDistributionRandom( ...
-                        obj, ...
-                        iterationRate = options.iterationRate, ...
-                        whileIteration = options.whileIteration, ...
-                        maxTime = options.maxTime ...
-                    );
-                    msg = "Initial flux distribution calculated randomly.";
-                    notifyGeneralMessage(obj, "info", msg, dbstack());
-
-                case "hit-and-run"
-                    [flux, rhs, err] = calculateInitialFluxDistributionHitAndRun( ...
-                        obj, ...
-                        iterationRate = options.iterationRate, ...
-                        burnin = options.burnin, ...
-                        thinning = options.thinning, ...
-                        maxTime = options.maxTime, ...
-                        seed = options.seed ...
-                    );
-
-                    if err
-                        RSS = [];
-                        return;
-                    end
-
-                    msg = "Initial flux distribution calculated using Hit-and-Run.";
-                    notifyGeneralMessage(obj, "info", msg, dbstack());
-
-                otherwise
-                    error("Unknown method for initial flux distribution calculation.");
-            end
-
-            if obj.isCanceled
-                msg = "Initial flux distribution calculation canceled.";
-                notifyGeneralMessage(obj, "info", msg, dbstack());
-                err = true;
-            end
-
-            if options.forNextSuggestion
-                [RSS, idx] = calculateRSS(obj, flux, obj.subsEMUs(1:end - 1));
-            else
-                [RSS, idx] = calculateRSS(obj, flux, obj.subsEMUs);
-            end
-
-            flux = flux(:, idx);
-            rhs = rhs(:, idx);
+            workflowResult = obj.Dependencies.InitialFluxWorkflow.run( ...
+                obj.model, ...
+                obj.config, ...
+                obj.RunContext.RightHandSide(:), ...
+                obj.RunContext.LowerBounds(:), ...
+                obj.RunContext.UpperBounds(:), ...
+                obj.RunContext.SubstrateEMUs, ...
+                obj.RunContext.ExperimentalData, ...
+                obj.RunContext.OptimizationMDV, ...
+                obj.RunContext.ExperimentalData.FragmentMask, ...
+                obj.Dependencies.SteadyStateMDVPredictor, ...
+                createEffluxPenalty(obj), ...
+                Method = options.method, ...
+                ForNextSuggestion = options.forNextSuggestion, ...
+                IterationRate = options.iterationRate, ...
+                IterationsPerBatch = options.whileIteration, ...
+                BurnIn = options.burnin, ...
+                Thinning = options.thinning, ...
+                MaxTime = options.maxTime, ...
+                Seed = options.seed, ...
+                MessageReporter = ...
+                @(level, message) ...
+                reportAnalysisMessage(obj, level, message), ...
+                CancellationRequested = @() obj.isCanceled);
+            obj.RunContext.setInitialResult(workflowResult);
+            flux = workflowResult.Fluxes;
+            rhs = workflowResult.RightHandSides;
+            RSS = workflowResult.ObjectiveValues;
+            err = workflowResult.IsError;
         end
 
         function [fluxLB, fluxUB, output] = suggestNextFluxExperiment(obj)
@@ -724,7 +532,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             fluxUB = [];
             output = struct();
 
-            [fluxLBExp, fluxUBExp, outputCI] = calculateConfidenceInterval(obj);
+            [fluxLBExp, fluxUBExp, outputCI] = ...
+                calculateConfidenceInterval( ...
+                obj, forNextSuggestion = true);
             exportConfidenceIntervalMC(obj, fluxLBExp, fluxUBExp, outputCI);
 
             if obj.isCanceled
@@ -736,69 +546,34 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             exportNextLabelPatternGeneralInformation(obj);
 
             % Split the fluxes (exclude the biomass reaction)
-            obj.LB = obj.model.getSplittedFlux(fluxLBExp(1:end - 1, end));
-            obj.UB = obj.model.getSplittedFlux(fluxUBExp(1:end - 1, end));
-            obj.LB = [obj.LB; fluxLBExp(end, end)];
-            obj.UB = [obj.UB; fluxUBExp(end, end)];
-
-            fluxRange = obj.UB - obj.LB;
+            lowerBounds = obj.model.getSplittedFlux( ...
+                fluxLBExp(1:end - 1, end));
+            upperBounds = obj.model.getSplittedFlux( ...
+                fluxUBExp(1:end - 1, end));
+            lowerBounds = [lowerBounds; fluxLBExp(end, end)];
+            upperBounds = [upperBounds; fluxUBExp(end, end)];
+            obj.RunContext.setBounds(lowerBounds, upperBounds);
+            fluxRange = upperBounds - lowerBounds;
             averageFlux = mean(fluxRange);
             msg = "Average flux range: " + string(averageFlux) + " mmol/g/h";
             notifyGeneralMessage(obj, "info", msg, dbstack());
-
-            % Notify the initial flux event
-            msg = "Suggesting next flux experiment...";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-            suggestionTableCell = obj.config.suggestionTable;
-            suggestionTableRowNames = obj.config.suggestionTableRowNames;
-            suggestionTableVarNames = obj.config.suggestionTableVarNames;
-
-            suggestionTable = array2table( ...
-                suggestionTableCell, ...
-                'VariableNames', suggestionTableVarNames, ...
-                'RowNames', suggestionTableRowNames ...
-            );
-
-            numPattern = size(suggestionTable, 1);
-
-            % Construct the EMU of the substrate
-            numExperiments = length(obj.expsList) + 1;
-            obj.subsEMUs = cell(numExperiments, 1);
-
-            for i = 1:numExperiments - 1
-                obj.subsEMUs{i} = ...
-                    obj.SubstrateEMUFactory.fromExperiment( ...
-                    obj.model, obj.exps, obj.expsList(i));
-            end % for
-
-            for iPattern = 1:numPattern
-
-                pattern = suggestionTable{iPattern, :};
-
-                isEmpty = any(cellfun(@isempty, pattern));
-
-                if isEmpty
-                    continue;
-                end % if
-
-                msg = "Evaluating pattern " + string(iPattern) + "/" + string(numPattern) + "...";
-                notifyGeneralMessage(obj, "info", msg, dbstack());
-
-                [iFluxLB, iFluxUB, ~] = calculateNextLabelPattern(obj, cellstr(pattern));
-
-                exportNextLabelPatternCIMC(obj, pattern, iFluxLB, iFluxUB);
-
-                if obj.isCanceled
-                    msg = "Next flux experiment suggestion canceled.";
-                    notifyGeneralMessage(obj, "info", msg, dbstack());
-                    return;
-                end % if
-
-            end % for
-
-            msg = "Next flux experiment suggested.";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
+            obj.Dependencies.NextLabelExperimentWorkflow.run( ...
+                obj.model, ...
+                obj.exps, ...
+                obj.expsList, ...
+                obj.config, ...
+                obj.RunContext.Fluxes(:, 1), ...
+                ConfidenceIntervalFunction = ...
+                @(mdv, emus) calculateCandidateConfidenceInterval( ...
+                obj, mdv, emus), ...
+                PatternCompleted = ...
+                @(pattern, lower, upper) ...
+                exportNextLabelPatternCIMC( ...
+                obj, pattern, lower, upper), ...
+                MessageReporter = ...
+                @(level, message) ...
+                reportAnalysisMessage(obj, level, message), ...
+                CancellationRequested = @() obj.isCanceled);
 
         end % suggestNextFluxExperiment
 
@@ -833,89 +608,21 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 obj (1, 1) FluxAnalysis
             end % arguments
 
-            obj.rhs = obj.MFAConstraintBuilder.buildRightHandSide( ...
+            rhs = obj.Dependencies.MFAConstraintBuilder ...
+                .buildRightHandSide( ...
                 obj.model, ...
                 obj.mu, ...
                 obj.subsList, ...
                 obj.efflux);
-            rhs = obj.rhs;
+            obj.RunContext.setRightHandSide(rhs);
 
         end % calculateRHS
 
-        function [flux, rhs] = calculateInitialFluxDistributionRandom(obj, options)
-            % CALCULATEINITIALFLUXDISTRIBUTIONRANDOM Calculate the initial flux distribution randomly.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %
-            % Description
-            % -----------
-            % This function generate a rondom feasible flux distribution
-            % for further nonlinear optimization.
-            % 1. Generate a random feasible flux balues.
-            % 2. Check if the flux distribution is feasible.
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                options.iterationRate (1, 1) double = 100
-                options.whileIteration (1, 1) double = 1e5
-                options.maxTime (1, 1) double = 3600
-            end % arguments
-
-            iteration = obj.config.iteration;
-            numInitalFluxReq = iteration * options.iterationRate;
-            generatorResult = obj.InitialPointGenerator.generateRandom( ...
-                obj.MFAProblem, ...
-                numInitalFluxReq, ...
-                IterationsPerBatch = options.whileIteration, ...
-                MaxTime = options.maxTime, ...
-                CancellationRequested = @() obj.isCanceled, ...
-                ProgressReporter = ...
-                @(count, elapsed) obj.notifyRandomInitialPointProgress( ...
-                count, elapsed));
-            flux = generatorResult.Fluxes;
-            rhs = generatorResult.RightHandSides;
-
-            if generatorResult.IsCanceled
-                notifyGeneralMessage( ...
-                    obj, ...
-                    "info", ...
-                    "Initial flux distribution calculation canceled.", ...
-                    dbstack());
-            end
-
-        end % calculateInitialFluxDistributionRandom
-
-        function notifyRandomInitialPointProgress(obj, count, elapsedSeconds)
-
-            elapsed = string(seconds(elapsedSeconds), "hh:mm:ss");
-            msg = "Calculating initial flux distribution randomly" + ...
-                " (Elapsed time: " + elapsed + ", " + ...
-                "Found " + string(count) + ...
-                " feasible flux distributions)";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-        end % notifyRandomInitialPointProgress
-
-        function reportInitialPointMessage(obj, level, message)
+        function reportAnalysisMessage(obj, level, message)
 
             notifyGeneralMessage(obj, level, message, dbstack());
 
-        end % reportInitialPointMessage
-
-        function reportOptimizationMessage(obj, level, message)
-
-            notifyGeneralMessage(obj, level, message, dbstack());
-
-        end % reportOptimizationMessage
-
-        function reportConfidenceIntervalMessage(obj, level, message)
-
-            notifyGeneralMessage(obj, level, message, dbstack());
-
-        end % reportConfidenceIntervalMessage
+        end % reportAnalysisMessage
 
         function notifyMFAIterationProgress(obj, iteration, total)
 
@@ -925,212 +632,16 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % notifyMFAIterationProgress
 
-        function [flux, rhs, err] = calculateInitialFluxDistributionHitAndRun(obj, options)
-            % CALCULATEINITIALFLUXDISTRIBUTIONHITANDRUN
-            % Standard Hit-and-Run in z-space.
-            %
-            % v = vBase + B*x
-            % x = x0 + N*z
-            % v = v0 + G*z
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                options.iterationRate (1, 1) double = 100
-                options.burnin (1, 1) double = 2000
-                options.thinning (1, 1) double = 10
-                options.maxStep (1, 1) double = 1e7
-                options.maxTime (1, 1) double = 3600
-                options.seed (1, 1) double = 0
-                options.epsFeas (1, 1) double = 1e-8
-                options.epsEq (1, 1) double = 1e-9
-                options.minDirectionNorm (1, 1) double = 1e-12
-                options.maxInvalidRange (1, 1) double = 100000
-                options.maxZeroWidth (1, 1) double = 100000
-            end
-
-            iteration = obj.config.iteration;
-            numReq = iteration * options.iterationRate;
-
-            randomStream = RandStream.getGlobalStream();
-
-            if options.seed ~= 0
-                randomStream = RandStream("mt19937ar", ...
-                    "Seed", options.seed);
-            end
-
-            generatorResult = obj.InitialPointGenerator.generateHitAndRun( ...
-                obj.MFAProblem, ...
-                numReq, ...
-                iteration, ...
-                BurnIn = options.burnin, ...
-                Thinning = options.thinning, ...
-                MaxStep = options.maxStep, ...
-                MaxTime = options.maxTime, ...
-                FeasibilityTolerance = options.epsFeas, ...
-                EqualityTolerance = options.epsEq, ...
-                MinimumDirectionNorm = options.minDirectionNorm, ...
-                MaxInvalidRange = options.maxInvalidRange, ...
-                MaxZeroWidth = options.maxZeroWidth, ...
-                RandomStream = randomStream, ...
-                CancellationRequested = @() obj.isCanceled, ...
-                ProgressReporter = ...
-                    @(level, message) ...
-                    obj.reportInitialPointMessage(level, message));
-
-            flux = generatorResult.Fluxes;
-            rhs = generatorResult.RightHandSides;
-            err = generatorResult.IsError || generatorResult.IsCanceled;
-
-        end
-
-        function [LB, UB, output] = calculateNextLabelPattern(obj, pattern)
-            % CALCULATENEXTLABELPATTERN Calculate the next label pattern.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   pattern: (1, n) cell
-            %       The label pattern.
-            %       n: number of substrates
-            %
-            % Returns
-            % -------
-            %   LB: (m, 1) double
-            %       The lower bound of the flux.
-            %       m: number of reactions
-            %   UB: (m, 1) double
-            %       The upper bound of the flux.
-            %       m: number of reactions
-            %   output: struct
-            %       The output of the calculation.
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                pattern (1, :) cell {mustBeNonempty}
-            end % arguments
-
-            LB = [];
-            UB = [];
-            output = struct();
-
-            msg = "Generating EMU model for the pattern...";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-            EMU = obj.SubstrateEMUFactory.fromPattern( ...
-                obj.model, obj.exps, pattern);
-
-            % Store the EMU of the substrate
-            obj.subsEMUs{end} = EMU;
-
-            if obj.isCanceled
-                msg = "Next flux experiment suggestion canceled.";
-                notifyGeneralMessage(obj, "info", msg, dbstack());
-                return;
-            end % if
-
-            MDV = obj.SteadyStateMDVPredictor.predictLinearized( ...
-                obj.model, obj.resultFlux(:, 1), obj.subsEMUs);
-            obj.MDVExpFmincon = MDV;
-
-            % CI calculation
-            [LB, UB, ~] = calculateConfidenceInterval( ...
-                obj, ...
-                forNextSuggestion = true ...
-            );
-
-            if obj.isCanceled
-                msg = "Next flux experiment suggestion canceled.";
-                notifyGeneralMessage(obj, "info", msg, dbstack());
-                return;
-            end % if
-
-        end % calculateNextLabelPattern
-
-        function [RSS, idx] = calculateRSS(obj, fluxes, subsEMU)
-            % CALCULATERS Calculate the RSS.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   fluxes: (n, m) double
-            %       The flux distribution.
-            %       n: number of reactions
-            %       m: The number of fluxes
-            %   subsEMU: (1, n) cell
-            %       The EMU of the substrate.
-            %       n: number of tracers
-            %
-            %       subsEMU{i}: (n, m) double
-            %       EMU of the i-th tracer
-            %       n: number of EMUs
-            %       m: The maximum number of atoms in the EMU
-
-            MDVExpTemp = arrangeMDV(obj, obj.MDVExpFmincon, ...
-                numExperiments = length(subsEMU));
-            effluxPenalty = createEffluxPenalty(obj);
-            evaluation = obj.MFAFitStatistics.evaluateFluxes( ...
-                fluxes, ...
-                MDVExpTemp, ...
-                obj.MDVFragMask, ...
-                @(flux) obj.SteadyStateMDVPredictor ...
-                .predictLinearized(obj.model, flux, subsEMU), ...
-                effluxPenalty, ...
-                CancellationRequested = @() obj.isCanceled);
-            RSS = evaluation.ObjectiveValues;
-            idx = evaluation.Order;
-            msg = "Number of valid flux distributions: " + ...
-                string(evaluation.ValidCount);
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-        end % calculateRSS
-
-        function MDVAll = arrangeMDV(obj, MDV, options)
-            % ARRANGEMDV Arrange the MDV.
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %   MDV: (n, 1) double
-            %       The MDV of all experiments.
-            %       n: The number of experiments * number of fragments
-            %
-            % Returns
-            % -------
-            %   MDVAll: (m, p) double
-            %       The arranged MDV.
-            %       m: The number of fragments
-            %       p: The number of experiments
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                MDV (:, :) double
-                options.numExperiments (1, 1) double = length(obj.expsList)
-            end % arguments
-
-            MDVAll = obj.MFAExperimentalData.arrangeMDV( ...
-                MDV, ...
-                ExperimentCount = options.numExperiments);
-
-        end % arrangeMDV
-
         function calculateLinearizedMDV(obj)
             % CALCULATELINEARIZEDMDV Create the linearized MDV for fmincon.
 
-            obj.MFAExperimentalData = ...
-                obj.MFAExperimentalDataBuilder.build( ...
+            experimentalData = obj.Dependencies ...
+                .MFAExperimentalDataBuilder.build( ...
                 obj.model, ...
                 obj.exps, ...
                 obj.expsList, ...
                 obj.config.MS);
-            obj.MDVExp = obj.MFAExperimentalData.ExperimentalMDV;
-            obj.MDVFragList = obj.MFAExperimentalData.FragmentLabels;
-            obj.MDVFragMask = obj.MFAExperimentalData.FragmentMask;
-
-            % Set the number of MDV and labeling experiments
-            obj.numMDV = obj.MFAExperimentalData.FragmentCount;
-            obj.numLabeling = obj.MFAExperimentalData.ExperimentCount;
+            obj.RunContext.setExperimentalData(experimentalData);
 
         end % calculateLinearizedMDV
 
@@ -1139,7 +650,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         function penalty = createEffluxPenalty(obj)
             % CREATEEFFLUXPENALTY Resolve selected efflux measurements.
 
-            penalty = obj.EffluxPenaltyFactory.create( ...
+            penalty = obj.Dependencies.EffluxPenaltyFactory.create( ...
                 obj.model, ...
                 obj.subsList, ...
                 obj.efflux, ...
@@ -1148,111 +659,33 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % createEffluxPenalty
 
-        function objective = createSteadyStateObjective( ...
-                obj, experimentalMDV, rightHandSide)
-            % CREATESTEADYSTATEOBJECTIVE Build immutable run inputs.
+        function result = runMFAIteration( ...
+                obj, experimentalMDV, rightHandSide, ...
+                substrateEMUs, forceSteadyState)
 
-            experimentalMDV = arrangeMDV( ...
-                obj, ...
+            result = obj.Dependencies.MFAIterationService.run( ...
+                obj.model, ...
+                obj.config, ...
+                obj.RunContext, ...
                 experimentalMDV, ...
-                numExperiments = length(obj.subsEMUs));
-            objective = openmebius.mfa.SteadyStateObjective( ...
-                Problem = obj.MFAProblem, ...
-                RightHandSide = rightHandSide, ...
-                Model = obj.model, ...
-                SubstrateEMUs = obj.subsEMUs, ...
-                ExperimentalMDV = experimentalMDV, ...
-                FragmentMask = obj.MDVFragMask, ...
-                EffluxPenalty = createEffluxPenalty(obj), ...
-                MDVPredictor = obj.SteadyStateMDVPredictor);
+                rightHandSide, ...
+                obj.subsList, ...
+                obj.efflux, ...
+                obj.effluxSD, ...
+                obj.effluxFree, ...
+                SubstrateEMUs = substrateEMUs, ...
+                ForceSteadyState = forceSteadyState, ...
+                MessageReporter = ...
+                @(level, message) ...
+                reportAnalysisMessage(obj, level, message));
 
-        end % createSteadyStateObjective
-
-        function objective = createInstationaryObjective( ...
-                obj, experimentalMDV, rightHandSide)
-            % CREATEINSTATIONARYOBJECTIVE Build immutable run inputs.
-
-            objective = openmebius.mfa.InstationaryObjective( ...
-                Problem = obj.MFAProblem, ...
-                RightHandSide = rightHandSide, ...
-                Model = obj.model, ...
-                SubstrateEMU = obj.subsEMUs{1}, ...
-                Input = obj.InstationaryInput, ...
-                ExperimentalMDV = experimentalMDV, ...
-                FragmentMask = obj.MDVFragMask, ...
-                EffluxPenalty = createEffluxPenalty(obj));
-
-        end % createInstationaryObjective
-
-        function result = calculateConfiguredMFAIteration( ...
-                obj, experimentalMDV, rightHandSide)
-            % CALCULATECONFIGUREDMFAITERATION Run the configured MFA mode.
-
-            if obj.config.isINSTMFA
-                objective = createInstationaryObjective( ...
-                    obj, experimentalMDV, rightHandSide);
-                context = " for instationary MFA";
-            else
-                objective = createSteadyStateObjective( ...
-                    obj, experimentalMDV, rightHandSide);
-                context = "";
-            end
-
-            result = runAndReportMFAIteration( ...
-                obj, objective, rightHandSide, context);
-
-        end % calculateConfiguredMFAIteration
-
-        function result = calculateMonteCarloMFAIteration( ...
-                obj, experimentalMDV, rightHandSide)
-            % CALCULATEMONTECARLOMFAITERATION Run one steady-state CI fit.
-
-            objective = createSteadyStateObjective( ...
-                obj, experimentalMDV, rightHandSide);
-            result = runAndReportMFAIteration( ...
-                obj, objective, rightHandSide, "");
-
-        end % calculateMonteCarloMFAIteration
-
-        function iterationResult = runAndReportMFAIteration( ...
-                obj, objective, rightHandSide, context)
-            % RUNANDREPORTMFAITERATION Run and report one MFA iteration.
-
-            iterationResult = runConfiguredMFAIteration( ...
-                obj, objective, rightHandSide);
-            fval = iterationResult.ObjectiveValue;
-            subject = "Nonlinear optimization" + context;
-
-            if iterationResult.IsError || ~isfinite(fval)
-                msg = subject + " failed.";
-
-                if strlength(iterationResult.ErrorMessage) > 0
-                    msg = msg + " " + iterationResult.ErrorMessage;
-                end
-
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                return;
-            end
-
-            stepSizeMsg = "";
-            optimizationOutput = iterationResult.Output;
-
-            if isfield(optimizationOutput, ...
-                    'fminconFiniteDifferenceStepSize')
-                stepSizeMsg = " FiniteDifferenceStepSize: " + ...
-                    string(optimizationOutput.fminconFiniteDifferenceStepSize) + ".";
-            end
-
-            msg = subject + " completed. RSS: " + ...
-                string(fval) + "." + stepSizeMsg;
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-        end % runAndReportMFAIteration
+        end % runMFAIteration
 
         function exportMFAIterationResult(obj, iteration, result)
 
             [obj.result, obj.statusFlag, isSuccess, msg] = ...
-                obj.MFAResultCoordinator.writeIteration( ...
+                obj.Dependencies.MFAResultCoordinator ...
+                .writeIteration( ...
                 obj.result, ...
                 obj.statusFlag, ...
                 iteration, ...
@@ -1262,154 +695,39 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % exportMFAIterationResult
 
-        function result = runConfiguredMFAIteration( ...
-                obj, objective, rightHandSide)
-            % RUNCONFIGUREDMFAITERATION Run one configured MFA iteration.
-            %
-            % GA-based hybrid optimization is intentionally disabled for now.
-            % FMINCON starts from the supplied feasible initial flux vector.
-            % Optionally, several FiniteDifferenceStepSize values are tried
-            % and the best feasible FMINCON result is selected.
+        %% Confidence interval workflow
+        function result = runConfidenceInterval( ...
+                obj, experimentalMDV, substrateEMUs)
 
-            method = getOptimizationMethod(obj);
-
-            if ismember(method, ["hybrid-ga-gradient", "hybrid", "ga-gradient"])
-                msg = "Hybrid GA optimization is temporarily disabled. Using FMINCON only.";
-                notifyGeneralMessage(obj, "info", msg, dbstack());
-            elseif ~ismember(method, ["gradient-only", "fmincon", "local"])
-                msg = "Unknown optimizationMethod '" + method + "'. Using FMINCON only.";
-                notifyGeneralMessage(obj, "warning", msg, dbstack());
-            end % if
-
-            [solverOptions, optionWarnings] = ...
-                openmebius.mfa.SteadyStateOptions.fromBatchConfig( ...
-                obj.config);
-
-            for iWarning = 1:numel(optionWarnings)
-                notifyGeneralMessage( ...
-                    obj, "warning", optionWarnings(iWarning), dbstack());
-            end
-
-            result = obj.MFAIterationRunner.run( ...
-                obj.MFAProblem, ...
-                rightHandSide, ...
-                objective, ...
-                solverOptions, ...
+            result = obj.Dependencies.ConfidenceIntervalWorkflow.run( ...
+                obj.config, ...
+                experimentalMDV, ...
+                obj.RunContext.Fluxes, ...
+                obj.statusFlag, ...
+                obj.RunContext.Problem, ...
+                obj.RunContext.InitialRightHandSides, ...
+                obj.model.getIdxRev(), ...
+                @(mdv, rightHandSide) ...
+                runMFAIteration( ...
+                obj, mdv, rightHandSide, substrateEMUs, true), ...
                 MessageReporter = ...
-                    @(level, message) ...
-                    obj.reportOptimizationMessage(level, message));
+                @(level, message) ...
+                reportAnalysisMessage(obj, level, message), ...
+                CancellationRequested = @() obj.isCanceled);
 
-        end % runConfiguredMFAIteration
+        end % runConfidenceInterval
 
-        function method = getOptimizationMethod(obj)
-            % GETOPTIMIZATIONMETHOD Return the normalized nonlinear optimizer name.
+        function [lowerBounds, upperBounds, output] = ...
+                calculateCandidateConfidenceInterval( ...
+                obj, experimentalMDV, substrateEMUs)
 
-            method = "gradient-only";
+            workflowResult = runConfidenceInterval( ...
+                obj, experimentalMDV, substrateEMUs);
+            lowerBounds = workflowResult.LowerBounds;
+            upperBounds = workflowResult.UpperBounds;
+            output = workflowResult.Output;
 
-            if isfield(obj.config, 'optimizationMethod') && ...
-                    ~isempty(obj.config.optimizationMethod)
-                method = lower(string(obj.config.optimizationMethod));
-            end % if
-
-        end % getOptimizationMethod
-
-
-
-
-
-
-
-
-
-
-
-        %% Tools
-        function rightHandSide = ...
-                createConfidenceIntervalRightHandSide(obj, bestFlux)
-
-            baseRightHandSide = obj.MFAProblem.RightHandSide;
-
-            if ~isempty(obj.initialRhs)
-                baseRightHandSide = obj.initialRhs(:, end);
-            end
-
-            independentValues = ...
-                bestFlux(obj.MFAProblem.BoundaryReactionMask);
-            rightHandSide = obj.MFAProblem.composeRightHandSide( ...
-                independentValues, ...
-                BaseRightHandSide = baseRightHandSide);
-
-        end % createConfidenceIntervalRightHandSide
-
-        %% Monte Carlo method
-        function [fluxLB, fluxUB, output] = calculateCIMC(obj, config)
-            % CALCULATECIMC Calculate the confidence interval using Monte Carlo method.
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                config (1, 1) struct
-            end % arguments
-
-            fluxLB = [];
-            fluxUB = [];
-            output = struct;
-
-            msg = "Calculating confidence interval using Monte Carlo " + ...
-                "method. It may take a while " + ...
-                "(Cancel button is not available).";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-            if obj.statusFlag(2) ~= 1
-                msg = "Flux distribution is not calculated.";
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                return;
-            end
-
-            bestFlux = obj.resultFlux(:, 1);
-            rightHandSide = createConfidenceIntervalRightHandSide( ...
-                obj, bestFlux);
-
-            try
-                confidenceIntervalResult = ...
-                    obj.MonteCarloConfidenceIntervalSolver.solve( ...
-                    obj.MDVExpFmincon, ...
-                    size(obj.resultFlux, 1), ...
-                    config, ...
-                    @(mdv) calculateMonteCarloMFAIteration( ...
-                    obj, mdv, rightHandSide), ...
-                    obj.model.getIdxRev(), ...
-                    MessageReporter = ...
-                    @(level, message) ...
-                    reportConfidenceIntervalMessage( ...
-                    obj, level, message), ...
-                    CancellationRequested = @() obj.isCanceled);
-            catch ME
-                msg = "Confidence interval calculation failed. " + ...
-                    string(ME.message);
-                notifyGeneralMessage(obj, "error", msg, dbstack());
-                return;
-            end
-
-            fluxLB = confidenceIntervalResult.LowerBounds;
-            fluxUB = confidenceIntervalResult.UpperBounds;
-            output.MDV = confidenceIntervalResult.PerturbedMDVs;
-            output.flux = confidenceIntervalResult.Fluxes;
-            output.iteration = ...
-                confidenceIntervalResult.IterationCount;
-            output.time = confidenceIntervalResult.ElapsedTime;
-
-            if confidenceIntervalResult.IsCanceled
-                msg = "Confidence interval calculation canceled.";
-                notifyGeneralMessage(obj, "info", msg, dbstack());
-                return;
-            end
-
-            msg = "Confidence interval calculated successfully." + ...
-                " (Elapsed time: " + ...
-                string(seconds(output.time), "hh:mm:ss") + ")";
-            notifyGeneralMessage(obj, "info", msg, dbstack());
-
-        end % calculateCIMC
+        end % calculateCandidateConfidenceInterval
 
         %% Export functions
         function initializeRunMetadata(obj)
@@ -1419,7 +737,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             end
 
             [metadata, isSuccess, msg] = ...
-                obj.AnalysisRunLifecycle.start( ...
+                obj.Dependencies.AnalysisRunLifecycle.start( ...
                 obj.config, ...
                 obj.HDF5FileName, ...
                 obj.model, ...
@@ -1451,7 +769,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 return
             end
 
-            errors = obj.AnalysisRunLifecycle.finish( ...
+            errors = obj.Dependencies.AnalysisRunLifecycle.finish( ...
                 obj.ResultLocation, ...
                 obj.HDF5FilePath, ...
                 obj.AnalysisMetadata, ...
@@ -1474,13 +792,13 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         function exportGeneralInformation(obj)
 
             [obj.result, obj.statusFlag, isSuccess, msg] = ...
-                obj.MFAResultCoordinator.writeGeneral( ...
+                obj.Dependencies.MFAResultCoordinator.writeGeneral( ...
                 obj.result, ...
                 obj.statusFlag, ...
                 obj.HDF5FileName, ...
-                obj.MDVExp, ...
-                obj.MDVFragList, ...
-                obj.MDVFragMask);
+                obj.RunContext.ExperimentalData.ExperimentalMDV, ...
+                obj.RunContext.ExperimentalData.FragmentLabels, ...
+                obj.RunContext.ExperimentalData.FragmentMask);
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportGeneralInformation
@@ -1488,7 +806,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         function exportModelInformation(obj)
 
             [obj.result, obj.statusFlag, isSuccess, msg] = ...
-                obj.MFAResultCoordinator.writeModel( ...
+                obj.Dependencies.MFAResultCoordinator.writeModel( ...
                 obj.result, ...
                 obj.statusFlag, ...
                 obj.model.getModelTable(), ...
@@ -1500,7 +818,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         function exportFluxVariability(obj, fluxLB, fluxUB)
 
             [obj.result, obj.statusFlag, isSuccess, msg] = ...
-                obj.MFAResultCoordinator.writeFluxVariability( ...
+                obj.Dependencies.MFAResultCoordinator ...
+                .writeFluxVariability( ...
                 obj.result, ...
                 obj.statusFlag, ...
                 fluxLB, ...
@@ -1513,7 +832,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         function exportInitialFluxDistribution(obj, flux, rhs, RSS)
 
             [obj.result, obj.statusFlag, isSuccess, msg] = ...
-                obj.MFAResultCoordinator.writeInitialFlux( ...
+                obj.Dependencies.MFAResultCoordinator ...
+                .writeInitialFlux( ...
                 obj.result, ...
                 obj.statusFlag, ...
                 flux, ...
@@ -1527,7 +847,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         function exportFluxResultRSS(obj, RSS, idx, threshold)
 
             [obj.result, obj.statusFlag, isSuccess, msg] = ...
-                obj.MFAResultCoordinator.writeSummary( ...
+                obj.Dependencies.MFAResultCoordinator.writeSummary( ...
                 obj.result, obj.statusFlag, RSS, idx, threshold);
             handleResultWriteFailure(obj, isSuccess, msg);
 
@@ -1536,7 +856,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         function exportConfidenceIntervalMC(obj, fluxLB, fluxUB, output)
 
             [obj.result, obj.statusFlag, isSuccess, msg] = ...
-                obj.MFAResultCoordinator ...
+                obj.Dependencies.MFAResultCoordinator ...
                 .writeMonteCarloConfidenceInterval( ...
                 obj.result, ...
                 obj.statusFlag, ...
@@ -1551,34 +871,19 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         function exportNextLabelPatternGeneralInformation(obj)
 
             [isSuccess, msg] = ...
-                obj.MFAResultCoordinator.writeSuggestionTable( ...
+                obj.Dependencies.MFAResultCoordinator ...
+                .writeSuggestionTable( ...
                 obj.config.suggestionTable, ...
                 obj.config.suggestionTableVarNames);
             handleResultWriteFailure(obj, isSuccess, msg);
 
         end % exportNextLabelPatternGeneralInformation
 
-        function exportNextLabelPatternInitialFlux( ...
-                obj, pattern, flux, tmpRhs, RSS)
-
-            [obj.result, obj.statusFlag, isSuccess, msg] = ...
-                obj.MFAResultCoordinator.writeNextLabelInitialFlux( ...
-                obj.result, ...
-                obj.statusFlag, ...
-                pattern, ...
-                flux, ...
-                tmpRhs, ...
-                RSS, ...
-                obj.model.getIdxRev());
-            handleResultWriteFailure(obj, isSuccess, msg);
-
-        end % exportNextLabelPatternInitialFlux
-
         function exportNextLabelPatternCIMC( ...
                 obj, pattern, fluxLB, fluxUB)
 
             [obj.result, obj.statusFlag, isSuccess, msg] = ...
-                obj.MFAResultCoordinator ...
+                obj.Dependencies.MFAResultCoordinator ...
                 .writeNextLabelConfidenceInterval( ...
                 obj.result, ...
                 obj.statusFlag, ...
@@ -1589,30 +894,13 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % exportNextLabelPatternCIMC
 
-        function restoreEffluxFreeModel(obj)
-            % RESTOREEFFLUXFREEMODEL Restore reaction independence changed for efflux fitting.
+        function restoreEffluxFreeSession(~, session)
 
-            if isempty(obj.effluxFreeRxnID)
-                return;
+            if ~isempty(session)
+                session.restore();
             end
 
-            try
-
-                for i = 1:length(obj.effluxFreeRxnID)
-                    obj.model.setReactionIndependent( ...
-                        obj.effluxFreeRxnID(i), ...
-                        obj.effluxFreeOriginalIndependent(i) ...
-                    );
-                end
-
-                obj.model.buildModel();
-
-            catch ME
-                msg = "Failed to restore efflux free model state: " + string(ME.message);
-                logDisp(dbstack(), msg, "warning");
-            end
-
-        end % restoreEffluxFreeModel
+        end % restoreEffluxFreeSession
 
         %% Notify functions
         function notifyGeneralMessage(obj, status, msg, dbstack)
@@ -1652,7 +940,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
         end % cancel
 
-        function tf = isValidateData(obj)
+        function [tf, effluxFreeSession] = isValidateData(obj)
             % VALIDATEDATA Validate the data.
             %
             % Parameters:
@@ -1663,7 +951,9 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 obj (1, 1) FluxAnalysis
             end % arguments
 
-            validation = obj.MFAInputValidator.validateEfflux( ...
+            effluxFreeSession = [];
+            validation = obj.Dependencies.MFAInputValidator ...
+                .validateEfflux( ...
                 obj.model, ...
                 obj.exps, ...
                 obj.expsList, ...
@@ -1690,16 +980,13 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     obj.config.perturbateEfflux && ...
                     any(obj.effluxFree)
                 substrateFree = obj.subsList(logical(obj.effluxFree));
-                obj.effluxFreeRxnID = strings(length(substrateFree), 1);
-                obj.effluxFreeOriginalIndependent = false(length(substrateFree), 1);
-
-                for i = 1:length(substrateFree)
-                    iRxnID = obj.model.findSubstrateRxnIDFromMetaboliteIrrev(substrateFree(i));
-                    obj.effluxFreeRxnID(i) = iRxnID;
-                    obj.effluxFreeOriginalIndependent(i) = obj.model.getReactionIndependent(iRxnID);
-                end
-
-                obj.model.makeEffluxFree(substrateFree');
+                effluxFreeSession = openmebius.application.analysis ...
+                    .EffluxFreeModelSession( ...
+                    obj.model, ...
+                    substrateFree, ...
+                    MessageReporter = ...
+                    @(level, message) ...
+                    reportAnalysisMessage(obj, level, message));
                 msg = "Efflux reactions were set as free variables: " + strjoin(substrateFree, ", ") + ".";
                 notifyGeneralMessage(obj, "info", msg, dbstack());
             end
@@ -1721,10 +1008,11 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 obj (1, 1) FluxAnalysis
             end % arguments
 
-            validation = obj.MFAInputValidator.validateMDV( ...
-                obj.MDVExp, ...
-                obj.MDVFragList, ...
-                obj.MDVFragMask);
+            validation = obj.Dependencies.MFAInputValidator ...
+                .validateMDV( ...
+                obj.RunContext.ExperimentalData.ExperimentalMDV, ...
+                obj.RunContext.ExperimentalData.FragmentLabels, ...
+                obj.RunContext.ExperimentalData.FragmentMask);
             tf = validation.IsValid;
 
             if ~validation.IsValid
