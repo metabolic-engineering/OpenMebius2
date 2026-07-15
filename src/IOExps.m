@@ -4,6 +4,8 @@ classdef IOExps < handle
 
         Collection openmebius.domain.experiment.ExperimentCollection
         ComparisonBuilder
+        EditMapper
+        EditValidator
         ExperimentRepository
         TableAssembler
         MessagePublisher
@@ -48,6 +50,10 @@ classdef IOExps < handle
                     openmebius.infrastructure.experiment.ExperimentRepository()
                 options.ComparisonBuilder = openmebius.domain.experiment ...
                     .ExperimentComparisonBuilder()
+                options.EditMapper = openmebius.domain.experiment ...
+                    .ExperimentEditMapper()
+                options.EditValidator = openmebius.domain.experiment ...
+                    .ExperimentEditValidator()
                 options.TableAssembler = openmebius.domain.experiment ...
                     .ExperimentTableAssembler()
                 options.AllowEmpty (1, 1) logical = false
@@ -60,6 +66,8 @@ classdef IOExps < handle
             obj.Collection = openmebius.domain.experiment ...
                 .ExperimentCollection(experimentLocation);
             obj.ComparisonBuilder = options.ComparisonBuilder;
+            obj.EditMapper = options.EditMapper;
+            obj.EditValidator = options.EditValidator;
             obj.ExperimentRepository = options.ExperimentRepository;
             obj.TableAssembler = options.TableAssembler;
             obj.MessagePublisher = openmebius.presentation ...
@@ -306,30 +314,17 @@ classdef IOExps < handle
                 return;
             end
 
-            status = false;
-
             switch type
                 case "Info"
                     % Update the info table
                     status = updateTableExpInfo(obj, data);
                 case "Tracer"
-                    % Update the tracer table
-                    data = normalizeUITableInput(obj, data, type);
-                    isValid = isValidTracerData(obj, data);
-
-                    if ~isValid
-                        recordValidationError( ...
-                            obj, ...
-                            "The tracer data is not valid.");
-                        status = true;
-                    end
-
-                    if ~status
-                        status = updateTableExpSubstrate(obj, data);
-                    end
+                    data = obj.EditMapper.normalizeUITableInput( ...
+                        data, type);
+                    status = updateTableExpSubstrate(obj, data);
                 case "Uptake"
-                    % Update the uptake table
-                    data = normalizeUITableInput(obj, data, type);
+                    data = obj.EditMapper.normalizeUITableInput( ...
+                        data, type);
                     status = updateTableExpUptake(obj, data);
                 otherwise
                     error("Invalid type. Use 'Info', 'Tracer', or 'Uptake'.");
@@ -1040,58 +1035,22 @@ classdef IOExps < handle
 
             status = false;
 
-            % Validate the input table
-            if isempty(tableSubstrate) || ~istable(tableSubstrate)
-                recordValidationError( ...
-                    obj, ...
-                    "The table is empty or not a table.");
+            availableTracer = getTableLabelView(obj.objModel);
+            validation = obj.EditValidator.validateTracer( ...
+                tableSubstrate, ...
+                obj.tableTracersInfo.Properties.VariableNames, ...
+                obj.fileListWOExt, ...
+                availableTracer.Name);
+
+            if ~validation.IsValid
+                recordValidationError(obj, validation.ErrorMessage);
                 status = true;
                 return;
             end
 
-            % Check if the table has the same number of rows as the number of experiments
-            variables = tableSubstrate.Properties.VariableNames;
-            variablesCorrect = obj.tableTracersInfo.Properties.VariableNames;
-
-            if ~isequal(variables, variablesCorrect)
-                recordValidationError( ...
-                    obj, ...
-                    "The table does not have the correct variable names.");
-                status = true;
-                return;
-            end
-
-            % Check if the table has the same number of rows as the number of experiments
-            sample = string(tableSubstrate.Properties.RowNames)';
-            sampleCorrect = obj.fileListWOExt;
-
-            if ~isequal(sort(sample(:)), sort(sampleCorrect(:)))
-                recordValidationError( ...
-                    obj, ...
-                    "The table does not have the correct sample names.");
-                status = true;
-                return;
-            end
-
-            if ~isValidTracerData(obj, tableSubstrate)
-                recordValidationError( ...
-                    obj, ...
-                    "The tracer data is not valid.");
-                status = true;
-                return;
-            end
-
-            % Update the table of experimental substrates
-            obj.tableTracersInfo = tableSubstrate;
-            err = substituteLabelUptakeTable(obj, tableSubstrate, "Label");
-
-            if err
-                recordValidationError( ...
-                    obj, ...
-                    "The table of experimental substrates is not valid.");
-                status = true;
-                return;
-            end
+            editResult = obj.EditMapper.map( ...
+                obj.Collection, tableSubstrate, "Tracer");
+            obj.Collection.applyEdit(editResult);
 
         end % updateTableExpSubstrate
 
@@ -1118,24 +1077,20 @@ classdef IOExps < handle
 
             status = false;
 
-            if ~isValidUptakeData(obj, tableUptake)
-                recordValidationError( ...
-                    obj, ...
-                    "The uptake data is not valid.");
+            validation = obj.EditValidator.validateUptake( ...
+                tableUptake, ...
+                obj.tableUptakesInfo.Properties.VariableNames, ...
+                obj.fileListWOExt);
+
+            if ~validation.IsValid
+                recordValidationError(obj, validation.ErrorMessage);
                 status = true;
                 return;
             end
 
-            obj.tableUptakesInfo = tableUptake;
-            err = substituteLabelUptakeTable(obj, tableUptake, "Uptake");
-
-            if err
-                recordValidationError( ...
-                    obj, ...
-                    "The table of experimental substrates is not valid.");
-                status = true;
-                return;
-            end
+            editResult = obj.EditMapper.map( ...
+                obj.Collection, tableUptake, "Uptake");
+            obj.Collection.applyEdit(editResult);
 
         end % updateTableExpUptake
 
@@ -1517,481 +1472,6 @@ classdef IOExps < handle
 
         end % createTemplateSubstrateTable
 
-        function tableRtn = substituteDataToFullTable(~, tableFull, tableIn, type)
-            % SUBSTITUTEDATATOFULLTABLE: Substitute data to the full table
-            %
-            % Parameters:
-            % -----------
-            % tableFull: table
-            %     The full table.
-            % tableIn: table
-            %     The table to be substituted.
-            %
-            % Returns:
-            % --------
-            % tableRtn: table
-            %     The table with the substituted data.
-            %
-            % Example:
-            % >> tableIn
-            %     Label: {'A'; 'B'; 'C'}
-            %     Ratio: [0.1; 0.2; 0.3]
-            %
-            % >> tableFull
-            %     Label: {'A'; 'B'; 'C'; 'D'}
-            %     Ratio: [0; 0; 0; 0]
-            %
-            % >> tableRtn = substituteDataToFullTable(tableFull, tableIn)
-            %     Label: {'A'; 'B'; 'C'; 'D'}
-            %     Ratio: [0.1; 0.2; 0.3; 0]
-
-            arguments
-                ~
-                tableFull table
-                tableIn table
-                type (1, 1) string {mustBeMember(type, ["Label", "Uptake"])}
-            end
-
-            varsIn = tableIn.Properties.VariableNames;
-            varsFull = tableFull.Properties.VariableNames;
-            rowNamesIn = tableIn.Properties.RowNames;
-            rowNamesFull = tableFull.Properties.RowNames;
-
-            if ~all(ismember(varsIn, varsFull))
-                missingVars = setdiff(varsIn, varsFull);
-                warning("The variables in tableIn are not all present in tableFull: %s. Adding missing variables.", strjoin(missingVars, ", "));
-
-                switch type
-                    case "Uptake"
-                        varsNan = nan(height(tableFull), numel(missingVars));
-                        tableAdd = array2table(varsNan, ...
-                            'VariableNames', missingVars, ...
-                            'RowNames', rowNamesFull);
-
-                    case "Label"
-                        tableAdd = table('Size', [height(tableFull) numel(missingVars)], ...
-                            'VariableTypes', repmat("string", 1, numel(missingVars)), ...
-                            'VariableNames', missingVars, ...
-                            'RowNames', rowNamesFull);
-
-                        for k = 1:numel(missingVars)
-                            tableAdd.(missingVars{k}) = repmat("", height(tableFull), 1); % string column
-                        end
-
-                end
-
-                tableFull = [tableFull, tableAdd];
-                tableFull = tableFull(:, sort(tableFull.Properties.VariableNames));
-
-            end
-
-            if ~all(ismember(rowNamesIn, rowNamesFull)) && height(tableIn) == height(tableFull)
-                missingRows = setdiff(rowNamesIn, rowNamesFull);
-                error("The rows in tableIn are not all present in tableFull: %s", strjoin(missingRows, ", "));
-            end
-
-            tableRtn = tableFull;
-            numVars = length(varsIn);
-
-            for i = 1:numVars
-
-                iVar = varsIn{i};
-                tableRtn.(iVar) = tableIn.(iVar);
-
-            end % for i
-
-        end % substituteDataToFullTable
-
-        function tableRtn = substituteDataToExpData(~, tableIn, tableOut, type)
-            % SUBSTITUTEDATATOEXPDATA: Substitute data to the experimental data
-            %
-            % Parameters:
-            % -----------
-            % tableIn: table
-            %     The table to be substituted.
-            % tableOut: table
-            %     The table to be updated.
-            % type: string
-            %     The type of the table. It can be "Label" or "Uptake".
-            %
-            % Returns:
-            % --------
-            % tableRtn: table
-            %     The table with the substituted data.
-            %
-            % Example:
-            % >> tableIn
-            %     Label: {'A'; 'B'; 'C'}
-            %     Ratio: [0.1; 0.2; 0.3]
-            %
-            % >> tableOut
-            %     RowNames | Label | Ratio |
-            %     A        | 0.1   | A     |
-            %     B        | 0.3   | B     |
-            %     C        | 0.5   | A     |
-            %
-            % >> tableRtn = substituteDataToExpData(tableIn, tableOut, "Label")
-            %     RowNames | Label | Ratio |
-            %     A        | 0.1   | A     |
-            %     B        | 0.2   | B     |
-            %     C        | 0.3   | A     |
-
-            arguments
-                ~
-                tableIn table
-                tableOut table
-                type (1, 1) string {mustBeMember(type, ["Label", "Uptake"])}
-            end
-
-            variablesIn = tableIn.Properties.VariableNames;
-            rowNamesOut = tableOut.Properties.RowNames;
-
-            if ~all(ismember(variablesIn, rowNamesOut))
-                missingVars = setdiff(variablesIn, rowNamesOut);
-                % Add missing variables to the tableOut
-                numAddedVars = length(missingVars);
-                added = nan(numAddedVars, width(tableOut));
-                tableOut = [tableOut; ...
-                                array2table(added, ...
-                                'VariableNames', tableOut.Properties.VariableNames, ...
-                                'RowNames', missingVars)];
-                rowNamesOut = tableOut.Properties.RowNames;
-
-            end
-
-            numSample = length(variablesIn);
-
-            % Select the output variable name
-            if strcmp(type, "Label")
-
-                varNameOut = "Label";
-
-            elseif strcmp(type, "Uptake")
-
-                varNameOut = "Uptake";
-
-            end
-
-            tableRtn = tableOut;
-
-            for i = 1:numSample
-
-                iVarNameIn = variablesIn{i};
-                iData = tableIn.(iVarNameIn);
-                iRowNameOut = find(ismember(rowNamesOut, iVarNameIn), 1);
-
-                tableRtn.(varNameOut)(iRowNameOut) = iData;
-
-            end % for i
-
-        end % substituteDataToExpData
-
-        function data = normalizeUITableInput(~, data, type)
-            % NORMALIZEUITABLEINPUT: Normalize the input data from UITable
-            %
-            % data = normalizeUITableInput(obj, data, type)
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            % data: table
-            %     The input data from UITable.
-            % type: string
-            %     The type of the data. It can be "Tracer" or "Uptake".
-            %
-            % Returns:
-            % --------
-            % data: table
-            %     The normalized data.
-            %
-            % Description:
-            % ------------
-            % This function normalizes the input data from UITable.
-            % table obtained from UITable may contain cells, so the function
-            % normalizes the data type.
-
-            arguments
-                ~
-                data table
-                type (1, 1) string {mustBeMember(type, ["Tracer", "Uptake"])}
-            end
-
-            vars = data.Properties.VariableNames;
-
-            switch type
-                case "Tracer"
-
-                    for j = 1:numel(vars)
-
-                        col = data.(vars{j});
-
-                        if iscell(col)
-
-                            % 1. Convert the empty cell or missing to ""
-                            % 2. Convert char to string
-                            % 3. Keep string as is
-                            col = cellfun(@(x) localToStringScalar(x), col, 'UniformOutput', true);
-
-                        else
-
-                            col = string(col);
-
-                        end % if iscell(col)
-
-                        data.(vars{j}) = string(col);
-
-                    end % for j = 1:numel(vars)
-
-                case "Uptake"
-
-                    for j = 1:numel(vars)
-
-                        col = data.(vars{j});
-
-                        if iscell(col)
-
-                            col = cellfun(@(x) localToDouble(x), col);
-
-                        end % if iscell(col)
-
-                        data.(vars{j}) = double(col);
-
-                    end % for j = 1:numel(vars)
-
-            end % switch type
-
-            % ---- local helpers ----
-            function s = localToStringScalar(x)
-
-                if isempty(x)
-                    s = "";
-                    return;
-                end
-
-                % たまに {""} のように入れ子になる場合
-                if iscell(x)
-
-                    if isempty(x)
-                        s = "";
-                    else
-                        s = localToStringScalar(x{1});
-                    end
-
-                    return;
-                end
-
-                s = string(x);
-
-                if ismissing(s)
-                    s = "";
-                end
-
-                if numel(s) ~= 1
-                    s = s(1);
-                end
-
-            end
-
-            function d = localToDouble(x)
-
-                if isempty(x)
-                    d = NaN;
-                    return;
-                end
-
-                if iscell(x)
-                    d = localToDouble(x{1});
-                    return;
-                end
-
-                if isstring(x) || ischar(x)
-
-                    if strlength(string(x)) == 0
-                        d = NaN;
-                    else
-                        d = str2double(string(x));
-                    end
-
-                    return;
-                end
-
-                d = double(x);
-
-                if ~isfinite(d)
-                    d = NaN;
-                end
-
-            end
-
-        end % normalizeUITableInput
-
-        function tf = isValidUptakeData(obj, data)
-            % ISVALIDUPTAKEDATA: Validate the uptake data
-            %
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            % data: table
-            %     The uptake data.
-
-            tf = true;
-
-            if isempty(data) || ~istable(data)
-                updateMsg(obj, "The uptake data is empty or not a table.", "Error", obj.logLevel);
-                tf = false;
-                return;
-            end
-
-            for i = 1:height(data)
-
-                for j = 1:width(data)
-
-                    iData = data{i, j};
-
-                    % iData is real value or nan
-                    if ~isnan(iData) && ~isreal(iData)
-                        updateMsg(obj, "The uptake data is not valid.", "Error", obj.logLevel);
-                        tf = false;
-                        return;
-                    end
-
-                end % for j
-
-            end % for i
-
-        end % isValidUptakeData
-
-        function tf = isValidTracerData(obj, data)
-            % ISVALIDTRACERDATA: Validate the tracer data
-            %
-            % Parameters:
-            % -----------
-            % data: table
-            %     The tracer data.
-            %
-            % Returns:
-            % --------
-            % tf: logical
-            %     true if the tracer data is valid, false otherwise.
-
-            arguments
-                obj
-                data table
-            end
-
-            tf = true;
-
-            if isempty(data) || ~istable(data)
-                tf = false;
-                return;
-            end
-
-            availableTracer = getTableLabelView(obj.objModel);
-            availableTracerName = strip(string(availableTracer.Name));
-
-            for i = 1:height(data)
-
-                for j = 1:width(data)
-
-                    iData = data{i, j};
-
-                    % Normalize to string (and handle missing/empty) to avoid
-                    % unsupported implicit conversions from <missing>.
-                    iDataStr = localToStringScalar(iData);
-
-                    if strlength(strip(iDataStr)) == 0
-                        continue;
-                    end
-
-                    tracer = split(iDataStr, ';');
-                    tracer = strip(tracer);
-                    tracer = tracer(strlength(tracer) > 0);
-                    numTracer = numel(tracer);
-
-                    for k = 1:numTracer
-
-                        kTracer = tracer(k);
-                        kTracerSplit = split(kTracer, '~');
-                        kTracerSplit = strip(kTracerSplit);
-
-                        if numel(kTracerSplit) ~= 2
-                            tf = false;
-                            return;
-                        end
-
-                        kLabel = kTracerSplit(1);
-                        kRatioStr = kTracerSplit(2);
-                        kRatio = str2double(kRatioStr);
-
-                        if isnan(kRatio) || kRatio < 0 || kRatio > 1
-                            tf = false;
-                            return;
-                        end
-
-                        if ~ismember(kLabel, availableTracerName)
-                            tf = false;
-                            return;
-                        end
-
-                    end % for k
-
-                end % for j
-
-            end % for i
-
-            function s = localToStringScalar(v)
-                % Convert table cell content into a scalar string.
-                % Treat missing/empty as "".
-                if iscell(v)
-
-                    if isempty(v)
-                        s = "";
-                        return;
-                    end
-
-                    if isscalar(v)
-                        s = localToStringScalar(v{1});
-                        return;
-                    end
-
-                    s = string(v(1));
-                    return;
-                end
-
-                if isstring(v)
-
-                    if isempty(v)
-                        s = "";
-                        return;
-                    end
-
-                    s = v(1);
-
-                    if ismissing(s)
-                        s = "";
-                    end
-
-                    return;
-                end
-
-                if ischar(v)
-                    s = string(v);
-                    return;
-                end
-
-                if ismissing(v)
-                    s = "";
-                    return;
-                end
-
-                s = string(v);
-            end
-
-        end % validateTracerData
-
         function tableRtn = parseLabelPattern(~, label, availableTable)
 
             labelPattern = strsplit(label, ';');
@@ -2076,89 +1556,6 @@ classdef IOExps < handle
             end % for i
 
         end % substituteInfoTable
-
-        function status = substituteLabelUptakeTable(obj, tableIn, type)
-            % SUBSTITUTETABLELABELUPTAKE: Substitute the table of label uptake
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %    The IOExps object.
-            % tableIn: table
-            %    The table of label uptake.
-            % type: string
-            %    The type of the table. It can be "Label" or "Uptake".
-            %
-            % Returns:
-            % --------
-            % status: logical
-            %     The status of the update operation.
-
-            arguments
-                obj IOExps
-                tableIn table
-                type (1, 1) string {mustBeMember(type, ["Label", "Uptake"])}
-            end
-
-            %     true if the update was successful, false otherwise.
-            status = false;
-
-            if strcmp(type, "Label")
-
-                tableFull = obj.tableTracersInfoFull;
-                tableFullSubs = substituteDataToFullTable(obj, tableFull, tableIn, type);
-                obj.tableTracersInfoFull = tableFullSubs;
-
-            elseif strcmp(type, "Uptake")
-
-                tableFull = obj.tableUptakesInfoFull;
-                tableFullSubs = substituteDataToFullTable(obj, tableFull, tableIn, type);
-                obj.tableUptakesInfoFull = tableFullSubs;
-
-            end
-
-            numData = height(tableFullSubs);
-
-            for i = 1:numData
-
-                iRowName = tableFullSubs.Properties.RowNames(i);
-                iRowData = tableFullSubs(i, :);
-
-                % Check if the row name is in the table of experimental information
-                if ~ismember(iRowName, obj.fileListWOExt)
-
-                    updateMsg(obj, "The row name is not found in the table of experimental information.", "Error", obj.logLevel);
-                    status = true;
-                    continue;
-
-                end % if
-
-                % Get the index of the row name in the table of experimental information
-                idx = getExpIdx(obj, iRowName);
-
-                if isempty(idx)
-                    updateMsg(obj, "The row name is not found in the table of experimental information.", "Error", obj.logLevel);
-                    status = true;
-                    continue;
-                end
-
-                tableSubs = obj.dataExp.(obj.fieldNames(idx)).tableSubstrate;
-
-                if strcmp(type, "Label")
-
-                    tableSubs = substituteDataToExpData(obj, iRowData, tableSubs, type);
-
-                elseif strcmp(type, "Uptake")
-
-                    tableSubs = substituteDataToExpData(obj, iRowData, tableSubs, type);
-
-                end
-
-                obj.dataExp.(obj.fieldNames(idx)).tableSubstrate = tableSubs;
-
-            end % for i
-
-        end % substituteLabelUptakeTable
 
     end % methods (Access = private)
 

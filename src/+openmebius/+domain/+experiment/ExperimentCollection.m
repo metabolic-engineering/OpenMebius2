@@ -131,6 +131,27 @@ classdef ExperimentCollection < handle
 
         end % replaceAggregateTables
 
+        function applyEdit(obj, editResult)
+
+            arguments
+                obj
+                editResult openmebius.domain.experiment ...
+                    .ExperimentEditMappingResult
+            end
+
+            obj.Data = editResult.Data;
+
+            switch editResult.Target
+                case "Tracer"
+                    obj.TracerTable = editResult.AggregateTable;
+                    obj.TracerTableFull = editResult.FullTable;
+                case "Uptake"
+                    obj.UptakeTable = editResult.AggregateTable;
+                    obj.UptakeTableFull = editResult.FullTable;
+            end
+
+        end % applyEdit
+
         function replaceDefaultSubstrateMetadata( ...
                 obj, variableNames, variableTypes)
 
