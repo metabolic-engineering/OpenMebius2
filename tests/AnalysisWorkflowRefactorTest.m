@@ -29,6 +29,9 @@ classdef AnalysisWorkflowRefactorTest < matlab.unittest.TestCase
 
             testCase.verifyClass(analysis, 'FluxAnalysis');
             testCase.verifyFalse(analysis.isError);
+            testCase.verifyClass( ...
+                analysis.Dependencies.MFAInputPreparationWorkflow, ...
+                'openmebius.application.analysis.MFAInputPreparationWorkflow');
 
         end
 

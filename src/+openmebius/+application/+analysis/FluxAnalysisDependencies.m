@@ -13,6 +13,7 @@ classdef FluxAnalysisDependencies
         ConfidenceIntervalWorkflow
         NextLabelExperimentWorkflow
         MFAInputValidator
+        MFAInputPreparationWorkflow
         MFAFitStatistics
         MFAExperimentalDataBuilder
         MFAConstraintBuilder
@@ -166,6 +167,18 @@ classdef FluxAnalysisDependencies
             obj.MFAInputValidator = options.MFAInputValidator;
             obj.MFAExperimentalDataBuilder = ...
                 options.MFAExperimentalDataBuilder;
+            obj.MFAInputPreparationWorkflow = ...
+                options.MFAInputPreparationWorkflow;
+
+            if isempty(obj.MFAInputPreparationWorkflow)
+                obj.MFAInputPreparationWorkflow = ...
+                    openmebius.application.analysis ...
+                    .MFAInputPreparationWorkflow( ...
+                    Validator = obj.MFAInputValidator, ...
+                    ExperimentalDataBuilder = ...
+                    obj.MFAExperimentalDataBuilder);
+            end
+
             obj.MFAExperimentListNormalizer = ...
                 options.MFAExperimentListNormalizer;
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
