@@ -29,6 +29,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         MFAWorkflow
         MonteCarloConfidenceIntervalSolver
         MFAInputValidator
+        MFAFitStatistics
         EffluxPenaltyFactory
         InstationaryInputFactory
         MFAProblem = []
@@ -147,6 +148,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.MonteCarloConfidenceIntervalSolver()
                 options.MFAInputValidator = ...
                     openmebius.mfa.MFAInputValidator()
+                options.MFAFitStatistics = ...
+                    openmebius.mfa.MFAFitStatistics()
                 options.EffluxPenaltyFactory = ...
                     openmebius.mfa.EffluxPenaltyFactory()
                 options.InstationaryInputFactory = ...
@@ -211,6 +214,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.MonteCarloConfidenceIntervalSolver = ...
                 options.MonteCarloConfidenceIntervalSolver;
             obj.MFAInputValidator = options.MFAInputValidator;
+            obj.MFAFitStatistics = options.MFAFitStatistics;
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
             obj.InstationaryInputFactory = ...
                 options.InstationaryInputFactory;
@@ -431,7 +435,11 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
 
             minRSS = obj.resultRSS(1);
             % Calculate the threshold for chi-squared test
-            threshold = caluclateThreshold(obj);
+            threshold = obj.MFAFitStatistics.chiSquareThreshold( ...
+                getDOF(obj.model), ...
+                obj.MDVFragList, ...
+                obj.MDVFragMask, ...
+                0.05);
             exportFluxResultRSS(obj, obj.resultRSS, idx, threshold);
 
             % Notify the result of the flux calculation
@@ -1109,44 +1117,20 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             %       n: number of EMUs
             %       m: The maximum number of atoms in the EMU
 
-            numFlux = size(fluxes, 2);
-            RSS = nan(1, numFlux);
-            epsilon = 1e-3;
-            RSSInvalid = 1e9;
-
             MDVExpTemp = arrangeMDV(obj, obj.MDVExpFmincon, ...
                 numExperiments = length(subsEMU));
             effluxPenalty = createEffluxPenalty(obj);
-
-            for i = 1:numFlux
-
-                if obj.isCanceled
-                    break;
-                end % if
-
-                iMDV = calculateMDV(obj, fluxes(:, i), subsEMU);
-
-                % MDVi >= 1 + e or MDVi <= 0 - e
-                if any(iMDV >= 1 + epsilon) || any(iMDV <= 0 - epsilon)
-                    % If the MDV is invalid, set the RSS to a large value
-                    RSS(i) = RSSInvalid;
-                    continue;
-                end % if
-
-                % Calculate the RSS
-                iRSS = ((iMDV(obj.MDVFragMask) - MDVExpTemp(obj.MDVFragMask)) / ...
-                    0.01) .^ 2;
-                RSS(i) = sum(iRSS, 1) + ...
-                    effluxPenalty.evaluate(fluxes(:, i));
-
-            end % for
-
-            % Sort the RSS
-            [RSS, idx] = sort(RSS, "ascend");
-
-            % Count the number of valid flux distributions
-            numValidFlux = sum(RSS < RSSInvalid);
-            msg = "Number of valid flux distributions: " + string(numValidFlux);
+            evaluation = obj.MFAFitStatistics.evaluateFluxes( ...
+                fluxes, ...
+                MDVExpTemp, ...
+                obj.MDVFragMask, ...
+                @(flux) calculateMDV(obj, flux, subsEMU), ...
+                effluxPenalty, ...
+                CancellationRequested = @() obj.isCanceled);
+            RSS = evaluation.ObjectiveValues;
+            idx = evaluation.Order;
+            msg = "Number of valid flux distributions: " + ...
+                string(evaluation.ValidCount);
             notifyGeneralMessage(obj, "info", msg, dbstack());
 
         end % calculateRSS
@@ -1894,72 +1878,6 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         end % mutateGAIndividual
 
         %% Tools
-        function threshold = caluclateThreshold(obj, alpha)
-            % CALCULATETHRESHOLD Calculate the threshold for chi-squared test
-            % for the flux distribution.
-            %
-            % Parameters
-            % ----------
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %
-            % Returns
-            % -------
-            %   threshold: (1, 1) double
-            %
-            % Description
-            % -----------
-            % The flux distribution is estimated from a fitted mass distribution
-            % vector (MDV) and a set of EMUs. The residual sum of squares (RSS)
-            % is used to evaluate how well the model fits the data. The threshold
-            % of the chi-squared test is calculated based on the degrees of
-            % freedom of the model and the significance level (alpha).
-
-            arguments
-                obj (1, 1) FluxAnalysis
-                alpha (1, 1) double {mustBeGreaterThanOrEqual(alpha, 0), ...
-                                         mustBeLessThanOrEqual(alpha, 1)} = 0.05
-            end % arguments
-
-            % The degrees of freedom of the model
-            % The degrees of freedom of the model
-            DOFModel = getDOF(obj.model);
-
-            % The number of fragments
-            fragmentLabelList = obj.MDVFragList;
-            fragmentMask = obj.MDVFragMask;
-
-            numLabel = size(fragmentMask, 2);
-
-            DOFFragment = 0;
-
-            % For parallel labeling experiments
-            for i = 1:numLabel
-
-                % Get the number of fragments
-                iFragmentMask = fragmentMask(:, i);
-                iFragmentLabel = fragmentLabelList(:, i);
-
-                % Extract the unique labels
-                iFragmentLabelSelected = iFragmentLabel(iFragmentMask);
-                iFragmentLabelUnique = unique(iFragmentLabelSelected);
-
-                numFragment = length(iFragmentLabelUnique);
-                numDataPoints = sum(iFragmentMask);
-
-                DOFFragment = DOFFragment + (numDataPoints - numFragment);
-
-            end % for
-
-            % DoF: n - p
-            % n: number of data points
-            % p: number of independent fluxes
-            DoF = DOFFragment - DOFModel;
-
-            threshold = chi2inv(1 - alpha, DoF);
-
-        end % caluclateThreshold
-
         function rightHandSide = ...
                 createConfidenceIntervalRightHandSide(obj, bestFlux)
 
