@@ -65,7 +65,6 @@ classdef GeneralMessageIntegrationTest < matlab.unittest.TestCase
 
             result.loadResultFile("missing");
 
-            testCase.verifyTrue(result.isError);
             testCase.verifyEqual(observer.EventCount, 1);
             testCase.verifyClass( ...
                 observer.LastEvent, ...
@@ -75,7 +74,17 @@ classdef GeneralMessageIntegrationTest < matlab.unittest.TestCase
                 observer.LastEvent.data.status, "error");
             testCase.verifyEqual( ...
                 observer.LastEvent.data.msg, ...
-                "Result directory does not exist.");
+                "Result directory does not exist: " + resultDirectory);
+
+        end
+
+        function ioResultConstructorRejectsMissingDirectory(testCase)
+
+            resultDirectory = string(tempname);
+
+            testCase.verifyError( ...
+                @() IOResult(resultDirectory), ...
+                "OpenMebius2:ResultRepository:DirectoryNotFound");
 
         end
 

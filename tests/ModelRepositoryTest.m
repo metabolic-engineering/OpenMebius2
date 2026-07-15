@@ -46,6 +46,36 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
         end
 
+        function loadRejectsMissingModelDirectory(testCase)
+
+            repository = openmebius.infrastructure.model.ModelRepository();
+            modelLocation = openmebius.domain.model.ModelLocation ...
+                .fromDirectory(fullfile(tempdir, "missing-openmebius-model-repo"));
+
+            testCase.verifyError( ...
+                @() repository.load(modelLocation), ...
+                "OpenMebius2:ModelRepository:DirectoryNotFound");
+
+        end
+
+        function loadPreservesTypedWorkbookFailure(testCase)
+
+            modelDirectory = string(tempname);
+            mkdir(modelDirectory);
+            cleanup = onCleanup(@() ...
+                ModelRepositoryTest.removeDirectory(modelDirectory));
+            repository = openmebius.infrastructure.model.ModelRepository();
+            modelLocation = openmebius.domain.model.ModelLocation ...
+                .fromDirectory(modelDirectory);
+
+            testCase.verifyError( ...
+                @() repository.load(modelLocation), ...
+                "OpenMebius2:ModelRepository:ModelFileNotFound");
+
+            clear cleanup
+
+        end
+
         function labelRoundTripUsesRepositoryJsonStore(testCase)
 
             modelDirectory = string(tempname);

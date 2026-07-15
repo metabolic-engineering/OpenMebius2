@@ -26,10 +26,6 @@ classdef Stoichiometry < IOModel
 
             obj = obj@IOModel(modelInput, varargin{:});
 
-            if obj.isError
-                return;
-            end
-
             obj.buildModel();
 
         end
@@ -45,7 +41,18 @@ classdef Stoichiometry < IOModel
             obj.generateS();
             obj.generateSAll();
 
-            obj.validateS();
+            if ~obj.validateS()
+                error( ...
+                    "OpenMebius2:ModelRepository:" + ...
+                    "InvalidStoichiometry", ...
+                    "Stoichiometry matrix is invalid.");
+            end
+
+            throwIfConstructionFailed( ...
+                obj, ...
+                "OpenMebius2:ModelRepository:" + ...
+                "StoichiometryBuildFailed", ...
+                "Failed to build the stoichiometry model.");
 
         end % buildModel
 

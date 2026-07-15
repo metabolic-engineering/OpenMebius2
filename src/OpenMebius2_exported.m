@@ -515,12 +515,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadEMUModel(app)
 
-            if app.model.isError
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
-
             loadPathway(app)
 
             app.notifyInfo("EMU network was successfully constructed.");
@@ -577,12 +571,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             pause(0.5)
 
             loadEMUModel(app)
-
-            if app.model.isError
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
 
             loadPathway(app)
 
@@ -2642,35 +2630,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.updateStatus("model", "running");
 
-            app.model = EMUModel(app.directoryModel);
+            modelLocation = openmebius.domain.model.ModelLocation ...
+                .fromDirectory(app.directoryModel);
+            modelRepository = ...
+                openmebius.infrastructure.model.ModelRepository();
+            app.model = modelRepository.load(modelLocation);
 
-            if app.model.isError
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
-
-            IOStatus = app.model.getIOStatus();
-
-            if strcmp(IOStatus, "completed")
-                app.notifyInfo("Model loaded successfully.");
-            else
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
+            app.notifyInfo("Model loaded successfully.");
 
             app.notifyInfo("Constructing EMU network...");
 
             pause(0.5)
 
             loadEMUModel(app)
-
-            if app.model.isError
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
 
             loadPathway(app)
 
@@ -3125,11 +3097,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             loadMSTable(app)
             loadBiomassTable(app)
 
-            if app.model.isError
-                app.LogText(app.model.statusMsg);
-                return
-            end
-
         end % function loadEMUModel
 
         function loadModelTable(app, options)
@@ -3343,12 +3310,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if isempty(app.result) || ~isvalid(app.result)
                 msg = "Result object is not valid.";
                 app.notifyError(msg);
-                app.updateStatus("result", "error");
-                return
-            end
-
-            if app.result.isError
-                app.LogText(app.result.statusMsg);
                 app.updateStatus("result", "error");
                 return
             end
@@ -4658,12 +4619,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 pause(0.5)
 
                 loadEMUModel(app)
-
-                if app.model.isError
-                    app.LogText(app.model.statusMsg);
-                    app.updateStatus("model", "error");
-                    return
-                end
 
                 loadPathway(app)
 

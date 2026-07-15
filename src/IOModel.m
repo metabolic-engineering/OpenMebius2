@@ -62,15 +62,6 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
         errorColumnsMS (1, :) double = [];
         errorColumnsAtom (1, :) double = [];
 
-        % Error control
-        IOstatus (1, 1) string {mustBeMember(IOstatus, [ ...
-                                                            "fileLoad", ...
-                                                            "modelParse" ...
-                                                            "MSParse" ...
-                                                            "metabolite" ...
-                                                            "completed" ...
-                                                        ])} = "fileLoad";
-
     end
 
     properties (Dependent)
@@ -109,61 +100,35 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
 
             obj.ModelRepository = options.ModelRepository;
 
-            try
-                obj.ModelRepository.assertModelDirectory(modelLocation);
-            catch
-                obj.isError = true;
-                updateMsg(obj, ...
-                    "The directory " + modelLocation.Directory + ...
-                    " does not exist.", ...
-                    "Error", ...
-                    obj.logLevel);
-                return
-            end
+            obj.ModelRepository.assertModelDirectory(modelLocation);
 
             updateMsg(obj, ...
                 "The directory " + modelLocation.Directory + " exists.", ...
                 "Info", ...
                 obj.logLevel);
 
-            if obj.isError
-                return;
-            end
-
             setupTableInfo(obj);
 
             loadModel(obj);
             loadPathway(obj);
 
-            if obj.isError
-                return;
-            end
-
-            obj.IOstatus = "modelParse";
-
             parseModels(obj);
-
-            if obj.isError
-                return;
-            end
-
-            obj.IOstatus = "MSParse";
+            throwIfConstructionFailed( ...
+                obj, ...
+                "OpenMebius2:ModelRepository:ModelParseFailed", ...
+                "Failed to parse the metabolic model.");
 
             parseMS(obj);
-
-            if obj.isError
-                return;
-            end
-
-            obj.IOstatus = "metabolite";
+            throwIfConstructionFailed( ...
+                obj, ...
+                "OpenMebius2:ModelRepository:MSParseFailed", ...
+                "Failed to parse the mass spectrometry model.");
 
             listUpMetaboliteAll(obj);
-
-            if obj.isError
-                return;
-            end
-
-            obj.IOstatus = "completed";
+            throwIfConstructionFailed( ...
+                obj, ...
+                "OpenMebius2:ModelRepository:MetaboliteBuildFailed", ...
+                "Failed to build the metabolite list.");
 
             loadLabel(obj);
             createLabelView(obj);
@@ -417,17 +382,10 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
 
         function loadLabel(obj)
 
-            try
-                obj.structLabel = obj.ModelRepository.readLabel( ...
-                    obj.ModelLocation, ...
-                    obj.fileLabel, ...
-                    obj.fileTypeLabel);
-            catch ME
-                obj.isError = true;
-                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
-                obj.structLabel = struct();
-                return
-            end
+            obj.structLabel = obj.ModelRepository.readLabel( ...
+                obj.ModelLocation, ...
+                obj.fileLabel, ...
+                obj.fileTypeLabel);
 
             reset(obj);
             updateMsg(obj, ...
@@ -612,12 +570,6 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
 
     % Get methods
     methods (Access = public)
-
-        function status = getIOStatus(obj)
-
-            status = obj.IOstatus;
-
-        end % function getIOStatus
 
         function modelLocation = getModelLocation(obj)
 
@@ -910,32 +862,26 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
         function loadModel(obj)
 
             % Load the model
-            if ~(obj.fileTypeModel == "xlsx")
-
-                obj.isError = true;
-                updateMsg(obj, "The file type " + obj.fileTypeModel + " is not supported.", "Error", obj.logLevel);
-                return
-
-            end % if
+            if obj.fileTypeModel ~= "xlsx"
+                error( ...
+                    "OpenMebius2:ModelRepository:" + ...
+                    "UnsupportedModelFileType", ...
+                    "The file type %s is not supported.", ...
+                    obj.fileTypeModel);
+            end
 
             for i = 1:length(obj.tableList)
 
-                try
-                    obj.(obj.tableList(i)) = ...
-                        obj.ModelRepository.readModelSheet( ...
-                        obj.ModelLocation, ...
-                        obj.fileModel, ...
-                        obj.fileTypeModel, ...
-                        obj.tableSheetNames(i), ...
-                        ReadRowNames = obj.tableReadRowName(i), ...
-                        RefVariableNames = ...
-                        obj.tableVariableNames.(obj.tableLabelNames(i)), ...
-                        RefTypes = obj.tableTypes.(obj.tableLabelNames(i)));
-                catch ME
-                    obj.isError = true;
-                    updateMsg(obj, string(ME.message), "Error", obj.logLevel);
-                    return;
-                end
+                obj.(obj.tableList(i)) = ...
+                    obj.ModelRepository.readModelSheet( ...
+                    obj.ModelLocation, ...
+                    obj.fileModel, ...
+                    obj.fileTypeModel, ...
+                    obj.tableSheetNames(i), ...
+                    ReadRowNames = obj.tableReadRowName(i), ...
+                    RefVariableNames = ...
+                    obj.tableVariableNames.(obj.tableLabelNames(i)), ...
+                    RefTypes = obj.tableTypes.(obj.tableLabelNames(i)));
 
                 reset(obj);
                 updateMsg(obj, ...
@@ -1448,5 +1394,31 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
         end % saveModel
 
     end % methods (private)
+
+    methods (Access = protected)
+
+        function throwIfConstructionFailed(obj, identifier, fallbackMessage)
+
+            arguments
+                obj
+                identifier (1, 1) string
+                fallbackMessage (1, 1) string
+            end
+
+            if ~obj.isError
+                return
+            end
+
+            message = obj.msg;
+
+            if message == ""
+                message = fallbackMessage;
+            end
+
+            error(identifier, "%s", message);
+
+        end % throwIfConstructionFailed
+
+    end % methods (Access = protected)
 
 end % classdef

@@ -42,7 +42,30 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() repository.open(resultLocation), ...
-                "OpenMebius2:ResultRepository:ResultLoadFailed");
+                "OpenMebius2:ResultRepository:DirectoryNotFound");
+
+        end
+
+        function openedResultDoesNotExposeLegacyMessageState(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            cleanup = onCleanup(@() ...
+                ResultRepositoryTest.removeDirectory(resultDirectory));
+
+            repository = openmebius.infrastructure.result.ResultRepository();
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(resultDirectory);
+
+            result = repository.open(resultLocation);
+
+            testCase.verifyFalse(isa( ...
+                result, ...
+                "openmebius.infrastructure.logging.MessageState"));
+            testCase.verifyFalse(isprop(result, "isError"));
+            testCase.verifyFalse(isprop(result, "statusMsg"));
+
+            clear cleanup
 
         end
 
