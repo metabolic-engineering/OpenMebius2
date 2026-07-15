@@ -141,20 +141,7 @@ classdef Batch < handle
             % ids: string array
             %     Batch IDs
 
-            tempBatch = obj.tableBatch;
-
-            mask = false(height(tempBatch), 1);
-
-            for i = 1:height(tempBatch)
-
-                % Check if the batch is finished
-                if strcmp(tempBatch.config(i).status, 'finished')
-                    mask(i) = true;
-                end
-
-            end % for i
-
-            ids = obj.tableBatch.id(mask);
+            ids = obj.batchCollection().finishedIds();
 
         end % getBatchIDsFinished
 
@@ -178,14 +165,7 @@ classdef Batch < handle
                 id (1, 1) string
             end
 
-            % Get batch configuration
-            idx = find(obj.tableBatch.id == id, 1);
-
-            if isempty(idx)
-                error("Batch ID not found: %s", id);
-            end
-
-            config = obj.tableBatch.config(idx);
+            config = obj.batchCollection().configFor(id);
 
         end % getBatchConfig
 
@@ -681,20 +661,7 @@ classdef Batch < handle
                 ids (1, :) string
             end
 
-            expList = strings(0, 1);
-
-            for i = 1:length(ids)
-
-                idx = find(obj.tableBatch.id == ids(i), 1);
-
-                if isempty(idx)
-                    error("Batch ID not found: %s", ids(i));
-                end
-
-                expName = obj.tableBatch.exp{idx};
-                expList = [expList; string(expName)]; %#ok<AGROW>
-
-            end
+            expList = obj.batchCollection().experimentsFor(ids);
 
         end % getBatchExpList
 
@@ -718,21 +685,7 @@ classdef Batch < handle
                 ids (:, 1) string
             end
 
-            % Initialize status
-            status = strings(length(ids), 1);
-
-            for i = 1:length(ids)
-
-                idx = find(obj.tableBatch.id == ids(i), 1);
-
-                if isempty(idx)
-                    status(i) = "unknown";
-                    continue
-                end
-
-                status(i) = obj.tableBatch.config(idx).status;
-
-            end
+            status = obj.batchCollection().statusesFor(ids);
 
         end % getBatchStatus
 
@@ -775,21 +728,9 @@ classdef Batch < handle
                 config struct
             end
 
-            % Get index of ids in obj.tableBatch.id
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids);
-
-            if length(idx) ~= length(ids)
-                error("Batch ID not found: %s", ids);
-            end
-
-            for i = 1:length(ids)
-
-                % Update batch configuration
-                configFilled = ...
-                    openmebius.domain.batch.BatchConfig.normalize(config);
-                obj.tableBatch.config(idx(i)) = configFilled;
-
-            end % for i
+            collection = obj.batchCollection();
+            collection.replaceConfigs(ids, config);
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, ids);
 
@@ -1091,31 +1032,9 @@ classdef Batch < handle
                 status (1, 1) string
             end
 
-            % Update batch configuration status
-            idx = find(obj.tableBatch.id == ids);
-
-            if length(idx) ~= length(ids)
-                error("Batch ID not found: %s", ids);
-            end
-
-            for i = 1:length(ids)
-
-                switch status
-                    case 'ready'
-                        obj.tableBatch.config(idx(i)).status = 'ready';
-                    case 'finished'
-                        obj.tableBatch.config(idx(i)).status = 'finished';
-                    case 'error'
-                        obj.tableBatch.config(idx(i)).status = 'error';
-                    case 'warning'
-                        obj.tableBatch.config(idx(i)).status = 'warning';
-                    case 'canceled'
-                        obj.tableBatch.config(idx(i)).status = 'canceled';
-                    otherwise
-                        error("Unknown status: %s", status);
-                end
-
-            end % for i
+            collection = obj.batchCollection();
+            collection.setStatus(ids, status);
+            obj.tableBatch = collection.toTable();
 
         end % updateBatchConfigStatus
 
@@ -1163,23 +1082,9 @@ classdef Batch < handle
                 config struct
             end
 
-            % Ensure config has the same fields as the default config
-            config = openmebius.domain.batch.BatchConfig.normalize(config);
-            id = openmebius.domain.batch.BatchIdentity.newId( ...
-                obj.tableBatch.id);
-
-            row = cell2table( ...
-                {id, name, exp, description, config, ""}, ...
-                'VariableNames', obj.tableBatch.Properties.VariableNames ...
-            );
-            row.Properties.VariableTypes = obj.tableBatch.Properties.VariableTypes;
-
-            % Add batch
-            if isempty(obj.tableBatch)
-                obj.tableBatch = row;
-            else
-                obj.tableBatch = [obj.tableBatch; row];
-            end
+            collection = obj.batchCollection();
+            id = collection.add(name, exp, description, config);
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, id);
 
@@ -1212,15 +1117,9 @@ classdef Batch < handle
                 config struct
             end
 
-            % Edit batch
-            idx = find(obj.tableBatch.id == id, 1);
-
-            if isempty(idx)
-                error("Batch ID not found: %s", id);
-            end
-
             % Fill missing fields with current config
-            currentConfig = obj.tableBatch.config(idx);
+            collection = obj.batchCollection();
+            currentConfig = collection.configFor(id);
             config = openmebius.domain.batch.BatchConfig.fillMissingFields( ...
                 config, ...
                 currentConfig);
@@ -1230,10 +1129,8 @@ classdef Batch < handle
                 nan(length(exp{:}'), 1) ...
             );
 
-            obj.tableBatch.name(idx) = name;
-            obj.tableBatch.exp(idx) = exp;
-            obj.tableBatch.description(idx) = description;
-            obj.tableBatch.config(idx) = config;
+            collection.edit(id, name, exp, description, config);
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, id);
 
@@ -1255,10 +1152,10 @@ classdef Batch < handle
                 id (1, 1) string
             end
 
-            % Remove batch
-            idFinished = getBatchIDsFinished(obj);
+            collection = obj.batchCollection();
+            [removed, reason] = collection.remove(id);
 
-            if any(idFinished == id)
+            if reason == "finished"
 
                 msg = sprintf("Batch ID %s is finished. Cannot remove.", id);
 
@@ -1267,18 +1164,17 @@ classdef Batch < handle
 
             end
 
-            obj.tableBatch(obj.tableBatch.id == id, :) = [];
+            if removed
+                obj.tableBatch = collection.toTable();
+            end
 
         end % removeBatch
 
         function clearBatch(obj)
 
-            % Clear batch
-            tempBatch = obj.tableBatch;
-            ids = getBatchIDsFinished(obj);
-            initTableBatch(obj);
-            tempBatch = tempBatch(ismember(tempBatch.id, ids), :);
-            obj.tableBatch = tempBatch;
+            collection = obj.batchCollection();
+            collection.clearUnfinished();
+            obj.tableBatch = collection.toTable();
 
         end % clearBatch
 
@@ -1443,6 +1339,13 @@ classdef Batch < handle
                 openmebius.infrastructure.batch.BatchJsonMapper.emptyTable();
 
         end % initTableBatch
+
+        function collection = batchCollection(obj)
+
+            collection = openmebius.domain.batch.BatchCollection( ...
+                obj.tableBatch);
+
+        end % batchCollection
 
         function changed = updateContentHash(obj, ids)
 
