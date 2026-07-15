@@ -137,6 +137,10 @@ classdef MFAIterationServiceTest < matlab.unittest.TestCase
                 string(source), 'openmebius.application'));
             testCase.verifyFalse(contains( ...
                 string(source), 'MFAAnalysisRunContext'));
+            testCase.verifyFalse(contains( ...
+                string(source), 'SteadyStateObjective('));
+            testCase.verifyFalse(contains( ...
+                string(source), 'InstationaryObjective('));
 
         end
 
