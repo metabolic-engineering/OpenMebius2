@@ -31,6 +31,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
         MFAInputValidator
         MFAFitStatistics
         MFAExperimentalDataBuilder
+        MFAConstraintBuilder
         EffluxPenaltyFactory
         InstationaryInputFactory
         MFAProblem = []
@@ -154,6 +155,8 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                     openmebius.mfa.MFAFitStatistics()
                 options.MFAExperimentalDataBuilder = ...
                     openmebius.mfa.MFAExperimentalDataBuilder()
+                options.MFAConstraintBuilder = ...
+                    openmebius.mfa.MFAConstraintBuilder()
                 options.EffluxPenaltyFactory = ...
                     openmebius.mfa.EffluxPenaltyFactory()
                 options.InstationaryInputFactory = ...
@@ -221,6 +224,7 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
             obj.MFAFitStatistics = options.MFAFitStatistics;
             obj.MFAExperimentalDataBuilder = ...
                 options.MFAExperimentalDataBuilder;
+            obj.MFAConstraintBuilder = options.MFAConstraintBuilder;
             obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
             obj.InstationaryInputFactory = ...
                 options.InstationaryInputFactory;
@@ -824,31 +828,13 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 SBefore table
             end % arguments
 
-            nRow = size(SBefore, 1);
-            maskEffluxFreeRows = false(nRow, 1);
-
-            if isempty(obj.effluxFree) || ~any(obj.effluxFree)
-                return;
-            end % if
-
-            SType = string(obj.model.getSType());
-            rowName = string(SBefore.Properties.RowNames);
-            nType = min([nRow, length(SType)]);
-
-            idxEffluxRows = find(SType(1:nType) == "efflux");
-            freeSubstrate = obj.subsList(logical(obj.effluxFree(:)));
-
-            for i = 1:length(idxEffluxRows)
-
-                iRow = idxEffluxRows(i);
-                iRxnID = rowName(iRow);
-                iSubstrate = obj.model.getSubstrateNameFromRxnID(iRxnID);
-
-                if any(freeSubstrate == iSubstrate)
-                    maskEffluxFreeRows(iRow) = true;
-                end % if
-
-            end % for
+            maskEffluxFreeRows = ...
+                obj.MFAConstraintBuilder ...
+                .effluxFreeConstraintRowMask( ...
+                obj.model, ...
+                SBefore, ...
+                obj.subsList, ...
+                obj.effluxFree);
 
         end % getEffluxFreeConstraintRowMask
 
@@ -863,37 +849,11 @@ classdef FluxAnalysis < openmebius.infrastructure.logging.MessageState
                 obj (1, 1) FluxAnalysis
             end % arguments
 
-            tmpS = obj.model.getSBefore();
-            RxnName = string(tmpS.Properties.RowNames);
-            SType = string(obj.model.getSType());
-
-            idxBiomass = find(RxnName == "biomass", 1);
-
-            tmpRhs = zeros(size(tmpS, 2), 1);
-            tmpRhs(idxBiomass) = obj.mu;
-
-            % Fixed effluxes are written to the RHS by matching the
-            % efflux-row reaction ID to the substrate name. Effluxes selected
-            % as free variables are removed from the efflux rows by
-            % makeEffluxFree and are therefore left as independent variables.
-            idxEffluxRows = find(SType(1:length(RxnName)) == "efflux");
-
-            for i = 1:length(idxEffluxRows)
-
-                iRow = idxEffluxRows(i);
-                iRxnID = RxnName(iRow);
-                iSubstrate = obj.model.getSubstrateNameFromRxnID(iRxnID);
-                idxSubstrate = find(obj.subsList == iSubstrate, 1);
-
-                if isempty(idxSubstrate)
-                    continue;
-                end
-
-                tmpRhs(iRow) = obj.efflux(idxSubstrate);
-
-            end
-
-            obj.rhs = tmpRhs;
+            obj.rhs = obj.MFAConstraintBuilder.buildRightHandSide( ...
+                obj.model, ...
+                obj.mu, ...
+                obj.subsList, ...
+                obj.efflux);
             rhs = obj.rhs;
 
         end % calculateRHS
