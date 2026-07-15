@@ -130,6 +130,35 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
         end
 
+        function modelEditingUsesValidationReport(testCase)
+
+            repository = openmebius.infrastructure.model.ModelRepository();
+            model = repository.load( ...
+                ModelRepositoryTest.templateModelLocation());
+
+            testCase.verifyFalse(isa( ...
+                model, ...
+                "openmebius.infrastructure.logging.MessageState"));
+            testCase.verifyFalse(isprop(model, "isError"));
+            testCase.verifyFalse(isprop(model, "statusMsg"));
+
+            invalidReport = model.updateModelTableGUI(table());
+
+            testCase.verifyClass( ...
+                invalidReport, ...
+                "openmebius.domain.model.ModelValidationReport");
+            testCase.verifyFalse(invalidReport.IsValid);
+            testCase.verifyNotEmpty(invalidReport.ErrorMessage);
+            testCase.verifyEmpty(invalidReport.InvalidRows);
+
+            validReport = model.updateModelTableGUI( ...
+                model.getModelTableGUI());
+
+            testCase.verifyTrue(validReport.IsValid);
+            testCase.verifyNotEmpty(validReport.Messages);
+
+        end
+
     end
 
     methods (Static, Access = private)

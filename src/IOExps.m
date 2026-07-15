@@ -134,11 +134,6 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                 return
             end
 
-            if obj.objModel.isError
-                obj.isError = true;
-                return;
-            end
-
             obj.tableAtom = obj.objModel.tableAtom;
 
             loadExpFiles(obj);

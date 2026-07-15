@@ -1989,6 +1989,29 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method notifyError
 
+        function showModelValidationReport(app, validationReport)
+
+            arguments
+                app
+                validationReport (1, 1) openmebius.domain.model ...
+                    .ModelValidationReport
+            end
+
+            for i = 1:numel(validationReport.Warnings)
+                app.notifyWarning(validationReport.Warnings(i));
+            end
+
+            if ~validationReport.IsValid
+                app.notifyError(validationReport.ErrorMessage);
+                return
+            end
+
+            for i = 1:numel(validationReport.Messages)
+                app.notifyInfo(validationReport.Messages(i));
+            end
+
+        end % showModelValidationReport
+
         function notifyException(app, exception, options)
 
             arguments
@@ -4695,25 +4718,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.updateStatus("model", "running");
 
                 tableIn = app.ModelTable.Data;
-                app.model.updateModelTableGUI(tableIn);
-
-                errorRows = app.model.getInvalidModelRowIdx();
+                validationReport = app.model.updateModelTableGUI(tableIn);
 
                 resetModelTableColorFormat(app);
 
-                if ~isempty(errorRows)
-                    addStyle(app.ModelTable, app.styleError, 'row', errorRows);
+                if ~isempty(validationReport.InvalidRows)
+                    addStyle( ...
+                        app.ModelTable, ...
+                        app.styleError, ...
+                        'row', ...
+                        validationReport.InvalidRows);
                 end
 
-                if app.model.isError
-                    app.LogTextDate(app.model.statusMsg, "Error");
+                app.showModelValidationReport(validationReport);
+
+                if ~validationReport.IsValid
                     app.updateStatus("model", "error");
 
                     app.finishPresentationEditCommit(false);
                     return
                 end
 
-                app.LogTextDate(app.model.statusMsg, "Info");
                 app.updateStatus("model", "finished");
 
                 app.finishPresentationEditCommit(true);
@@ -4835,31 +4860,37 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 tableMS = app.MSTable.Data;
                 tableAtom = app.AtomTable.Data;
 
-                app.model.updateMSTable(tableMS)
+                msReport = app.model.updateMSTable(tableMS);
                 resetMSTableColorFormat(app)
 
-                errorRows = app.model.getInvalidMSRowIdx();
-
-                if ~isempty(errorRows)
-                    addStyle(app.MSTable, app.styleError, 'row', errorRows);
+                if ~isempty(msReport.InvalidRows)
+                    addStyle( ...
+                        app.MSTable, ...
+                        app.styleError, ...
+                        'row', ...
+                        msReport.InvalidRows);
                 end
 
-                app.model.updateAtomTable(tableAtom)
-                errorRows = app.model.getInvalidAtomRowIdx();
+                atomReport = app.model.updateAtomTable(tableAtom);
 
-                if ~isempty(errorRows)
-                    addStyle(app.AtomTable, app.styleError, 'row', errorRows);
+                if ~isempty(atomReport.InvalidRows)
+                    addStyle( ...
+                        app.AtomTable, ...
+                        app.styleError, ...
+                        'row', ...
+                        atomReport.InvalidRows);
                 end
 
-                if app.model.isError
-                    app.LogText(app.model.statusMsg);
+                app.showModelValidationReport(msReport);
+                app.showModelValidationReport(atomReport);
+
+                if ~msReport.IsValid || ~atomReport.IsValid
                     app.updateStatus("model", "error");
 
                     app.finishPresentationEditCommit(false);
                     return
                 end
 
-                app.LogText(app.model.statusMsg);
                 app.updateStatus("model", "finished");
 
                 app.LogTextDate("MS table saved", "Info");
@@ -5764,7 +5795,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: ExporttemplateExcelfileMenu
         function ExporttemplateExcelfileMenuSelected(app, event)
 
-            if isempty(app.model) || app.model.isError
+            if isempty(app.model) || ~isvalid(app.model)
                 msg = "Model is not loaded. Please load a model before exporting template Excel file.";
                 LogTextDate(app, msg, "Error");
                 return

@@ -1,4 +1,4 @@
-classdef IOModel < openmebius.infrastructure.logging.MessageState
+classdef IOModel < handle
 
     properties
 
@@ -57,11 +57,18 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
         MSMetaboliteProduct table;
         ModelLocation openmebius.domain.model.ModelLocation
         ModelRepository
+        MessagePublisher
+        ValidationErrors (:, 1) string = strings(0, 1)
+        ValidationWarnings (:, 1) string = strings(0, 1)
 
         errorColumnsModel (1, :) double = [];
         errorColumnsMS (1, :) double = [];
         errorColumnsAtom (1, :) double = [];
 
+    end
+
+    properties (Access = protected)
+        logLevel (1, 1) string = "Info"
     end
 
     properties (Dependent)
@@ -99,6 +106,9 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
             obj.ModelLocation = modelLocation;
 
             obj.ModelRepository = options.ModelRepository;
+            obj.MessagePublisher = openmebius.presentation ...
+                .notification.GeneralMessagePublisher( ...
+                LogLevel = obj.logLevel);
 
             obj.ModelRepository.assertModelDirectory(modelLocation);
 
@@ -403,17 +413,11 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
 
             convertLabelViewToStruct(obj);
 
-            try
-                obj.ModelRepository.writeLabel( ...
-                    obj.ModelLocation, ...
-                    obj.fileLabel, ...
-                    obj.fileTypeLabel, ...
-                    obj.structLabel);
-            catch ME
-                obj.isError = true;
-                updateMsg(obj, string(ME.message), "Error", obj.logLevel);
-                return
-            end
+            obj.ModelRepository.writeLabel( ...
+                obj.ModelLocation, ...
+                obj.fileLabel, ...
+                obj.fileTypeLabel, ...
+                obj.structLabel);
 
             reset(obj);
             updateMsg(obj, ...
@@ -739,57 +743,66 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
 
             parseModels(obj);
 
-            if obj.isError
+            if hasValidationErrors(obj)
                 return;
             end
 
             parseMS(obj);
 
-            if obj.isError
+            if hasValidationErrors(obj)
                 return;
             end
 
             listUpMetaboliteAll(obj);
 
-            if obj.isError
-                return;
-            end
-
         end % function reconstructModel
 
-        function updateModelTableGUI(obj, tableIn)
+        function report = updateModelTableGUI(obj, tableIn)
 
             reset(obj);
+            obj.errorColumnsModel = [];
 
             try
                 tableModelIn = tableIn(:, ["Reaction", "Transition", "Independent"]);
                 tableXYIn = tableIn(:, ["x", "y"]);
             catch
-                updateMsg(obj, "The table is not in the correct format.", "Error", obj.logLevel);
-                obj.isError = true;
+                recordValidationError( ...
+                    obj, ...
+                    "The table is not in the correct format.");
+                report = createValidationReport( ...
+                    obj, ...
+                    "", ...
+                    obj.errorColumnsModel);
                 return;
             end
-
-            updateMsg(obj, "The table has been updated successfully.", "Info", obj.logLevel);
 
             obj.tableModel = tableModelIn;
             obj.tableXY = tableXYIn;
 
-            obj.errorColumnsModel = [];
-
             reconstructModel(obj);
+
+            report = createValidationReport( ...
+                obj, ...
+                "The model table has been updated successfully.", ...
+                obj.errorColumnsModel);
 
         end % function updateModelTable
 
-        function updateMSTable(obj, tableIn)
+        function report = updateMSTable(obj, tableIn)
 
             reset(obj);
+            obj.errorColumnsMS = [];
 
             try
                 tableMSIn = tableIn(:, ["Reaction", "Transition"]);
             catch
-                updateMsg(obj, "The table is not in the correct format.", "Error", obj.logLevel);
-                obj.isError = true;
+                recordValidationError( ...
+                    obj, ...
+                    "The table is not in the correct format.");
+                report = createValidationReport( ...
+                    obj, ...
+                    "", ...
+                    obj.errorColumnsMS);
                 return;
             end
 
@@ -797,44 +810,60 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
                 tableMSIn.Used = normalizeMSUsedColumn(obj, tableIn.Used, height(tableMSIn));
             else
                 tableMSIn.Used = true(height(tableMSIn), 1);
-                updateMsg(obj, "The MS table does not contain the 'Used' column. A default 'Used=true' column has been added.", "Warning", obj.logLevel);
+                recordValidationWarning( ...
+                    obj, ...
+                    "The MS table does not contain the 'Used' column. " + ...
+                    "A default 'Used=true' column has been added.");
             end
 
             obj.tableMS = tableMSIn;
-            obj.errorColumnsMS = [];
-
-            updateMsg(obj, "The table has been updated successfully.", "Info", obj.logLevel);
-
             reconstructModel(obj);
+
+            report = createValidationReport( ...
+                obj, ...
+                "The MS table has been updated successfully.", ...
+                obj.errorColumnsMS);
 
         end % method updateMSTable
 
-        function updateAtomTable(obj, tableIn)
+        function report = updateAtomTable(obj, tableIn)
 
             reset(obj);
+            obj.errorColumnsAtom = [];
 
             try
                 obj.tableAtom = tableIn;
             catch
-                updateMsg(obj, "The table is not in the correct format.", "Error", obj.logLevel);
-                obj.isError = true;
+                recordValidationError( ...
+                    obj, ...
+                    "The table is not in the correct format.");
+                report = createValidationReport( ...
+                    obj, ...
+                    "", ...
+                    obj.errorColumnsAtom);
                 return;
             end
-
-            obj.errorColumnsAtom = [];
 
             [tf, errcols] = isValidAtomTable(obj, obj.tableAtom);
 
             if ~tf
-                updateMsg(obj, "The Atom table contains invalid values.", "Error", obj.logLevel);
-                obj.isError = true;
                 obj.errorColumnsAtom = errcols;
+                recordValidationError( ...
+                    obj, ...
+                    "The Atom table contains invalid values.");
+                report = createValidationReport( ...
+                    obj, ...
+                    "", ...
+                    obj.errorColumnsAtom);
                 return;
             end
 
-            updateMsg(obj, "The table has been updated successfully.", "Info", obj.logLevel);
-
             reconstructModel(obj);
+
+            report = createValidationReport( ...
+                obj, ...
+                "The atom table has been updated successfully.", ...
+                obj.errorColumnsAtom);
 
         end % function updateAtomTable
 
@@ -1061,7 +1090,7 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
 
             obj.errorColumnsModel = [obj.errorColumnsModel, err];
 
-            if obj.isError
+            if hasValidationErrors(obj)
                 return;
             end
 
@@ -1095,7 +1124,7 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
 
             obj.errorColumnsMS = [obj.errorColumnsMS, err];
 
-            if obj.isError
+            if hasValidationErrors(obj)
                 return;
             end
 
@@ -1146,22 +1175,26 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
                 end
 
                 if isscalar(iSplitFwd) && isscalar(iSplitRev)
-                    obj.isError = true;
-                    updateMsg(obj, "The reaction " + rxnCol{iRxn} + " does not contain an arrow.", "Error", obj.logLevel);
+                    recordValidationError( ...
+                        obj, ...
+                        "The reaction " + rxnCol{iRxn} + ...
+                        " does not contain an arrow.");
                     err = [err, iRxn]; %#ok<AGROW>
                     continue
                 end
 
                 if numel(iSplitFwd) > 2 || numel(iSplitRev) > 2
-                    obj.isError = true;
-                    updateMsg(obj, "The reaction " + rxnCol{iRxn} + " contains more than one arrow.", "Error", obj.logLevel);
+                    recordValidationError( ...
+                        obj, ...
+                        "The reaction " + rxnCol{iRxn} + ...
+                        " contains more than one arrow.");
                     err = [err, iRxn]; %#ok<AGROW>
                     continue
                 end
 
             end
 
-            if obj.isError
+            if hasValidationErrors(obj)
                 react = cell(numRxn, 1);
                 product = cell(numRxn, 1);
                 rev = false(numRxn, 1);
@@ -1256,8 +1289,10 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
                     [metType, isSymmetric, arrangedMetabolite] = typeMetabolite(obj, reaction{iRxn}{iMetabolite});
 
                     if strcmp(arrangedMetabolite, '')
-                        obj.isError = true;
-                        updateMsg(obj, "The metabolite in the reaction " + iRxn + " is empty.", "Error", obj.logLevel);
+                        recordValidationError( ...
+                            obj, ...
+                            "The metabolite in the reaction " + ...
+                            iRxn + " is empty.");
                         err = [err, iRxn]; %#ok<AGROW>
                         continue
                     end
@@ -1278,17 +1313,15 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
                         try
                             iNumC = numel(transition{iRxn}{iMetabolite});
                         catch
-                            obj.isError = true;
                             msg = "The carbon transition of " + reaction{iRxn}{iMetabolite} + " is not defined.";
-                            updateMsg(obj, msg, "Error", obj.logLevel);
+                            recordValidationError(obj, msg);
                             err = [err, iRxn]; %#ok<AGROW>
                             iNumC = 0;
                         end
 
                         if numCarbon ~= iNumC
-                            obj.isError = true;
                             msg = "The number of carbon in " + reaction{iRxn}{iMetabolite} + " is not consistent.";
-                            updateMsg(obj, msg, "Error", obj.logLevel);
+                            recordValidationError(obj, msg);
                             err = [err, iRxn]; %#ok<AGROW>
                         end
 
@@ -1297,9 +1330,8 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
                         try
                             iNumC = numel(transition{iRxn}{iMetabolite});
                         catch
-                            obj.isError = true;
                             msg = "The carbon transition of " + reaction{iRxn}{iMetabolite} + " is not defined.";
-                            updateMsg(obj, msg, "Error", obj.logLevel);
+                            recordValidationError(obj, msg);
                             err = [err, iRxn]; %#ok<AGROW>
                             iNumC = 0;
                         end
@@ -1383,7 +1415,10 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
 
             catch
                 used = true(numRows, 1);
-                updateMsg(obj, "The MS table 'Used' column could not be converted to logical values. All fragments are selected.", "Warning", obj.logLevel);
+                recordValidationWarning( ...
+                    obj, ...
+                    "The MS table 'Used' column could not be converted " + ...
+                    "to logical values. All fragments are selected.");
             end
 
         end % method normalizeMSUsedColumn
@@ -1397,6 +1432,76 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
 
     methods (Access = protected)
 
+        function updateMsg(obj, text, level, ~)
+
+            obj.MessagePublisher.write(lower(string(level)), string(text));
+
+        end % updateMsg
+
+        function reset(obj)
+
+            obj.ValidationErrors = strings(0, 1);
+            obj.ValidationWarnings = strings(0, 1);
+
+        end % reset
+
+        function recordValidationError(obj, message)
+
+            message = string(message);
+            obj.ValidationErrors(end + 1, 1) = message;
+            updateMsg(obj, message, "Error", obj.logLevel);
+
+        end % recordValidationError
+
+        function recordValidationWarning(obj, message)
+
+            message = string(message);
+            obj.ValidationWarnings(end + 1, 1) = message;
+            updateMsg(obj, message, "Warning", obj.logLevel);
+
+        end % recordValidationWarning
+
+        function tf = hasValidationErrors(obj)
+
+            tf = ~isempty(obj.ValidationErrors);
+
+        end % hasValidationErrors
+
+        function report = createValidationReport( ...
+                obj, successMessage, invalidRows)
+
+            arguments
+                obj
+                successMessage (1, 1) string
+                invalidRows double = zeros(0, 1)
+            end
+
+            warnings = unique(obj.ValidationWarnings, "stable");
+
+            if hasValidationErrors(obj)
+                errorMessage = join( ...
+                    unique(obj.ValidationErrors, "stable"), ...
+                    newline);
+                report = openmebius.domain.model ...
+                    .ModelValidationReport.failure( ...
+                    errorMessage, ...
+                    Warnings = warnings, ...
+                    InvalidRows = invalidRows(:));
+                return
+            end
+
+            if successMessage ~= ""
+                updateMsg(obj, successMessage, "Info", obj.logLevel);
+            end
+
+            report = openmebius.domain.model ...
+                .ModelValidationReport.success( ...
+                successMessage, ...
+                Warnings = warnings, ...
+                InvalidRows = invalidRows(:));
+
+        end % createValidationReport
+
         function throwIfConstructionFailed(obj, identifier, fallbackMessage)
 
             arguments
@@ -1405,11 +1510,13 @@ classdef IOModel < openmebius.infrastructure.logging.MessageState
                 fallbackMessage (1, 1) string
             end
 
-            if ~obj.isError
+            if ~hasValidationErrors(obj)
                 return
             end
 
-            message = obj.msg;
+            message = join( ...
+                unique(obj.ValidationErrors, "stable"), ...
+                newline);
 
             if message == ""
                 message = fallbackMessage;

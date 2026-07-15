@@ -106,7 +106,7 @@ classdef FluxAnalysis < handle
             obj.model = model;
             obj.exps = experiments;
 
-            if obj.model.isError || obj.exps.isError
+            if obj.exps.isError
                 obj.isError = true;
                 return;
             end

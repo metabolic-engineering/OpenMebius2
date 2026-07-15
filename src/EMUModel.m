@@ -1082,7 +1082,9 @@ classdef EMUModel < Stoichiometry
             [~, isError] = listupEMUs(obj);
 
             if isError
-                obj.isError = true;
+                recordValidationError( ...
+                    obj, ...
+                    "The EMU network contains invalid MS reactions.");
                 return;
             end % if isError
 
