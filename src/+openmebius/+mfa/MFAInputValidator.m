@@ -34,20 +34,10 @@ classdef MFAInputValidator
 
             try
                 stoichiometry = model.getSBefore();
-                reactionIDs = string( ...
-                    stoichiometry.Properties.RowNames(:));
-                reactionTypes = string(model.getSType());
-                reactionTypes = reactionTypes(:);
-
-                if numel(reactionIDs) ~= numel(reactionTypes)
-                    result = openmebius.mfa ...
-                        .MFAInputValidationResult.failure( ...
-                        "Reaction identifiers and types do not match.");
-                    return;
-                end
-
+                metadata = openmebius.mfa.MFAConstraintMetadata ...
+                    .fromModel(model, stoichiometry);
                 effluxReactionIDs = ...
-                    reactionIDs(reactionTypes == "efflux");
+                    metadata.reactionIDsOfType("efflux");
                 substrates = strings(numel(effluxReactionIDs), 1);
 
                 for i = 1:numel(effluxReactionIDs)

@@ -32,9 +32,10 @@ classdef MFAConstraintBuilder
             end
 
             stoichiometry = model.getSBefore();
-            [reactionIDs, reactionTypes] = ...
-                openmebius.mfa.MFAConstraintBuilder ...
-                .constraintMetadata(model, stoichiometry);
+            metadata = openmebius.mfa.MFAConstraintMetadata ...
+                .fromModel(model, stoichiometry);
+            reactionIDs = metadata.ReactionIDs;
+            reactionTypes = metadata.ReactionTypes;
             biomassIndex = find(reactionIDs == "biomass", 1);
 
             if isempty(biomassIndex)
@@ -101,9 +102,10 @@ classdef MFAConstraintBuilder
                     "The free-efflux mask must match the substrate list.");
             end
 
-            [reactionIDs, reactionTypes] = ...
-                openmebius.mfa.MFAConstraintBuilder ...
-                .constraintMetadata(model, stoichiometry);
+            metadata = openmebius.mfa.MFAConstraintMetadata ...
+                .fromModel(model, stoichiometry);
+            reactionIDs = metadata.ReactionIDs;
+            reactionTypes = metadata.ReactionTypes;
             freeSubstrates = substrateList(freeMask);
             effluxRows = find(reactionTypes == "efflux");
 
@@ -117,37 +119,5 @@ classdef MFAConstraintBuilder
         end % effluxFreeConstraintRowMask
 
     end % methods
-
-    methods (Static, Access = private)
-
-        function [reactionIDs, reactionTypes] = ...
-                constraintMetadata(model, stoichiometry)
-
-            reactionIDs = string(stoichiometry.Properties.RowNames);
-            reactionIDs = reactionIDs(:);
-            reactionTypes = string(model.getSType());
-            reactionTypes = reactionTypes(:);
-            rowCount = size(stoichiometry, 1);
-
-            if numel(reactionIDs) ~= rowCount
-                error( ...
-                    "OpenMebius2:MFAConstraintBuilder:" + ...
-                    "MissingConstraintIdentifiers", ...
-                    "Each stoichiometry row must have an identifier.");
-            end
-
-            if numel(reactionTypes) < rowCount
-                error( ...
-                    "OpenMebius2:MFAConstraintBuilder:" + ...
-                    "ConstraintTypeDimensionMismatch", ...
-                    "The model must provide a type for every " + ...
-                    "stoichiometry constraint.");
-            end
-
-            reactionTypes = reactionTypes(1:rowCount);
-
-        end % constraintMetadata
-
-    end % methods (Static, Access = private)
 
 end % classdef

@@ -28,6 +28,12 @@ classdef FluxVariabilityModelStub
 
         end
 
+        function value = getConstraintTypes(~)
+
+            value = ["dependent"; "efflux"; "dependent"];
+
+        end
+
         function value = getIdxRev(~)
 
             value = [2; 3];

@@ -46,6 +46,24 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
         end
 
+        function loadedModelExposesAlignedConstraintTypes(testCase)
+
+            repository = openmebius.infrastructure.model.ModelRepository();
+            model = repository.load( ...
+                ModelRepositoryTest.templateModelLocation());
+            constraintTypes = string(model.getConstraintTypes());
+            systemTypes = string(model.getSType());
+
+            testCase.verifyEqual( ...
+                numel(constraintTypes), height(model.getSBefore()));
+            testCase.verifyEqual( ...
+                numel(systemTypes), height(model.getS()));
+            testCase.verifyEqual( ...
+                constraintTypes(:), ...
+                systemTypes(1:numel(constraintTypes)));
+
+        end
+
         function loadRejectsMissingModelDirectory(testCase)
 
             repository = openmebius.infrastructure.model.ModelRepository();

@@ -2,10 +2,26 @@ classdef FluxVariabilitySolver
     % FLUXVARIABILITYSOLVER
     % Solves flux-wise linear programs without model or UI dependencies.
 
+    properties (Access = private)
+        BoundNormalizer openmebius.mfa.FluxBoundNormalizer
+    end
+
     methods
 
+        function obj = FluxVariabilitySolver(options)
+
+            arguments
+                options.BoundNormalizer (1, 1) ...
+                    openmebius.mfa.FluxBoundNormalizer = ...
+                    openmebius.mfa.FluxBoundNormalizer()
+            end
+
+            obj.BoundNormalizer = options.BoundNormalizer;
+
+        end % constructor
+
         function result = solve( ...
-                ~, ...
+                obj, ...
                 equalityMatrix, ...
                 equalityRightHandSide, ...
                 lowerBounds, ...
@@ -13,7 +29,7 @@ classdef FluxVariabilitySolver
                 reverseCounterpartIndices)
 
             arguments
-                ~
+                obj
                 equalityMatrix double
                 equalityRightHandSide (:, 1) double
                 lowerBounds (:, 1) double
@@ -86,6 +102,10 @@ classdef FluxVariabilitySolver
                         -fluxLowerBounds(iFlux);
                 end
             end
+
+            [fluxLowerBounds, fluxUpperBounds] = ...
+                obj.BoundNormalizer.normalize( ...
+                fluxLowerBounds, fluxUpperBounds);
 
             result = openmebius.mfa.FluxVariabilityResult( ...
                 UpperBounds = fluxUpperBounds, ...

@@ -102,6 +102,21 @@ classdef Stoichiometry < IOModel
             Stype = obj.Stype;
         end % getStype
 
+        function constraintTypes = getConstraintTypes(obj)
+            % GETCONSTRAINTTYPES Types aligned with rows of SBefore.
+
+            rowCount = height(obj.SBefore);
+
+            if numel(obj.Stype) < rowCount
+                error( ...
+                    "OpenMebius2:Stoichiometry:MissingConstraintTypes", ...
+                    "The model does not provide a type for every constraint.");
+            end
+
+            constraintTypes = obj.Stype(1:rowCount);
+
+        end % getConstraintTypes
+
         function idx = getIdxRev(obj)
             idx = obj.idxRev;
         end % getIdxRev

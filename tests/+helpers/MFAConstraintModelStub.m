@@ -4,6 +4,8 @@ classdef MFAConstraintModelStub
         Stoichiometry table
         SystemTypes (:, 1) string = ...
             ["dependent"; "efflux"; "efflux"; "independent"]
+        ConstraintTypes (:, 1) string = ...
+            ["dependent"; "efflux"; "efflux"]
     end
 
     methods
@@ -26,6 +28,12 @@ classdef MFAConstraintModelStub
         function value = getSType(obj)
 
             value = obj.SystemTypes;
+
+        end
+
+        function value = getConstraintTypes(obj)
+
+            value = obj.ConstraintTypes;
 
         end
 

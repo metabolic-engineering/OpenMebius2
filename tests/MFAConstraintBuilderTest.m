@@ -84,13 +84,13 @@ classdef MFAConstraintBuilderTest < matlab.unittest.TestCase
 
             builder = openmebius.mfa.MFAConstraintBuilder();
             model = helpers.MFAConstraintModelStub();
-            model.SystemTypes = ["dependent"; "efflux"];
+            model.ConstraintTypes = ["dependent"; "efflux"];
 
             testCase.verifyError( ...
                 @() builder.buildRightHandSide( ...
                 model, 0.2, ["A"; "B"], [10; 3]), ...
-                "OpenMebius2:MFAConstraintBuilder:" + ...
-                "ConstraintTypeDimensionMismatch");
+                "OpenMebius2:MFAConstraintMetadata:" + ...
+                "TypeDimensionMismatch");
 
         end
 

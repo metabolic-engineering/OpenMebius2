@@ -21,6 +21,12 @@ classdef MFAInputValidationModelStub
 
         function reactionTypes = getSType(obj)
 
+            reactionTypes = [obj.ReactionTypes; "independent"];
+
+        end
+
+        function reactionTypes = getConstraintTypes(obj)
+
             reactionTypes = obj.ReactionTypes;
 
         end
