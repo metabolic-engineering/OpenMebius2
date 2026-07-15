@@ -82,34 +82,24 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
 
         end
 
-        function deletesOnlyArtifactsForRunnableEntry(testCase)
+        function deletesArtifactsOnlyWhenRequested(testCase)
 
-            directory = string(tempname);
-            mkdir(directory);
-            cleanup = onCleanup(@() ...
-                BatchExecutionCoordinatorTest.removeDirectory(directory));
-            resultLocation = openmebius.domain.result.ResultLocation ...
-                .fromDirectory(directory);
-            artifacts = resultLocation.resultArtifactFiles("bat_1");
-            BatchExecutionCoordinatorTest.writeFile(artifacts(1));
-            BatchExecutionCoordinatorTest.writeFile(artifacts(2));
-            unrelatedFile = resultLocation.reportFile("summary.html");
-            BatchExecutionCoordinatorTest.writeFile(unrelatedFile);
-            batchTable = BatchExecutionCoordinatorTest.batchTable("ready");
+            batchTable = BatchExecutionCoordinatorTest.batchTable( ...
+                ["ready", "ready"]);
             batchTable.config(1).deleteResultFile = true;
-            coordinator = ...
-                BatchExecutionCoordinatorTest.createCoordinator("finished");
+            [coordinator, ~, artifactRepository] = ...
+                BatchExecutionCoordinatorTest.createCoordinator( ...
+                ["finished", "finished"]);
 
             coordinator.run( ...
                 batchTable, ...
                 struct, ...
                 struct, ...
-                resultLocation, ...
+                BatchExecutionCoordinatorTest.resultLocation(), ...
                 BatchExecutionCoordinatorTest.provenances(batchTable));
 
-            testCase.verifyFalse(isfile(artifacts(1)));
-            testCase.verifyFalse(isfile(artifacts(2)));
-            testCase.verifyTrue(isfile(unrelatedFile));
+            testCase.verifyEqual( ...
+                artifactRepository.DeletedBatchIds, "bat_1");
 
         end
 
@@ -182,11 +172,15 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
 
     methods (Static, Access = private)
 
-        function [coordinator, runService] = createCoordinator(statuses)
+        function [coordinator, runService, artifactRepository] = ...
+                createCoordinator(statuses)
 
             runService = helpers.BatchRunServiceQueueStub(statuses);
+            artifactRepository = helpers.ResultArtifactRepositoryStub();
             coordinator = openmebius.application.batch ...
-                .BatchExecutionCoordinator(RunService = runService);
+                .BatchExecutionCoordinator( ...
+                RunService = runService, ...
+                ArtifactRepository = artifactRepository);
 
         end
 
@@ -233,24 +227,6 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
 
             location = openmebius.domain.result.ResultLocation ...
                 .fromDirectory(string(tempdir));
-
-        end
-
-        function writeFile(path)
-
-            fid = fopen(path, 'w');
-            assert(fid >= 0, "Unable to create test file: " + path);
-            cleanup = onCleanup(@() fclose(fid));
-            fprintf(fid, 'test');
-            clear cleanup
-
-        end
-
-        function removeDirectory(directory)
-
-            if isfolder(directory)
-                rmdir(directory, 's');
-            end
 
         end
 

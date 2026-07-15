@@ -3,6 +3,7 @@ classdef BatchExecutionCoordinator
 
     properties (SetAccess = private)
         RunService
+        ArtifactRepository
     end
 
     methods
@@ -12,9 +13,13 @@ classdef BatchExecutionCoordinator
             arguments
                 options.RunService = ...
                     openmebius.application.batch.BatchRunService()
+                options.ArtifactRepository = ...
+                    openmebius.infrastructure.result ...
+                    .ResultArtifactRepository()
             end
 
             obj.RunService = options.RunService;
+            obj.ArtifactRepository = options.ArtifactRepository;
 
         end % constructor
 
@@ -67,7 +72,7 @@ classdef BatchExecutionCoordinator
                 end
 
                 if batchTable.config(i).deleteResultFile
-                    obj.deleteResultArtifacts( ...
+                    obj.ArtifactRepository.deleteBatchArtifacts( ...
                         resultLocation, batchTable.id(i));
                 end
 
@@ -115,21 +120,5 @@ classdef BatchExecutionCoordinator
         end % run
 
     end % methods
-
-    methods (Static, Access = private)
-
-        function deleteResultArtifacts(resultLocation, batchId)
-
-            artifacts = resultLocation.resultArtifactFiles(batchId);
-
-            for i = 1:numel(artifacts)
-                if isfile(artifacts(i))
-                    delete(artifacts(i));
-                end
-            end
-
-        end % deleteResultArtifacts
-
-    end % methods (Static, Access = private)
 
 end % classdef
