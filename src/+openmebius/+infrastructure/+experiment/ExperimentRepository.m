@@ -2,7 +2,22 @@ classdef ExperimentRepository < handle
     % EXPERIMENTREPOSITORY
     % Filesystem-backed repository for experiment workbook files.
 
+    properties (Access = private)
+        DerivedDataRestorer
+    end
+
     methods
+
+        function obj = ExperimentRepository(options)
+
+            arguments
+                options.DerivedDataRestorer = openmebius.domain.experiment ...
+                    .ExperimentDerivedDataRestorer()
+            end
+
+            obj.DerivedDataRestorer = options.DerivedDataRestorer;
+
+        end % constructor
 
         function experiments = load(obj, experimentLocation, model)
 
@@ -47,6 +62,32 @@ classdef ExperimentRepository < handle
             end
 
         end % initialize
+
+        function result = restoreDerivedData(obj, workbook, model)
+
+            arguments
+                obj
+                workbook
+                model
+            end
+
+            modelMSTable = table();
+            targetMetabolites = strings(0, 1);
+
+            if ~isempty(workbook.tableMDVBiomass)
+                modelMSTable = model.getMSTable();
+                targetMetabolites = model.getTargetMetaboliteList();
+            end
+
+            result = obj.DerivedDataRestorer.restore( ...
+                MSNormalized = workbook.tableMSNormalized, ...
+                MDV = workbook.tableMDV, ...
+                MDVBiomass = workbook.tableMDVBiomass, ...
+                Enrichment = workbook.tableEnrichment, ...
+                ModelMSTable = modelMSTable, ...
+                TargetMetabolites = targetMetabolites);
+
+        end % restoreDerivedData
 
         function assertExperimentDirectory(~, experimentLocation)
 
