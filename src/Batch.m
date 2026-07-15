@@ -1431,7 +1431,7 @@ classdef Batch < handle
 
                 obj.attachFluxAnalysisListeners(mfa);
                 runMetadataCleanup = ...
-                    onCleanup(@() mfa.finalizeRunMetadata());
+                    onCleanup(@() mfa.finalizeRun());
 
                 % Calculate flux distribution
                 mfa.calculateFluxDistribution();
