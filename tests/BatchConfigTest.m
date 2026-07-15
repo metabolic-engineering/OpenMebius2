@@ -96,6 +96,31 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
         end % validateRejectsInvalidLogical
 
+        function validateAllowsUnsetEffluxStandardDeviation(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.efflux.selection = false;
+            config.efflux.substrate = "A";
+            config.efflux.substrateSD = NaN;
+
+            testCase.verifyWarningFree( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config));
+
+        end % validateAllowsUnsetEffluxStandardDeviation
+
+        function validateRejectsInfiniteEffluxStandardDeviation(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.efflux.selection = true;
+            config.efflux.substrate = "A";
+            config.efflux.substrateSD = Inf;
+
+            testCase.verifyError( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config), ...
+                'OpenMebius2:BatchConfig:InvalidFiniteNumber');
+
+        end % validateRejectsInfiniteEffluxStandardDeviation
+
         function mapperRejectsInvalidBatchConfig(testCase)
 
             batchData = struct( ...

@@ -80,6 +80,17 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
 
         end
 
+        function replacesSingleConfigByStableId(testCase)
+
+            collection = BatchCollectionTest.emptyCollection();
+            id = BatchCollectionTest.addDefault(collection, "A");
+
+            collection.replaceConfig(id, struct('iteration', 11));
+
+            testCase.verifyEqual(collection.configFor(id).iteration, 11);
+
+        end
+
         function removeAndClearPreserveFinishedEntries(testCase)
 
             collection = BatchCollectionTest.emptyCollection();

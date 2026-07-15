@@ -190,16 +190,10 @@ classdef Batch < handle
             end
 
             isCustomFragment = false(1, length(ids));
+            collection = obj.batchCollection();
 
             for i = 1:length(ids)
-
-                idx = find(obj.tableBatch.id == ids(i), 1);
-
-                if isempty(idx)
-                    error("Batch ID not found: %s", ids(i));
-                end
-
-                config = obj.tableBatch.config(idx);
+                config = collection.configFor(ids(i));
 
                 % Field check
                 if ~isfield(config, 'isSelectMSFragment')
@@ -247,16 +241,13 @@ classdef Batch < handle
 
             expDefault = obj.model.getMSTable();
             expDefaultMask = expDefault.Used;
-
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
-
             tableRtn = table.empty(0, 0);
+            collection = obj.batchCollection();
 
             for i = 1:length(ids)
 
                 % Get batch configuration
-                config = obj.tableBatch.config(idx(i));
+                config = collection.configFor(ids(i));
                 expListFromBatch = getBatchExpList(obj, ids(i));
 
                 % Get custom fragment table
@@ -301,13 +292,7 @@ classdef Batch < handle
             expDefault = obj.model.getMSTable();
             defaultFragmentNames = string(expDefault.Properties.RowNames(:));
             expDefaultMask = logical(expDefault.Used(:));
-
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
-
-            if numel(idx) ~= numel(ids)
-                error("Batch ID not found: %s", ids);
-            end
+            collection = obj.batchCollection();
 
             selections = repmat( ...
                 struct( ...
@@ -320,7 +305,7 @@ classdef Batch < handle
                 numel(ids));
 
             for i = 1:numel(ids)
-                config = obj.tableBatch.config(idx(i));
+                config = collection.configFor(ids(i));
                 expListFromBatch = string(obj.getBatchExpList(ids(i))).';
 
                 selections(i).BatchID = ids(i);
@@ -377,14 +362,14 @@ classdef Batch < handle
                 return
             end
 
-            idx = find(obj.tableBatch.id == ids(1), 1);
+            collection = obj.batchCollection();
 
-            if isempty(idx)
+            if collection.statusesFor(ids(1)) == "unknown"
                 warning("Batch ID not found: %s", ids(1));
                 return
             end
 
-            config = obj.tableBatch.config(idx);
+            config = collection.configFor(ids(1));
 
             currentSelection = logical(config.efflux.selection(:));
             currentSubstrate = string(config.efflux.substrate(:));
@@ -455,32 +440,35 @@ classdef Batch < handle
             end
 
             % If exists, return the suggestion table of the first ID
+            collection = obj.batchCollection();
+
             for i = 1:length(ids)
-
-                idx = find(obj.tableBatch.id == ids(i), 1);
-
-                if isempty(idx)
-                    error("Batch ID not found: %s", ids(i));
-                end
-
-                config = obj.tableBatch.config(idx);
+                config = collection.configFor(ids(i));
 
                 if isfield(config, 'suggestionTable') && ~isempty(config.suggestionTable)
-                    suggestionTableCell = config.suggestionTable;
-                    suggestionTableVarNames = config.suggestionTableVarNames;
-                    numSuggestions = length(suggestionTableCell);
+                    suggestionValues = string(config.suggestionTable);
+                    suggestionVariableNames = ...
+                        string(config.suggestionTableVarNames(:)).';
 
-                    tableRtn = table( ...
-                        'Size', [numSuggestions, length(suggestionTableVarNames)], ...
-                        'VariableNames', suggestionTableVarNames, ...
-                        'VariableTypes', repmat({'string'}, 1, length(suggestionTableVarNames)) ...
-                    );
+                    if size(suggestionValues, 2) ~= ...
+                            numel(suggestionVariableNames)
+                        error( ...
+                            "OpenMebius2:Batch:InvalidSuggestionTable", ...
+                            "Suggestion table columns do not match its " + ...
+                            "variable names.");
+                    end
 
-                    for iSuggestion = 1:numSuggestions
+                    tableRtn = array2table( ...
+                        suggestionValues, ...
+                        'VariableNames', ...
+                        cellstr(suggestionVariableNames));
+                    suggestionRowNames = ...
+                        string(config.suggestionTableRowNames(:));
 
-                        iData = suggestionTableCell{iSuggestion}';
-                        tableRtn{iSuggestion, :} = iData;
-
+                    if numel(suggestionRowNames) == height(tableRtn) && ...
+                            all(strlength(suggestionRowNames) > 0)
+                        tableRtn.Properties.RowNames = ...
+                            cellstr(suggestionRowNames);
                     end
 
                     % Filter columns
@@ -493,7 +481,8 @@ classdef Batch < handle
 
                         if ~ismember(tracerPattern{j}, tableRtn.Properties.VariableNames)
 
-                            tableRtn.(tracerPattern{j}) = repmat({""}, height(tableRtn), 1);
+                            tableRtn.(tracerPattern{j}) = ...
+                                strings(height(tableRtn), 1);
 
                         end
 
@@ -515,7 +504,7 @@ classdef Batch < handle
                 'Size', [0, length(tracerPattern)], ...
                 'VariableNames', tracerPattern, ...
                 'RowNames', string([]), ...
-                'VariableTypes', repmat({'cell'}, 1, length(tracerPattern)) ...
+                'VariableTypes', repmat({'string'}, 1, length(tracerPattern)) ...
             );
 
         end % getBatchSuggestionTable
@@ -547,15 +536,15 @@ classdef Batch < handle
                 return
             end
 
-            idx = find(obj.tableBatch.id == ids(1), 1);
+            collection = obj.batchCollection();
 
-            if isempty(idx)
+            if collection.statusesFor(ids(1)) == "unknown"
                 warning("Batch ID not found: %s", ids(1));
                 tableRtn = table();
                 return
             end
 
-            config = obj.tableBatch.config(idx);
+            config = collection.configFor(ids(1));
 
             poolSize = config.INSTMFA.poolSize;
             metabolites = config.INSTMFA.poolMetabolite;
@@ -614,15 +603,15 @@ classdef Batch < handle
                 return
             end
 
-            idx = find(obj.tableBatch.id == ids(1), 1);
+            collection = obj.batchCollection();
 
-            if isempty(idx)
+            if collection.statusesFor(ids(1)) == "unknown"
                 warning("Batch ID not found: %s", ids(1));
                 tableRtn = table();
                 return
             end
 
-            config = obj.tableBatch.config(idx);
+            config = collection.configFor(ids(1));
 
             if ~config.isINSTMFA
                 warning("INST-MFA is not enabled for batch ID: %s", ids(1));
@@ -745,60 +734,15 @@ classdef Batch < handle
                 selections (1, :) struct
             end
 
-            requiredFields = ["BatchID", "ExperimentNames", "FragmentNames", "Selection"];
-
-            for fieldName = requiredFields
-                if ~isfield(selections, fieldName)
-                    error( ...
-                        "OpenMebius2:Batch:InvalidMSFragmentSelection", ...
-                        "MS fragment selection is missing field %s.", ...
-                        fieldName);
-                end
-            end
-
             expDefaultTable = obj.model.getMSTable();
             defaultFragmentNames = string(expDefaultTable.Properties.RowNames(:));
             expDefaultMask = logical(expDefaultTable.Used(:));
-            ids = strings(1, numel(selections));
-
-            for i = 1:numel(selections)
-                selection = selections(i);
-                id = string(selection.BatchID);
-                idx = find(obj.tableBatch.id == id, 1);
-
-                if isempty(idx)
-                    error("Batch ID not found: %s", id);
-                end
-
-                expList = string(selection.ExperimentNames(:)).';
-                fragmentNames = string(selection.FragmentNames(:));
-                selectionData = logical(selection.Selection);
-
-                if size(selectionData, 1) ~= numel(fragmentNames) || ...
-                        size(selectionData, 2) ~= numel(expList)
-                    error( ...
-                        "OpenMebius2:Batch:InvalidMSFragmentSelection", ...
-                        "MS fragment selection size does not match fragments and experiments.");
-                end
-
-                defaultSelection = repmat(expDefaultMask, 1, size(selectionData, 2));
-                isDefault = ...
-                    isequal(fragmentNames, defaultFragmentNames) && ...
-                    isequal(selectionData, defaultSelection);
-
-                obj.tableBatch.config(idx).isSelectMSFragment = ~isDefault;
-
-                if isDefault
-                    obj.tableBatch.config(idx).MS.fragment = 'all';
-                else
-                    obj.tableBatch.config(idx).MS.fragment = 'custom';
-                end
-
-                obj.tableBatch.config(idx).MS.customFragment = selectionData;
-                obj.tableBatch.config(idx).MS.fragmentList = fragmentNames;
-                obj.tableBatch.config(idx).MS.expList = expList;
-                ids(i) = id;
-            end
+            [editor, collection] = obj.batchConfigEditor();
+            ids = editor.applyMSFragmentSelections( ...
+                selections, ...
+                defaultFragmentNames, ...
+                expDefaultMask);
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, ids);
 
@@ -856,14 +800,6 @@ classdef Batch < handle
                 expFrag table
             end
 
-            % Update batch configuration for custom fragments
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
-
-            if length(idx) ~= length(ids)
-                error("Batch ID not found: %s", ids);
-            end
-
             selections = repmat( ...
                 struct( ...
                     'BatchID', "", ...
@@ -908,50 +844,13 @@ classdef Batch < handle
                 tableEffluxSD table
             end
 
-            % Update batch configuration efflux standard deviation
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
-
-            if length(idx) ~= length(ids)
-                error("Batch ID not found: %s", ids);
-            end
-
             newSelection = logical(tableEffluxSD.Selection(:));
             newSubstrate = string(tableEffluxSD.Properties.RowNames);
             newSubstrateSD = double(tableEffluxSD.SD(:));
-
-            for i = 1:length(idx)
-
-                currentConfig = obj.tableBatch.config(idx(i));
-                currentSelection = currentConfig.efflux.selection(:);
-                currentSubstrate = string(currentConfig.efflux.substrate(:));
-                currentSubstrateSD = currentConfig.efflux.substrateSD(:);
-
-                [~, iaNew, iaCurrent] = intersect(newSubstrate, currentSubstrate);
-
-                updatedSelection = currentSelection;
-                updatedSubstrateSD = currentSubstrateSD;
-
-                updatedSelection(iaCurrent) = newSelection(iaNew);
-                updatedSubstrateSD(iaCurrent) = newSubstrateSD(iaNew);
-
-                % Add new substrates
-                substrateToAdd = setdiff(newSubstrate, currentSubstrate);
-                mask = ismember(newSubstrate, substrateToAdd);
-                updatedSelection = [updatedSelection; newSelection(mask)];
-                updatedSubstrateSD = [updatedSubstrateSD; newSubstrateSD(mask)];
-                updatedSubstrate = [currentSubstrate; newSubstrate(mask)];
-
-                % Sort by substrate name
-                [updatedSubstrate, sortIdx] = sort(updatedSubstrate);
-                updatedSelection = updatedSelection(sortIdx);
-                updatedSubstrateSD = updatedSubstrateSD(sortIdx);
-
-                obj.tableBatch.config(idx(i)).efflux.selection = updatedSelection;
-                obj.tableBatch.config(idx(i)).efflux.substrate = updatedSubstrate;
-                obj.tableBatch.config(idx(i)).efflux.substrateSD = updatedSubstrateSD;
-
-            end % for i
+            [editor, collection] = obj.batchConfigEditor();
+            editor.applyEfflux( ...
+                ids, newSelection, newSubstrate, newSubstrateSD);
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, ids);
 
@@ -982,16 +881,8 @@ classdef Batch < handle
                 suggestionTable table
             end
 
-            % Update batch configuration suggestion table
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
-
-            if length(idx) ~= length(ids)
-                error("Batch ID not found: %s", ids);
-            end
-
             % Table to strings
-            suggestionTableCell = suggestionTable{:, :};
+            suggestionTableCell = table2cell(suggestionTable);
             isEmpty = cellfun(@(x) isempty(x), suggestionTableCell);
             suggestionTableCell(isEmpty) = {""};
 
@@ -1001,14 +892,13 @@ classdef Batch < handle
             suggestionTable = suggestionTable(rowMask, :);
 
             suggestionTableCell = string(suggestionTableCell);
-
-            for i = 1:length(ids)
-
-                obj.tableBatch.config(idx(i)).suggestionTable = suggestionTableCell;
-                obj.tableBatch.config(idx(i)).suggestionTableRowNames = suggestionTable.Properties.RowNames;
-                obj.tableBatch.config(idx(i)).suggestionTableVarNames = suggestionTable.Properties.VariableNames;
-
-            end % for i
+            [editor, collection] = obj.batchConfigEditor();
+            editor.applySuggestion( ...
+                ids, ...
+                suggestionTableCell, ...
+                string(suggestionTable.Properties.RowNames(:)), ...
+                string(suggestionTable.Properties.VariableNames));
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, ids);
 
@@ -1346,6 +1236,13 @@ classdef Batch < handle
                 obj.tableBatch);
 
         end % batchCollection
+
+        function [editor, collection] = batchConfigEditor(obj)
+
+            collection = obj.batchCollection();
+            editor = openmebius.domain.batch.BatchConfigEditor(collection);
+
+        end % batchConfigEditor
 
         function changed = updateContentHash(obj, ids)
 

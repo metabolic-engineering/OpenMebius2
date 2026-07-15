@@ -121,6 +121,19 @@ classdef BatchCollection < handle
 
         end % replaceConfigs
 
+        function replaceConfig(obj, id, config)
+
+            arguments
+                obj (1, 1) openmebius.domain.batch.BatchCollection
+                id (1, 1) string
+                config (1, 1) struct
+            end
+
+            config = openmebius.domain.batch.BatchConfig.normalize(config);
+            obj.TableData.config(obj.indexOf(id)) = config;
+
+        end % replaceConfig
+
         function setStatus(obj, ids, status)
 
             arguments
