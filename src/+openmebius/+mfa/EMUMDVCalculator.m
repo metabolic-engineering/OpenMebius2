@@ -20,6 +20,97 @@ classdef EMUMDVCalculator
 
         end % calculate
 
+        function mdv = calculateTimeCourse( ...
+                obj, snapshot, flux, substrateEMU, poolSize, timeSpan)
+
+            arguments
+                obj
+                snapshot (1, 1) openmebius.domain.model.EMUNetworkSnapshot
+                flux double
+                substrateEMU double
+                poolSize double
+                timeSpan double
+            end
+
+            [an, bn] = obj.substituteAnBn(snapshot, flux);
+            cn = obj.substituteCn(snapshot, poolSize);
+            [~, xnTimeCourse] = ode15s( ...
+                @(~, xn) obj.calculateDerivativeFromMatrices( ...
+                    snapshot, xn, substrateEMU, an, bn, cn), ...
+                timeSpan, ...
+                snapshot.GlobalXn(:));
+            mdv = obj.assembleTimeCourse(snapshot, xnTimeCourse);
+
+        end % calculateTimeCourse
+
+        function derivative = calculateDerivative( ...
+                obj, snapshot, xn, flux, substrateEMU, poolSize)
+
+            arguments
+                obj
+                snapshot (1, 1) openmebius.domain.model.EMUNetworkSnapshot
+                xn double
+                flux double
+                substrateEMU double
+                poolSize double
+            end
+
+            [an, bn] = obj.substituteAnBn(snapshot, flux);
+            cn = obj.substituteCn(snapshot, poolSize);
+            derivative = obj.calculateDerivativeFromMatrices( ...
+                snapshot, xn, substrateEMU, an, bn, cn);
+
+        end % calculateDerivative
+
+        function mdv = assembleTimeCourse(~, snapshot, xnTimeCourse)
+
+            arguments
+                ~
+                snapshot (1, 1) openmebius.domain.model.EMUNetworkSnapshot
+                xnTimeCourse double
+            end
+
+            numTimePoints = size(xnTimeCourse, 1);
+            xn = reshape( ...
+                xnTimeCourse, ...
+                [numTimePoints, ...
+                 size(snapshot.GlobalXn, 1), ...
+                 size(snapshot.GlobalXn, 2), ...
+                 size(snapshot.GlobalXn, 3)]);
+            mdvByTime = zeros(numTimePoints, snapshot.GlobalMDVSize);
+            mdvList = snapshot.GlobalMDVList;
+            sizeInfo = snapshot.TableEMUSizeInfo;
+
+            for listIndex = 1:size(mdvList, 1)
+                entry = mdvList(listIndex, :);
+                emuSize = entry(1);
+                sizeIndex = sizeInfo.EMUSize == emuSize;
+                mdvStart = entry(4);
+                source = reshape( ...
+                    xn(:, entry(3), 1:emuSize + 1, sizeIndex), ...
+                    numTimePoints, emuSize + 1);
+
+                if entry(2) == 0
+                    mdvByTime(:, mdvStart:mdvStart + emuSize) = source;
+                    continue
+                end
+
+                productSize = entry(5);
+                targetRange = mdvStart:mdvStart + productSize;
+
+                for timeIndex = 1:numTimePoints
+                    value = conv( ...
+                        source(timeIndex, :), ...
+                        mdvByTime(timeIndex, targetRange));
+                    mdvByTime(timeIndex, targetRange) = ...
+                        value(1:productSize + 1);
+                end
+            end
+
+            mdv = mdvByTime.';
+
+        end % assembleTimeCourse
+
         function [an, bn] = substituteAnBn(~, snapshot, flux)
 
             arguments
@@ -164,6 +255,40 @@ classdef EMUMDVCalculator
         end % substituteXnYn
 
     end % methods
+
+    methods (Access = private)
+
+        function derivative = calculateDerivativeFromMatrices( ...
+                obj, snapshot, xn, substrateEMU, an, bn, cn)
+
+            xn = reshape(xn, size(snapshot.GlobalXn));
+            [~, yn] = obj.substituteXnYn( ...
+                snapshot, substrateEMU, an, bn, xn);
+            derivative = zeros(size(xn));
+            sizeInfo = snapshot.TableEMUSizeInfo;
+
+            for sizeRow = 1:height(sizeInfo)
+                emuSize = sizeInfo.EMUSize(sizeRow);
+                numAn = sizeInfo.An(sizeRow);
+                numBn = sizeInfo.Bn(sizeRow);
+                currentAn = an(1:numAn, 1:numAn, emuSize);
+                currentBn = bn(1:numAn, 1:numBn, emuSize);
+                currentCn = diag(cn(1:numAn, emuSize));
+                currentXn = xn( ...
+                    1:numAn, 1:emuSize + 1, emuSize);
+                currentYn = yn( ...
+                    1:numBn, 1:emuSize + 1, emuSize);
+                derivative( ...
+                    1:numAn, 1:emuSize + 1, emuSize) = ...
+                    currentCn * ...
+                    (currentAn * currentXn - currentBn * currentYn);
+            end
+
+            derivative = derivative(:);
+
+        end % calculateDerivativeFromMatrices
+
+    end % methods (Access = private)
 
     methods (Static, Access = private)
 

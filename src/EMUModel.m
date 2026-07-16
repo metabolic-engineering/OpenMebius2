@@ -6,7 +6,7 @@ classdef EMUModel < Stoichiometry
 
     end % events
 
-    properties (Access = public)
+    properties (GetAccess = public, SetAccess = private)
 
         % EMU list
         tableEMU = table();
@@ -589,72 +589,16 @@ classdef EMUModel < Stoichiometry
             %
             % Returns
             % -------
-            % MDV: (length(tspan) x s) double
+            % MDV: (s x length(tspan)) double
             %    MDV time course
 
-            [t, XnTimeCourse] = ode15s( ...
-                @(t, Xn) calculatedXdT(obj, t, Xn, flux, EMU, poolsize), ...
-                tspan, ...
-                obj.globalXn(:) ...
-            );
-
-            numTimePoint = length(t);
-            Xn = reshape(XnTimeCourse, [numTimePoint, size(obj.globalXn, 1), size(obj.globalXn, 2), size(obj.globalXn, 3)]);
-            MDV = zeros(numTimePoint, obj.globalMDVSize);
-
-            for iMDVList = 1:size(obj.globalMDVList, 1)
-
-                sizeIdx = obj.tableEMUSizeInfo.EMUSize == obj.globalMDVList(iMDVList, 1);
-
-                % Convolution
-                if obj.globalMDVList(iMDVList, 2) == 0
-
-                    iMDV = ...
-                        Xn( ...
-                        :, ... % time index
-                        obj.globalMDVList(iMDVList, 3), ... % i index
-                        1:obj.globalMDVList(iMDVList, 1) + 1, ... % j index
-                        sizeIdx ... % EMU size index
-                    );
-
-                    MDV( ...
-                        :, ... % time index
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 1) ... % j index
-                    ) = ...
-                        iMDV(:, 1:obj.globalMDVList(iMDVList, 1) + 1);
-
-                else
-
-                    currentMDV = ...
-                        MDV( ...
-                        :, ... % time index
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 5) ... % j index
-                    );
-
-                    iMDV = conv( ...
-                        Xn( ...
-                        :, ... % time index
-                        obj.globalMDVList(iMDVList, 3), ... % i index
-                        1:obj.globalMDVList(iMDVList, 1) + 1, ... % j index
-                        sizeIdx ... % EMU size index
-                    )', ...
-                        currentMDV ...
-                    );
-
-                    MDV( ...
-                        :, ... % time index
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 5) ... % j index
-                    ) = ...
-                        iMDV(:, 1:obj.globalMDVList(iMDVList, 5) + 1);
-
-                end % if obj.globalMDVList(iMDVList,4)==0
-
-            end % for iMDVList
-
-            MDV = MDV';
+            ensureCnMatrixAvailable(obj);
+            MDV = obj.MDVCalculator.calculateTimeCourse( ...
+                createCacheSnapshot(obj), ...
+                flux, ...
+                EMU, ...
+                poolsize, ...
+                tspan);
 
         end % method calculateMDVTimeCourse
 
@@ -679,36 +623,12 @@ classdef EMUModel < Stoichiometry
             %    Time span for simulation
 
             ensureCnMatrixAvailable(obj);
-            snapshot = createCacheSnapshot(obj);
-            numEMUSizeRows = height(snapshot.TableEMUSizeInfo);
-
-            Xn = reshape(Xn, size(snapshot.GlobalXn));
-
-            [An, Bn] = obj.MDVCalculator.substituteAnBn( ...
-                snapshot, flux);
-            [~, Yn] = obj.MDVCalculator.substituteXnYn( ...
-                snapshot, EMU, An, Bn, Xn);
-            Cn = obj.MDVCalculator.substituteCn(snapshot, poolsize);
-            dXdT = zeros(size(Xn));
-
-            for iEMUSizeRow = 1:numEMUSizeRows
-
-                currentEMUSize = ...
-                    snapshot.TableEMUSizeInfo.EMUSize(iEMUSizeRow);
-                Ann = snapshot.TableEMUSizeInfo.An(iEMUSizeRow);
-                Bnn = snapshot.TableEMUSizeInfo.Bn(iEMUSizeRow);
-                iAn = An(1:Ann, 1:Ann, currentEMUSize);
-                iBn = Bn(1:Ann, 1:Bnn, currentEMUSize);
-                iCn = diag(Cn(1:Ann, currentEMUSize));
-                iXn = Xn(1:Ann, 1:currentEMUSize + 1, currentEMUSize);
-                iYn = Yn(1:Bnn, 1:currentEMUSize + 1, currentEMUSize);
-
-                dXdT(1:Ann, 1:currentEMUSize + 1, currentEMUSize) = ...
-                    iCn * (iAn * iXn - iBn * iYn);
-
-            end % for iEMUSizeRow
-
-            dXdT = dXdT(:);
+            dXdT = obj.MDVCalculator.calculateDerivative( ...
+                createCacheSnapshot(obj), ...
+                Xn, ...
+                flux, ...
+                EMU, ...
+                poolsize);
 
         end % method calculateMDVTimeCourse
 
