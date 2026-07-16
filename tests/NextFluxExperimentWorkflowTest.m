@@ -158,6 +158,8 @@ classdef NextFluxExperimentWorkflowTest < matlab.unittest.TestCase
         function value = config()
 
             value = struct;
+            value.isCalcCI = true;
+            value.isINSTMFA = false;
             value.CIConf = struct(MC = struct);
             value.suggestionTable = {'A'};
             value.suggestionTableVarNames = {'Tracer'};

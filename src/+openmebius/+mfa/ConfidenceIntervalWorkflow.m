@@ -20,13 +20,14 @@ classdef ConfidenceIntervalWorkflow
         end
 
         function result = run( ...
-                obj, analysisConfig, experimentalMDV, fittedFluxes, ...
+                obj, settings, experimentalMDV, fittedFluxes, ...
                 statusFlag, problem, initialRightHandSides, ...
                 reversibleReactionIndices, iterationFunction, options)
 
             arguments
                 obj (1, 1) openmebius.mfa.ConfidenceIntervalWorkflow
-                analysisConfig
+                settings (1, 1) openmebius.mfa ...
+                    .ConfidenceIntervalSettings
                 experimentalMDV double
                 fittedFluxes (:, :) double
                 statusFlag (1, :) double
@@ -43,15 +44,15 @@ classdef ConfidenceIntervalWorkflow
             report = options.MessageReporter;
             report("info", "Calculating confidence interval...");
 
-            if ~analysisConfig.isCalcCI
+            if ~settings.Enabled
                 result = ...
                     openmebius.mfa.ConfidenceIntervalWorkflowResult();
                 return
             end
 
-            method = string(analysisConfig.CIConf.algorithm);
+            method = settings.Method.displayName();
 
-            if method ~= "Monte Carlo"
+            if ~settings.Method.isMonteCarlo()
                 message = ...
                     "Unknown method for calculating confidence interval.";
                 report("error", message);
@@ -64,7 +65,7 @@ classdef ConfidenceIntervalWorkflow
             end
 
             result = obj.runMonteCarlo( ...
-                analysisConfig.CIConf.MC, ...
+                settings.MonteCarloSettings, ...
                 experimentalMDV, ...
                 fittedFluxes, ...
                 statusFlag, ...

@@ -147,6 +147,18 @@ classdef MFAResultCoordinator
                 obj, result, status, lowerBounds, upperBounds, ...
                 confidenceIntervalConfig, output)
 
+            arguments
+                obj (1, 1) openmebius.infrastructure.result ...
+                    .MFAResultCoordinator
+                result
+                status double
+                lowerBounds double
+                upperBounds double
+                confidenceIntervalConfig (1, 1) openmebius.mfa ...
+                    .ConfidenceIntervalSettings
+                output (1, 1) struct
+            end
+
             result = obj.normalizeResult(result);
             [isSuccess, message] = obj.noWriteResult();
 
