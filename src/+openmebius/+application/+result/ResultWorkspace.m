@@ -76,8 +76,8 @@ classdef ResultWorkspace < handle
             % GETFLUXOVERVIEW Get the flux overview from the result file.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   id: string
             %       The batch ID to load the result files.
             %
@@ -205,8 +205,8 @@ classdef ResultWorkspace < handle
             % GETFLUXDETAILED Get the flux detailed data from the result file.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   batchID: string
             %       The batch ID to load the result files.
 
@@ -339,8 +339,8 @@ classdef ResultWorkspace < handle
             % GETFLUXCOMPARISON Get the flux comparison data from the result file.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   batchIDs: string
             %       The batch ID to load the result files.
             %   names: string
@@ -467,8 +467,8 @@ classdef ResultWorkspace < handle
             % GETCIREACTION Get the confidence interval reaction data from the result file.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   batchID: string
             %       The batch ID to load the result files.
             %   RxnID: string
@@ -506,8 +506,8 @@ classdef ResultWorkspace < handle
             % GETNEXTLABELSUGGESTION Get the next label suggestion from the result file.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   batchID: string
             %       The batch ID to load the result files.
 
@@ -527,8 +527,8 @@ classdef ResultWorkspace < handle
             % GETRSS Get the RSS from the result file.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   data: cell
             %       The result data.
             %
@@ -559,8 +559,8 @@ classdef ResultWorkspace < handle
             % GETISPASSEDCHI2TEST Get the isPassedChi2Test from the result file.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   data: cell
             %       The result data.
             %
@@ -581,8 +581,8 @@ classdef ResultWorkspace < handle
             % LOADRESULTFILES Load the result files from the directory.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   ids: string array
             %       The batch IDs to load the result files.
 
@@ -649,8 +649,8 @@ classdef ResultWorkspace < handle
             % LOADRESULTFILE Load the result files from the directory.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   id: string
             %       The batch ID to load the result files.
 
@@ -687,8 +687,8 @@ classdef ResultWorkspace < handle
             % DRAWCIREACTION Draw the confidence interval reaction results.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   UIaxes: Axes
             %       The axes to draw the results.
             %   data: struct
@@ -752,8 +752,8 @@ classdef ResultWorkspace < handle
             % DRAWMONTECARLOSTOCASTIC Draw the Monte Carlo stochastic results.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   UIaxes: Axes
             %       The axes to draw the results.
 
@@ -819,8 +819,8 @@ classdef ResultWorkspace < handle
             %
             % Parameters:
             % -----------
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   batchID: (1, :) string
             %       The batch IDs to save the result files.
             %   names: (1, :) string
@@ -899,8 +899,8 @@ classdef ResultWorkspace < handle
             % SAVERESULTDATA Save the result data to the selected directory.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   batchID: (1, 1) string
             %       The batch IDs to save the result files.
             %   name: (1, 1) string
@@ -1001,8 +1001,8 @@ classdef ResultWorkspace < handle
             % GETX Get the X data from the result file.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   data: cell
             %       The result data.
             %   address: string
@@ -1034,8 +1034,8 @@ classdef ResultWorkspace < handle
             % GETRESULTDATA Get the result data from the file.
             %
             % Parameters:
-            %   obj: IOResult
-            %       The IOResult object.
+            %   obj: ResultWorkspace
+            %       The result workspace object.
             %   id: (1, 1) string
             %       The batch ID to load the result files.
 

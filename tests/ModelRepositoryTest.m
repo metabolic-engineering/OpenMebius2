@@ -23,26 +23,9 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
             testCase.verifyTrue(isa( ...
                 model, ...
                 "openmebius.application.model.ModelWorkspace"));
-            testCase.verifyFalse(isa(model, "IOModel"));
             testCase.verifyEqual( ...
                 model.getModelLocation().Directory, ...
                 modelLocation.Directory);
-
-        end
-
-        function legacyIOModelRemainsCompatible(testCase)
-
-            modelLocation = ModelRepositoryTest.templateModelLocation();
-
-            model = IOModel(modelLocation);
-
-            testCase.verifyTrue(isa( ...
-                model, ...
-                "openmebius.application.model.ModelWorkspace"));
-            testCase.verifyEqual( ...
-                model.getModelLocation().Directory, ...
-                modelLocation.Directory);
-            testCase.verifyGreaterThan(height(model.getModelTable()), 0);
 
         end
 

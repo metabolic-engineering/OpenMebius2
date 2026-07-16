@@ -47,14 +47,15 @@ classdef GeneralMessageIntegrationTest < matlab.unittest.TestCase
 
         end
 
-        function ioResultPublishesTypedLoadError(testCase)
+        function resultWorkspacePublishesTypedLoadError(testCase)
 
             resultDirectory = string(tempname);
             mkdir(resultDirectory);
             cleanup = onCleanup(@() ...
                 GeneralMessageIntegrationTest.removeDirectories( ...
                 resultDirectory));
-            result = IOResult(resultDirectory);
+            result = openmebius.application.result.ResultWorkspace( ...
+                resultDirectory);
             observer = helpers.AnalysisNotificationObserverStub();
             listener = addlistener( ...
                 result, ...
@@ -78,12 +79,13 @@ classdef GeneralMessageIntegrationTest < matlab.unittest.TestCase
 
         end
 
-        function ioResultConstructorRejectsMissingDirectory(testCase)
+        function resultWorkspaceConstructorRejectsMissingDirectory(testCase)
 
             resultDirectory = string(tempname);
 
             testCase.verifyError( ...
-                @() IOResult(resultDirectory), ...
+                @() openmebius.application.result.ResultWorkspace( ...
+                resultDirectory), ...
                 "OpenMebius2:ResultRepository:DirectoryNotFound");
 
         end

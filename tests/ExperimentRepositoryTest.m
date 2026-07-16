@@ -66,25 +66,6 @@ classdef ExperimentRepositoryTest < matlab.unittest.TestCase
 
         end
 
-        function legacyIOExpsRemainsCompatible(testCase)
-
-            fixture = ExperimentRepositoryTest.createExperimentFixture();
-            cleanup = onCleanup(@() ...
-                ExperimentRepositoryTest.removeDirectory(fixture.Directory));
-            model = openmebius.infrastructure.model.ModelRepository().load( ...
-                ExperimentRepositoryTest.templateModelLocation());
-
-            experiments = IOExps(fixture.Location, model);
-
-            testCase.verifyTrue(isa( ...
-                experiments, ...
-                "openmebius.application.experiment.ExperimentWorkspace"));
-            testCase.verifyEqual(experiments.numFile, 1);
-
-            clear cleanup
-
-        end
-
         function loadRejectsMissingExperimentDirectory(testCase)
 
             repository = ...

@@ -268,7 +268,7 @@ classdef ExperimentWorkspace < handle
                     "The experiment file does not exist.");
                 throwIfValidationFailed( ...
                     obj, ...
-                    "OpenMebius2:IOExps:ExperimentFileNotFound", ...
+                    "OpenMebius2:ExperimentWorkspace:ExperimentFileNotFound", ...
                     "The experiment file does not exist.");
             end
 
@@ -287,8 +287,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % expName: (1, 1) string
             %     The name of the experiment.
             % data: table
@@ -348,8 +348,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % fileDir: (1, 1) string
             %     The directory containing the experimental data files.
 
@@ -685,8 +685,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % fragName: string
             %     Fragment name (Ala59, Asx302...)
             %
@@ -761,8 +761,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % fragName: string
             %     Fragment name (Ala59, Asx302...)
             %
@@ -802,8 +802,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % expName: (1, 1) string
             %     The name of the experiment.
             %
@@ -838,8 +838,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             %
             % Returns:
             % --------
@@ -869,8 +869,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % expName: (1, 1) string
             %     The name of the experiment.
             %
@@ -925,8 +925,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             %
             % Returns:
             % --------
@@ -955,8 +955,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % model: openmebius.application.model.ModelWorkspace
             %     The model object.
 
@@ -974,8 +974,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % tableInfo: table
             %     The table of experimental information.
 
@@ -1017,8 +1017,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % tableSubstrate: table
             %     The table of experimental substrates.
             %
@@ -1059,8 +1059,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % tableUptake: table
             %     The table of experimental substrates.
             %
@@ -1105,7 +1105,7 @@ classdef ExperimentWorkspace < handle
 
             if numel(idx) ~= 1
                 error( ...
-                    "OpenMebius2:IOExps:ExperimentNotFound", ...
+                    "OpenMebius2:ExperimentWorkspace:ExperimentNotFound", ...
                     "The experiment %s was not found.", ...
                     expName);
             end
@@ -1114,7 +1114,7 @@ classdef ExperimentWorkspace < handle
                 experimentInfo = obj.tableExpsInfo(expName, :);
             catch ME
                 error( ...
-                    "OpenMebius2:IOExps:ExperimentInfoNotFound", ...
+                    "OpenMebius2:ExperimentWorkspace:ExperimentInfoNotFound", ...
                     "Experiment information for %s was not found: %s", ...
                     expName, ...
                     string(ME.message));
@@ -1148,7 +1148,7 @@ classdef ExperimentWorkspace < handle
 
             if numel(idx) ~= 1
                 error( ...
-                    "OpenMebius2:IOExps:ExperimentNotFound", ...
+                    "OpenMebius2:ExperimentWorkspace:ExperimentNotFound", ...
                     "The experiment %s was not found.", ...
                     expName);
             end
@@ -1211,7 +1211,7 @@ classdef ExperimentWorkspace < handle
 
                 if ~isvalid(model)
                     error( ...
-                        "OpenMebius2:IOExps:InvalidModel", ...
+                        "OpenMebius2:ExperimentWorkspace:InvalidModel", ...
                         "The model object is invalid.");
                 end
 
@@ -1226,7 +1226,7 @@ classdef ExperimentWorkspace < handle
 
             if pathModel == ""
                 error( ...
-                    "OpenMebius2:IOExps:EmptyModelDirectory", ...
+                    "OpenMebius2:ExperimentWorkspace:EmptyModelDirectory", ...
                     "The model directory is empty.");
             end
 
@@ -1385,8 +1385,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % fileExp: string
             %     The file name of the experiment.
             % fieldName: string
@@ -1431,8 +1431,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             %
             % Returns:
             % --------
@@ -1440,7 +1440,7 @@ classdef ExperimentWorkspace < handle
             %     The template uptake table.
             %
             % Example:
-            % >> obj = IOExps("path/to/your/file", "fileName");
+            % >> obj = ExperimentWorkspace("path/to/your/file", "fileName");
             % >> tableRtn = obj.createTemplateSubstrateTable()
             %     tableRtn = 3x2 table
             %                  | Uptake | Label |
@@ -1516,8 +1516,8 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: IOExps
-            %     The IOExps object.
+            % obj: ExperimentWorkspace
+            %     The experiment workspace object.
             % tableInfo: table
             %     The table of experimental information.
 

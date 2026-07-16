@@ -102,26 +102,6 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
         end
 
-        function legacyIOResultRemainsCompatible(testCase)
-
-            resultDirectory = string(tempname);
-            mkdir(resultDirectory);
-            cleanup = onCleanup(@() ...
-                ResultRepositoryTest.removeDirectory(resultDirectory));
-
-            result = IOResult(resultDirectory);
-
-            testCase.verifyTrue(isa( ...
-                result, ...
-                "openmebius.application.result.ResultWorkspace"));
-            testCase.verifyEqual( ...
-                result.getResultLocation().Directory, ...
-                resultDirectory);
-
-            clear cleanup
-
-        end
-
         function writeExcelTableCanBeReadBack(testCase)
 
             resultDirectory = string(tempname);
