@@ -1,45 +1,40 @@
-classdef IOExps < openmebius.infrastructure.logging.MessageState
-
-    properties (Access = public)
-
-        fileExpList (1, :) string = "";
-        dataExp (1, :) = struct;
-        % "tableInfo", table, ...
-        % "tableSubstrate", table, ...
-        % "tableMS", table ...
-        % "tableMSNormalized", table, ...
-        fieldNames string;
-        pathModel (1, 1) string = "";
-        ExperimentLocation openmebius.domain.experiment.ExperimentLocation
-
-        tableExpsInfo table;
-        tableTracersInfoFull table;
-        tableTracersInfo table;
-        tableUptakesInfoFull table;
-        tableUptakesInfo table;
-        tableAtom table;
-
-        objModel;
-
-        % MDV
-        MDVTolelrance (1, 1) double = -1e-2;
-        naturalIsotopeCorrectionMethod (1, 1) string = "skew";
-
-        defaultVariableNamesListSubstrate string;
-        defaultVariableTypesListSubstrate string;
-
-    end % properties
+classdef IOExps < handle
 
     properties (Access = private)
 
+        Collection openmebius.domain.experiment.ExperimentCollection
+        ComparisonBuilder
+        EditMapper
+        EditValidator
         ExperimentRepository
+        TableAssembler
+        MessagePublisher
+        ValidationErrors (:, 1) string = strings(0, 1)
+        ValidationWarnings (:, 1) string = strings(0, 1)
 
     end % properties
 
-    properties (Dependent)
+    properties (Access = protected)
+        logLevel (1, 1) string = "Info"
+    end
 
+    properties (Dependent, SetAccess = private)
+
+        fileExpList (1, :) string
+        dataExp (1, :)
+        fieldNames (1, :) string
+        pathModel (1, 1) string
+        ExperimentLocation openmebius.domain.experiment.ExperimentLocation
+        tableExpsInfo table
+        tableTracersInfoFull table
+        tableTracersInfo table
+        tableUptakesInfoFull table
+        tableUptakesInfo table
+        tableAtom table
+        objModel
+        defaultVariableNamesListSubstrate (1, :) string
+        defaultVariableTypesListSubstrate (1, :) string
         numFile (1, 1) double;
-
         fileListWOExt (1, :) string;
 
     end % properties
@@ -53,27 +48,34 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                 modelInput = []
                 options.ExperimentRepository = ...
                     openmebius.infrastructure.experiment.ExperimentRepository()
+                options.ComparisonBuilder = openmebius.domain.experiment ...
+                    .ExperimentComparisonBuilder()
+                options.EditMapper = openmebius.domain.experiment ...
+                    .ExperimentEditMapper()
+                options.EditValidator = openmebius.domain.experiment ...
+                    .ExperimentEditValidator()
+                options.TableAssembler = openmebius.domain.experiment ...
+                    .ExperimentTableAssembler()
+                options.AllowEmpty (1, 1) logical = false
             end
 
             experimentLocation = ...
                 openmebius.domain.experiment.ExperimentLocation.fromInput( ...
                 experimentInput);
 
-            obj.ExperimentLocation = experimentLocation;
+            obj.Collection = openmebius.domain.experiment ...
+                .ExperimentCollection(experimentLocation);
+            obj.ComparisonBuilder = options.ComparisonBuilder;
+            obj.EditMapper = options.EditMapper;
+            obj.EditValidator = options.EditValidator;
             obj.ExperimentRepository = options.ExperimentRepository;
+            obj.TableAssembler = options.TableAssembler;
+            obj.MessagePublisher = openmebius.presentation ...
+                .notification.GeneralMessagePublisher( ...
+                LogLevel = obj.logLevel);
 
-            try
-                obj.ExperimentRepository.assertExperimentDirectory( ...
-                    experimentLocation);
-            catch
-                obj.isError = true;
-                updateMsg(obj, ...
-                    "The directory " + experimentLocation.Directory + ...
-                    " does not exist.", ...
-                    "Error", ...
-                    obj.logLevel);
-                return;
-            end
+            obj.ExperimentRepository.assertExperimentDirectory( ...
+                experimentLocation);
 
             updateMsg(obj, ...
                 "The directory " + experimentLocation.Directory + ...
@@ -81,34 +83,159 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                 "Info", ...
                 obj.logLevel);
 
-            if obj.isError
-                return;
-            end
-
-            loadExpData(obj, modelInput);
-
-            if obj.isError
-                return;
-            end
+            loadExpData( ...
+                obj, ...
+                modelInput, ...
+                AllowEmpty = options.AllowEmpty);
 
         end % constructor
 
+        function value = get.fileExpList(obj)
+
+            value = obj.Collection.FileNames;
+
+        end % get.fileExpList
+
+        function value = get.dataExp(obj)
+
+            value = obj.Collection.Data;
+
+        end % get.dataExp
+
+        function set.dataExp(obj, value)
+
+            obj.Collection.replaceData(value);
+
+        end % set.dataExp
+
+        function value = get.fieldNames(obj)
+
+            value = obj.Collection.FieldNames;
+
+        end % get.fieldNames
+
+        function value = get.pathModel(obj)
+
+            value = obj.Collection.ModelPath;
+
+        end % get.pathModel
+
+        function value = get.ExperimentLocation(obj)
+
+            value = obj.Collection.Location;
+
+        end % get.ExperimentLocation
+
+        function value = get.tableExpsInfo(obj)
+
+            value = obj.Collection.InfoTable;
+
+        end % get.tableExpsInfo
+
+        function set.tableExpsInfo(obj, value)
+
+            obj.Collection.replaceInfoTable(value);
+
+        end % set.tableExpsInfo
+
+        function value = get.tableTracersInfoFull(obj)
+
+            value = obj.Collection.TracerTableFull;
+
+        end % get.tableTracersInfoFull
+
+        function set.tableTracersInfoFull(obj, value)
+
+            obj.Collection.replaceTracerTables( ...
+                obj.Collection.TracerTable, value);
+
+        end % set.tableTracersInfoFull
+
+        function value = get.tableTracersInfo(obj)
+
+            value = obj.Collection.TracerTable;
+
+        end % get.tableTracersInfo
+
+        function set.tableTracersInfo(obj, value)
+
+            obj.Collection.replaceTracerTables(value);
+
+        end % set.tableTracersInfo
+
+        function value = get.tableUptakesInfoFull(obj)
+
+            value = obj.Collection.UptakeTableFull;
+
+        end % get.tableUptakesInfoFull
+
+        function set.tableUptakesInfoFull(obj, value)
+
+            obj.Collection.replaceUptakeTables( ...
+                obj.Collection.UptakeTable, value);
+
+        end % set.tableUptakesInfoFull
+
+        function value = get.tableUptakesInfo(obj)
+
+            value = obj.Collection.UptakeTable;
+
+        end % get.tableUptakesInfo
+
+        function set.tableUptakesInfo(obj, value)
+
+            obj.Collection.replaceUptakeTables(value);
+
+        end % set.tableUptakesInfo
+
+        function value = get.tableAtom(obj)
+
+            value = obj.Collection.AtomTable;
+
+        end % get.tableAtom
+
+        function value = get.objModel(obj)
+
+            value = obj.Collection.Model;
+
+        end % get.objModel
+
+        function value = get.defaultVariableNamesListSubstrate(obj)
+
+            value = obj.Collection.DefaultSubstrateVariableNames;
+
+        end % get.defaultVariableNamesListSubstrate
+
+        function value = get.defaultVariableTypesListSubstrate(obj)
+
+            value = obj.Collection.DefaultSubstrateVariableTypes;
+
+        end % get.defaultVariableTypesListSubstrate
+
         function numFile = get.numFile(obj)
 
-            numFile = length(obj.fileExpList);
+            numFile = obj.Collection.Count;
 
         end % get.numFile
 
         function fileListWOExt = get.fileListWOExt(obj)
 
-            fileListWOExt = erase(obj.fileExpList, ".xlsx");
+            fileListWOExt = obj.Collection.FileBaseNames;
 
         end % get.fileListWOExt
 
         %% Public general methods
-        function loadExpData(obj, modelInput)
+        function loadExpData(obj, modelInput, options)
 
-            if nargin < 2 || isempty(modelInput)
+            arguments
+                obj IOExps
+                modelInput = []
+                options.AllowEmpty (1, 1) logical = false
+            end
+
+            resetValidation(obj);
+
+            if isempty(modelInput)
 
                 if ~isempty(obj.objModel)
                     modelInput = obj.objModel;
@@ -118,42 +245,44 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
 
             end
 
-            obj.fileExpList = obj.ExperimentRepository.listWorkbooks( ...
+            obj.Collection.replaceFiles( ...
+                obj.ExperimentRepository.listWorkbooks( ...
                 obj.ExperimentLocation, ...
-                "xlsx");
-            obj.fieldNames = matlab.lang.makeValidName(obj.fileExpList);
+                "xlsx"));
 
             if isempty(obj.fileExpList)
-                updateMsg(obj, "The experiment file does not exist.", "Error", obj.logLevel);
-                return;
+                if options.AllowEmpty
+                    [model, modelPath] = obj.resolveModelInput(modelInput);
+                    obj.Collection.replaceModel(model, modelPath);
+                    obj.dataExp = struct;
+                    obj.tableExpsInfo = table();
+                    obj.tableTracersInfoFull = table();
+                    obj.tableTracersInfo = table();
+                    obj.tableUptakesInfoFull = table();
+                    obj.tableUptakesInfo = table();
+                    return
+                end
+
+                recordValidationError( ...
+                    obj, ...
+                    "The experiment file does not exist.");
+                throwIfValidationFailed( ...
+                    obj, ...
+                    "OpenMebius2:IOExps:ExperimentFileNotFound", ...
+                    "The experiment file does not exist.");
             end
 
-            [obj.objModel, obj.pathModel] = obj.resolveModelInput(modelInput);
-
-            if obj.isError
-                return
-            end
-
-            if obj.objModel.isError
-                obj.isError = true;
-                return;
-            end
-
-            obj.tableAtom = obj.objModel.tableAtom;
+            [model, modelPath] = obj.resolveModelInput(modelInput);
+            obj.Collection.replaceModel(model, modelPath);
 
             loadExpFiles(obj);
 
-            if obj.isError
-                return;
-            end
-
-            combineInfoData(obj);
-            combineTraceData(obj);
-            combineUptakeData(obj);
+            aggregateTables = obj.TableAssembler.assemble(obj.Collection);
+            obj.Collection.replaceAggregateTables(aggregateTables);
 
         end % loadExpData
 
-        function status = updateExpData(obj, data, type)
+        function report = updateExpData(obj, data, type)
             % UPDATEEXPDATA: Update the experimental data
             %
             % Parameters:
@@ -174,9 +303,14 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                 type (1, 1) string {mustBeMember(type, ["Info", "Tracer", "Uptake"])}
             end % arguments
 
+            resetValidation(obj);
+
             % Validate the input data
             if isempty(data) || ~istable(data)
-                updateMsg(obj, "The data is empty or not a table.", "Error", obj.logLevel);
+                recordValidationError( ...
+                    obj, ...
+                    "The data is empty or not a table.");
+                report = createValidationReport(obj, "");
                 return;
             end
 
@@ -185,24 +319,27 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                     % Update the info table
                     status = updateTableExpInfo(obj, data);
                 case "Tracer"
-                    % Update the tracer table
-                    data = normalizeUITableInput(obj, data, type);
-                    isValid = isValidTracerData(obj, data);
-
-                    if ~isValid
-                        updateMsg(obj, "The tracer data is not valid.", "Error", obj.logLevel);
-                        status = true;
-                        return;
-                    end
-
+                    data = obj.EditMapper.normalizeUITableInput( ...
+                        data, type);
                     status = updateTableExpSubstrate(obj, data);
                 case "Uptake"
-                    % Update the uptake table
-                    data = normalizeUITableInput(obj, data, type);
+                    data = obj.EditMapper.normalizeUITableInput( ...
+                        data, type);
                     status = updateTableExpUptake(obj, data);
                 otherwise
                     error("Invalid type. Use 'Info', 'Tracer', or 'Uptake'.");
             end
+
+            if status && isempty(obj.ValidationErrors)
+                recordValidationError( ...
+                    obj, ...
+                    "The " + lower(type) + ...
+                    " experiment data is not valid.");
+            end
+
+            report = createValidationReport( ...
+                obj, ...
+                type + " experiment data updated successfully.");
 
         end % updateExpData
 
@@ -226,20 +363,13 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
             sourceLocation = ...
                 openmebius.domain.experiment.ExperimentLocation.fromInput( ...
                 fileDir);
-            if ~isfolder(sourceLocation.Directory)
-                obj.isError = true;
-                updateMsg(obj, ...
-                    "The directory " + sourceLocation.Directory + ...
-                    " does not exist.", ...
-                    "Error", ...
-                    obj.logLevel);
-                return;
-            end
+            obj.ExperimentRepository.assertExperimentDirectory( ...
+                sourceLocation);
 
-            obj.fileExpList = obj.ExperimentRepository.listWorkbooks( ...
+            obj.Collection.replaceFiles( ...
+                obj.ExperimentRepository.listWorkbooks( ...
                 sourceLocation, ...
-                options.type);
-            obj.fieldNames = matlab.lang.makeValidName(obj.fileExpList);
+                options.type));
 
             for i = 1:length(obj.fileExpList)
 
@@ -249,96 +379,47 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                 pathFile = sourceLocation.workbookFile(fileExp);
                 structName = fieldName;
 
-                objExp = IOExp( ...
-                    pathFile, ...
-                    ExperimentRepository = obj.ExperimentRepository);
-
-                if objExp.isError
-                    obj.isError = true;
-                    return;
-                end
-
-                obj.dataExp.(structName).tableInfo = objExp.tableInfo;
-                obj.dataExp.(structName).tableSubstrate = objExp.tableSubstrate;
-                obj.dataExp.(structName).tableMS = objExp.tableMS;
-
-                % Keep previously calculated MDV-derived sheets from the
-                % imported workbook when they exist.  Importing must not
-                % trigger a recalculation.
-                loadStoredDerivedTables( ...
-                    obj, ...
-                    objExp, ...
-                    structName, ...
-                    sourceLocation.experimentName(fileExp) ...
-                );
+                workbook = obj.ExperimentRepository.loadWorkbook(pathFile);
+                applyWorkbookData(obj, workbook, structName);
 
             end % for i
 
         end % importExpData
 
-        function status = saveExpData(obj)
+        function report = saveExpData(obj)
 
-            status = false;
+            resetValidation(obj);
 
             if isempty(obj.tableExpsInfo)
-                updateMsg(obj, "The data is empty.", "Info", obj.logLevel);
-                status = true;
-                return;
-            end
-
-            if obj.isError
-                updateMsg(obj, "The data is not valid.", "Error", obj.logLevel);
-                status = true;
+                recordValidationError(obj, "The data is empty.");
+                report = createValidationReport(obj, "");
                 return
             end
 
             for i = 1:length(obj.fileExpList)
 
-                objExp = IOExp( ...
-                    obj.ExperimentLocation.workbookFile(obj.fileExpList(i)), ...
-                    ExperimentRepository = obj.ExperimentRepository);
-
-                if objExp.isError
-                    continue;
-                end
-
                 fieldName = obj.fieldNames(i);
                 name = getExpName(obj, i);
 
-                objExp.tableInfo = obj.dataExp.(fieldName).tableInfo;
-                objExp.tableSubstrate = obj.dataExp.(fieldName).tableSubstrate;
-                objExp.tableMS = obj.dataExp.(fieldName).tableMS;
-
-                % MDV-derived tables are intentionally not recalculated during
-                % save.  They are persisted only if they have already been
-                % loaded from disk or explicitly updated by calculateMDV().
-                objExp.tableMSNormalized = getStoredTableOrEmpty(obj, fieldName, "tableMSNormalized");
-                objExp.tableMDV = getStoredTableOrEmpty(obj, fieldName, "tableMDV");
-                objExp.tableMDVBiomass = getStoredTableOrEmpty(obj, fieldName, "tableMDVBiomass");
-                objExp.tableEnrichment = getStoredTableOrEmpty(obj, fieldName, "tableEnrichment");
-
-                objExp.saveExcelData();
-
-                if objExp.isError
-                    msg = name + " is not saved.";
-                    updateMsg(obj, msg, "Error", obj.logLevel);
-                    status = true;
-                else
-                    msg = name + " is saved.";
-                    updateMsg(obj, msg, "Info", obj.logLevel);
+                try
+                    workbook = createWorkbookData(obj, fieldName);
+                    obj.ExperimentRepository.saveWorkbook( ...
+                        obj.ExperimentLocation.workbookFile( ...
+                        obj.fileExpList(i)), ...
+                        workbook);
+                    updateMsg( ...
+                        obj, name + " is saved.", "Info", obj.logLevel);
+                catch ME
+                    recordValidationError( ...
+                        obj, ...
+                        name + " is not saved. " + string(ME.message));
                 end
 
-                clear objExp;
-
             end
 
-            if status
-                updateMsg(obj, "Save operation failed.", "Error", obj.logLevel);
-                obj.isError = true;
-                return;
-            end
-
-            updateMsg(obj, "Save operation completed successfully.", "Info", obj.logLevel);
+            report = createValidationReport( ...
+                obj, ...
+                "Save operation completed successfully.");
 
         end % saveExpData
 
@@ -497,6 +578,12 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
 
         end % getModel
 
+        function collection = getCollection(obj)
+
+            collection = obj.Collection;
+
+        end % getCollection
+
         function experimentLocation = getExperimentLocation(obj)
 
             experimentLocation = obj.ExperimentLocation;
@@ -613,36 +700,14 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                 fragName (1, 1) string
             end
 
-            numData = length(obj.fieldNames);
-            expList = obj.getExpList;
-            tableRtn = table();
+            result = obj.ComparisonBuilder.buildMSNormalized( ...
+                obj.Collection, fragName);
 
-            for i = 1:numData
+            if ~result.IsAvailable
+                updateMsg(obj, result.Message, "Error", obj.logLevel);
+            end
 
-                iTableMS = getMSNormalizedTable(obj, expList(i));
-                iTableMS = iTableMS(:, fragName);
-                iTableMS.Properties.VariableNames = expList(i);
-                iRowNames = iTableMS.Properties.RowNames;
-                iTableMS.RowNamesTemp = iRowNames;
-
-                if isempty(tableRtn)
-                    tableRtn = iTableMS;
-                    continue
-                end % if
-
-                tableRtn = outerjoin( ...
-                    tableRtn, ...
-                    iTableMS, ...
-                    'Keys', "RowNamesTemp", ...
-                    'MergeKeys', true ...
-                );
-
-            end % for i
-
-            tableRtn = removevars(tableRtn, "RowNamesTemp");
-
-            isAllNaNOrZero = all(isnan(tableRtn{:, :}) | tableRtn{:, :} == 0, 2);
-            tableRtn(isAllNaNOrZero, :) = [];
+            tableRtn = result.Data;
 
         end % getMSNormalizedComparison
 
@@ -711,36 +776,14 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                 fragName (1, 1) string
             end
 
-            numData = length(obj.fieldNames);
-            expList = obj.getExpList;
-            tableRtn = table();
+            result = obj.ComparisonBuilder.buildMDVBiomass( ...
+                obj.Collection, fragName);
 
-            for i = 1:numData
+            if ~result.IsAvailable
+                updateMsg(obj, result.Message, "Error", obj.logLevel);
+            end
 
-                iTableMS = getMDVBiomassTable(obj, expList(i));
-                iTableMS = iTableMS(:, fragName);
-                iTableMS.Properties.VariableNames = expList(i);
-                iRowNames = iTableMS.Properties.RowNames;
-                iTableMS.RowNamesTemp = iRowNames;
-
-                if isempty(tableRtn)
-                    tableRtn = iTableMS;
-                    continue
-                end % if
-
-                tableRtn = outerjoin( ...
-                    tableRtn, ...
-                    iTableMS, ...
-                    'Keys', "RowNamesTemp", ...
-                    'MergeKeys', true ...
-                );
-
-            end % for i
-
-            tableRtn = removevars(tableRtn, "RowNamesTemp");
-
-            isAllNaNOrZero = all(isnan(tableRtn{:, :}) | tableRtn{:, :} == 0, 2);
-            tableRtn(isAllNaNOrZero, :) = [];
+            tableRtn = result.Data;
 
         end % getMDVBiomassComparison
 
@@ -810,7 +853,14 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                 obj IOExps
             end % arguments
 
-            [tableRtn, tableRtnErr] = combineEnrichmentData(obj);
+            result = obj.ComparisonBuilder.buildEnrichment(obj.Collection);
+
+            if ~result.IsAvailable
+                updateMsg(obj, result.Message, "Error", obj.logLevel);
+            end
+
+            tableRtn = result.Data;
+            tableRtnErr = result.ErrorMask;
 
         end % getEnrichmentComparison
 
@@ -842,27 +892,31 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
             %  Asx302 |  true  |   false   |
             %  ...    |  ...   |   ...     |
 
-            targetInModel = obj.objModel.getTargetMetaboliteList();
-            targetInMS = string(obj.objModel.tableMS.Properties.RowNames);
+            idx = getExpIdx(obj, expName);
 
-            if ~isequal(sort(targetInModel), sort(targetInMS))
-                updateMsg(obj, "The target metabolite list is not valid.", "Error", obj.logLevel);
+            if isempty(idx)
+                updateMsg( ...
+                    obj, ...
+                    "The experiment name is not found.", ...
+                    "Error", ...
+                    obj.logLevel);
                 tableRtn = table();
-                return;
+                return
             end
 
-            tracerInMS = obj.objModel.tableMS;
-            tracerUsed = tracerInMS(:, 'Used');
-            tracerUsed.Properties.VariableNames = "Select";
+            fieldName = obj.fieldNames(idx);
 
-            [tableMS, err] = getMDVBiomassTable(obj, expName);
-            targetInExp = string(tableMS.Properties.VariableNames(~err));
+            if ~isfield(obj.dataExp.(fieldName), "tableSelection")
+                updateMsg( ...
+                    obj, ...
+                    "The fragment selection table is not found.", ...
+                    "Error", ...
+                    obj.logLevel);
+                tableRtn = table();
+                return
+            end
 
-            targetExist = ismember(tracerUsed.Properties.RowNames, targetInExp);
-            % Add the column "Available" to the tracerUsed table
-            tracerUsed.Available = targetExist;
-
-            tableRtn = tracerUsed;
+            tableRtn = obj.dataExp.(fieldName).tableSelection;
 
         end % getFragmentSelection
 
@@ -885,7 +939,14 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                 obj IOExps
             end % arguments
 
-            [tableRtnSelect, tableRtnAvailable] = combineSelectionData(obj);
+            result = obj.ComparisonBuilder.buildSelection(obj.Collection);
+
+            if ~result.IsAvailable
+                updateMsg(obj, result.Message, "Error", obj.logLevel);
+            end
+
+            tableRtnSelect = result.Selected;
+            tableRtnAvailable = result.Available;
         end % getSelectionComparison
 
         %% Public update methods
@@ -904,12 +965,7 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                 model IOModel
             end
 
-            obj.objModel = model;
-            obj.tableAtom = model.tableAtom;
-
-            if obj.isError
-                return;
-            end
+            obj.Collection.replaceModel(model);
 
         end % updateModel
 
@@ -932,7 +988,9 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
 
             % Validate the input table
             if isempty(tableInfo) || ~istable(tableInfo)
-                updateMsg(obj, "The table is empty or not a table.", "Error", obj.logLevel);
+                recordValidationError( ...
+                    obj, ...
+                    "The table is empty or not a table.");
                 status = true;
                 return;
             end
@@ -942,7 +1000,9 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
             variablesCorrect = ["mu", "ODi", "ODf"];
 
             if ~isequal(variables, variablesCorrect)
-                updateMsg(obj, "The table does not have the correct variable names.", "Error", obj.logLevel);
+                recordValidationError( ...
+                    obj, ...
+                    "The table does not have the correct variable names.");
                 status = true;
                 return;
             end
@@ -975,48 +1035,22 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
 
             status = false;
 
-            % Validate the input table
-            if isempty(tableSubstrate) || ~istable(tableSubstrate)
-                updateMsg(obj, "The table is empty or not a table.", "Error", obj.logLevel);
+            availableTracer = getTableLabelView(obj.objModel);
+            validation = obj.EditValidator.validateTracer( ...
+                tableSubstrate, ...
+                obj.tableTracersInfo.Properties.VariableNames, ...
+                obj.fileListWOExt, ...
+                availableTracer.Name);
+
+            if ~validation.IsValid
+                recordValidationError(obj, validation.ErrorMessage);
                 status = true;
                 return;
             end
 
-            % Check if the table has the same number of rows as the number of experiments
-            variables = tableSubstrate.Properties.VariableNames;
-            variablesCorrect = obj.tableTracersInfo.Properties.VariableNames;
-
-            if ~isequal(variables, variablesCorrect)
-                updateMsg(obj, "The table does not have the correct variable names.", "Error", obj.logLevel);
-                status = true;
-                return;
-            end
-
-            % Check if the table has the same number of rows as the number of experiments
-            sample = string(tableSubstrate.Properties.RowNames)';
-            sampleCorrect = obj.fileListWOExt;
-
-            if ~isequal(sort(sample(:)), sort(sampleCorrect(:)))
-                updateMsg(obj, "The table does not have the correct sample names.", "Error", obj.logLevel);
-                status = true;
-                return;
-            end
-
-            if ~isValidTracerData(obj, tableSubstrate)
-                updateMsg(obj, "The tracer data is not valid.", "Error", obj.logLevel);
-                status = true;
-                return;
-            end
-
-            % Update the table of experimental substrates
-            obj.tableTracersInfo = tableSubstrate;
-            err = substituteLabelUptakeTable(obj, tableSubstrate, "Label");
-
-            if err
-                updateMsg(obj, "The table of experimental substrates is not valid.", "Error", obj.logLevel);
-                status = true;
-                return;
-            end
+            editResult = obj.EditMapper.map( ...
+                obj.Collection, tableSubstrate, "Tracer");
+            obj.Collection.applyEdit(editResult);
 
         end % updateTableExpSubstrate
 
@@ -1043,61 +1077,97 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
 
             status = false;
 
-            if ~isValidUptakeData(obj, tableUptake)
-                updateMsg(obj, "The uptake data is not valid.", "Error", obj.logLevel);
+            validation = obj.EditValidator.validateUptake( ...
+                tableUptake, ...
+                obj.tableUptakesInfo.Properties.VariableNames, ...
+                obj.fileListWOExt);
+
+            if ~validation.IsValid
+                recordValidationError(obj, validation.ErrorMessage);
                 status = true;
                 return;
             end
 
-            obj.tableUptakesInfo = tableUptake;
-            err = substituteLabelUptakeTable(obj, tableUptake, "Uptake");
-
-            if err
-                updateMsg(obj, "The table of experimental substrates is not valid.", "Error", obj.logLevel);
-                status = true;
-                return;
-            end
+            editResult = obj.EditMapper.map( ...
+                obj.Collection, tableUptake, "Uptake");
+            obj.Collection.applyEdit(editResult);
 
         end % updateTableExpUptake
 
-        function calculateMDV(obj)
-            % CALCULATEMDV: Calculate the MDV (Mass Distribution Vector) data
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
+        function input = getMDVCalculationInput(obj, expName)
 
-            for i = 1:obj.numFile
-
-                fieldName = obj.fieldNames(i);
-                expName = obj.fileListWOExt(i);
-                tableMSNormalized = getMSNormalized(obj, expName);
-                obj.dataExp.(fieldName).tableMSNormalized = tableMSNormalized;
-
-                tableMDV = getMDV(obj, expName);
-                obj.dataExp.(fieldName).tableMDV = tableMDV;
-
-                tableMDVBiomass = getMDVBiomass(obj, expName);
-
-                % Add validation flag
-                [tableMDV, errMDV] = validateMDVData(obj, tableMDVBiomass);
-                obj.dataExp.(fieldName).tableMDVBiomass = tableMDV;
-                obj.dataExp.(fieldName).errMDV = errMDV;
-
-                [tableEnrichment, errEnrichment] = getEnrichment(obj, expName);
-                obj.dataExp.(fieldName).tableEnrichment = tableEnrichment;
-                obj.dataExp.(fieldName).errEnrichment = errEnrichment;
-
-                tableSelection = getFragmentSelection(obj, expName);
-                obj.dataExp.(fieldName).tableSelection = tableSelection;
-
+            arguments
+                obj IOExps
+                expName (1, 1) string
             end
 
-            obj.reset();
-            updateMsg(obj, "MDV calculation completed.", "Info", obj.logLevel);
+            idx = getExpIdx(obj, expName);
 
-        end % calculateMDV
+            if numel(idx) ~= 1
+                error( ...
+                    "OpenMebius2:IOExps:ExperimentNotFound", ...
+                    "The experiment %s was not found.", ...
+                    expName);
+            end
+
+            try
+                experimentInfo = obj.tableExpsInfo(expName, :);
+            catch ME
+                error( ...
+                    "OpenMebius2:IOExps:ExperimentInfoNotFound", ...
+                    "Experiment information for %s was not found: %s", ...
+                    expName, ...
+                    string(ME.message));
+            end
+
+            fieldName = obj.fieldNames(idx);
+            input = openmebius.domain.experiment ...
+                .ExperimentMDVCalculationInput( ...
+                ExperimentName = expName, ...
+                RawMS = obj.dataExp.(fieldName).tableMS, ...
+                ExperimentInfo = experimentInfo, ...
+                AtomTable = obj.tableAtom, ...
+                MSMetaboliteTable = ...
+                obj.objModel.getMSMetaboliteTable(), ...
+                ModelMSTable = obj.objModel.getMSTable(), ...
+                TargetMetabolites = ...
+                obj.objModel.getTargetMetaboliteList());
+
+        end % getMDVCalculationInput
+
+        function applyMDVDerivedData(obj, expName, derivedData)
+
+            arguments
+                obj IOExps
+                expName (1, 1) string
+                derivedData openmebius.domain.experiment ...
+                    .ExperimentDerivedData
+            end
+
+            idx = getExpIdx(obj, expName);
+
+            if numel(idx) ~= 1
+                error( ...
+                    "OpenMebius2:IOExps:ExperimentNotFound", ...
+                    "The experiment %s was not found.", ...
+                    expName);
+            end
+
+            fieldName = obj.fieldNames(idx);
+            obj.dataExp.(fieldName).tableMSNormalized = ...
+                derivedData.MSNormalized;
+            obj.dataExp.(fieldName).tableMDV = derivedData.MDV;
+            obj.dataExp.(fieldName).tableMDVBiomass = ...
+                derivedData.MDVBiomass;
+            obj.dataExp.(fieldName).errMDV = derivedData.MDVErrors;
+            obj.dataExp.(fieldName).tableEnrichment = ...
+                derivedData.Enrichment;
+            obj.dataExp.(fieldName).errEnrichment = ...
+                derivedData.EnrichmentErrors;
+            obj.dataExp.(fieldName).tableSelection = ...
+                derivedData.Selection;
+
+        end % applyMDVDerivedData
 
         function tf = hasCalculatedMDV(obj)
 
@@ -1107,7 +1177,7 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
 
         function tf = hasBiomassCorrectedMDV(obj)
 
-            tf = true;
+            tf = obj.numFile > 0;
 
             for i = 1:obj.numFile
 
@@ -1117,17 +1187,6 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
                         isempty(obj.dataExp.(fieldName).tableMDVBiomass)
                     tf = false;
                     return
-                end
-
-                if ~isfield(obj.dataExp.(fieldName), "tableSelection") || ...
-                        isempty(obj.dataExp.(fieldName).tableSelection)
-
-                    try
-                        obj.dataExp.(fieldName).tableSelection = ...
-                            getFragmentSelection(obj, obj.fileListWOExt(i));
-                    catch
-                    end
-
                 end
 
                 if ~isfield(obj.dataExp.(fieldName), "tableSelection") || ...
@@ -1144,28 +1203,16 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
 
     methods (Access = private)
 
-        function [model, pathModel] = resolveModelInput(obj, modelInput)
-
-            model = [];
-            pathModel = "";
+        function [model, pathModel] = resolveModelInput(~, modelInput)
 
             if isa(modelInput, 'EMUModel')
 
                 model = modelInput;
 
-                try
-
-                    if ~isvalid(model)
-                        obj.isError = true;
-                        updateMsg(obj, ...
-                            "The model object is invalid.", ...
-                            "Error", ...
-                            obj.logLevel);
-                        return
-                    end
-
-                catch
-                    % Non-handle compatible objects are treated as valid here.
+                if ~isvalid(model)
+                    error( ...
+                        "OpenMebius2:IOExps:InvalidModel", ...
+                        "The model object is invalid.");
                 end
 
                 modelLocation = model.getModelLocation();
@@ -1178,12 +1225,9 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
             pathModel = modelLocation.Directory;
 
             if pathModel == ""
-                obj.isError = true;
-                updateMsg(obj, ...
-                    "The model directory is empty.", ...
-                    "Error", ...
-                    obj.logLevel);
-                return
+                error( ...
+                    "OpenMebius2:IOExps:EmptyModelDirectory", ...
+                    "The model directory is empty.");
             end
 
             model = EMUModel(modelLocation);
@@ -1206,59 +1250,119 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
 
         end % getStoredTableOrEmpty
 
-        function loadStoredDerivedTables(obj, objExp, structName, expName)
+        function workbook = createWorkbookData(obj, fieldName)
 
             arguments
                 obj IOExps
-                objExp IOExp
+                fieldName (1, 1) string
+            end
+
+            workbook = openmebius.infrastructure.experiment ...
+                .ExperimentWorkbookData( ...
+                Info = obj.dataExp.(fieldName).tableInfo, ...
+                Substrate = obj.dataExp.(fieldName).tableSubstrate, ...
+                MS = obj.dataExp.(fieldName).tableMS, ...
+                MSNormalized = getStoredTableOrEmpty( ...
+                obj, fieldName, "tableMSNormalized"), ...
+                MDV = getStoredTableOrEmpty( ...
+                obj, fieldName, "tableMDV"), ...
+                MDVBiomass = getStoredTableOrEmpty( ...
+                obj, fieldName, "tableMDVBiomass"), ...
+                Enrichment = getStoredTableOrEmpty( ...
+                obj, fieldName, "tableEnrichment"), ...
+                DefaultSubstrateVariableNames = ...
+                obj.defaultVariableNamesListSubstrate, ...
+                DefaultSubstrateVariableTypes = ...
+                obj.defaultVariableTypesListSubstrate);
+
+        end % createWorkbookData
+
+        function applyWorkbookData(obj, workbook, structName, options)
+
+            arguments
+                obj IOExps
+                workbook openmebius.infrastructure.experiment ...
+                    .ExperimentWorkbookData
                 structName (1, 1) string
-                expName (1, 1) string
+                options.UpdateDefaults (1, 1) logical = false
+                options.CreateSubstrateTemplate (1, 1) logical = false
             end
 
-            optionalTables = [ ...
-                                  "tableMSNormalized", ...
-                                  "tableMDV", ...
-                                  "tableMDVBiomass", ...
-                                  "tableEnrichment" ...
-                              ];
-
-            for iTable = 1:length(optionalTables)
-
-                tableName = optionalTables(iTable);
-
-                if ~isempty(objExp.(tableName))
-                    obj.dataExp.(structName).(tableName) = objExp.(tableName);
-                end
-
-            end % for iTable
-
-            if isfield(obj.dataExp.(structName), "tableMDVBiomass") && ...
-                    ~isempty(obj.dataExp.(structName).tableMDVBiomass)
-
-                try
-                    [tableMDVBiomass, errMDV] = validateMDVData( ...
-                        obj, ...
-                        obj.dataExp.(structName).tableMDVBiomass ...
-                    );
-                    obj.dataExp.(structName).tableMDVBiomass = tableMDVBiomass;
-                    obj.dataExp.(structName).errMDV = errMDV;
-                    obj.dataExp.(structName).tableSelection = getFragmentSelection(obj, expName);
-                catch ME
-                    obj.dataExp.(structName).errMDV = true(1, ...
-                        width(obj.dataExp.(structName).tableMDVBiomass));
-                    updateMsg(obj, ...
-                        "The stored biomass-corrected MDV sheet could not be validated: " + string(ME.message), ...
-                        "Warning", obj.logLevel);
-                end
-
+            if options.UpdateDefaults
+                obj.Collection.replaceDefaultSubstrateMetadata( ...
+                    workbook.DefaultSubstrateVariableNames, ...
+                    workbook.DefaultSubstrateVariableTypes);
             end
 
-            if isfield(obj.dataExp.(structName), "tableEnrichment")
-                tableEnrichment = obj.dataExp.(structName).tableEnrichment;
+            obj.dataExp.(structName).tableInfo = workbook.Info;
+            obj.dataExp.(structName).tableSubstrate = workbook.Substrate;
+            obj.dataExp.(structName).tableMS = workbook.MS;
+
+            % Keep stored derived sheets without triggering recalculation.
+            loadStoredDerivedTables(obj, workbook, structName);
+
+            if options.CreateSubstrateTemplate && ...
+                    isempty(obj.dataExp.(structName).tableSubstrate)
+                obj.dataExp.(structName).tableSubstrate = ...
+                    createTemplateSubstrateTable(obj);
+            end
+
+        end % applyWorkbookData
+
+        function loadStoredDerivedTables(obj, workbook, structName)
+
+            arguments
+                obj IOExps
+                workbook openmebius.infrastructure.experiment ...
+                    .ExperimentWorkbookData
+                structName (1, 1) string
+            end
+
+            storedData = obj.ExperimentRepository.restoreDerivedData( ...
+                workbook, ...
+                obj.objModel);
+            sourceNames = [ ...
+                               "MSNormalized", ...
+                               "MDV", ...
+                               "MDVBiomass", ...
+                               "Enrichment" ...
+                           ];
+            targetNames = [ ...
+                               "tableMSNormalized", ...
+                               "tableMDV", ...
+                               "tableMDVBiomass", ...
+                               "tableEnrichment" ...
+                           ];
+
+            for iTable = 1:numel(sourceNames)
+                storedTable = storedData.(sourceNames(iTable));
+
+                if ~isempty(storedTable)
+                    obj.dataExp.(structName).(targetNames(iTable)) = ...
+                        storedTable;
+                end
+            end
+
+            if ~isempty(storedData.MDVBiomass)
+                obj.dataExp.(structName).errMDV = storedData.MDVErrors;
+
+                if ~isempty(storedData.Selection)
+                    obj.dataExp.(structName).tableSelection = ...
+                        storedData.Selection;
+                end
+            end
+
+            if ~isempty(storedData.Enrichment)
                 obj.dataExp.(structName).errEnrichment = ...
-                    any(tableEnrichment{:, :} < 0 | ...
-                    tableEnrichment{:, :} > 1 | ...
-                    isnan(tableEnrichment{:, :}), 2);
+                    storedData.EnrichmentErrors;
+            end
+
+            for iWarning = 1:numel(storedData.Warnings)
+                updateMsg( ...
+                    obj, ...
+                    storedData.Warnings(iWarning), ...
+                    "Warning", ...
+                    obj.logLevel);
             end
 
         end % loadStoredDerivedTables
@@ -1297,633 +1401,15 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
             pathFile = obj.ExperimentLocation.workbookFile(fileExp);
             structName = fieldName;
 
-            objExp = IOExp( ...
-                pathFile, ...
-                ExperimentRepository = obj.ExperimentRepository);
-
-            if objExp.isError
-                obj.isError = true;
-                return;
-            end
-
-            obj.defaultVariableNamesListSubstrate = ...
-                objExp.getDefualtVariables("substrate");
-            obj.defaultVariableTypesListSubstrate = ...
-                objExp.getDefualtVariableTypes("substrate");
-
-            obj.dataExp.(structName).tableInfo = objExp.tableInfo;
-            obj.dataExp.(structName).tableSubstrate = objExp.tableSubstrate;
-            obj.dataExp.(structName).tableMS = objExp.tableMS;
-
-            loadStoredDerivedTables( ...
+            workbook = obj.ExperimentRepository.loadWorkbook(pathFile);
+            applyWorkbookData( ...
                 obj, ...
-                objExp, ...
+                workbook, ...
                 structName, ...
-                obj.ExperimentLocation.experimentName(fileExp) ...
-            );
-
-            if isempty(obj.dataExp.(structName).tableSubstrate)
-                obj.dataExp.(structName).tableSubstrate = ...
-                    createTemplateSubstrateTable(obj);
-            end
-
-            clear objExp;
+                UpdateDefaults = true, ...
+                CreateSubstrateTemplate = true);
 
         end % loadExpFile
-
-        function tableMSNormalized = getMSNormalized(obj, expName)
-            % GETMSNORMALIZED: Get the MS normalized data
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            % expName: (1, 1) string
-            %     The name of the experiment.
-            %
-            % Returns:
-            % --------
-            % tableMSNormalized: table
-            %     The MS normalized data.
-
-            % Get the MS table
-            tableMS = getMSTable(obj, expName);
-            numFragments = width(tableMS);
-
-            for i = 1:numFragments
-
-                iFragment = tableMS{:, i};
-                iFragment(isnan(iFragment)) = 0;
-                iFragmentNormalized = iFragment / sum(iFragment);
-                tableMS{:, i} = iFragmentNormalized;
-            end
-
-            tableMSNormalized = tableMS;
-
-        end % getMSNormalized
-
-        function tableMS = getMDV(obj, expName)
-            % GETMDV: Get the MDV (Mass Distribution Vector) data
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            % expName: (1, 1) string
-            %     The name of the experiment.
-            %
-            % Returns:
-            % --------
-            % tableMS: table
-            %     The MDV data.
-
-            tableMS = getMSNormalizedTable(obj, expName);
-            numFragments = width(tableMS);
-            atomList = obj.tableAtom.Properties.RowNames;
-            tableMSMetabolite = obj.objModel.getMSMetaboliteTable();
-
-            MDVCalc = MDVCorrection();
-
-            for i = 1:numFragments
-
-                iFragment = tableMS{:, i};
-                iFragment(isnan(iFragment)) = 0;
-
-                iFragmentName = tableMS.Properties.VariableNames(i);
-
-                % Find the index of the atomList that matches iFragmentName
-                iFragmentName = iFragmentName{1};
-                idx = find(ismember(atomList, iFragmentName));
-
-                if isempty(idx)
-                    MDV = nan(size(iFragment));
-                    tableMS{:, i} = MDV;
-                    continue
-                end
-
-                iAtomListRow = obj.tableAtom(idx, :);
-                numTracerCarbon = getNumTracerCarbon(obj, tableMSMetabolite, iFragmentName, length(iFragment));
-
-                MDV = MDVCalc.correctNaturalIsotopoper( ...
-                    iFragment, ...
-                    iAtomListRow.C, ...
-                    iAtomListRow.H, ...
-                    iAtomListRow.O, ...
-                    iAtomListRow.N, ...
-                    iAtomListRow.S, ...
-                    iAtomListRow.Si, ...
-                    method = obj.naturalIsotopeCorrectionMethod, ...
-                    numTracerCarbon = numTracerCarbon ...
-                );
-
-                tableMS{:, i} = MDV';
-
-            end
-
-        end % getMDV
-
-        function numTracerCarbon = getNumTracerCarbon(~, tableMSMetabolite, fragmentName, numMDV)
-            % GETNUMTRACERCARBON returns the number of tracer-labelable carbons in a fragment.
-            % numTracerCarbon = getNumTracerCarbon(tableMSMetabolite, fragmentName, numMDV)
-            %
-            %  Inputs:
-            %   tableMSMetabolite (table): A table containing metabolite information, including the number of carbons.
-            %   fragmentName (char): The name of the fragment for which to determine the number of tracer-labelable carbons.
-            %   numMDV (integer): The number of mass distribution vector (MDV) entries for the fragment.
-            %
-            %  Outputs:
-            %   numTracerCarbon (integer): The number of tracer-labelable carbons in the specified fragment.
-
-            arguments
-                ~
-                tableMSMetabolite table
-                fragmentName (1, :) char
-                numMDV (1, 1) {mustBeInteger, mustBePositive}
-            end % arguments
-
-            numTracerCarbon = max(0, numMDV - 1);
-
-            if isempty(tableMSMetabolite) || ~any(strcmp(tableMSMetabolite.Properties.VariableNames, "Metabolite"))
-                return
-            end % if
-
-            idx = find(ismember(string(tableMSMetabolite.Metabolite), string(fragmentName)), 1);
-
-            if isempty(idx) || ~any(strcmp(tableMSMetabolite.Properties.VariableNames, "Carbon"))
-                return
-            end % if
-
-            iNumTracerCarbon = tableMSMetabolite.Carbon{idx};
-
-            if isempty(iNumTracerCarbon) || isnan(iNumTracerCarbon)
-                return
-            end % if
-
-            numTracerCarbon = iNumTracerCarbon;
-
-        end % getNumTracerCarbon
-
-        function MDVBiomass = getMDVBiomass(obj, expName)
-            % GETMDVBIOMASS: Get the MDV (Mass Distribution Vector) of the biomass
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            % expName: (1, 1) string
-            %     The name of the experiment.
-            %
-            %
-            % Returns:
-            % --------
-            % MDVBiomass: (:, 1) double
-            %     The MDV of the biomass.
-
-            arguments
-                obj IOExps
-                expName (1, 1) string
-            end % arguments
-
-            tableMS = getMDVTable(obj, expName);
-            numFragments = width(tableMS);
-            info = getInfoTable(obj);
-            infoExp = info(expName, :);
-
-            ODi = infoExp.ODi;
-            ODf = infoExp.ODf;
-            fraction = ODi / ODf;
-
-            MDVBiomass = tableMS;
-            MDVBiomass{:, :} = nan;
-
-            if isnan(fraction)
-                return;
-            end
-
-            MDVCorrect = MDVCorrection();
-
-            for i = 1:numFragments
-
-                iFragment = tableMS{:, i};
-                iFragment(isnan(iFragment)) = 0;
-
-                iFragmentInitial = eye(size(iFragment));
-
-                MDVBiomassColumn = MDVCorrect.correctBiomass( ...
-                    iFragmentInitial, ...
-                    iFragment, ...
-                    fraction ...
-                );
-
-                MDVBiomass{:, i} = MDVBiomassColumn;
-
-            end
-
-        end % getMDVBiomass
-
-        function [enrichment, errRow] = getEnrichment(obj, expName)
-            % GETENRICHMENT: Get the enrichment of the metabolite
-            %
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            % expName: (1, 1) string
-            %     The name of the experiment.
-
-            arguments
-                obj IOExps
-                expName (1, 1) string
-            end % arguments
-
-            % Get the MS metabolite list
-            tableMS = obj.objModel.getMSMetaboliteTable();
-            [MDV, err] = getMDVBiomassTable(obj, expName);
-
-            if isempty(MDV) || isempty(err)
-                enrichment = table();
-                updateMsg(obj, "The MDV data is empty.", "Error", obj.logLevel);
-                return;
-            end
-
-            MDV = MDV(:, ~err);
-            numFragments = width(MDV);
-
-            errRow = false(numFragments, 1);
-            enrichmentData = nan(numFragments, 1);
-            enrichment = array2table(enrichmentData, ...
-                'VariableNames', {'Enrichment'}, ...
-                'RowNames', MDV.Properties.VariableNames ...
-            );
-            enrichment.Properties.VariableTypes = {'double'};
-
-            for i = 1:numFragments
-
-                iFragment = MDV{:, i};
-                iFragmentName = MDV.Properties.VariableNames(i);
-                iFragmentName = iFragmentName{1};
-                idx = find(ismember(tableMS.Metabolite, iFragmentName), 1);
-
-                if isempty(idx)
-                    msg = "Error: The metabolite " + iFragmentName + " is not found in the model.";
-                    updateMsg(obj, msg, "Error", obj.logLevel);
-                    enrichment.Enrichment(iFragmentName) = nan;
-                    errRow(i) = true;
-                    continue;
-                end
-
-                numCarbon = tableMS.Carbon{idx};
-                iEnrichment = calculateEnrichment(obj, numCarbon, iFragment);
-                enrichment.Enrichment(iFragmentName) = iEnrichment;
-
-            end
-
-        end % getEnrichment
-
-        function enrichment = calculateEnrichment(~, numCarbon, MDV)
-            % CALCULATEENRICHMENT: Calculate the enrichment of the metabolite
-            %
-            % Parameters:
-            % -----------
-            % numCarbon: (1, 1) double
-            %     The number of carbon atoms in the metabolite.
-            % MDV: (:, 1) double
-            %     The MDV of the metabolite.
-            %
-            % Returns:
-            % --------
-            % enrichment: (1, 1) double
-            %     The enrichment of the metabolite.
-
-            arguments
-                ~
-                numCarbon (1, 1) double {mustBePositive, mustBeInteger}
-                MDV (:, 1) double {mustBeNonnegative, mustBeLessThanOrEqual(MDV, 1)}
-            end % arguments
-
-            enrichment = 0;
-
-            for i = 1:numCarbon + 1
-
-                iMDV = MDV(i);
-                enrichment = enrichment + (iMDV * (i - 1));
-
-            end
-
-            enrichment = enrichment / numCarbon;
-
-        end % calculateEnrichment
-
-        function combineInfoData(obj)
-
-            % 各Infoテーブルを結合する
-            % RowNameとして，ファイル名を使用する
-
-            obj.tableExpsInfo = table;
-
-            for i = 1:obj.numFile
-
-                fieldName = obj.fieldNames(i);
-
-                tableInfo = obj.dataExp.(fieldName).tableInfo;
-                tableInfo.Properties.RowNames = obj.fileListWOExt(i);
-
-                if isempty(obj.tableExpsInfo)
-                    obj.tableExpsInfo = tableInfo;
-                else
-                    obj.tableExpsInfo = [obj.tableExpsInfo; tableInfo];
-                end
-
-            end
-
-        end % combineInfoData
-
-        function combineTraceData(obj)
-
-            [tableRtn, tableFullRtn] = combineTableData(obj, "Label");
-
-            obj.tableTracersInfo = tableRtn;
-            obj.tableTracersInfoFull = tableFullRtn;
-
-        end % combineTraceData
-
-        function combineUptakeData(obj)
-
-            [tableRtn, tableFullRtn] = combineTableData(obj, "Uptake");
-
-            obj.tableUptakesInfo = tableRtn;
-            obj.tableUptakesInfoFull = tableFullRtn;
-
-        end % combineUptakeData
-
-        function [tableRtn, tableFullRtn] = combineTableData(obj, type)
-
-            mTableTracersInfoFull = table;
-            mNumFile = obj.numFile;
-            mFieldNames = obj.fieldNames;
-            rowNames = obj.fileListWOExt;
-
-            for i = 1:mNumFile
-
-                fieldName = mFieldNames(i);
-                rowName = rowNames(i);
-
-                iTableSubstrate = obj.dataExp.(fieldName).tableSubstrate;
-                iTableUptake = arrangeExperimentVsSubstrateTable(obj, iTableSubstrate, type, rowName);
-
-                if isempty(mTableTracersInfoFull)
-                    mTableTracersInfoFull = iTableUptake;
-                else
-                    mTableTracersInfoFull = joinTableByRow(obj, mTableTracersInfoFull, iTableUptake);
-                end
-
-            end % for i
-
-            subs = obj.objModel.getSubstrateTable();
-            metabolties = subs.Metabolite;
-            metabolitesColumn = transpose(metabolties);
-            mTableTracersInfo = extractNSVars(obj, mTableTracersInfoFull, metabolitesColumn, type);
-
-            % Diff
-            missingSample = setdiff(rowNames, string(mTableTracersInfo.Properties.RowNames));
-
-            if ~isempty(missingSample)
-
-                tableRtn = mTableTracersInfo;
-                tableFullRtn = mTableTracersInfoFull;
-
-                switch type
-                    case "Uptake"
-
-                        tableAdd = table('Size', [length(missingSample) length(metabolties)], ...
-                            'VariableTypes', repmat("double", 1, length(metabolties)), ...
-                            'VariableNames', mTableTracersInfo.Properties.VariableNames, ...
-                            'RowNames', missingSample);
-                        tableAdd{:, :} = nan;
-
-                        fullMetabolite = mTableTracersInfoFull.Properties.VariableNames;
-                        tableAddFull = table('Size', [length(missingSample) length(fullMetabolite)], ...
-                            'VariableTypes', repmat("double", 1, length(fullMetabolite)), ...
-                            'VariableNames', fullMetabolite, ...
-                            'RowNames', missingSample);
-                        tableAddFull{:, :} = nan;
-
-                    case "Label"
-
-                        tableAdd = table('Size', [length(missingSample) length(metabolties)], ...
-                            'VariableTypes', repmat("string", 1, length(metabolties)), ...
-                            'VariableNames', mTableTracersInfo.Properties.VariableNames, ...
-                            'RowNames', missingSample);
-                        tableAdd{:, :} = {""};
-
-                        fullMetabolite = mTableTracersInfoFull.Properties.VariableNames;
-                        tableAddFull = table('Size', [length(missingSample) length(fullMetabolite)], ...
-                            'VariableTypes', repmat("string", 1, length(fullMetabolite)), ...
-                            'VariableNames', fullMetabolite, ...
-                            'RowNames', missingSample);
-                        tableAddFull{:, :} = {""};
-
-                end
-
-                tableRtn = [tableRtn; tableAdd];
-                tableFullRtn = [tableFullRtn; tableAddFull];
-
-                % Sort by RowNames
-                idxRtn = sortrows(tableRtn.Properties.RowNames, 'ascend');
-                tableRtn = tableRtn(idxRtn, :);
-                tableFullRtn = tableFullRtn(idxRtn, :);
-
-                return
-
-            end
-
-            % Sort by RowNames
-            idxRtn = sortrows(mTableTracersInfo.Properties.RowNames, 'ascend');
-            tableRtn = mTableTracersInfo(idxRtn, :);
-            tableFullRtn = mTableTracersInfoFull(idxRtn, :);
-
-        end % combineTraceData
-
-        function [tableRtn, err] = combineEnrichmentData(obj)
-            % COMBINEENRICHMENTDATA: Create a table of enrichment data
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            %
-            % Returns:
-            % --------
-            % tableRtn: table
-            %     The table of enrichment data.
-            % err: logical
-            %     The error flag for the enrichment data.
-            %     true if there is an error, false otherwise.
-            %     Conditiions:
-            %     - The table of enrichment data is empty.
-            %     - The range of the table is not valid.
-            %       0 <= enrichment <= 1
-            %
-            % Example:
-            % >> obj = IOExps("path/to/your/file", "fileName");
-            % >> tableRtn = combineEnrichmentData(obj)
-            %     tableRtn = 3x3 table
-            %     | Fragment | Sample1 | Sample2 | Sample3 |
-            %     |----------|---------|---------|---------|
-            %     |    Ala57 | 0.1234  | 0.5678  | 0.9101  |
-            %     |    Ala85 | 0.2345  | 0.6789  | 0.0123  |
-            %     |   Ala157 | 0.2345  | 0.6789  | 0.0123  |
-            %
-            %     err = 3x3 logical array
-            %           [0 0 0; 0 0 0; 0 0 0]
-
-            numData = obj.numFile;
-
-            tableRtn = table();
-
-            for i = 1:numData
-
-                iFieldName = obj.fieldNames(i);
-                iExperimentName = obj.fileListWOExt(i);
-
-                if ~isfield(obj.dataExp.(iFieldName), "tableEnrichment") || ...
-                        isempty(obj.dataExp.(iFieldName).tableEnrichment)
-                    updateMsg(obj, ...
-                        "The enrichment table is not available. Press Calculate MDV before viewing enrichment data.", ...
-                        "Error", obj.logLevel);
-                    tableRtn = table();
-                    err = [];
-                    return
-                end
-
-                iTableEnrichment = obj.dataExp.(iFieldName).tableEnrichment;
-                iTableEnrichment.Properties.VariableNames = iExperimentName;
-                iTableEnrichmentRowNames = iTableEnrichment.Properties.RowNames;
-                iTableEnrichment.RowNamesTemp = iTableEnrichmentRowNames;
-
-                if isempty(tableRtn)
-                    tableRtn = iTableEnrichment;
-                    continue;
-                end
-
-                tableRtn = outerjoin( ...
-                    tableRtn, ...
-                    iTableEnrichment, ...
-                    'Keys', "RowNamesTemp", ...
-                    'MergeKeys', true ...
-                );
-
-            end % for i
-
-            % Set the row names of the table
-            tableRtn.Properties.RowNames = tableRtn.RowNamesTemp;
-            tableRtn = removevars(tableRtn, "RowNamesTemp");
-
-            % Check for empty table
-            if isempty(tableRtn)
-                updateMsg(obj, "The enrichment table is empty.", "Error", obj.logLevel);
-                err = [];
-                return;
-            end
-
-            enrichmentArray = tableRtn{:, :};
-            err = false(size(enrichmentArray));
-            err = logical(err);
-
-            % Check for valid range of enrichment values
-            err(enrichmentArray < 0) = true;
-            err(enrichmentArray > 1) = true;
-            err(isnan(enrichmentArray)) = true;
-
-        end % combineEnrichmentData
-
-        function [tableRtnSelect, tableRtnAvailable] = combineSelectionData(obj)
-            % COMBINESELECTIONDATA: Create a table of selection data
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            %
-            % Returns:
-            % --------
-            % tableRtn: table
-            %     The table of selection data.
-
-            numData = obj.numFile;
-            tableRtnSelect = table();
-            tableRtnAvailable = table();
-
-            for i = 1:numData
-
-                iFieldName = obj.fieldNames(i);
-                iExperimentName = obj.fileListWOExt(i);
-
-                if ~isfield(obj.dataExp.(iFieldName), "tableSelection") || ...
-                        isempty(obj.dataExp.(iFieldName).tableSelection)
-                    updateMsg(obj, ...
-                        "The fragment selection table is not available. Press Calculate MDV before configuring MDV-dependent analysis.", ...
-                        "Error", obj.logLevel);
-                    tableRtnSelect = table();
-                    tableRtnAvailable = table();
-                    return
-                end
-
-                iTableSelection = obj.dataExp.(iFieldName).tableSelection;
-                iTableSelectionSelect = iTableSelection(:, "Select");
-                iTableSelectionAvailable = iTableSelection(:, "Available");
-                iTableSelectionSelect.Properties.VariableNames = iExperimentName;
-                iTableSelectionAvailable.Properties.VariableNames = iExperimentName;
-                iTableSelectionSelect.RowNamesTemp = iTableSelectionSelect.Properties.RowNames;
-                iTableSelectionAvailable.RowNamesTemp = iTableSelectionAvailable.Properties.RowNames;
-
-                if isempty(tableRtnSelect)
-                    tableRtnSelect = iTableSelectionSelect;
-                    tableRtnAvailable = iTableSelectionAvailable;
-                    continue;
-                end
-
-                tableRtnSelect = outerjoin( ...
-                    tableRtnSelect, ...
-                    iTableSelectionSelect, ...
-                    'Keys', "RowNamesTemp", ...
-                    'MergeKeys', true ...
-                );
-                tableRtnAvailable = outerjoin( ...
-                    tableRtnAvailable, ...
-                    iTableSelectionAvailable, ...
-                    'Keys', "RowNamesTemp", ...
-                    'MergeKeys', true ...
-                );
-
-            end % for i
-
-            % Set the row names of the table
-            tableRtnSelect.Properties.RowNames = tableRtnSelect.RowNamesTemp;
-            tableRtnSelect = removevars(tableRtnSelect, "RowNamesTemp");
-            tableRtnAvailable.Properties.RowNames = tableRtnAvailable.RowNamesTemp;
-            tableRtnAvailable = removevars(tableRtnAvailable, "RowNamesTemp");
-
-        end % combineSelectionData
-
-        function tableRtn = arrangeExperimentVsSubstrateTable(~, data, column, rowName)
-
-            % Extract the column using variable names
-            tableFiltered = data(:, column);
-
-            if isempty(tableFiltered.Properties.RowNames)
-                % If the table has only one row, transpose it
-                tableRtn = table();
-                return
-            end
-
-            tableTransposed = rows2vars(tableFiltered);
-            tableTransposed.Properties.RowNames = rowName;
-            % Delete the OriginalVariableNames
-            tableRtn = removevars(tableTransposed, "OriginalVariableNames");
-
-        end % arrangeExperimentVsSubstrateTable
 
         function tableRtn = createExperimentVsSubstrateTable(obj, variable)
 
@@ -1985,547 +1471,6 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
             tableRtn.Uptake = defaultUptake;
 
         end % createTemplateSubstrateTable
-
-        function tableRtn = joinTableByRow(~, table1, table2)
-
-            table1Row = table1;
-            table2Row = table2;
-
-            table1Row.Rownames = table1.Properties.RowNames;
-            table2Row.Rownames = table2.Properties.RowNames;
-
-            table1Var = table1Row.Properties.VariableNames;
-            table2Var = table2Row.Properties.VariableNames;
-
-            commonRowNames = intersect(table1Var, table2Var);
-
-            tableJoined = outerjoin(table1Row, table2Row, 'Keys', commonRowNames, 'MergeKeys', true);
-
-            tableJoined.Properties.RowNames = tableJoined.Rownames;
-            tableJoined = removevars(tableJoined, 'Rownames');
-
-            tableRtn = tableJoined;
-
-        end % joinTable
-
-        function tableRtn = extractNSVars(~, tableIn, vars, type)
-
-            VariableNames = tableIn.Properties.VariableNames;
-            missingVars = setdiff(vars, VariableNames);
-            numMissingVars = length(missingVars);
-
-            tableHeight = height(tableIn);
-            nanRow = nan(tableHeight, 1);
-
-            if strcmp(type, "Label")
-                nanRow = cell(tableHeight, 1);
-            end
-
-            for i = 1:numMissingVars
-
-                tableIn.(missingVars{i}) = nanRow;
-
-            end % for i
-
-            tableExtracted = tableIn(:, vars);
-            tableSorted = tableExtracted(:, vars);
-            tableRtn = tableSorted;
-
-        end % extractNSVars
-
-        function tableRtn = joinFullVars(~, table1, table2)
-
-            variableNames1 = table1.Properties.VariableNames;
-            variableNames2 = table2.Properties.VariableNames;
-
-            missingVars = setdiff(variableNames2, variableNames1);
-            numMissingVars = length(missingVars);
-
-            for i = 1:numMissingVars
-
-                table1.(missingVars{i}) = table2.(missingVars{i});
-
-            end % for i
-
-            tableSorted = table1(:, variableNames2);
-            tableRtn = tableSorted;
-
-        end
-
-        function tableRtn = substituteDataToFullTable(~, tableFull, tableIn, type)
-            % SUBSTITUTEDATATOFULLTABLE: Substitute data to the full table
-            %
-            % Parameters:
-            % -----------
-            % tableFull: table
-            %     The full table.
-            % tableIn: table
-            %     The table to be substituted.
-            %
-            % Returns:
-            % --------
-            % tableRtn: table
-            %     The table with the substituted data.
-            %
-            % Example:
-            % >> tableIn
-            %     Label: {'A'; 'B'; 'C'}
-            %     Ratio: [0.1; 0.2; 0.3]
-            %
-            % >> tableFull
-            %     Label: {'A'; 'B'; 'C'; 'D'}
-            %     Ratio: [0; 0; 0; 0]
-            %
-            % >> tableRtn = substituteDataToFullTable(tableFull, tableIn)
-            %     Label: {'A'; 'B'; 'C'; 'D'}
-            %     Ratio: [0.1; 0.2; 0.3; 0]
-
-            arguments
-                ~
-                tableFull table
-                tableIn table
-                type (1, 1) string {mustBeMember(type, ["Label", "Uptake"])}
-            end
-
-            varsIn = tableIn.Properties.VariableNames;
-            varsFull = tableFull.Properties.VariableNames;
-            rowNamesIn = tableIn.Properties.RowNames;
-            rowNamesFull = tableFull.Properties.RowNames;
-
-            if ~all(ismember(varsIn, varsFull))
-                missingVars = setdiff(varsIn, varsFull);
-                warning("The variables in tableIn are not all present in tableFull: %s. Adding missing variables.", strjoin(missingVars, ", "));
-
-                switch type
-                    case "Uptake"
-                        varsNan = nan(height(tableFull), numel(missingVars));
-                        tableAdd = array2table(varsNan, ...
-                            'VariableNames', missingVars, ...
-                            'RowNames', rowNamesFull);
-
-                    case "Label"
-                        tableAdd = table('Size', [height(tableFull) numel(missingVars)], ...
-                            'VariableTypes', repmat("string", 1, numel(missingVars)), ...
-                            'VariableNames', missingVars, ...
-                            'RowNames', rowNamesFull);
-
-                        for k = 1:numel(missingVars)
-                            tableAdd.(missingVars{k}) = repmat("", height(tableFull), 1); % string column
-                        end
-
-                end
-
-                tableFull = [tableFull, tableAdd];
-                tableFull = tableFull(:, sort(tableFull.Properties.VariableNames));
-
-            end
-
-            if ~all(ismember(rowNamesIn, rowNamesFull)) && height(tableIn) == height(tableFull)
-                missingRows = setdiff(rowNamesIn, rowNamesFull);
-                error("The rows in tableIn are not all present in tableFull: %s", strjoin(missingRows, ", "));
-            end
-
-            tableRtn = tableFull;
-            numVars = length(varsIn);
-
-            for i = 1:numVars
-
-                iVar = varsIn{i};
-                tableRtn.(iVar) = tableIn.(iVar);
-
-            end % for i
-
-        end % substituteDataToFullTable
-
-        function tableRtn = substituteDataToExpData(~, tableIn, tableOut, type)
-            % SUBSTITUTEDATATOEXPDATA: Substitute data to the experimental data
-            %
-            % Parameters:
-            % -----------
-            % tableIn: table
-            %     The table to be substituted.
-            % tableOut: table
-            %     The table to be updated.
-            % type: string
-            %     The type of the table. It can be "Label" or "Uptake".
-            %
-            % Returns:
-            % --------
-            % tableRtn: table
-            %     The table with the substituted data.
-            %
-            % Example:
-            % >> tableIn
-            %     Label: {'A'; 'B'; 'C'}
-            %     Ratio: [0.1; 0.2; 0.3]
-            %
-            % >> tableOut
-            %     RowNames | Label | Ratio |
-            %     A        | 0.1   | A     |
-            %     B        | 0.3   | B     |
-            %     C        | 0.5   | A     |
-            %
-            % >> tableRtn = substituteDataToExpData(tableIn, tableOut, "Label")
-            %     RowNames | Label | Ratio |
-            %     A        | 0.1   | A     |
-            %     B        | 0.2   | B     |
-            %     C        | 0.3   | A     |
-
-            arguments
-                ~
-                tableIn table
-                tableOut table
-                type (1, 1) string {mustBeMember(type, ["Label", "Uptake"])}
-            end
-
-            variablesIn = tableIn.Properties.VariableNames;
-            rowNamesOut = tableOut.Properties.RowNames;
-
-            if ~all(ismember(variablesIn, rowNamesOut))
-                missingVars = setdiff(variablesIn, rowNamesOut);
-                % Add missing variables to the tableOut
-                numAddedVars = length(missingVars);
-                added = nan(numAddedVars, width(tableOut));
-                tableOut = [tableOut; ...
-                                array2table(added, ...
-                                'VariableNames', tableOut.Properties.VariableNames, ...
-                                'RowNames', missingVars)];
-                rowNamesOut = tableOut.Properties.RowNames;
-
-            end
-
-            numSample = length(variablesIn);
-
-            % Select the output variable name
-            if strcmp(type, "Label")
-
-                varNameOut = "Label";
-
-            elseif strcmp(type, "Uptake")
-
-                varNameOut = "Uptake";
-
-            end
-
-            tableRtn = tableOut;
-
-            for i = 1:numSample
-
-                iVarNameIn = variablesIn{i};
-                iData = tableIn.(iVarNameIn);
-                iRowNameOut = find(ismember(rowNamesOut, iVarNameIn), 1);
-
-                tableRtn.(varNameOut)(iRowNameOut) = iData;
-
-            end % for i
-
-        end % substituteDataToExpData
-
-        function data = normalizeUITableInput(~, data, type)
-            % NORMALIZEUITABLEINPUT: Normalize the input data from UITable
-            %
-            % data = normalizeUITableInput(obj, data, type)
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            % data: table
-            %     The input data from UITable.
-            % type: string
-            %     The type of the data. It can be "Tracer" or "Uptake".
-            %
-            % Returns:
-            % --------
-            % data: table
-            %     The normalized data.
-            %
-            % Description:
-            % ------------
-            % This function normalizes the input data from UITable.
-            % table obtained from UITable may contain cells, so the function
-            % normalizes the data type.
-
-            arguments
-                ~
-                data table
-                type (1, 1) string {mustBeMember(type, ["Tracer", "Uptake"])}
-            end
-
-            vars = data.Properties.VariableNames;
-
-            switch type
-                case "Tracer"
-
-                    for j = 1:numel(vars)
-
-                        col = data.(vars{j});
-
-                        if iscell(col)
-
-                            % 1. Convert the empty cell or missing to ""
-                            % 2. Convert char to string
-                            % 3. Keep string as is
-                            col = cellfun(@(x) localToStringScalar(x), col, 'UniformOutput', true);
-
-                        else
-
-                            col = string(col);
-
-                        end % if iscell(col)
-
-                        data.(vars{j}) = string(col);
-
-                    end % for j = 1:numel(vars)
-
-                case "Uptake"
-
-                    for j = 1:numel(vars)
-
-                        col = data.(vars{j});
-
-                        if iscell(col)
-
-                            col = cellfun(@(x) localToDouble(x), col);
-
-                        end % if iscell(col)
-
-                        data.(vars{j}) = double(col);
-
-                    end % for j = 1:numel(vars)
-
-            end % switch type
-
-            % ---- local helpers ----
-            function s = localToStringScalar(x)
-
-                if isempty(x)
-                    s = "";
-                    return;
-                end
-
-                % たまに {""} のように入れ子になる場合
-                if iscell(x)
-
-                    if isempty(x)
-                        s = "";
-                    else
-                        s = localToStringScalar(x{1});
-                    end
-
-                    return;
-                end
-
-                s = string(x);
-
-                if ismissing(s)
-                    s = "";
-                end
-
-                if numel(s) ~= 1
-                    s = s(1);
-                end
-
-            end
-
-            function d = localToDouble(x)
-
-                if isempty(x)
-                    d = NaN;
-                    return;
-                end
-
-                if iscell(x)
-                    d = localToDouble(x{1});
-                    return;
-                end
-
-                if isstring(x) || ischar(x)
-
-                    if strlength(string(x)) == 0
-                        d = NaN;
-                    else
-                        d = str2double(string(x));
-                    end
-
-                    return;
-                end
-
-                d = double(x);
-
-                if ~isfinite(d)
-                    d = NaN;
-                end
-
-            end
-
-        end % normalizeUITableInput
-
-        function tf = isValidUptakeData(obj, data)
-            % ISVALIDUPTAKEDATA: Validate the uptake data
-            %
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            % data: table
-            %     The uptake data.
-
-            tf = true;
-
-            if isempty(data) || ~istable(data)
-                updateMsg(obj, "The uptake data is empty or not a table.", "Error", obj.logLevel);
-                tf = false;
-                return;
-            end
-
-            for i = 1:height(data)
-
-                for j = 1:width(data)
-
-                    iData = data{i, j};
-
-                    % iData is real value or nan
-                    if ~isnan(iData) && ~isreal(iData)
-                        updateMsg(obj, "The uptake data is not valid.", "Error", obj.logLevel);
-                        tf = false;
-                        return;
-                    end
-
-                end % for j
-
-            end % for i
-
-        end % isValidUptakeData
-
-        function tf = isValidTracerData(obj, data)
-            % ISVALIDTRACERDATA: Validate the tracer data
-            %
-            % Parameters:
-            % -----------
-            % data: table
-            %     The tracer data.
-            %
-            % Returns:
-            % --------
-            % tf: logical
-            %     true if the tracer data is valid, false otherwise.
-
-            arguments
-                obj
-                data table
-            end
-
-            tf = true;
-
-            if isempty(data) || ~istable(data)
-                tf = false;
-                return;
-            end
-
-            availableTracer = getTableLabelView(obj.objModel);
-            availableTracerName = strip(string(availableTracer.Name));
-
-            for i = 1:height(data)
-
-                for j = 1:width(data)
-
-                    iData = data{i, j};
-
-                    % Normalize to string (and handle missing/empty) to avoid
-                    % unsupported implicit conversions from <missing>.
-                    iDataStr = localToStringScalar(iData);
-
-                    if strlength(strip(iDataStr)) == 0
-                        continue;
-                    end
-
-                    tracer = split(iDataStr, ';');
-                    tracer = strip(tracer);
-                    tracer = tracer(strlength(tracer) > 0);
-                    numTracer = numel(tracer);
-
-                    for k = 1:numTracer
-
-                        kTracer = tracer(k);
-                        kTracerSplit = split(kTracer, '~');
-                        kTracerSplit = strip(kTracerSplit);
-
-                        if numel(kTracerSplit) ~= 2
-                            tf = false;
-                            return;
-                        end
-
-                        kLabel = kTracerSplit(1);
-                        kRatioStr = kTracerSplit(2);
-                        kRatio = str2double(kRatioStr);
-
-                        if isnan(kRatio) || kRatio < 0 || kRatio > 1
-                            tf = false;
-                            return;
-                        end
-
-                        if ~ismember(kLabel, availableTracerName)
-                            tf = false;
-                            return;
-                        end
-
-                    end % for k
-
-                end % for j
-
-            end % for i
-
-            function s = localToStringScalar(v)
-                % Convert table cell content into a scalar string.
-                % Treat missing/empty as "".
-                if iscell(v)
-
-                    if isempty(v)
-                        s = "";
-                        return;
-                    end
-
-                    if isscalar(v)
-                        s = localToStringScalar(v{1});
-                        return;
-                    end
-
-                    s = string(v(1));
-                    return;
-                end
-
-                if isstring(v)
-
-                    if isempty(v)
-                        s = "";
-                        return;
-                    end
-
-                    s = v(1);
-
-                    if ismissing(s)
-                        s = "";
-                    end
-
-                    return;
-                end
-
-                if ischar(v)
-                    s = string(v);
-                    return;
-                end
-
-                if ismissing(v)
-                    s = "";
-                    return;
-                end
-
-                s = string(v);
-            end
-
-        end % validateTracerData
 
         function tableRtn = parseLabelPattern(~, label, availableTable)
 
@@ -2612,141 +1557,97 @@ classdef IOExps < openmebius.infrastructure.logging.MessageState
 
         end % substituteInfoTable
 
-        function status = substituteLabelUptakeTable(obj, tableIn, type)
-            % SUBSTITUTETABLELABELUPTAKE: Substitute the table of label uptake
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %    The IOExps object.
-            % tableIn: table
-            %    The table of label uptake.
-            % type: string
-            %    The type of the table. It can be "Label" or "Uptake".
-            %
-            % Returns:
-            % --------
-            % status: logical
-            %     The status of the update operation.
+    end % methods (Access = private)
+
+    methods (Access = protected)
+
+        function updateMsg(obj, text, level, ~)
+
+            message = join(string(text(:)), newline);
+            normalizedLevel = openmebius.infrastructure.logging.Logger ...
+                .normalizeLevel(level);
+
+            switch normalizedLevel
+                case "Warning"
+                    obj.ValidationWarnings(end + 1, 1) = message;
+            end
+
+            obj.MessagePublisher.write( ...
+                lower(normalizedLevel), ...
+                message);
+
+        end % updateMsg
+
+        function resetValidation(obj)
+
+            obj.ValidationErrors = strings(0, 1);
+            obj.ValidationWarnings = strings(0, 1);
+
+        end % resetValidation
+
+        function recordValidationError(obj, message)
+
+            message = join(string(message(:)), newline);
+            obj.ValidationErrors(end + 1, 1) = message;
+            updateMsg(obj, message, "Error", obj.logLevel);
+
+        end % recordValidationError
+
+        function report = createValidationReport(obj, successMessage)
 
             arguments
-                obj IOExps
-                tableIn table
-                type (1, 1) string {mustBeMember(type, ["Label", "Uptake"])}
+                obj
+                successMessage (1, 1) string
             end
 
-            %     true if the update was successful, false otherwise.
-            status = false;
+            warnings = unique(obj.ValidationWarnings, "stable");
 
-            if strcmp(type, "Label")
-
-                tableFull = obj.tableTracersInfoFull;
-                tableFullSubs = substituteDataToFullTable(obj, tableFull, tableIn, type);
-                obj.tableTracersInfoFull = tableFullSubs;
-
-            elseif strcmp(type, "Uptake")
-
-                tableFull = obj.tableUptakesInfoFull;
-                tableFullSubs = substituteDataToFullTable(obj, tableFull, tableIn, type);
-                obj.tableUptakesInfoFull = tableFullSubs;
-
+            if ~isempty(obj.ValidationErrors)
+                errorMessage = join( ...
+                    unique(obj.ValidationErrors, "stable"), ...
+                    newline);
+                report = openmebius.domain.experiment ...
+                    .ExperimentValidationReport.failure( ...
+                    errorMessage, ...
+                    Warnings = warnings);
+                return
             end
 
-            numData = height(tableFullSubs);
+            if successMessage ~= ""
+                updateMsg(obj, successMessage, "Info", obj.logLevel);
+            end
 
-            for i = 1:numData
+            report = openmebius.domain.experiment ...
+                .ExperimentValidationReport.success( ...
+                successMessage, ...
+                Warnings = warnings);
 
-                iRowName = tableFullSubs.Properties.RowNames(i);
-                iRowData = tableFullSubs(i, :);
+        end % createValidationReport
 
-                % Check if the row name is in the table of experimental information
-                if ~ismember(iRowName, obj.fileListWOExt)
+        function throwIfValidationFailed(obj, identifier, fallbackMessage)
 
-                    updateMsg(obj, "The row name is not found in the table of experimental information.", "Error", obj.logLevel);
-                    status = true;
-                    continue;
+            arguments
+                obj
+                identifier (1, 1) string
+                fallbackMessage (1, 1) string
+            end
 
-                end % if
+            if isempty(obj.ValidationErrors)
+                return
+            end
 
-                % Get the index of the row name in the table of experimental information
-                idx = getExpIdx(obj, iRowName);
+            message = join( ...
+                unique(obj.ValidationErrors, "stable"), ...
+                newline);
 
-                if isempty(idx)
-                    updateMsg(obj, "The row name is not found in the table of experimental information.", "Error", obj.logLevel);
-                    status = true;
-                    continue;
-                end
+            if message == ""
+                message = fallbackMessage;
+            end
 
-                tableSubs = obj.dataExp.(obj.fieldNames(idx)).tableSubstrate;
+            error(identifier, "%s", message);
 
-                if strcmp(type, "Label")
+        end % throwIfValidationFailed
 
-                    tableSubs = substituteDataToExpData(obj, iRowData, tableSubs, type);
-
-                elseif strcmp(type, "Uptake")
-
-                    tableSubs = substituteDataToExpData(obj, iRowData, tableSubs, type);
-
-                end
-
-                obj.dataExp.(obj.fieldNames(idx)).tableSubstrate = tableSubs;
-
-            end % for i
-
-        end % substituteLabelUptakeTable
-
-        function [MDV, err] = validateMDVData(obj, tableMDVBiomass)
-            % VALIDATEMDVDATA: Validate and normalize the MDV data
-            %
-            % Parameters:
-            % -----------
-            % obj: IOExps
-            %     The IOExps object.
-            % tableMDVBiomass: table
-            %     The MDV data.
-            %
-            % Returns:
-            % --------
-            % MDV: (n, m) table
-            %     The validated MDV data.
-            % err: (1, m) logical
-            %     The error flag for each column.
-            %     1: Error, 0: No error.
-
-            numFragments = width(tableMDVBiomass);
-            MDV = tableMDVBiomass;
-            err = false(1, numFragments);
-
-            for i = 1:numFragments
-
-                iFragment = tableMDVBiomass{:, i};
-                iFragment(isnan(iFragment)) = 0;
-
-                % Check if the sum of the MDV is 1
-                if abs(sum(iFragment) - 1) > 1e-6
-                    err(i) = true;
-                    continue;
-                end
-
-                % Count the number of negative values
-                numNegative = sum(iFragment < obj.MDVTolelrance);
-
-                if numNegative > 0
-                    err(i) = true;
-                    continue;
-                end
-
-                % Round the negative values to zero
-                iFragment(iFragment < 0) = 0;
-
-                % Normalize the MDV data
-                iFragmentNormalized = iFragment / sum(iFragment);
-                MDV{:, i} = iFragmentNormalized;
-
-            end % for i
-
-        end % validateMDVData
-
-    end % methods (Access = private)
+    end % methods (Access = protected)
 
 end % classdef

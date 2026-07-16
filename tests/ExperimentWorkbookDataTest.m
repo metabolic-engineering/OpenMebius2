@@ -1,0 +1,61 @@
+classdef ExperimentWorkbookDataTest < matlab.unittest.TestCase
+
+    methods (TestMethodSetup)
+
+        function addSourcePath(~)
+
+            addpath(ExperimentWorkbookDataTest.sourcePath());
+
+        end
+
+    end
+
+    methods (Test)
+
+        function preservesWorkbookTablesAndDefaults(testCase)
+
+            info = table( ...
+                0, ...
+                0, ...
+                1, ...
+                VariableNames = ["mu", "ODi", "ODf"]);
+            workbook = openmebius.infrastructure.experiment ...
+                .ExperimentWorkbookData( ...
+                Info = info, ...
+                DefaultSubstrateVariableNames = ["Uptake", "Label"], ...
+                DefaultSubstrateVariableTypes = ["double", "string"]);
+
+            testCase.verifyEqual(workbook.Info, info);
+            testCase.verifyEqual( ...
+                workbook.DefaultSubstrateVariableNames, ...
+                ["Uptake", "Label"]);
+
+        end
+
+        function rejectsMismatchedDefaultMetadata(testCase)
+
+            testCase.verifyError( ...
+                @() openmebius.infrastructure.experiment ...
+                .ExperimentWorkbookData( ...
+                DefaultSubstrateVariableNames = ["Uptake", "Label"], ...
+                DefaultSubstrateVariableTypes = "double"), ...
+                "OpenMebius2:ExperimentWorkbookData:" + ...
+                "DefaultVariableCountMismatch");
+
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function path = sourcePath()
+
+            path = fullfile( ...
+                fileparts(fileparts(mfilename("fullpath"))), ...
+                "src");
+
+        end
+
+    end
+
+end % classdef

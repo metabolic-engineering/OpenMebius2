@@ -1,4 +1,4 @@
-classdef IOResult < openmebius.infrastructure.logging.MessageState
+classdef IOResult < handle
 
     events
 
@@ -22,6 +22,10 @@ classdef IOResult < openmebius.infrastructure.logging.MessageState
 
     end % properties
 
+    properties (Access = private)
+        MessagePublisher
+    end
+
     methods
 
         function obj = IOResult(resultInput, options)
@@ -39,24 +43,15 @@ classdef IOResult < openmebius.infrastructure.logging.MessageState
 
             obj.ResultLocation = resultLocation;
             obj.ResultRepository = options.ResultRepository;
+            obj.MessagePublisher = openmebius.presentation ...
+                .notification.GeneralMessagePublisher();
 
-            try
-                obj.ResultRepository.assertResultDirectory(resultLocation);
-            catch
-                obj.isError = true;
-                updateMsg(obj, ...
-                    "The directory " + resultLocation.Directory + ...
-                    " does not exist.", ...
-                    "Error", ...
-                    obj.logLevel);
-                return
-            end
+            obj.ResultRepository.assertResultDirectory(resultLocation);
 
-            updateMsg(obj, ...
+            obj.MessagePublisher.write( ...
+                "info", ...
                 "The directory " + resultLocation.Directory + ...
-                " exists.", ...
-                "Info", ...
-                obj.logLevel);
+                " exists.");
 
         end % constructor
 
@@ -693,9 +688,7 @@ classdef IOResult < openmebius.infrastructure.logging.MessageState
             obj.IDs = ids;
             obj.dataMask = dataMask;
 
-            if ~obj.ResultLocation.directoryExists()
-                obj.isError = true;
-                notifyGeneralMessage(obj, "error", "Result directory does not exist.");
+            if ~obj.ensureResultDirectory()
                 return;
             end
 
@@ -759,9 +752,7 @@ classdef IOResult < openmebius.infrastructure.logging.MessageState
 
             data = struct;
 
-            if ~obj.ResultLocation.directoryExists()
-                obj.isError = true;
-                notifyGeneralMessage(obj, "error", "Result directory does not exist.");
+            if ~obj.ensureResultDirectory()
                 return;
             end
 
@@ -776,8 +767,6 @@ classdef IOResult < openmebius.infrastructure.logging.MessageState
                 notifyGeneralMessage(obj, "error", "Failed to load the result file.");
                 return;
             end
-
-            reset(obj);
 
         end % loadResultFile
 
@@ -1249,20 +1238,30 @@ classdef IOResult < openmebius.infrastructure.logging.MessageState
                 msg (1, 1) string
             end % arguments
 
-            % Event data
-            type = "GeneralMsg";
-            ed = struct;
-            ed.status = status;
-            ed.msg = msg;
+            obj.MessagePublisher.report( ...
+                status, ...
+                msg, ...
+                @(eventData) notify(obj, 'GeneralMsg', eventData));
 
-            notify(obj, 'GeneralMsg', BatchProgressEventData(type, ed));
-            % obj.status.updateMsg(msg, "Info", "Info");
-
-        end % notifyInitialFluxEvent
+        end % notifyGeneralMessage
 
     end % methods (Access = protected)
 
     methods (Access = private)
+
+        function tf = ensureResultDirectory(obj)
+
+            tf = true;
+
+            try
+                obj.ResultRepository.assertResultDirectory( ...
+                    obj.ResultLocation);
+            catch ME
+                tf = false;
+                notifyGeneralMessage(obj, "error", string(ME.message));
+            end
+
+        end % ensureResultDirectory
 
         function [isSuccess, msg] = exportExcelFile(obj, pathFile, excelData, sheetName, options)
 

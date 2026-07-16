@@ -26,10 +26,6 @@ classdef Stoichiometry < IOModel
 
             obj = obj@IOModel(modelInput, varargin{:});
 
-            if obj.isError
-                return;
-            end
-
             obj.buildModel();
 
         end
@@ -45,7 +41,18 @@ classdef Stoichiometry < IOModel
             obj.generateS();
             obj.generateSAll();
 
-            obj.validateS();
+            if ~obj.validateS()
+                error( ...
+                    "OpenMebius2:ModelRepository:" + ...
+                    "InvalidStoichiometry", ...
+                    "Stoichiometry matrix is invalid.");
+            end
+
+            throwIfConstructionFailed( ...
+                obj, ...
+                "OpenMebius2:ModelRepository:" + ...
+                "StoichiometryBuildFailed", ...
+                "Failed to build the stoichiometry model.");
 
         end % buildModel
 
@@ -94,6 +101,21 @@ classdef Stoichiometry < IOModel
         function Stype = getSType(obj)
             Stype = obj.Stype;
         end % getStype
+
+        function constraintTypes = getConstraintTypes(obj)
+            % GETCONSTRAINTTYPES Types aligned with rows of SBefore.
+
+            rowCount = height(obj.SBefore);
+
+            if numel(obj.Stype) < rowCount
+                error( ...
+                    "OpenMebius2:Stoichiometry:MissingConstraintTypes", ...
+                    "The model does not provide a type for every constraint.");
+            end
+
+            constraintTypes = obj.Stype(1:rowCount);
+
+        end % getConstraintTypes
 
         function idx = getIdxRev(obj)
             idx = obj.idxRev;

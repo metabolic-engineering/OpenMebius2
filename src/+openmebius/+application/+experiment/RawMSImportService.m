@@ -60,19 +60,6 @@ classdef RawMSImportService < handle
                     "Model is not loaded. Please load a model before importing MS data.");
             end
 
-            try
-                if isprop(model, 'isError') && model.isError
-                    error( ...
-                        "OpenMebius2:RawMSImportService:ModelNotLoaded", ...
-                        "Model is not loaded. Please load a model before importing MS data.");
-                end
-            catch ME
-                if strcmp(ME.identifier, ...
-                        "OpenMebius2:RawMSImportService:ModelNotLoaded")
-                    rethrow(ME)
-                end
-            end
-
             if ~ismethod(model, 'getAtomTable')
                 error( ...
                     "OpenMebius2:RawMSImportService:InvalidModel", ...

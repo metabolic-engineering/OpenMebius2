@@ -46,6 +46,54 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
         end
 
+        function loadedModelExposesAlignedConstraintTypes(testCase)
+
+            repository = openmebius.infrastructure.model.ModelRepository();
+            model = repository.load( ...
+                ModelRepositoryTest.templateModelLocation());
+            constraintTypes = string(model.getConstraintTypes());
+            systemTypes = string(model.getSType());
+
+            testCase.verifyEqual( ...
+                numel(constraintTypes), height(model.getSBefore()));
+            testCase.verifyEqual( ...
+                numel(systemTypes), height(model.getS()));
+            testCase.verifyEqual( ...
+                constraintTypes(:), ...
+                systemTypes(1:numel(constraintTypes)));
+
+        end
+
+        function loadRejectsMissingModelDirectory(testCase)
+
+            repository = openmebius.infrastructure.model.ModelRepository();
+            modelLocation = openmebius.domain.model.ModelLocation ...
+                .fromDirectory(fullfile(tempdir, "missing-openmebius-model-repo"));
+
+            testCase.verifyError( ...
+                @() repository.load(modelLocation), ...
+                "OpenMebius2:ModelRepository:DirectoryNotFound");
+
+        end
+
+        function loadPreservesTypedWorkbookFailure(testCase)
+
+            modelDirectory = string(tempname);
+            mkdir(modelDirectory);
+            cleanup = onCleanup(@() ...
+                ModelRepositoryTest.removeDirectory(modelDirectory));
+            repository = openmebius.infrastructure.model.ModelRepository();
+            modelLocation = openmebius.domain.model.ModelLocation ...
+                .fromDirectory(modelDirectory);
+
+            testCase.verifyError( ...
+                @() repository.load(modelLocation), ...
+                "OpenMebius2:ModelRepository:ModelFileNotFound");
+
+            clear cleanup
+
+        end
+
         function labelRoundTripUsesRepositoryJsonStore(testCase)
 
             modelDirectory = string(tempname);
@@ -97,6 +145,32 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
                 "csv", ...
                 "info"), ...
                 "OpenMebius2:ModelRepository:UnsupportedModelFileType");
+
+        end
+
+        function modelEditingUsesValidationReport(testCase)
+
+            repository = openmebius.infrastructure.model.ModelRepository();
+            model = repository.load( ...
+                ModelRepositoryTest.templateModelLocation());
+
+            testCase.verifyFalse(isprop(model, "isError"));
+            testCase.verifyFalse(isprop(model, "statusMsg"));
+
+            invalidReport = model.updateModelTableGUI(table());
+
+            testCase.verifyClass( ...
+                invalidReport, ...
+                "openmebius.domain.model.ModelValidationReport");
+            testCase.verifyFalse(invalidReport.IsValid);
+            testCase.verifyNotEmpty(invalidReport.ErrorMessage);
+            testCase.verifyEmpty(invalidReport.InvalidRows);
+
+            validReport = model.updateModelTableGUI( ...
+                model.getModelTableGUI());
+
+            testCase.verifyTrue(validReport.IsValid);
+            testCase.verifyNotEmpty(validReport.Messages);
 
         end
 

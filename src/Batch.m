@@ -21,6 +21,9 @@ classdef Batch < handle
         % Batch configuration
         filename = 'batch.json'
         BatchJsonRepository
+        BatchPreparationService
+        BatchExecutionCoordinator
+        MessagePublisher
         batchColumnNamesforGUI = ["ID", "Name", "Experiment", "Description"];
         batchColumnEditableforGUI = [false, true, false, true];
 
@@ -32,20 +35,47 @@ classdef Batch < handle
 
     end % properties (Dependent)
 
-    properties (Access = private)
-        FluxAnalysisListeners event.listener = event.listener.empty(0, 1)
-    end % properties (Access = private)
-
     methods
 
         % Constructor
-        function obj = Batch(exp)
+        function obj = Batch(exp, options)
+
+            arguments
+                exp
+                options.AnalysisProvenanceBuilder = ...
+                    openmebius.application.analysis ...
+                    .AnalysisProvenanceBuilder()
+                options.BatchRunService = ...
+                    openmebius.application.batch.BatchRunService()
+                options.BatchPreparationService = []
+                options.BatchExecutionCoordinator = []
+            end
 
             % Set properties
             obj.exp = exp;
             obj.model = exp.getModel();
             obj.BatchJsonRepository = ...
                 openmebius.infrastructure.batch.BatchJsonRepository();
+            if isempty(options.BatchPreparationService)
+                obj.BatchPreparationService = ...
+                    openmebius.application.batch.BatchPreparationService( ...
+                    ProvenanceBuilder = ...
+                    options.AnalysisProvenanceBuilder);
+            else
+                obj.BatchPreparationService = ...
+                    options.BatchPreparationService;
+            end
+            if isempty(options.BatchExecutionCoordinator)
+                obj.BatchExecutionCoordinator = ...
+                    openmebius.application.batch ...
+                    .BatchExecutionCoordinator( ...
+                    RunService = options.BatchRunService);
+            else
+                obj.BatchExecutionCoordinator = ...
+                    options.BatchExecutionCoordinator;
+            end
+            obj.MessagePublisher = openmebius.presentation ...
+                .notification.GeneralMessagePublisher();
 
             % Initialize table
             initTableBatch(obj);
@@ -111,20 +141,7 @@ classdef Batch < handle
             % ids: string array
             %     Batch IDs
 
-            tempBatch = obj.tableBatch;
-
-            mask = false(height(tempBatch), 1);
-
-            for i = 1:height(tempBatch)
-
-                % Check if the batch is finished
-                if strcmp(tempBatch.config(i).status, 'finished')
-                    mask(i) = true;
-                end
-
-            end % for i
-
-            ids = obj.tableBatch.id(mask);
+            ids = obj.batchCollection().finishedIds();
 
         end % getBatchIDsFinished
 
@@ -148,14 +165,7 @@ classdef Batch < handle
                 id (1, 1) string
             end
 
-            % Get batch configuration
-            idx = find(obj.tableBatch.id == id, 1);
-
-            if isempty(idx)
-                error("Batch ID not found: %s", id);
-            end
-
-            config = obj.tableBatch.config(idx);
+            config = obj.batchCollection().configFor(id);
 
         end % getBatchConfig
 
@@ -180,16 +190,10 @@ classdef Batch < handle
             end
 
             isCustomFragment = false(1, length(ids));
+            collection = obj.batchCollection();
 
             for i = 1:length(ids)
-
-                idx = find(obj.tableBatch.id == ids(i), 1);
-
-                if isempty(idx)
-                    error("Batch ID not found: %s", ids(i));
-                end
-
-                config = obj.tableBatch.config(idx);
+                config = collection.configFor(ids(i));
 
                 % Field check
                 if ~isfield(config, 'isSelectMSFragment')
@@ -237,16 +241,13 @@ classdef Batch < handle
 
             expDefault = obj.model.getMSTable();
             expDefaultMask = expDefault.Used;
-
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
-
             tableRtn = table.empty(0, 0);
+            collection = obj.batchCollection();
 
             for i = 1:length(ids)
 
                 % Get batch configuration
-                config = obj.tableBatch.config(idx(i));
+                config = collection.configFor(ids(i));
                 expListFromBatch = getBatchExpList(obj, ids(i));
 
                 % Get custom fragment table
@@ -291,13 +292,7 @@ classdef Batch < handle
             expDefault = obj.model.getMSTable();
             defaultFragmentNames = string(expDefault.Properties.RowNames(:));
             expDefaultMask = logical(expDefault.Used(:));
-
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
-
-            if numel(idx) ~= numel(ids)
-                error("Batch ID not found: %s", ids);
-            end
+            collection = obj.batchCollection();
 
             selections = repmat( ...
                 struct( ...
@@ -310,7 +305,7 @@ classdef Batch < handle
                 numel(ids));
 
             for i = 1:numel(ids)
-                config = obj.tableBatch.config(idx(i));
+                config = collection.configFor(ids(i));
                 expListFromBatch = string(obj.getBatchExpList(ids(i))).';
 
                 selections(i).BatchID = ids(i);
@@ -367,14 +362,14 @@ classdef Batch < handle
                 return
             end
 
-            idx = find(obj.tableBatch.id == ids(1), 1);
+            collection = obj.batchCollection();
 
-            if isempty(idx)
+            if collection.statusesFor(ids(1)) == "unknown"
                 warning("Batch ID not found: %s", ids(1));
                 return
             end
 
-            config = obj.tableBatch.config(idx);
+            config = collection.configFor(ids(1));
 
             currentSelection = logical(config.efflux.selection(:));
             currentSubstrate = string(config.efflux.substrate(:));
@@ -445,32 +440,35 @@ classdef Batch < handle
             end
 
             % If exists, return the suggestion table of the first ID
+            collection = obj.batchCollection();
+
             for i = 1:length(ids)
-
-                idx = find(obj.tableBatch.id == ids(i), 1);
-
-                if isempty(idx)
-                    error("Batch ID not found: %s", ids(i));
-                end
-
-                config = obj.tableBatch.config(idx);
+                config = collection.configFor(ids(i));
 
                 if isfield(config, 'suggestionTable') && ~isempty(config.suggestionTable)
-                    suggestionTableCell = config.suggestionTable;
-                    suggestionTableVarNames = config.suggestionTableVarNames;
-                    numSuggestions = length(suggestionTableCell);
+                    suggestionValues = string(config.suggestionTable);
+                    suggestionVariableNames = ...
+                        string(config.suggestionTableVarNames(:)).';
 
-                    tableRtn = table( ...
-                        'Size', [numSuggestions, length(suggestionTableVarNames)], ...
-                        'VariableNames', suggestionTableVarNames, ...
-                        'VariableTypes', repmat({'string'}, 1, length(suggestionTableVarNames)) ...
-                    );
+                    if size(suggestionValues, 2) ~= ...
+                            numel(suggestionVariableNames)
+                        error( ...
+                            "OpenMebius2:Batch:InvalidSuggestionTable", ...
+                            "Suggestion table columns do not match its " + ...
+                            "variable names.");
+                    end
 
-                    for iSuggestion = 1:numSuggestions
+                    tableRtn = array2table( ...
+                        suggestionValues, ...
+                        'VariableNames', ...
+                        cellstr(suggestionVariableNames));
+                    suggestionRowNames = ...
+                        string(config.suggestionTableRowNames(:));
 
-                        iData = suggestionTableCell{iSuggestion}';
-                        tableRtn{iSuggestion, :} = iData;
-
+                    if numel(suggestionRowNames) == height(tableRtn) && ...
+                            all(strlength(suggestionRowNames) > 0)
+                        tableRtn.Properties.RowNames = ...
+                            cellstr(suggestionRowNames);
                     end
 
                     % Filter columns
@@ -483,7 +481,8 @@ classdef Batch < handle
 
                         if ~ismember(tracerPattern{j}, tableRtn.Properties.VariableNames)
 
-                            tableRtn.(tracerPattern{j}) = repmat({""}, height(tableRtn), 1);
+                            tableRtn.(tracerPattern{j}) = ...
+                                strings(height(tableRtn), 1);
 
                         end
 
@@ -505,7 +504,7 @@ classdef Batch < handle
                 'Size', [0, length(tracerPattern)], ...
                 'VariableNames', tracerPattern, ...
                 'RowNames', string([]), ...
-                'VariableTypes', repmat({'cell'}, 1, length(tracerPattern)) ...
+                'VariableTypes', repmat({'string'}, 1, length(tracerPattern)) ...
             );
 
         end % getBatchSuggestionTable
@@ -537,15 +536,15 @@ classdef Batch < handle
                 return
             end
 
-            idx = find(obj.tableBatch.id == ids(1), 1);
+            collection = obj.batchCollection();
 
-            if isempty(idx)
+            if collection.statusesFor(ids(1)) == "unknown"
                 warning("Batch ID not found: %s", ids(1));
                 tableRtn = table();
                 return
             end
 
-            config = obj.tableBatch.config(idx);
+            config = collection.configFor(ids(1));
 
             poolSize = config.INSTMFA.poolSize;
             metabolites = config.INSTMFA.poolMetabolite;
@@ -604,15 +603,15 @@ classdef Batch < handle
                 return
             end
 
-            idx = find(obj.tableBatch.id == ids(1), 1);
+            collection = obj.batchCollection();
 
-            if isempty(idx)
+            if collection.statusesFor(ids(1)) == "unknown"
                 warning("Batch ID not found: %s", ids(1));
                 tableRtn = table();
                 return
             end
 
-            config = obj.tableBatch.config(idx);
+            config = collection.configFor(ids(1));
 
             if ~config.isINSTMFA
                 warning("INST-MFA is not enabled for batch ID: %s", ids(1));
@@ -651,20 +650,7 @@ classdef Batch < handle
                 ids (1, :) string
             end
 
-            expList = strings(0, 1);
-
-            for i = 1:length(ids)
-
-                idx = find(obj.tableBatch.id == ids(i), 1);
-
-                if isempty(idx)
-                    error("Batch ID not found: %s", ids(i));
-                end
-
-                expName = obj.tableBatch.exp{idx};
-                expList = [expList; string(expName)]; %#ok<AGROW>
-
-            end
+            expList = obj.batchCollection().experimentsFor(ids);
 
         end % getBatchExpList
 
@@ -688,21 +674,7 @@ classdef Batch < handle
                 ids (:, 1) string
             end
 
-            % Initialize status
-            status = strings(length(ids), 1);
-
-            for i = 1:length(ids)
-
-                idx = find(obj.tableBatch.id == ids(i), 1);
-
-                if isempty(idx)
-                    status(i) = "unknown";
-                    continue
-                end
-
-                status(i) = obj.tableBatch.config(idx).status;
-
-            end
+            status = obj.batchCollection().statusesFor(ids);
 
         end % getBatchStatus
 
@@ -745,21 +717,9 @@ classdef Batch < handle
                 config struct
             end
 
-            % Get index of ids in obj.tableBatch.id
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids);
-
-            if length(idx) ~= length(ids)
-                error("Batch ID not found: %s", ids);
-            end
-
-            for i = 1:length(ids)
-
-                % Update batch configuration
-                configFilled = ...
-                    openmebius.domain.batch.BatchConfig.normalize(config);
-                obj.tableBatch.config(idx(i)) = configFilled;
-
-            end % for i
+            collection = obj.batchCollection();
+            collection.replaceConfigs(ids, config);
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, ids);
 
@@ -774,60 +734,15 @@ classdef Batch < handle
                 selections (1, :) struct
             end
 
-            requiredFields = ["BatchID", "ExperimentNames", "FragmentNames", "Selection"];
-
-            for fieldName = requiredFields
-                if ~isfield(selections, fieldName)
-                    error( ...
-                        "OpenMebius2:Batch:InvalidMSFragmentSelection", ...
-                        "MS fragment selection is missing field %s.", ...
-                        fieldName);
-                end
-            end
-
             expDefaultTable = obj.model.getMSTable();
             defaultFragmentNames = string(expDefaultTable.Properties.RowNames(:));
             expDefaultMask = logical(expDefaultTable.Used(:));
-            ids = strings(1, numel(selections));
-
-            for i = 1:numel(selections)
-                selection = selections(i);
-                id = string(selection.BatchID);
-                idx = find(obj.tableBatch.id == id, 1);
-
-                if isempty(idx)
-                    error("Batch ID not found: %s", id);
-                end
-
-                expList = string(selection.ExperimentNames(:)).';
-                fragmentNames = string(selection.FragmentNames(:));
-                selectionData = logical(selection.Selection);
-
-                if size(selectionData, 1) ~= numel(fragmentNames) || ...
-                        size(selectionData, 2) ~= numel(expList)
-                    error( ...
-                        "OpenMebius2:Batch:InvalidMSFragmentSelection", ...
-                        "MS fragment selection size does not match fragments and experiments.");
-                end
-
-                defaultSelection = repmat(expDefaultMask, 1, size(selectionData, 2));
-                isDefault = ...
-                    isequal(fragmentNames, defaultFragmentNames) && ...
-                    isequal(selectionData, defaultSelection);
-
-                obj.tableBatch.config(idx).isSelectMSFragment = ~isDefault;
-
-                if isDefault
-                    obj.tableBatch.config(idx).MS.fragment = 'all';
-                else
-                    obj.tableBatch.config(idx).MS.fragment = 'custom';
-                end
-
-                obj.tableBatch.config(idx).MS.customFragment = selectionData;
-                obj.tableBatch.config(idx).MS.fragmentList = fragmentNames;
-                obj.tableBatch.config(idx).MS.expList = expList;
-                ids(i) = id;
-            end
+            [editor, collection] = obj.batchConfigEditor();
+            ids = editor.applyMSFragmentSelections( ...
+                selections, ...
+                defaultFragmentNames, ...
+                expDefaultMask);
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, ids);
 
@@ -885,14 +800,6 @@ classdef Batch < handle
                 expFrag table
             end
 
-            % Update batch configuration for custom fragments
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
-
-            if length(idx) ~= length(ids)
-                error("Batch ID not found: %s", ids);
-            end
-
             selections = repmat( ...
                 struct( ...
                     'BatchID', "", ...
@@ -937,50 +844,13 @@ classdef Batch < handle
                 tableEffluxSD table
             end
 
-            % Update batch configuration efflux standard deviation
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
-
-            if length(idx) ~= length(ids)
-                error("Batch ID not found: %s", ids);
-            end
-
             newSelection = logical(tableEffluxSD.Selection(:));
             newSubstrate = string(tableEffluxSD.Properties.RowNames);
             newSubstrateSD = double(tableEffluxSD.SD(:));
-
-            for i = 1:length(idx)
-
-                currentConfig = obj.tableBatch.config(idx(i));
-                currentSelection = currentConfig.efflux.selection(:);
-                currentSubstrate = string(currentConfig.efflux.substrate(:));
-                currentSubstrateSD = currentConfig.efflux.substrateSD(:);
-
-                [~, iaNew, iaCurrent] = intersect(newSubstrate, currentSubstrate);
-
-                updatedSelection = currentSelection;
-                updatedSubstrateSD = currentSubstrateSD;
-
-                updatedSelection(iaCurrent) = newSelection(iaNew);
-                updatedSubstrateSD(iaCurrent) = newSubstrateSD(iaNew);
-
-                % Add new substrates
-                substrateToAdd = setdiff(newSubstrate, currentSubstrate);
-                mask = ismember(newSubstrate, substrateToAdd);
-                updatedSelection = [updatedSelection; newSelection(mask)];
-                updatedSubstrateSD = [updatedSubstrateSD; newSubstrateSD(mask)];
-                updatedSubstrate = [currentSubstrate; newSubstrate(mask)];
-
-                % Sort by substrate name
-                [updatedSubstrate, sortIdx] = sort(updatedSubstrate);
-                updatedSelection = updatedSelection(sortIdx);
-                updatedSubstrateSD = updatedSubstrateSD(sortIdx);
-
-                obj.tableBatch.config(idx(i)).efflux.selection = updatedSelection;
-                obj.tableBatch.config(idx(i)).efflux.substrate = updatedSubstrate;
-                obj.tableBatch.config(idx(i)).efflux.substrateSD = updatedSubstrateSD;
-
-            end % for i
+            [editor, collection] = obj.batchConfigEditor();
+            editor.applyEfflux( ...
+                ids, newSelection, newSubstrate, newSubstrateSD);
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, ids);
 
@@ -1011,16 +881,8 @@ classdef Batch < handle
                 suggestionTable table
             end
 
-            % Update batch configuration suggestion table
-            idx = arrayfun(@(x) find(obj.tableBatch.id == x, 1), ids, 'UniformOutput', false);
-            idx = cell2mat(idx);
-
-            if length(idx) ~= length(ids)
-                error("Batch ID not found: %s", ids);
-            end
-
             % Table to strings
-            suggestionTableCell = suggestionTable{:, :};
+            suggestionTableCell = table2cell(suggestionTable);
             isEmpty = cellfun(@(x) isempty(x), suggestionTableCell);
             suggestionTableCell(isEmpty) = {""};
 
@@ -1030,14 +892,13 @@ classdef Batch < handle
             suggestionTable = suggestionTable(rowMask, :);
 
             suggestionTableCell = string(suggestionTableCell);
-
-            for i = 1:length(ids)
-
-                obj.tableBatch.config(idx(i)).suggestionTable = suggestionTableCell;
-                obj.tableBatch.config(idx(i)).suggestionTableRowNames = suggestionTable.Properties.RowNames;
-                obj.tableBatch.config(idx(i)).suggestionTableVarNames = suggestionTable.Properties.VariableNames;
-
-            end % for i
+            [editor, collection] = obj.batchConfigEditor();
+            editor.applySuggestion( ...
+                ids, ...
+                suggestionTableCell, ...
+                string(suggestionTable.Properties.RowNames(:)), ...
+                string(suggestionTable.Properties.VariableNames));
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, ids);
 
@@ -1061,31 +922,9 @@ classdef Batch < handle
                 status (1, 1) string
             end
 
-            % Update batch configuration status
-            idx = find(obj.tableBatch.id == ids);
-
-            if length(idx) ~= length(ids)
-                error("Batch ID not found: %s", ids);
-            end
-
-            for i = 1:length(ids)
-
-                switch status
-                    case 'ready'
-                        obj.tableBatch.config(idx(i)).status = 'ready';
-                    case 'finished'
-                        obj.tableBatch.config(idx(i)).status = 'finished';
-                    case 'error'
-                        obj.tableBatch.config(idx(i)).status = 'error';
-                    case 'warning'
-                        obj.tableBatch.config(idx(i)).status = 'warning';
-                    case 'canceled'
-                        obj.tableBatch.config(idx(i)).status = 'canceled';
-                    otherwise
-                        error("Unknown status: %s", status);
-                end
-
-            end % for i
+            collection = obj.batchCollection();
+            collection.setStatus(ids, status);
+            obj.tableBatch = collection.toTable();
 
         end % updateBatchConfigStatus
 
@@ -1133,23 +972,9 @@ classdef Batch < handle
                 config struct
             end
 
-            % Ensure config has the same fields as the default config
-            config = openmebius.domain.batch.BatchConfig.normalize(config);
-            id = openmebius.domain.batch.BatchIdentity.newId( ...
-                obj.tableBatch.id);
-
-            row = cell2table( ...
-                {id, name, exp, description, config, ""}, ...
-                'VariableNames', obj.tableBatch.Properties.VariableNames ...
-            );
-            row.Properties.VariableTypes = obj.tableBatch.Properties.VariableTypes;
-
-            % Add batch
-            if isempty(obj.tableBatch)
-                obj.tableBatch = row;
-            else
-                obj.tableBatch = [obj.tableBatch; row];
-            end
+            collection = obj.batchCollection();
+            id = collection.add(name, exp, description, config);
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, id);
 
@@ -1182,15 +1007,9 @@ classdef Batch < handle
                 config struct
             end
 
-            % Edit batch
-            idx = find(obj.tableBatch.id == id, 1);
-
-            if isempty(idx)
-                error("Batch ID not found: %s", id);
-            end
-
             % Fill missing fields with current config
-            currentConfig = obj.tableBatch.config(idx);
+            collection = obj.batchCollection();
+            currentConfig = collection.configFor(id);
             config = openmebius.domain.batch.BatchConfig.fillMissingFields( ...
                 config, ...
                 currentConfig);
@@ -1200,10 +1019,8 @@ classdef Batch < handle
                 nan(length(exp{:}'), 1) ...
             );
 
-            obj.tableBatch.name(idx) = name;
-            obj.tableBatch.exp(idx) = exp;
-            obj.tableBatch.description(idx) = description;
-            obj.tableBatch.config(idx) = config;
+            collection.edit(id, name, exp, description, config);
+            obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, id);
 
@@ -1225,36 +1042,29 @@ classdef Batch < handle
                 id (1, 1) string
             end
 
-            % Remove batch
-            idFinished = getBatchIDsFinished(obj);
+            collection = obj.batchCollection();
+            [removed, reason] = collection.remove(id);
 
-            if any(idFinished == id)
+            if reason == "finished"
 
                 msg = sprintf("Batch ID %s is finished. Cannot remove.", id);
 
-                % Event data
-                type = "GeneralMsg";
-                ed = struct;
-                ed.status = "error";
-                ed.msg = msg;
-
-                notify(obj, 'GeneralMsg', BatchProgressEventData(type, ed));
+                publishGeneralMessage(obj, "error", string(msg));
                 return
 
             end
 
-            obj.tableBatch(obj.tableBatch.id == id, :) = [];
+            if removed
+                obj.tableBatch = collection.toTable();
+            end
 
         end % removeBatch
 
         function clearBatch(obj)
 
-            % Clear batch
-            tempBatch = obj.tableBatch;
-            ids = getBatchIDsFinished(obj);
-            initTableBatch(obj);
-            tempBatch = tempBatch(ismember(tempBatch.id, ids), :);
-            obj.tableBatch = tempBatch;
+            collection = obj.batchCollection();
+            collection.clearUnfinished();
+            obj.tableBatch = collection.toTable();
 
         end % clearBatch
 
@@ -1362,141 +1172,44 @@ classdef Batch < handle
             resultLocation = ...
                 openmebius.domain.result.ResultLocation.fromInput( ...
                 fileDirectory);
-            status = "finished";
-
             if ~obj.exp.hasCalculatedMDV()
                 status = "error";
 
-                type = "GeneralMsg";
-                ed = struct;
-                ed.status = "error";
-                ed.msg = "MDV data has not been calculated. Press the Calculate MDV button before running batch jobs.";
-                notify(obj, 'GeneralMsg', BatchProgressEventData(type, ed));
+                publishGeneralMessage( ...
+                    obj, ...
+                    "error", ...
+                    "MDV data has not been calculated. Press the " + ...
+                    "Calculate MDV button before running batch jobs.");
                 return
             end
 
-            contentChanged = updateContentHash(obj, obj.tableBatch.id);
+            [obj.tableBatch, contentChanged, provenances] = ...
+                obj.BatchPreparationService.prepare( ...
+                obj.tableBatch, ...
+                obj.tableBatch.id, ...
+                obj.model, ...
+                obj.exp);
 
             if any(contentChanged)
                 saveBatchFile(obj);
             end
 
-            for i = 1:height(obj.tableBatch)
-
-                type = "BatchIteration";
-                ed.id = obj.tableBatch.id(i);
-                ed.status = "finished";
-                ed.rate = i / height(obj.tableBatch);
-
-                % if the status is finished, skip
-                if strcmp(obj.tableBatch.config(i).status, 'finished')
-                    ed.status = "finished";
-                    notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-                    continue
-                end
-
-                % If the status is not ready, skip
-                if ~strcmp(obj.tableBatch.config(i).status, 'ready')
-                    ed.status = "question";
-                    notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-                    continue
-                end
-
-                % Delete previous result files
-                if obj.tableBatch.config(i).deleteResultFile
-                    resultArtifacts = resultLocation.resultArtifactFiles( ...
-                        obj.tableBatch.id(i));
-
-                    for iArtifact = 1:numel(resultArtifacts)
-                        if isfile(resultArtifacts(iArtifact))
-                            delete(resultArtifacts(iArtifact));
-                        end
-                    end
-
-                end
-
-                provenance = buildAnalysisProvenance(obj, i);
-
-                % Instantiate FluxAnalysis object
-                mfa = FluxAnalysis( ...
-                    obj.model, ...
-                    obj.exp, ...
-                    obj.tableBatch.exp(i), ...
-                    obj.tableBatch.config(i), ...
-                    resultLocation, ...
-                    obj.tableBatch.id(i), ...
-                    obj, ...
-                    Provenance = provenance ...
-                );
-
-                obj.attachFluxAnalysisListeners(mfa);
-                runMetadataCleanup = ...
-                    onCleanup(@() mfa.finalizeRunMetadata());
-
-                % Calculate flux distribution
-                mfa.calculateFluxDistribution();
-
-                if mfa.isCanceled
-                    ed.status = "canceled";
-                    status = "canceled";
-                    break
-                elseif mfa.isError
-                    ed.status = "error";
-                    status = "error";
-                    obj.tableBatch.config(i).status = "error";
-                    notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-                    saveBatchFile(obj);
-                    continue
-                end
-
-                isSuggestNextFlux = mfa.getConfig().suggestNextFlux;
-
-                if isSuggestNextFlux
-                    % Suggest next flux experiment
-                    mfa.suggestNextFluxExperiment();
-                end
-
-                isCalcCI = mfa.getConfig().isCalcCI;
-
-                if mfa.isCanceled
-                    ed.status = "canceled";
-                    status = "canceled";
-                    break
-                elseif mfa.isError
-                    ed.status = "error";
-                    status = "error";
-                    obj.tableBatch.config(i).status = "error";
-                    notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-                    saveBatchFile(obj);
-                    continue
-                end
-
-                if isCalcCI && ~isSuggestNextFlux
-                    % Calculate confidence interval
-                    mfa.calculateConfidenceInterval();
-                end
-
-                if mfa.isCanceled
-                    ed.status = "canceled";
-                    status = "canceled";
-                    break
-                elseif mfa.isError
-                    ed.status = "error";
-                    status = "error";
-                    obj.tableBatch.config(i).status = "error";
-                    notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-                    saveBatchFile(obj);
-                    continue
-                end
-
-                % Update status
-                obj.tableBatch.config(i).status = "finished";
-
-                notify(obj, 'ProgressUpdate', BatchProgressEventData(type, ed));
-
-                saveBatchFile(obj);
-
-            end % for i
+            [updatedTable, status] = obj.BatchExecutionCoordinator.run( ...
+                obj.tableBatch, ...
+                obj.model, ...
+                obj.exp, ...
+                resultLocation, ...
+                provenances, ...
+                Controller = obj, ...
+                ProgressReporter = @(progress) ...
+                publishBatchProgress(obj, progress), ...
+                CheckpointWriter = @(batchTable) ...
+                checkpointBatch(obj, batchTable), ...
+                MessageReporter = @(eventData) ...
+                notify(obj, 'GeneralMsg', eventData), ...
+                ResultReporter = @(eventData) ...
+                notify(obj, 'FluxResult', eventData));
+            obj.tableBatch = updatedTable;
 
         end % runBatch
 
@@ -1517,6 +1230,20 @@ classdef Batch < handle
 
         end % initTableBatch
 
+        function collection = batchCollection(obj)
+
+            collection = openmebius.domain.batch.BatchCollection( ...
+                obj.tableBatch);
+
+        end % batchCollection
+
+        function [editor, collection] = batchConfigEditor(obj)
+
+            collection = obj.batchCollection();
+            editor = openmebius.domain.batch.BatchConfigEditor(collection);
+
+        end % batchConfigEditor
+
         function changed = updateContentHash(obj, ids)
 
             arguments
@@ -1524,146 +1251,39 @@ classdef Batch < handle
                 ids string
             end
 
-            ids = string(ids(:));
-            changed = false(size(ids));
-
-            for i = 1:numel(ids)
-                idx = find(obj.tableBatch.id == ids(i), 1);
-
-                if isempty(idx)
-                    error("Batch ID not found: %s", ids(i));
-                end
-
-                provenance = buildAnalysisProvenance(obj, idx);
-                previousHash = obj.tableBatch.contentHash(idx);
-                currentHash = provenance.contentHash;
-                changed(i) = previousHash ~= currentHash;
-                obj.tableBatch.contentHash(idx) = currentHash;
-
-                % Empty hashes belong to migrated legacy data. Initialize them
-                % without invalidating an otherwise usable legacy result.
-                if changed(i) && strlength(previousHash) > 0 && ...
-                        strcmp(obj.tableBatch.config(idx).status, 'finished')
-                    obj.tableBatch.config(idx).status = 'ready';
-                end
-            end
+            [obj.tableBatch, changed] = ...
+                obj.BatchPreparationService.prepare( ...
+                obj.tableBatch, ...
+                ids, ...
+                obj.model, ...
+                obj.exp);
 
         end % updateContentHash
 
-        function provenance = buildAnalysisProvenance(obj, idx)
+        function publishBatchProgress(obj, progress)
 
-            config = obj.tableBatch.config(idx);
-            experimentNames = string(obj.tableBatch.exp{idx});
-            experimentNames = experimentNames(:);
-            [experimentFiles, experimentHashes] = ...
-                resolveExperimentFiles(obj, experimentNames);
+            notify( ...
+                obj, ...
+                'ProgressUpdate', ...
+                BatchProgressEventData("BatchIteration", progress));
 
-            modelPath = string(obj.model.pathModel);
-            [~, modelName, modelExtension] = fileparts(modelPath);
-            modelFileName = string(modelName) + string(modelExtension);
-            modelHash = ...
-                openmebius.infrastructure.filesystem.FileHasher.hashFile( ...
-                modelPath);
+        end % publishBatchProgress
 
-            semanticConfig = ...
-                openmebius.domain.batch.BatchIdentity.semanticConfig(config);
-            contentHash = ...
-                openmebius.domain.batch.BatchIdentity.contentHash( ...
-                config, ...
-                modelHash, ...
-                experimentNames, ...
-                experimentHashes);
+        function checkpointBatch(obj, batchTable)
 
-            provenance = struct( ...
-                'schemaVersion', 1, ...
-                'batchId', obj.tableBatch.id(idx), ...
-                'contentHash', contentHash, ...
-                'contentHashVersion', ...
-                openmebius.domain.batch.BatchIdentity.ContentHashVersion, ...
-                'configJson', ...
-                openmebius.domain.batch.BatchIdentity.canonicalJson( ...
-                semanticConfig), ...
-                'modelFileName', modelFileName, ...
-                'modelSha256', modelHash, ...
-                'experimentNames', experimentNames, ...
-                'experimentFileNames', experimentFiles, ...
-                'experimentSha256', experimentHashes);
+            obj.tableBatch = batchTable;
+            saveBatchFile(obj);
 
-        end % buildAnalysisProvenance
+        end % checkpointBatch
 
-        function [fileNames, hashes] = resolveExperimentFiles(obj, experimentNames)
+        function publishGeneralMessage(obj, level, message)
 
-            experimentNames = string(experimentNames(:));
-            availableFiles = string(obj.exp.fileExpList(:));
-            availableNames = strings(size(availableFiles));
+            obj.MessagePublisher.report( ...
+                level, ...
+                message, ...
+                @(eventData) notify(obj, 'GeneralMsg', eventData));
 
-            for i = 1:numel(availableFiles)
-                [~, name] = fileparts(availableFiles(i));
-                availableNames(i) = string(name);
-            end
-
-            fileNames = strings(size(experimentNames));
-            hashes = strings(size(experimentNames));
-            experimentLocation = obj.exp.getExperimentLocation();
-
-            for i = 1:numel(experimentNames)
-                idx = find(availableNames == experimentNames(i), 1);
-
-                if isempty(idx)
-                    idx = find(availableFiles == experimentNames(i), 1);
-                end
-
-                if isempty(idx)
-                    continue
-                end
-
-                fileNames(i) = availableFiles(idx);
-                pathFile = experimentLocation.workbookFile(fileNames(i));
-                hashes(i) = ...
-                    openmebius.infrastructure.filesystem.FileHasher.hashFile( ...
-                    pathFile);
-            end
-
-        end % resolveExperimentFiles
-
-        function attachFluxAnalysisListeners(obj, mfa)
-
-            obj.clearFluxAnalysisListeners();
-
-            obj.FluxAnalysisListeners(end + 1, 1) = addlistener( ...
-                mfa, ...
-                'GeneralMsg', ...
-                @(src, event) notify(obj, 'GeneralMsg', event));
-
-            obj.FluxAnalysisListeners(end + 1, 1) = addlistener( ...
-                mfa, ...
-                'FluxResult', ...
-                @(src, event) notify(obj, 'FluxResult', event));
-
-        end % method attachFluxAnalysisListeners
-
-        function clearFluxAnalysisListeners(obj)
-
-            if isempty(obj.FluxAnalysisListeners)
-                return
-            end
-
-            for i = 1:numel(obj.FluxAnalysisListeners)
-
-                try
-
-                    if isvalid(obj.FluxAnalysisListeners(i))
-                        delete(obj.FluxAnalysisListeners(i));
-                    end
-
-                catch
-                end
-
-            end
-
-            obj.FluxAnalysisListeners = event.listener.empty(0, 1);
-
-        end % method clearFluxAnalysisListeners
+        end % method publishGeneralMessage
 
         function experimentLocation = getExperimentLocation(obj)
 

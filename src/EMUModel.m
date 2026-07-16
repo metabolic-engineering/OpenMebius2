@@ -128,10 +128,6 @@ classdef EMUModel < Stoichiometry
 
             obj = obj@Stoichiometry(modelInput, varargin{:});
 
-            if obj.isError
-                return
-            end
-
             if ~obj.isUpdatedModel
 
                 isSucceeded = obj.loadEMUModelFromFile();
@@ -151,6 +147,12 @@ classdef EMUModel < Stoichiometry
             if isConstructed
                 saveEMUModelToFile(obj);
             end % if
+
+            throwIfConstructionFailed( ...
+                obj, ...
+                "OpenMebius2:ModelRepository:" + ...
+                "EMUConstructionFailed", ...
+                "Failed to construct the EMU network.");
 
             warning('off', 'MATLAB:nearlySingularMatrix');
 
@@ -234,6 +236,11 @@ classdef EMUModel < Stoichiometry
             initializeEMUModel(obj);
 
             listupAllEMU(obj);
+            throwIfConstructionFailed( ...
+                obj, ...
+                "OpenMebius2:ModelRepository:" + ...
+                "EMUConstructionFailed", ...
+                "Failed to construct the EMU network.");
             EMUSizeTable = obj.getEMUSizeInformation();
             obj.tableEMUSizeInfo = EMUSizeTable;
             obj.buildAnBnMatrix();
@@ -1075,7 +1082,9 @@ classdef EMUModel < Stoichiometry
             [~, isError] = listupEMUs(obj);
 
             if isError
-                obj.isError = true;
+                recordValidationError( ...
+                    obj, ...
+                    "The EMU network contains invalid MS reactions.");
                 return;
             end % if isError
 

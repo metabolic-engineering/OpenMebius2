@@ -19,20 +19,6 @@ classdef ModelRepository < handle
                     "Failed to create EMUModel.");
             end
 
-            if model.isError
-                error( ...
-                    "OpenMebius2:ModelRepository:ModelLoadFailed", ...
-                    "%s", string(model.statusMsg));
-            end
-
-            ioStatus = model.getIOStatus();
-
-            if ~strcmp(ioStatus, "completed")
-                error( ...
-                    "OpenMebius2:ModelRepository:ModelIncomplete", ...
-                    "%s", string(model.statusMsg));
-            end
-
         end % load
 
         function assertModelDirectory(~, modelLocation)
@@ -42,8 +28,20 @@ classdef ModelRepository < handle
                 modelLocation openmebius.domain.model.ModelLocation
             end
 
-            openmebius.infrastructure.filesystem.DirectoryStore ...
-                .assertDirectoryExists(modelLocation.Directory);
+            try
+                openmebius.infrastructure.filesystem.DirectoryStore ...
+                    .assertDirectoryExists(modelLocation.Directory);
+            catch ME
+                if string(ME.identifier) ~= ...
+                        "OpenMebius2:DirectoryStore:DirectoryNotFound"
+                    rethrow(ME);
+                end
+
+                error( ...
+                    "OpenMebius2:ModelRepository:DirectoryNotFound", ...
+                    "Model directory does not exist: %s", ...
+                    modelLocation.Directory);
+            end
 
         end % assertModelDirectory
 

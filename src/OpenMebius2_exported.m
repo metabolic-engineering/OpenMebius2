@@ -143,6 +143,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         TracerConfigApp;
         RunConfigApp;
         MSViewApp;
+        ComparisonViewApp;
         RunAddBatchApp;
         ViewSuggestionApp;
         LogApp;
@@ -218,6 +219,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         PreferencesApp
         PreferencesListeners event.listener = event.listener.empty(0, 1)
+        MSViewListeners event.listener = event.listener.empty(0, 1)
 
         MainInteractionSnapshot cell = {}
 
@@ -515,12 +517,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadEMUModel(app)
 
-            if app.model.isError
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
-
             loadPathway(app)
 
             app.notifyInfo("EMU network was successfully constructed.");
@@ -532,12 +528,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.updateStatus("experiment", "running");
 
             loadExpData(app)
-
-            if app.exp.isError
-                app.LogText(app.exp.statusMsg);
-                app.updateStatus("experiment", "error");
-                return
-            end
 
             app.updateStatus("experiment", "finished");
 
@@ -577,12 +567,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             pause(0.5)
 
             loadEMUModel(app)
-
-            if app.model.isError
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
 
             loadPathway(app)
 
@@ -1485,6 +1469,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                                            app.isLoadedObject(app.TracerConfigApp)
                                            app.isLoadedObject(app.RunConfigApp)
                                            app.isLoadedObject(app.MSViewApp)
+                                           app.isLoadedObject(app.ComparisonViewApp)
                                            app.isLoadedObject(app.RunAddBatchApp)
                                            app.isLoadedObject(app.ViewSuggestionApp)
                                            app.isLoadedObject(app.LogApp)
@@ -1924,6 +1909,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method showNotification
 
+        function openMSComparison(app)
+
+            app.ComparisonViewApp = ComparisonView(app, "ms");
+
+        end % method openMSComparison
+
         function appendLogText(app, text, level, timestamp)
             % APPENDLOGTEXT
             % Normalize and append log text to LogTextArea.
@@ -2000,6 +1991,29 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 ShowAlert = options.Alert));
 
         end % method notifyError
+
+        function showModelValidationReport(app, validationReport)
+
+            arguments
+                app
+                validationReport (1, 1) openmebius.domain.model ...
+                    .ModelValidationReport
+            end
+
+            for i = 1:numel(validationReport.Warnings)
+                app.notifyWarning(validationReport.Warnings(i));
+            end
+
+            if ~validationReport.IsValid
+                app.notifyError(validationReport.ErrorMessage);
+                return
+            end
+
+            for i = 1:numel(validationReport.Messages)
+                app.notifyInfo(validationReport.Messages(i));
+            end
+
+        end % showModelValidationReport
 
         function notifyException(app, exception, options)
 
@@ -2503,9 +2517,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             loadBatchTable(app, reload = true);
 
             if options.LogMessages
+
                 for i = 1:numel(result.Messages)
                     app.LogTextDate(result.Messages(i), "Info");
                 end
+
             end
 
         end % method renderExperimentImportResult
@@ -2642,35 +2658,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.updateStatus("model", "running");
 
-            app.model = EMUModel(app.directoryModel);
+            modelLocation = openmebius.domain.model.ModelLocation ...
+                .fromDirectory(app.directoryModel);
+            modelRepository = ...
+                openmebius.infrastructure.model.ModelRepository();
+            app.model = modelRepository.load(modelLocation);
 
-            if app.model.isError
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
-
-            IOStatus = app.model.getIOStatus();
-
-            if strcmp(IOStatus, "completed")
-                app.notifyInfo("Model loaded successfully.");
-            else
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
+            app.notifyInfo("Model loaded successfully.");
 
             app.notifyInfo("Constructing EMU network...");
 
             pause(0.5)
 
             loadEMUModel(app)
-
-            if app.model.isError
-                app.LogText(app.model.statusMsg);
-                app.updateStatus("model", "error");
-                return
-            end
 
             loadPathway(app)
 
@@ -3125,11 +3125,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             loadMSTable(app)
             loadBiomassTable(app)
 
-            if app.model.isError
-                app.LogText(app.model.statusMsg);
-                return
-            end
-
         end % function loadEMUModel
 
         function loadModelTable(app, options)
@@ -3343,12 +3338,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if isempty(app.result) || ~isvalid(app.result)
                 msg = "Result object is not valid.";
                 app.notifyError(msg);
-                app.updateStatus("result", "error");
-                return
-            end
-
-            if app.result.isError
-                app.LogText(app.result.statusMsg);
                 app.updateStatus("result", "error");
                 return
             end
@@ -4214,7 +4203,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                         .formatDatedMessage( ...
                         "Failed to handle GeneralMsg event: " + ...
                         string(ME.message), ...
-                        "Error"));
+                    "Error"));
                 catch
                     disp(ME.message)
                 end
@@ -4628,7 +4617,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             app.refreshPresentation();
-
         end
 
         % Button pushed function: TemplateModelLoadButton
@@ -4658,12 +4646,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 pause(0.5)
 
                 loadEMUModel(app)
-
-                if app.model.isError
-                    app.LogText(app.model.statusMsg);
-                    app.updateStatus("model", "error");
-                    return
-                end
 
                 loadPathway(app)
 
@@ -4717,7 +4699,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             loadPathway(app);
 
             app.LogTextDate("Model table reloaded", "Info");
-
         end
 
         % Button pushed function: ModelEditButton
@@ -4728,7 +4709,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.beginPresentationEdit(EditTarget.Model);
 
             app.LogTextDate("Model table is now editable", "Info");
-
         end
 
         % Button pushed function: ModelSaveButton
@@ -4740,25 +4720,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.updateStatus("model", "running");
 
                 tableIn = app.ModelTable.Data;
-                app.model.updateModelTableGUI(tableIn);
-
-                errorRows = app.model.getInvalidModelRowIdx();
+                validationReport = app.model.updateModelTableGUI(tableIn);
 
                 resetModelTableColorFormat(app);
 
-                if ~isempty(errorRows)
-                    addStyle(app.ModelTable, app.styleError, 'row', errorRows);
+                if ~isempty(validationReport.InvalidRows)
+                    addStyle( ...
+                        app.ModelTable, ...
+                        app.styleError, ...
+                        'row', ...
+                        validationReport.InvalidRows);
                 end
 
-                if app.model.isError
-                    app.LogTextDate(app.model.statusMsg, "Error");
+                app.showModelValidationReport(validationReport);
+
+                if ~validationReport.IsValid
                     app.updateStatus("model", "error");
 
                     app.finishPresentationEditCommit(false);
                     return
                 end
 
-                app.LogTextDate(app.model.statusMsg, "Info");
                 app.updateStatus("model", "finished");
 
                 app.finishPresentationEditCommit(true);
@@ -4791,7 +4773,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 highlight = highlight, ...
                 darkmode = isDarkTheme(app) ...
             );
-
         end
 
         % Menu selected function: AddLabelMenu
@@ -4810,7 +4791,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 msg = openmebius.infrastructure.logging.Logger ...
                     .formatDatedMessage( ...
                     "Please select a reaction to add a label.", ...
-                    "Warning");
+                "Warning");
                 app.LogText(msg);
                 return
             end
@@ -4832,9 +4813,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 .formatDatedMessage( ...
                 "Label position added to " + rxnName + ...
                 " x: " + string(x) + " y: " + string(y), ...
-                "Info");
+            "Info");
             app.LogText(msg);
-
         end
 
         % Menu selected function: RemoveLabelMenu
@@ -4855,7 +4835,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             msg = openmebius.infrastructure.logging.Logger ...
                 .formatDatedMessage("MS table reloaded", "Info");
             app.LogText(msg);
-
         end
 
         % Button pushed function: MSEditButton
@@ -4866,7 +4845,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.beginPresentationEdit(EditTarget.MassSpectrometry);
 
             app.LogTextDate("MS table is now editable", "Info");
-
         end
 
         % Button pushed function: MSSaveButton
@@ -4880,31 +4858,37 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 tableMS = app.MSTable.Data;
                 tableAtom = app.AtomTable.Data;
 
-                app.model.updateMSTable(tableMS)
+                msReport = app.model.updateMSTable(tableMS);
                 resetMSTableColorFormat(app)
 
-                errorRows = app.model.getInvalidMSRowIdx();
-
-                if ~isempty(errorRows)
-                    addStyle(app.MSTable, app.styleError, 'row', errorRows);
+                if ~isempty(msReport.InvalidRows)
+                    addStyle( ...
+                        app.MSTable, ...
+                        app.styleError, ...
+                        'row', ...
+                        msReport.InvalidRows);
                 end
 
-                app.model.updateAtomTable(tableAtom)
-                errorRows = app.model.getInvalidAtomRowIdx();
+                atomReport = app.model.updateAtomTable(tableAtom);
 
-                if ~isempty(errorRows)
-                    addStyle(app.AtomTable, app.styleError, 'row', errorRows);
+                if ~isempty(atomReport.InvalidRows)
+                    addStyle( ...
+                        app.AtomTable, ...
+                        app.styleError, ...
+                        'row', ...
+                        atomReport.InvalidRows);
                 end
 
-                if app.model.isError
-                    app.LogText(app.model.statusMsg);
+                app.showModelValidationReport(msReport);
+                app.showModelValidationReport(atomReport);
+
+                if ~msReport.IsValid || ~atomReport.IsValid
                     app.updateStatus("model", "error");
 
                     app.finishPresentationEditCommit(false);
                     return
                 end
 
-                app.LogText(app.model.statusMsg);
                 app.updateStatus("model", "finished");
 
                 app.LogTextDate("MS table saved", "Info");
@@ -5014,7 +4998,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 msg = openmebius.infrastructure.logging.Logger ...
                     .formatDatedMessage( ...
                     "Experimental data reloaded", ...
-                    "Info");
+                "Info");
                 app.LogText(msg);
             catch ME
                 updateStatus(app, "experiment", "error");
@@ -5082,7 +5066,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 msg = openmebius.infrastructure.logging.Logger ...
                     .formatDatedMessage( ...
                     "Please select an experiment to view MS data.", ...
-                    "Warning");
+                "Warning");
                 app.LogText(msg);
                 return
             end
@@ -5091,7 +5075,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 msg = openmebius.infrastructure.logging.Logger ...
                     .formatDatedMessage( ...
                     "Please select only one experiment to view MS data.", ...
-                    "Warning");
+                "Warning");
                 app.LogText(msg);
                 return
             end
@@ -5099,9 +5083,22 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             idxRow = idx(1, 1);
 
             cleanupPresentation = app.beginPresentationOperation();
+            presenter = openmebius.presentation.experiment ...
+                .MSViewPresenter(app.exp);
 
-            app.MSViewApp = MSView(app, idxRow);
+            if ~presenter.hasCalculatedMDV()
+                app.notifyWarning( ...
+                    "MDV-derived tables have not been calculated. " + ...
+                    "Press Calculate MDV in the Experiment tab before " + ...
+                    "viewing MDV, biomass-corrected MDV or enrichment data.");
+            end
 
+            app.MSViewApp = MSView( ...
+                presenter, idxRow, app.isDarkTheme());
+            app.MSViewListeners = addlistener( ...
+                app.MSViewApp, ...
+                'ComparisonRequested', ...
+                @(~, ~) app.openMSComparison());
         end
 
         % Button pushed function: TracerConfigButton
@@ -5109,7 +5106,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             cleanupPresentation = app.beginPresentationOperation();
             app.LabelConfigApp = LabelConfig(app, app.model.tableLabelView, app.model.structLabelView);
-
         end
 
         % Button pushed function: TracerReloadButton
@@ -5119,9 +5115,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             msg = openmebius.infrastructure.logging.Logger ...
                 .formatDatedMessage( ...
                 "Tracer and uptake tables reloaded", ...
-                "Info");
+            "Info");
             app.LogText(msg);
-
         end
 
         % Button pushed function: TracerSaveButton
@@ -5165,7 +5160,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     .formatDatedMessage( ...
                     "Label table has been modified. " + ...
                     "Please save the table before editing.", ...
-                    "Warning");
+                "Warning");
                 app.LogText(msg);
                 return
             end
@@ -5184,7 +5179,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app, ...
                 [displayRow, displayColumn] ...
             );
-
         end
 
         % Key press function: UptakeTable
@@ -5215,9 +5209,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             msg = openmebius.infrastructure.logging.Logger ...
                 .formatDatedMessage( ...
                 "Batch table has been automatically filled.", ...
-                "Info");
+            "Info");
             app.LogText(msg);
-
         end
 
         % Button pushed function: RunConfigButton
@@ -5229,7 +5222,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 msg = openmebius.infrastructure.logging.Logger ...
                     .formatDatedMessage( ...
                     "Please select a batch to configure.", ...
-                    "Warning");
+                "Warning");
                 app.LogText(msg);
                 return
             end
@@ -5239,7 +5232,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             cleanupPresentation = app.beginPresentationOperation();
 
             app.RunConfigApp = RunConfig(app, selection);
-
         end
 
         % Button pushed function: RunReloadButton
@@ -5249,7 +5241,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             msg = openmebius.infrastructure.logging.Logger ...
                 .formatDatedMessage("Batch table reloaded", "Info");
             app.LogText(msg);
-
         end
 
         % Button pushed function: RunSaveButton
@@ -5263,9 +5254,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             msg = openmebius.infrastructure.logging.Logger ...
                 .formatDatedMessage( ...
                 "Batch table has been saved.", ...
-                "Info");
+            "Info");
             app.LogText(msg);
-
         end
 
         % Button pushed function: RunRunButton
@@ -5340,7 +5330,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function RunAddbatchMenuSelected(app, event)
 
             app.RunAddBatchApp = RunAddBatch(app, 'parallel');
-
         end
 
         % Menu selected function: RemovethisbatchMenu
@@ -5436,7 +5425,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadMainResultTable(app);
             updateResultPlot(app);
-
         end
 
         % Cell selection callback: ResultSubTable
@@ -5444,7 +5432,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadMainResultTable(app);
             updateResultPlot(app);
-
         end
 
         % Cell edit callback: ResultSubTable
@@ -5456,7 +5443,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ResultMainTableCellSelection(app, event)
 
             updateResultPlot(app);
-
         end
 
         % Button pushed function: ResultReportButton
@@ -5510,7 +5496,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             msg = openmebius.infrastructure.logging.Logger ...
                 .formatDatedMessage("Result data reloaded", "Info");
             app.LogText(msg);
-
         end
 
         % Button pushed function: ResultSaveButton
@@ -5558,15 +5543,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 switch string(ME.identifier)
 
-                    case { ...
-                            "OpenMebius2:ResultExport:ResultUnavailable", ...
-                            "OpenMebius2:ResultExport:EmptySelection", ...
-                            "OpenMebius2:ResultExport:SelectionMismatch", ...
-                            "OpenMebius2:ResultExport:OutputDirectoryUnavailable", ...
-                            "OpenMebius2:ResultExport:OutputDirectoryNotFound", ...
-                            "OpenMebius2:ResultExport:OutputDirectoryExists", ...
-                            "OpenMebius2:ResultExport:CreateDirectoryFailed" ...
-                         }
+                        case { ...
+                                  "OpenMebius2:ResultExport:ResultUnavailable", ...
+                                  "OpenMebius2:ResultExport:EmptySelection", ...
+                                  "OpenMebius2:ResultExport:SelectionMismatch", ...
+                                  "OpenMebius2:ResultExport:OutputDirectoryUnavailable", ...
+                                  "OpenMebius2:ResultExport:OutputDirectoryNotFound", ...
+                                  "OpenMebius2:ResultExport:OutputDirectoryExists", ...
+                                  "OpenMebius2:ResultExport:CreateDirectoryFailed" ...
+                              }
                         app.notifyError(string(ME.message));
 
                     otherwise
@@ -5595,7 +5580,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             updateStatus(app, "experiment", "init");
             updateStatus(app, "batch", "init");
             updateStatus(app, "result", "init");
-
         end
 
         % Menu selected function: PreferencesMenu
@@ -5650,7 +5634,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             selectedFluxIdx = RowNames{selectedFlux(1)};
 
             loadMainResultTable(app, relative = true, relativeTo = selectedFluxIdx);
-
         end
 
         % Menu selected function: RangeplotMenu
@@ -5696,7 +5679,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             suggestion.batchID = app.ResultSubTable.Data.ID{selectedRows(1)};
 
             app.ViewSuggestionApp = ViewSuggestion(suggestion);
-
         end
 
         % Menu selected function: CopythistracerforallentriesMenu
@@ -5724,6 +5706,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 for i = 1:numel(result.Messages)
                     app.LogTextDate(result.Messages(i), "Info");
                 end
+
             catch ME
                 app.notifyException( ...
                     ME, ...
@@ -5795,7 +5778,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 msg, ...
                 Title = "About OpenMebius2", ...
                 ShowAlert = true));
-
         end
 
         % Menu selected function: ClearcacheMenu
@@ -5803,13 +5785,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             % Clear cache directory
             app.clearHistory();
-
         end
 
         % Menu selected function: ExporttemplateExcelfileMenu
         function ExporttemplateExcelfileMenuSelected(app, event)
 
-            if isempty(app.model) || app.model.isError
+            if isempty(app.model) || ~isvalid(app.model)
                 msg = "Model is not loaded. Please load a model before exporting template Excel file.";
                 LogTextDate(app, msg, "Error");
                 return
@@ -5848,7 +5829,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ViewlogsMenuSelected(app, event)
 
             app.LogApp = AppLogs();
-
         end
 
         % Key press function: OpenMebius2UIFigure

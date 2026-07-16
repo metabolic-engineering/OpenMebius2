@@ -75,7 +75,8 @@ classdef LegacyProjectInitializerTest < matlab.unittest.TestCase
             artifacts = initializer.initialize(session);
 
             testCase.verifyEqual(modelRepository.LoadCount, 1);
-            testCase.verifyEqual(experimentRepository.LoadCount, 1);
+            testCase.verifyEqual(experimentRepository.LoadCount, 0);
+            testCase.verifyEqual(experimentRepository.InitializeCount, 1);
             testCase.verifyEqual(batchRepository.LoadCount, 1);
             testCase.verifyEqual(resultRepository.OpenCount, 1);
 

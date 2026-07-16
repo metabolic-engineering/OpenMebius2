@@ -2,7 +2,26 @@ classdef ExperimentRepository < handle
     % EXPERIMENTREPOSITORY
     % Filesystem-backed repository for experiment workbook files.
 
+    properties (Access = private)
+        DerivedDataRestorer
+        WorkbookStore
+    end
+
     methods
+
+        function obj = ExperimentRepository(options)
+
+            arguments
+                options.DerivedDataRestorer = openmebius.domain.experiment ...
+                    .ExperimentDerivedDataRestorer()
+                options.WorkbookStore = openmebius.infrastructure.experiment ...
+                    .ExperimentWorkbookStore()
+            end
+
+            obj.DerivedDataRestorer = options.DerivedDataRestorer;
+            obj.WorkbookStore = options.WorkbookStore;
+
+        end % constructor
 
         function experiments = load(obj, experimentLocation, model)
 
@@ -23,13 +42,81 @@ classdef ExperimentRepository < handle
                     "Failed to create IOExps.");
             end
 
-            if experiments.isError
-                error( ...
-                    "OpenMebius2:ExperimentRepository:ExperimentLoadFailed", ...
-                    "%s", string(experiments.statusMsg));
+        end % load
+
+        function experiments = initialize(obj, experimentLocation, model)
+
+            arguments
+                obj
+                experimentLocation openmebius.domain.experiment.ExperimentLocation
+                model
             end
 
-        end % load
+            experiments = IOExps( ...
+                experimentLocation, ...
+                model, ...
+                ExperimentRepository = obj, ...
+                AllowEmpty = true);
+
+            if isempty(experiments) || ~isvalid(experiments)
+                error( ...
+                    "OpenMebius2:ExperimentRepository:" + ...
+                    "InvalidExperimentObject", ...
+                    "Failed to initialize IOExps.");
+            end
+
+        end % initialize
+
+        function workbook = loadWorkbook(obj, pathFile)
+
+            arguments
+                obj
+                pathFile (1, 1) string
+            end
+
+            workbook = obj.WorkbookStore.load(pathFile);
+
+        end % loadWorkbook
+
+        function saveWorkbook(obj, pathFile, workbook)
+
+            arguments
+                obj
+                pathFile (1, 1) string
+                workbook openmebius.infrastructure.experiment ...
+                    .ExperimentWorkbookData
+            end
+
+            obj.WorkbookStore.save(pathFile, workbook);
+
+        end % saveWorkbook
+
+        function result = restoreDerivedData(obj, workbook, model)
+
+            arguments
+                obj
+                workbook openmebius.infrastructure.experiment ...
+                    .ExperimentWorkbookData
+                model
+            end
+
+            modelMSTable = table();
+            targetMetabolites = strings(0, 1);
+
+            if ~isempty(workbook.MDVBiomass)
+                modelMSTable = model.getMSTable();
+                targetMetabolites = model.getTargetMetaboliteList();
+            end
+
+            result = obj.DerivedDataRestorer.restore( ...
+                MSNormalized = workbook.MSNormalized, ...
+                MDV = workbook.MDV, ...
+                MDVBiomass = workbook.MDVBiomass, ...
+                Enrichment = workbook.Enrichment, ...
+                ModelMSTable = modelMSTable, ...
+                TargetMetabolites = targetMetabolites);
+
+        end % restoreDerivedData
 
         function assertExperimentDirectory(~, experimentLocation)
 
@@ -120,180 +207,6 @@ classdef ExperimentRepository < handle
             end
 
         end % importFiles
-
-        function data = readWorkbookSheet(~, pathFile, sheetName, options)
-
-            arguments
-                ~
-                pathFile (1, 1) string
-                sheetName (1, 1) string
-                options.ReadRowNames (1, 1) logical = true
-                options.ReadVariableNames (1, 1) logical = true
-                options.CheckVariable (1, 1) logical = true
-                options.RefTypes (1, :) string = []
-                options.RefVariableNames (1, :) string = []
-            end
-
-            try
-                data = openmebius.infrastructure.filesystem.ExcelFileStore ...
-                    .readTable( ...
-                    pathFile, ...
-                    sheetName, ...
-                    ReadRowNames = options.ReadRowNames, ...
-                    ReadVariableNames = options.ReadVariableNames, ...
-                    CheckVariable = options.CheckVariable, ...
-                    RefTypes = options.RefTypes, ...
-                    RefVariableNames = options.RefVariableNames);
-            catch ME
-                openmebius.infrastructure.experiment.ExperimentRepository ...
-                    .throwWorkbookReadError(pathFile, ME);
-            end
-
-        end % readWorkbookSheet
-
-        function data = readOptionalWorkbookSheet(obj, pathFile, preferredSheetName, aliases, options)
-
-            arguments
-                obj
-                pathFile (1, 1) string
-                preferredSheetName (1, 1) string
-                aliases (1, :) string = preferredSheetName
-                options.ReadRowNames (1, 1) logical = true
-                options.ReadVariableNames (1, 1) logical = true
-            end
-
-            sheetName = obj.resolveWorkbookSheetName( ...
-                pathFile, ...
-                preferredSheetName, ...
-                aliases);
-
-            try
-                data = openmebius.infrastructure.filesystem.ExcelFileStore ...
-                    .readTable( ...
-                    pathFile, ...
-                    sheetName, ...
-                    ReadRowNames = options.ReadRowNames, ...
-                    ReadVariableNames = options.ReadVariableNames, ...
-                    CheckVariable = false);
-            catch
-                data = table();
-            end
-
-        end % readOptionalWorkbookSheet
-
-        function [isSuccess, msg] = writeWorkbookSheet(~, pathFile, data, sheetName, options)
-
-            arguments
-                ~
-                pathFile (1, 1) string
-                data
-                sheetName (1, 1) string
-                options.WriteRowNames (1, 1) logical = true
-                options.WriteVariableNames (1, 1) logical = true
-            end
-
-            [isSuccess, msg] = openmebius.infrastructure.filesystem.ExcelFileStore ...
-                .writeTable( ...
-                pathFile, ...
-                data, ...
-                sheetName, ...
-                WriteRowNames = options.WriteRowNames, ...
-                WriteVariableNames = options.WriteVariableNames);
-
-        end % writeWorkbookSheet
-
-        function sheetNames = listWorkbookSheets(~, pathFile)
-
-            arguments
-                ~
-                pathFile (1, 1) string
-            end
-
-            try
-                sheetNames = string(sheetnames(pathFile));
-                sheetNames = sheetNames(:);
-                return
-            catch
-            end
-
-            try
-                [~, sheets] = xlsfinfo(pathFile);
-                sheetNames = string(sheets);
-                sheetNames = sheetNames(:);
-            catch
-                sheetNames = strings(0, 1);
-            end
-
-        end % listWorkbookSheets
-
-        function sheetName = resolveWorkbookSheetName(obj, pathFile, preferredSheetName, aliases)
-
-            arguments
-                obj
-                pathFile (1, 1) string
-                preferredSheetName (1, 1) string
-                aliases (1, :) string = preferredSheetName
-            end
-
-            sheetName = preferredSheetName;
-            workbookSheets = obj.listWorkbookSheets(pathFile);
-
-            if isempty(workbookSheets)
-                return
-            end
-
-            normalizedWorkbookSheets = ...
-                openmebius.infrastructure.experiment.ExperimentRepository ...
-                .normalizeSheetName(workbookSheets);
-            aliases = unique([preferredSheetName aliases], "stable");
-
-            for iAlias = 1:length(aliases)
-
-                normalizedAlias = ...
-                    openmebius.infrastructure.experiment.ExperimentRepository ...
-                    .normalizeSheetName(aliases(iAlias));
-                idx = find(normalizedWorkbookSheets == normalizedAlias, 1);
-
-                if ~isempty(idx)
-                    sheetName = workbookSheets(idx);
-                    return
-                end
-
-            end
-
-        end % resolveWorkbookSheetName
-
-    end % methods
-
-    methods (Static, Access = private)
-
-        function throwWorkbookReadError(pathFile, cause)
-
-            switch string(cause.identifier)
-                case "OpenMebius2:ExcelFileStore:FileNotFound"
-                    error( ...
-                        "OpenMebius2:ExperimentRepository:WorkbookNotFound", ...
-                        "The file %s does not exist.", ...
-                        pathFile);
-                case "OpenMebius2:ExcelFileStore:VariableMismatch"
-                    error( ...
-                        "OpenMebius2:ExperimentRepository:WorkbookVariableMismatch", ...
-                        "%s", string(cause.message));
-                otherwise
-                    error( ...
-                        "OpenMebius2:ExperimentRepository:InvalidWorkbook", ...
-                        "The file %s is not a valid Excel file.", ...
-                        pathFile);
-            end
-
-        end % throwWorkbookReadError
-
-        function normalized = normalizeSheetName(sheetNames)
-
-            normalized = lower(string(sheetNames));
-            normalized = regexprep(normalized, "[\s_\-\(\)]", "");
-
-        end % normalizeSheetName
 
     end % methods
 

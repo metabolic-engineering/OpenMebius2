@@ -19,12 +19,6 @@ classdef ResultRepository < handle
                     "Failed to create IOResult.");
             end
 
-            if result.isError
-                error( ...
-                    "OpenMebius2:ResultRepository:ResultLoadFailed", ...
-                    "%s", string(result.statusMsg));
-            end
-
         end % open
 
         function assertResultDirectory(~, resultLocation)
