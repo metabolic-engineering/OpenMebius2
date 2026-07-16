@@ -2167,32 +2167,32 @@ classdef EMUModel < Stoichiometry
         function tf = saveEMUModelToFile(obj)
             % SAVEMODEL Save the model cache and source-file hash.
             %
-            % The file locations are resolved by IOModel.pathCache and
-            % IOModel.pathModel.
+            % The file locations are resolved by ModelWorkspace.pathCache
+            % and ModelWorkspace.pathModel.
 
             tf = false;
 
-            tableEMU = obj.tableEMU; %#ok<PROPLC>
-            tableEMUReaction = obj.tableEMUReaction; %#ok<PROPLC>
-            tableEMUSizeInfo = obj.tableEMUSizeInfo; %#ok<PROPLC>
-            searchedProduct = obj.searchedProduct; %#ok<PROPLC>
-            globalAn = obj.globalAn; %#ok<PROPLC>
-            globalAnEMUName = obj.globalAnEMUName; %#ok<PROPLC>
-            globalAnEMUNameMetabolite = obj.globalAnEMUNameMetabolite; %#ok<PROPLC>
-            globalAnList = obj.globalAnList; %#ok<PROPLC>
-            globalBn = obj.globalBn; %#ok<PROPLC>
-            globalBnEMUName = obj.globalBnEMUName; %#ok<PROPLC>
-            globalBnEMUNameMetabolite = obj.globalBnEMUNameMetabolite; %#ok<PROPLC>
-            globalBnList = obj.globalBnList; %#ok<PROPLC>
-            globalCn = obj.globalCn; %#ok<PROPLC>
-            globalCnDiag = obj.globalCnDiag; %#ok<PROPLC>
-            globalXn = obj.globalXn; %#ok<PROPLC>
-            globalXnList = obj.globalXnList; %#ok<PROPLC>
-            globalYn = obj.globalYn; %#ok<PROPLC>
-            globalYnList = obj.globalYnList; %#ok<PROPLC>
-            globalMDVInfo = obj.globalMDVInfo; %#ok<PROPLC>
-            globalMDVList = obj.globalMDVList; %#ok<PROPLC>
-            globalMDVSize = obj.globalMDVSize; %#ok<PROPLC>
+            tableEMU = obj.tableEMU;
+            tableEMUReaction = obj.tableEMUReaction;
+            tableEMUSizeInfo = obj.tableEMUSizeInfo;
+            searchedProduct = obj.searchedProduct;
+            globalAn = obj.globalAn;
+            globalAnEMUName = obj.globalAnEMUName;
+            globalAnEMUNameMetabolite = obj.globalAnEMUNameMetabolite;
+            globalAnList = obj.globalAnList;
+            globalBn = obj.globalBn;
+            globalBnEMUName = obj.globalBnEMUName;
+            globalBnEMUNameMetabolite = obj.globalBnEMUNameMetabolite;
+            globalBnList = obj.globalBnList;
+            globalCn = obj.globalCn;
+            globalCnDiag = obj.globalCnDiag;
+            globalXn = obj.globalXn;
+            globalXnList = obj.globalXnList;
+            globalYn = obj.globalYn;
+            globalYnList = obj.globalYnList;
+            globalMDVInfo = obj.globalMDVInfo;
+            globalMDVList = obj.globalMDVList;
+            globalMDVSize = obj.globalMDVSize;
 
             filePath = obj.pathCache;
 
@@ -2237,7 +2237,8 @@ classdef EMUModel < Stoichiometry
         end % saveModel
 
         function tf = loadEMUModelFromFile(obj)
-            % LOADMODEL Load the model cache resolved by IOModel.pathCache.
+            % LOADMODEL Load the model cache resolved by
+            % ModelWorkspace.pathCache.
 
             tf = false;
             filePath = obj.pathCache;

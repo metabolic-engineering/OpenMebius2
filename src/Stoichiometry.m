@@ -1,4 +1,4 @@
-classdef Stoichiometry < IOModel
+classdef Stoichiometry < openmebius.application.model.ModelWorkspace
 
     properties (Access = protected)
 
@@ -24,7 +24,9 @@ classdef Stoichiometry < IOModel
 
         function obj = Stoichiometry(modelInput, varargin)
 
-            obj = obj@IOModel(modelInput, varargin{:});
+            obj = obj@openmebius.application.model.ModelWorkspace( ...
+                modelInput, ...
+                varargin{:});
 
             obj.buildModel();
 
@@ -179,8 +181,8 @@ classdef Stoichiometry < IOModel
             %
             % Parameters
             % ----------
-            % obj IOModel
-            %     The IOModel object
+            % obj ModelWorkspace
+            %     The model workspace object
             % metabolite (1, 1) string
             %     The name of the metabolite
             %
@@ -227,8 +229,8 @@ classdef Stoichiometry < IOModel
             %
             % Parameters
             % ----------
-            % obj IOModel
-            %     The IOModel object
+            % obj ModelWorkspace
+            %     The model workspace object
             % metabolite (1, 1) string
             %     The name of the metabolite
             %
@@ -536,14 +538,14 @@ classdef Stoichiometry < IOModel
             tableModelRev = table( ...
                 'Size', [0, width(tableModel)], ...
                 'VariableNames', tableModel.Properties.VariableNames, ...
-                'VariableTypes', tableModel.Properties.VariableTypes); %#ok<PROP>
+                'VariableTypes', tableModel.Properties.VariableTypes);
 
             isReversible = modelRxn.Reversible;
 
             for iRxn = 1:size(modelRxn, 1)
 
                 tableModelRev = ...
-                    [tableModelRev; tableModel(iRxn, :)]; %#ok<PROP,AGROW>
+                    [tableModelRev; tableModel(iRxn, :)]; %#ok<AGROW>
 
                 if isReversible(iRxn)
 
@@ -568,14 +570,14 @@ classdef Stoichiometry < IOModel
                     rw.Properties.RowNames{1} = append(rw.Properties.RowNames{1}, '_rev_tmp');
 
                     tableModelRev = ...
-                        [tableModelRev; rw]; %#ok<PROP,AGROW>
+                        [tableModelRev; rw]; %#ok<AGROW>
 
                 end % if
 
             end % for iRxn
 
-            tableModelRev.Properties.RowNames = rxnIDRev; %#ok<PROP>
-            obj.tableModelRev = tableModelRev; %#ok<PROP>
+            tableModelRev.Properties.RowNames = rxnIDRev;
+            obj.tableModelRev = tableModelRev;
 
         end % generateReversivleReactionInfo
 

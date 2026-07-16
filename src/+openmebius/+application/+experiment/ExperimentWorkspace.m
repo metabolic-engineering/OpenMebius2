@@ -572,7 +572,7 @@ classdef ExperimentWorkspace < handle
             %
             % Returns:
             % --------
-            % model: IOModel
+            % model: openmebius.application.model.ModelWorkspace
             %     The model object.
             model = obj.objModel;
 
@@ -957,12 +957,12 @@ classdef ExperimentWorkspace < handle
             % -----------
             % obj: IOExps
             %     The IOExps object.
-            % model: IOModel
+            % model: openmebius.application.model.ModelWorkspace
             %     The model object.
 
             arguments
                 obj openmebius.application.experiment.ExperimentWorkspace
-                model IOModel
+                model openmebius.application.model.ModelWorkspace
             end
 
             obj.Collection.replaceModel(model);
