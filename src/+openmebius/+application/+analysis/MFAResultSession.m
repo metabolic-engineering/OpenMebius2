@@ -141,11 +141,17 @@ classdef MFAResultSession < handle
 
         end
 
-        function writeSuggestionTable(obj, suggestionData, columnNames)
+        function writeSuggestionTable(obj, settings)
+
+            arguments
+                obj (1, 1) openmebius.application.analysis.MFAResultSession
+                settings (1, 1) openmebius.mfa ...
+                    .NextLabelExperimentSettings
+            end
 
             [isSuccess, message] = ...
                 obj.Coordinator.writeSuggestionTable( ...
-                suggestionData, columnNames);
+                settings);
             obj.reportFailure(isSuccess, message);
 
         end

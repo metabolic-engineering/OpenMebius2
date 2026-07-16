@@ -206,7 +206,14 @@ classdef MFAResultCoordinator
         end % writeIteration
 
         function [isSuccess, message] = writeSuggestionTable( ...
-                obj, suggestionData, columnNames)
+                obj, settings)
+
+            arguments
+                obj (1, 1) openmebius.infrastructure.result ...
+                    .MFAResultCoordinator
+                settings (1, 1) openmebius.mfa ...
+                    .NextLabelExperimentSettings
+            end
 
             [isSuccess, message] = obj.noWriteResult();
 
@@ -215,8 +222,7 @@ classdef MFAResultCoordinator
             end
 
             checkpoint = obj.NextLabelCheckpointWriter ...
-                .createSuggestionTableCheckpoint( ...
-                suggestionData, columnNames);
+                .createSuggestionTableCheckpoint(settings);
             [isSuccess, message] = obj.NextLabelCheckpointWriter ...
                 .writeSuggestionTable(obj.HDF5FilePath, checkpoint);
 
