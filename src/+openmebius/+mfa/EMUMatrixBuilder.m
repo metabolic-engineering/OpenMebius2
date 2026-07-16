@@ -162,6 +162,134 @@ classdef EMUMatrixBuilder
 
         end % buildAnBn
 
+        function result = buildXnYn( ...
+                ~, sizeInfo, tableEMU, anNames, bnNames, metaboliteTable)
+
+            arguments
+                ~
+                sizeInfo table
+                tableEMU table
+                anNames cell
+                bnNames cell
+                metaboliteTable table
+            end
+
+            maxSize = max(sizeInfo.EMUSize);
+            maxAn = max(sizeInfo.An);
+            maxBn = max(sizeInfo.Bn);
+            xn = zeros(maxAn, maxSize + 1, maxSize);
+            yn = zeros(maxBn, maxSize + 1, maxSize);
+            xn(:, 1, :) = 1;
+            yn(:, 1, :) = 1;
+            xnList = [];
+            ynList = [];
+            metaboliteNames = string(metaboliteTable.Metabolite);
+            isSubstrateRow = string(metaboliteTable.Type) == "substrate";
+            substrateMetabolites = metaboliteTable(isSubstrateRow, :);
+            substrateNames = string(substrateMetabolites.Metabolite);
+
+            if height(substrateMetabolites) == 0
+                result = openmebius.mfa.EMUXnYnMatrixResult( ...
+                    Xn = xn, ...
+                    Yn = yn, ...
+                    XnList = xnList, ...
+                    YnList = ynList, ...
+                    HasSubstrates = false);
+                return
+            end
+
+            substrateEMUInfo = nan(height(substrateMetabolites), 2);
+            substrateEMUInfo(1, 1) = 1;
+
+            for substrateIndex = 1:height(substrateMetabolites)
+                if substrateIndex > 1
+                    substrateEMUInfo(substrateIndex, 1) = ...
+                        substrateEMUInfo(substrateIndex - 1, 1) + ...
+                        substrateEMUInfo(substrateIndex - 1, 2);
+                end
+
+                carbonCount = ...
+                    substrateMetabolites.Carbon{substrateIndex};
+                substrateEMUInfo(substrateIndex, 2) = ...
+                    2 ^ carbonCount - 1;
+            end
+
+            for emuSize = 1:maxSize
+                sizeYnList = zeros(0, 6);
+                sizeBnNames = bnNames( ...
+                    1:sizeInfo.Bn(emuSize), emuSize);
+
+                for bnIndex = 1:length(sizeBnNames)
+                    emuGroup = sizeBnNames{bnIndex};
+
+                    for emuIndex = 1:length(emuGroup)
+                        isConvolution = emuIndex > 1;
+                        emuName = emuGroup{emuIndex};
+                        metaboliteName = tableEMU.Metabolite( ...
+                            tableEMU.EMU == emuName);
+                        isSubstrate = ismember( ...
+                            string(metaboliteName), substrateNames);
+
+                        if isSubstrate
+                            position = tableEMU.Position{ ...
+                                tableEMU.EMU == emuName};
+                            carbonCount = metaboliteTable.Carbon{ ...
+                                metaboliteNames == string(metaboliteName)};
+                            pattern = false(1, carbonCount);
+                            pattern(position) = true;
+                            relativePosition = ...
+                                openmebius.mfa.EMUMatrixBuilder ...
+                                    .substrateEMUPosition(pattern);
+                            substrateRow = find(strcmp( ...
+                                substrateNames, metaboliteName), 1);
+                            startIndex = substrateEMUInfo( ...
+                                substrateRow, 1);
+                            emuPosition = ...
+                                startIndex + relativePosition - 1;
+                            sizeYnList(end + 1, :) = [ ...
+                                emuSize, ...
+                                bnIndex, ...
+                                isConvolution, ...
+                                true, ...
+                                emuPosition, ...
+                                0 ...
+                            ]; %#ok<AGROW>
+                            continue
+                        end
+
+                        sourceSize = tableEMU.Size( ...
+                            tableEMU.EMU == emuName);
+                        sourceSizeColumn = find( ...
+                            sizeInfo.EMUSize == sourceSize, 1);
+                        sourceAnIndex = find(cellfun( ...
+                            @(name) isequal(name, emuGroup(emuIndex)), ...
+                            anNames(1:sizeInfo.An(sourceSizeColumn), ...
+                                sourceSizeColumn)), ...
+                            1);
+                        sizeYnList(end + 1, :) = [ ...
+                            emuSize, ...
+                            bnIndex, ...
+                            isConvolution, ...
+                            false, ...
+                            sourceSize, ...
+                            sourceAnIndex ...
+                        ]; %#ok<AGROW>
+                    end
+                end
+
+                ynList = [ynList; sizeYnList]; %#ok<AGROW>
+            end
+
+            ynList = sortrows(ynList, [1, 2, 3, 4]);
+            result = openmebius.mfa.EMUXnYnMatrixResult( ...
+                Xn = xn, ...
+                Yn = yn, ...
+                XnList = xnList, ...
+                YnList = ynList, ...
+                HasSubstrates = true);
+
+        end % buildXnYn
+
         function result = buildCn( ...
                 ~, sizeInfo, anEMUMetabolites, metaboliteNames)
 
@@ -313,5 +441,20 @@ classdef EMUMatrixBuilder
         end % uniqueEMUGroups
 
     end % methods (Static)
+
+    methods (Static, Access = private)
+
+        function position = substrateEMUPosition(pattern)
+
+            if isempty(pattern)
+                position = [];
+                return
+            end
+
+            position = bin2dec(num2str(pattern, "%d"));
+
+        end % substrateEMUPosition
+
+    end % methods (Static, Access = private)
 
 end % classdef

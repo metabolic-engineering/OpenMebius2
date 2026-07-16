@@ -1275,30 +1275,6 @@ classdef EMUModel < Stoichiometry
 
         end % method getAtomPosition
 
-        function idx = getSubstrateEMUPosition(~, pattern)
-            % GETSUBSTRATEEMUPOSITION: Get the position of the substrate EMU.
-            %
-            % Parameters
-            % ----------
-            % pattern: array
-            %    Label pattern
-            %    ex: [0 1 0 0 1 0]
-            %
-            % Returns
-            % -------
-            % idx: array
-            %    Position of the substrate EMU
-
-            if isempty(pattern)
-                idx = [];
-                return;
-            end % if
-
-            strPattern = num2str(pattern, '%d');
-            idx = bin2dec(strPattern);
-
-        end % method getSubstrateEMUPosition
-
         %% Private search methods
         function [EMUs, isError] = listupEMUs(obj)
             % LISTUPEMUS: List up all EMUs from the model.
@@ -1797,124 +1773,20 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            info = obj.tableEMUSizeInfo;
-            maxSize = max(info.EMUSize);
-            maxAn = max(info.An);
-            maxBn = max(info.Bn);
+            result = obj.MatrixBuilder.buildXnYn( ...
+                obj.tableEMUSizeInfo, ...
+                obj.tableEMU, ...
+                obj.globalAnEMUName, ...
+                obj.globalBnEMUName, ...
+                obj.getMetaboliteTable());
+            obj.globalXn = result.Xn;
+            obj.globalYn = result.Yn;
+            obj.globalXnList = result.XnList;
+            obj.globalYnList = result.YnList;
 
-            obj.globalXn = zeros(maxAn, maxSize + 1, maxSize);
-            obj.globalYn = zeros(maxBn, maxSize + 1, maxSize);
-            obj.globalXn(:, 1, :) = 1;
-            obj.globalYn(:, 1, :) = 1;
-
-            % Calculate the size of substrate EMUs for each EMU size
-            metabolite = obj.getMetaboliteTable();
-            substrateMetabolite = metabolite( ...
-                cellfun(@(x) obj.isSubstrateMetabolite(x), metabolite.Metabolite), :);
-            substrateEMUInfo = nan(height(substrateMetabolite), 2); % | Start | number of substrate EMUs |
-
-            if height(substrateMetabolite) == 0
-                disp('No substrate metabolites found.');
-                return;
-            end % if height(substrateMetabolite)==0
-
-            substrateEMUInfo(1, 1) = 1;
-
-            for i = 1:height(substrateMetabolite)
-
-                if i > 1
-                    substrateEMUInfo(i, 1) = substrateEMUInfo(i - 1, 1) + substrateEMUInfo(i - 1, 2);
-                end % if i>1
-
-                substrateEMUInfo(i, 2) = 2 ^ substrateMetabolite.Carbon{i} - 1;
-
-            end % for i=1:height(substrateMetabolite)
-
-            for iSizeEMU = 1:maxSize
-
-                % | EMUSize | i | convolution (bool) | substrate (bool) | A | B |
-                % If isSubstrate
-                %   A: i (In substrate EMU)
-                %   B: 0
-                % Else
-                %   A: sizeEMU (Xn)
-                %   B: i (Xn)
-                tmpYnList = zeros(0, 6);
-
-                tmpBnEMUName = obj.globalBnEMUName(1:info.Bn(iSizeEMU), iSizeEMU);
-
-                for j = 1:length(tmpBnEMUName)
-
-                    tmpEMU = tmpBnEMUName{j};
-
-                    for kEMU = 1:length(tmpEMU)
-
-                        isConvolution = false;
-                        isSubstrate = false;
-
-                        if kEMU > 1
-                            isConvolution = true;
-                        end % if kEMU>1
-
-                        kMetaboliteName = obj.tableEMU.Metabolite( ...
-                            obj.tableEMU.EMU == tmpEMU{kEMU});
-
-                        if obj.isSubstrateMetabolite(kMetaboliteName)
-                            isSubstrate = true;
-                            pattern = obj.tableEMU.Position{ ...
-                                                                obj.tableEMU.EMU == tmpEMU{kEMU}};
-                            subsSize = metabolite.Carbon{ ...
-                                                             metabolite.Metabolite == kMetaboliteName};
-                            patternLogical = false(1, subsSize);
-                            patternLogical(pattern) = true;
-                            dpos = obj.getSubstrateEMUPosition(patternLogical);
-
-                            % Find the corresponding row in substrateEMUInfo
-                            substrateRowIdx = find( ...
-                                strcmp(substrateMetabolite.Metabolite, kMetaboliteName), 1);
-                            startIdx = substrateEMUInfo(substrateRowIdx, 1);
-                            pos = startIdx + dpos - 1;
-
-                            tmpYnList(end + 1, :) = [ ...
-                                                         iSizeEMU, ...
-                                                         j, ...
-                                                         isConvolution, ...
-                                                         isSubstrate, ...
-                                                         pos, ...
-                                                         0 ...
-                                                     ]; %#ok<AGROW>
-
-                            continue;
-
-                        end % if isSubstrateMetabolite(kMetaboliteName)
-
-                        % Non-substrate EMU
-                        % Get target EMU size
-                        tmpEMUSize = obj.tableEMU.Size( ...
-                            obj.tableEMU.EMU == tmpEMU{kEMU});
-                        tmpIdxEMUName = find(info.EMUSize == tmpEMUSize, 1);
-                        tmpAnIdx = find( ...
-                            cellfun(@(x) isequal(x, tmpEMU(kEMU)), ...
-                            obj.globalAnEMUName(1:info.An(tmpIdxEMUName), tmpIdxEMUName)), 1);
-                        tmpYnList(end + 1, :) = [ ...
-                                                     iSizeEMU, ...
-                                                     j, ...
-                                                     isConvolution, ...
-                                                     isSubstrate, ...
-                                                     tmpEMUSize, ...
-                                                     tmpAnIdx ...
-                                                 ]; %#ok<AGROW>
-
-                    end % for kEMU=1:length(tmpEMU)
-
-                end % for j=1:length(tmpBnEMUName)
-
-                obj.globalYnList = [obj.globalYnList; tmpYnList];
-
-            end % for i=1:height(info)
-
-            % Sort Yn list by EMU size, i, convolution, substrate
-            obj.globalYnList = sortrows(obj.globalYnList, [1 2 3 4]);
+            if ~result.HasSubstrates
+                disp("No substrate metabolites found.");
+            end
 
         end % method buildXnYnMatrix
 
