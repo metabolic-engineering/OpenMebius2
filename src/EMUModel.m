@@ -115,6 +115,7 @@ classdef EMUModel < Stoichiometry
         charList = ['A':'Z' 'a':'z'];
         CacheRepository
         NetworkBuilder
+        MatrixBuilder
 
     end % properties (Access = private)
 
@@ -136,6 +137,7 @@ classdef EMUModel < Stoichiometry
                     openmebius.infrastructure.model ...
                         .EMUNetworkCacheRepository()
                 options.NetworkBuilder = openmebius.mfa.EMUNetworkBuilder()
+                options.MatrixBuilder = openmebius.mfa.EMUMatrixBuilder()
             end
 
             obj = obj@Stoichiometry( ...
@@ -143,6 +145,7 @@ classdef EMUModel < Stoichiometry
                 ModelRepository = options.ModelRepository);
             obj.CacheRepository = options.CacheRepository;
             obj.NetworkBuilder = options.NetworkBuilder;
+            obj.MatrixBuilder = options.MatrixBuilder;
 
             isSucceeded = obj.loadEMUModelFromFile();
 
@@ -1949,32 +1952,12 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            info = obj.tableEMUSizeInfo;
-            maxEMUSize = max(info.EMUSize);
-            maxAn = max(info.An);
-            metabolite = obj.getMetaboliteTableMetabolite();
-            numMetabolite = length(metabolite);
-
-            obj.globalCn = false(maxAn, numMetabolite, maxEMUSize);
-            obj.globalCnDiag = zeros(maxAn, maxEMUSize);
-
-            % Initialize Cn matrix
-            for iSizeEMU = 1:maxEMUSize
-
-                Xi = obj.globalAnEMUNameMetabolite(:, iSizeEMU);
-                isEmptyXi = cellfun(@isempty, Xi);
-                Xi(isEmptyXi) = {""};
-                Xi = string(Xi);
-
-                for jMetabolite = 1:numMetabolite
-
-                    jMetName = metabolite(jMetabolite);
-                    isMatch = ismember(Xi, jMetName);
-                    obj.globalCn(isMatch, jMetabolite, iSizeEMU) = true;
-
-                end % for iSizeEMU=1:maxSize
-
-            end % method buildCnMatrix
+            result = obj.MatrixBuilder.buildCn( ...
+                obj.tableEMUSizeInfo, ...
+                obj.globalAnEMUNameMetabolite, ...
+                obj.getMetaboliteTableMetabolite());
+            obj.globalCn = result.Matrix;
+            obj.globalCnDiag = result.Diagonal;
 
         end % method buildCnMatrix
 
@@ -2121,74 +2104,14 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            targetEMU = obj.tableEMU(obj.tableEMU.Target == true, :);
-            targetEMU = sortrows(targetEMU, 'Metabolite');
-            sizeVector = targetEMU.Size;
-            numTargetEMU = height(targetEMU);
-            obj.globalMDVInfo = zeros(numTargetEMU, 2); % | size | position |
-
-            for i = 1:numTargetEMU
-
-                iSizeEMU = sizeVector(i);
-                obj.globalMDVInfo(i, 1) = iSizeEMU;
-
-                if i > 1
-                    obj.globalMDVInfo(i, 2) = obj.globalMDVInfo(i - 1, 2) + obj.globalMDVInfo(i - 1, 1) + 1;
-                else
-                    obj.globalMDVInfo(i, 2) = 1;
-                end % if i>1
-
-            end % for i=1:numTargetEMU
-
-            obj.globalMDVSize = obj.globalMDVInfo(end, 2) + obj.globalMDVInfo(end, 1);
-
-            % | EMU size | isConvolution (bool) | i | MDV index |
-            tmpMDVList = zeros(0, 5);
-
-            for i = 1:numTargetEMU
-
-                sizeEMU = obj.globalMDVInfo(i, 1);
-                startIdx = obj.globalMDVInfo(i, 2);
-
-                targetEMUReactant = obj.tableEMUReaction( ...
-                    cellfun(@(x) any(isequal(x, targetEMU.EMU(i))), obj.tableEMUReaction.Products), :);
-
-                tmpReactants = targetEMUReactant.Reactants{:};
-
-                for j = 1:length(tmpReactants)
-
-                    isConvolution = false;
-
-                    if j > 1
-                        isConvolution = true;
-                    end % if j>1
-
-                    jSizeEMU = obj.tableEMU.Size( ...
-                        obj.tableEMU.EMU == tmpReactants{j});
-
-                    jAnIdx = find( ...
-                        cellfun(@(x) isequal(x, tmpReactants(j)), ...
-                        obj.globalAnEMUName(1:obj.tableEMUSizeInfo.An( ...
-                        obj.tableEMUSizeInfo.EMUSize == jSizeEMU), ...
-                        obj.tableEMUSizeInfo.EMUSize == jSizeEMU)), 1);
-
-                    tmpMDVList(end + 1, :) = [ ...
-                                                  jSizeEMU, ...
-                                                  isConvolution, ...
-                                                  jAnIdx, ...
-                                                  startIdx, ...
-                                                  sizeEMU ... % EMU size of MDV
-                                              ]; %#ok<AGROW>
-
-                end % for j=1:length(targetEMUReactant.Reactants{i})
-
-            end % for i=1:numTargetEMU
-
-            obj.globalMDVList = ...
-                [obj.globalMDVList; tmpMDVList];
-
-            % Sort
-            obj.globalMDVList = sortrows(obj.globalMDVList, 2, "ascend");
+            result = obj.MatrixBuilder.buildMDV( ...
+                obj.tableEMU, ...
+                obj.tableEMUReaction, ...
+                obj.globalAnEMUName, ...
+                obj.tableEMUSizeInfo);
+            obj.globalMDVInfo = result.Info;
+            obj.globalMDVSize = result.Size;
+            obj.globalMDVList = result.List;
 
         end % method buildMDVVector
 

@@ -5,6 +5,7 @@ classdef ModelRepository < handle
     properties (Access = private)
         CacheRepository
         NetworkBuilder
+        MatrixBuilder
     end
 
     methods
@@ -16,10 +17,12 @@ classdef ModelRepository < handle
                     openmebius.infrastructure.model ...
                         .EMUNetworkCacheRepository()
                 options.NetworkBuilder = openmebius.mfa.EMUNetworkBuilder()
+                options.MatrixBuilder = openmebius.mfa.EMUMatrixBuilder()
             end
 
             obj.CacheRepository = options.CacheRepository;
             obj.NetworkBuilder = options.NetworkBuilder;
+            obj.MatrixBuilder = options.MatrixBuilder;
 
         end % constructor
 
@@ -34,7 +37,8 @@ classdef ModelRepository < handle
                 modelLocation, ...
                 ModelRepository = obj, ...
                 CacheRepository = obj.CacheRepository, ...
-                NetworkBuilder = obj.NetworkBuilder);
+                NetworkBuilder = obj.NetworkBuilder, ...
+                MatrixBuilder = obj.MatrixBuilder);
 
             if isempty(model) || ~isvalid(model)
                 error( ...
