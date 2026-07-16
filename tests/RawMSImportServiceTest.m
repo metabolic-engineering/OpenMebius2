@@ -46,7 +46,9 @@ classdef RawMSImportServiceTest < matlab.unittest.TestCase
 
             workbookPath = fullfile(fixture.Directory, "raw_sample.xlsx");
             testCase.verifyTrue(isfile(workbookPath));
-            testCase.verifyClass(result.Experiments, 'IOExps');
+            testCase.verifyClass( ...
+                result.Experiments, ...
+                'openmebius.application.experiment.ExperimentWorkspace');
             testCase.verifyClass(result.Batch, 'Batch');
             testCase.verifyEqual(result.ImportedFiles, "raw_sample.xlsx");
             testCase.verifyTrue(any(contains( ...

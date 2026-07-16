@@ -24,7 +24,9 @@ classdef ExperimentRepositoryTest < matlab.unittest.TestCase
 
             experiments = repository.load(fixture.Location, model);
 
-            testCase.verifyClass(experiments, "IOExps");
+            testCase.verifyClass( ...
+                experiments, ...
+                "openmebius.application.experiment.ExperimentWorkspace");
             testCase.verifyEqual(experiments.numFile, 1);
             testCase.verifyFalse(isprop(experiments, "isError"));
             testCase.verifyFalse(isprop(experiments, "statusMsg"));
@@ -59,6 +61,25 @@ classdef ExperimentRepositoryTest < matlab.unittest.TestCase
                 "openmebius.infrastructure.experiment." + ...
                 "ExperimentWorkbookData");
             testCase.verifyGreaterThan(width(workbook.MS), 0);
+
+            clear cleanup
+
+        end
+
+        function legacyIOExpsRemainsCompatible(testCase)
+
+            fixture = ExperimentRepositoryTest.createExperimentFixture();
+            cleanup = onCleanup(@() ...
+                ExperimentRepositoryTest.removeDirectory(fixture.Directory));
+            model = openmebius.infrastructure.model.ModelRepository().load( ...
+                ExperimentRepositoryTest.templateModelLocation());
+
+            experiments = IOExps(fixture.Location, model);
+
+            testCase.verifyTrue(isa( ...
+                experiments, ...
+                "openmebius.application.experiment.ExperimentWorkspace"));
+            testCase.verifyEqual(experiments.numFile, 1);
 
             clear cleanup
 

@@ -4,7 +4,7 @@ classdef LegacyProjectArtifacts
     %
     % This object intentionally wraps legacy classes:
     %   EMUModel
-    %   IOExps
+    %   openmebius.application.experiment.ExperimentWorkspace
     %   Batch
     %   openmebius.application.result.ResultWorkspace
 

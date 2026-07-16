@@ -37,7 +37,9 @@ classdef ExperimentCalculationServiceTest < matlab.unittest.TestCase
                 uptakeTable, ...
                 tracerTable);
 
-            testCase.verifyClass(result.Experiments, 'IOExps');
+            testCase.verifyClass( ...
+                result.Experiments, ...
+                'openmebius.application.experiment.ExperimentWorkspace');
             testCase.verifyClass(result.Batch, 'Batch');
             testCase.verifyTrue(result.HasCalculatedMDV);
             testCase.verifyTrue(result.Experiments.hasCalculatedMDV());
