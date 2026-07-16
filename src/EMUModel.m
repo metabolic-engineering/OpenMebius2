@@ -114,6 +114,7 @@ classdef EMUModel < Stoichiometry
 
         charList = ['A':'Z' 'a':'z'];
         CacheRepository
+        NetworkBuilder
 
     end % properties (Access = private)
 
@@ -134,12 +135,14 @@ classdef EMUModel < Stoichiometry
                 options.CacheRepository = ...
                     openmebius.infrastructure.model ...
                         .EMUNetworkCacheRepository()
+                options.NetworkBuilder = openmebius.mfa.EMUNetworkBuilder()
             end
 
             obj = obj@Stoichiometry( ...
                 modelInput, ...
                 ModelRepository = options.ModelRepository);
             obj.CacheRepository = options.CacheRepository;
+            obj.NetworkBuilder = options.NetworkBuilder;
 
             isSucceeded = obj.loadEMUModelFromFile();
 
@@ -238,20 +241,9 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            initializeEMUModel(obj);
-
-            listupAllEMU(obj);
-            throwIfConstructionFailed( ...
-                obj, ...
-                "OpenMebius2:ModelRepository:" + ...
-                "EMUConstructionFailed", ...
-                "Failed to construct the EMU network.");
-            EMUSizeTable = obj.getEMUSizeInformation();
-            obj.tableEMUSizeInfo = EMUSizeTable;
-            obj.buildAnBnMatrix();
-            obj.buildCnMatrix();
-            obj.buildXnYnMatrix();
-            obj.buildMDVVector();
+            operations = createBuildOperations(obj);
+            snapshot = obj.NetworkBuilder.build(operations);
+            applyCacheSnapshot(obj, snapshot);
 
             tf = true;
 
@@ -1041,6 +1033,38 @@ classdef EMUModel < Stoichiometry
     end % methods (Access = public)
 
     methods (Access = private)
+
+        function operations = createBuildOperations(obj)
+
+            operations = openmebius.mfa.EMUNetworkBuildOperations( ...
+                Initialize = @() initializeEMUModel(obj), ...
+                Enumerate = @() listupAllEMU(obj), ...
+                Validate = @() assertEMUConstructionSucceeded(obj), ...
+                ResolveSizeInfo = @() getEMUSizeInformation(obj), ...
+                AssignSizeInfo = @(value) assignEMUSizeInfo(obj, value), ...
+                BuildAnBn = @() buildAnBnMatrix(obj), ...
+                BuildCn = @() buildCnMatrix(obj), ...
+                BuildXnYn = @() buildXnYnMatrix(obj), ...
+                BuildMDV = @() buildMDVVector(obj), ...
+                CreateSnapshot = @() createCacheSnapshot(obj));
+
+        end % createBuildOperations
+
+        function assignEMUSizeInfo(obj, sizeInfo)
+
+            obj.tableEMUSizeInfo = sizeInfo;
+
+        end % assignEMUSizeInfo
+
+        function assertEMUConstructionSucceeded(obj)
+
+            throwIfConstructionFailed( ...
+                obj, ...
+                "OpenMebius2:ModelRepository:" + ...
+                "EMUConstructionFailed", ...
+                "Failed to construct the EMU network.");
+
+        end % assertEMUConstructionSucceeded
 
         %% Private initialize methods
         function initialzeEMUModel(obj)
