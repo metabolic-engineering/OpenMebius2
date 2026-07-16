@@ -116,6 +116,7 @@ classdef EMUModel < Stoichiometry
         NetworkBuilder
         MatrixBuilder
         NetworkEnumerator
+        MDVCalculator
 
     end % properties (Access = private)
 
@@ -140,6 +141,7 @@ classdef EMUModel < Stoichiometry
                 options.MatrixBuilder = openmebius.mfa.EMUMatrixBuilder()
                 options.NetworkEnumerator = ...
                     openmebius.mfa.EMUNetworkEnumerator()
+                options.MDVCalculator = openmebius.mfa.EMUMDVCalculator()
             end
 
             obj = obj@Stoichiometry( ...
@@ -149,6 +151,7 @@ classdef EMUModel < Stoichiometry
             obj.NetworkBuilder = options.NetworkBuilder;
             obj.MatrixBuilder = options.MatrixBuilder;
             obj.NetworkEnumerator = options.NetworkEnumerator;
+            obj.MDVCalculator = options.MDVCalculator;
 
             isSucceeded = obj.loadEMUModelFromFile();
 
@@ -254,6 +257,13 @@ classdef EMUModel < Stoichiometry
             tf = true;
 
         end % method constructEMUNetwork
+
+        function snapshot = getEMUNetworkSnapshot(obj)
+            % GETEMUNETWORKSNAPSHOT Return the constructed network state.
+
+            snapshot = createCacheSnapshot(obj);
+
+        end % getEMUNetworkSnapshot
 
         function [An, Bn] = visualizeAnBnMatrix(obj, fluxLabel)
             % VISUALIZEANBNMATRIX Visualize the An and Bn matrices for a given flux label.
@@ -551,57 +561,8 @@ classdef EMUModel < Stoichiometry
             % MDV: (n x 1) double
             %    MDV vector
 
-            MDV = zeros(obj.globalMDVSize, 1);
-
-            [An, Bn] = substituteAnBnMatrix(obj, flux);
-            [Xn, ~] = substituteXnYnMatrix(obj, EMU, An, Bn);
-
-            for iMDVList = 1:size(obj.globalMDVList, 1)
-
-                sizeIdx = obj.tableEMUSizeInfo.EMUSize == obj.globalMDVList(iMDVList, 1);
-
-                % Convolution
-                if obj.globalMDVList(iMDVList, 2) == 0
-
-                    iMDV = ...
-                        Xn( ...
-                        obj.globalMDVList(iMDVList, 3), ... % i index
-                        1:obj.globalMDVList(iMDVList, 1) + 1, ... % j index
-                        sizeIdx ... % EMU size index
-                    )';
-
-                    MDV( ...
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 1) ... % j index
-                    ) = ...
-                        iMDV(1:obj.globalMDVList(iMDVList, 1) + 1);
-
-                else
-
-                    currentMDV = ...
-                        MDV( ...
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 5) ... % j index
-                    );
-
-                    iMDV = conv( ...
-                        Xn( ...
-                        obj.globalMDVList(iMDVList, 3), ... % i index
-                        1:obj.globalMDVList(iMDVList, 1) + 1, ... % j index
-                        sizeIdx ... % EMU size index
-                    )', ...
-                        currentMDV ...
-                    );
-
-                    MDV( ...
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 5) ... % j index
-                    ) = ...
-                        iMDV(1:obj.globalMDVList(iMDVList, 5) + 1);
-
-                end % if obj.globalMDVList(iMDVList,4)==0
-
-            end % for iMDVList
+            MDV = obj.MDVCalculator.calculate( ...
+                createCacheSnapshot(obj), flux, EMU);
 
         end % method calculateMDV
 
@@ -717,20 +678,25 @@ classdef EMUModel < Stoichiometry
             % tspan: (p x 1) double
             %    Time span for simulation
 
-            numEMUSizeRows = size(obj.tableEMUSizeInfo, 1);
+            ensureCnMatrixAvailable(obj);
+            snapshot = createCacheSnapshot(obj);
+            numEMUSizeRows = height(snapshot.TableEMUSizeInfo);
 
-            Xn = reshape(Xn, size(obj.globalXn));
+            Xn = reshape(Xn, size(snapshot.GlobalXn));
 
-            [An, Bn] = substituteAnBnMatrix(obj, flux);
-            [~, Yn] = substituteXnYnMatrix(obj, EMU, An, Bn, Xn);
-            Cn = substituteCnMatrix(obj, poolsize);
+            [An, Bn] = obj.MDVCalculator.substituteAnBn( ...
+                snapshot, flux);
+            [~, Yn] = obj.MDVCalculator.substituteXnYn( ...
+                snapshot, EMU, An, Bn, Xn);
+            Cn = obj.MDVCalculator.substituteCn(snapshot, poolsize);
             dXdT = zeros(size(Xn));
 
             for iEMUSizeRow = 1:numEMUSizeRows
 
-                currentEMUSize = obj.tableEMUSizeInfo.EMUSize(iEMUSizeRow);
-                Ann = obj.tableEMUSizeInfo.An(iEMUSizeRow);
-                Bnn = obj.tableEMUSizeInfo.Bn(iEMUSizeRow);
+                currentEMUSize = ...
+                    snapshot.TableEMUSizeInfo.EMUSize(iEMUSizeRow);
+                Ann = snapshot.TableEMUSizeInfo.An(iEMUSizeRow);
+                Bnn = snapshot.TableEMUSizeInfo.Bn(iEMUSizeRow);
                 iAn = An(1:Ann, 1:Ann, currentEMUSize);
                 iBn = Bn(1:Ann, 1:Bnn, currentEMUSize);
                 iCn = diag(Cn(1:Ann, currentEMUSize));
@@ -762,42 +728,8 @@ classdef EMUModel < Stoichiometry
             % Bn: (s * n * n) double
             %    Substituted Bn matrix
 
-            An = obj.globalAn;
-            Bn = obj.globalBn;
-
-            for iAnList = 1:size(obj.globalAnList, 1)
-
-                rxnIdx = obj.globalAnList(iAnList, 2);
-                An( ...
-                    obj.globalAnList(iAnList, 3), ... % i index
-                    obj.globalAnList(iAnList, 4), ... % j index
-                    obj.globalAnList(iAnList, 1) ... % EMU size
-                ) = ...
-                    An( ...
-                    obj.globalAnList(iAnList, 3), ... % i index
-                    obj.globalAnList(iAnList, 4), ... % j index
-                    obj.globalAnList(iAnList, 1) ... % EMU size
-                ) + ...
-                    flux(rxnIdx) * obj.globalAnList(iAnList, 5); % flux * coefficient
-
-            end % for iAnList
-
-            for iBnList = 1:size(obj.globalBnList, 1)
-
-                rxnIdx = obj.globalBnList(iBnList, 2);
-                Bn( ...
-                    obj.globalBnList(iBnList, 3), ... % i index
-                    obj.globalBnList(iBnList, 4), ... % j index
-                    obj.globalBnList(iBnList, 1) ... % EMU size
-                ) = ...
-                    Bn( ...
-                    obj.globalBnList(iBnList, 3), ... % i index
-                    obj.globalBnList(iBnList, 4), ... % j index
-                    obj.globalBnList(iBnList, 1) ... % EMU size
-                ) + ...
-                    flux(rxnIdx) * obj.globalBnList(iBnList, 5); % flux * coefficient
-
-            end % for iBnList
+            [An, Bn] = obj.MDVCalculator.substituteAnBn( ...
+                createCacheSnapshot(obj), flux);
 
         end % method substituteAnBnMatrix
 
@@ -816,46 +748,8 @@ classdef EMUModel < Stoichiometry
             %    Substituted Cn matrix
 
             ensureCnMatrixAvailable(obj);
-
-            CnBool = obj.globalCn;
-            Cn = obj.globalCnDiag;
-            numEMUSizeRows = size(obj.tableEMUSizeInfo, 1);
-            poolsize = double(poolsize(:));
-            numPoolMetabolites = numel(poolsize);
-            numCnMetabolites = size(CnBool, 2);
-
-            if numPoolMetabolites ~= numCnMetabolites
-                error( ...
-                    'EMUModel:PoolSizeDimensionMismatch', ...
-                    ['The pool size vector length (%d) does not match the number of ' ...
-                     'model metabolites in the EMU Cn matrix (%d). Check the INST-MFA ' ...
-                 'pool-size table and rebuild the EMU model cache if necessary.'], ...
-                    numPoolMetabolites, ...
-                    numCnMetabolites ...
-                );
-            end % if
-
-            if any(~isfinite(poolsize)) || any(poolsize <= 0)
-                error( ...
-                    'EMUModel:InvalidPoolSize', ...
-                    'INST-MFA pool sizes must be finite positive values.' ...
-                );
-            end % if
-
-            for iEMUSizeRow = 1:numEMUSizeRows
-
-                currentEMUSize = obj.tableEMUSizeInfo.EMUSize(iEMUSizeRow);
-
-                for jMetabolite = 1:numCnMetabolites
-
-                    CnBoolIdx = ...
-                        CnBool(:, jMetabolite, currentEMUSize);
-                    Cn(CnBoolIdx, currentEMUSize) = ...
-                        1 / poolsize(jMetabolite);
-
-                end % for jMetabolite
-
-            end % for iEMUSizeRow
+            Cn = obj.MDVCalculator.substituteCn( ...
+                createCacheSnapshot(obj), poolsize);
 
         end % method substituteXCnMatrix
 
@@ -880,122 +774,15 @@ classdef EMUModel < Stoichiometry
             % n: The matrix size of An
             % i: The number of carbons in the EMU
 
+            snapshot = createCacheSnapshot(obj);
+
             if nargin < 5
-                Xn = obj.globalXn;
+                [Xn, Yn] = obj.MDVCalculator.substituteXnYn( ...
+                    snapshot, EMU, An, Bn);
+            else
+                [Xn, Yn] = obj.MDVCalculator.substituteXnYn( ...
+                    snapshot, EMU, An, Bn, Xn);
             end
-
-            Yn = obj.globalYn;
-
-            for iSelectedSize = 1:height(obj.tableEMUSizeInfo)
-
-                iSelectedYnList = obj.globalYnList( ...
-                    obj.globalYnList(:, 1) == iSelectedSize, :);
-
-                % Yn
-                for jSelectedYnList = 1:size(iSelectedYnList, 1)
-
-                    if iSelectedYnList(jSelectedYnList, 3) == 0
-
-                        % Substrate EMU
-                        if iSelectedYnList(jSelectedYnList, 4) == 1
-
-                            Yn( ...
-                                iSelectedYnList(jSelectedYnList, 2), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                iSelectedSize ... % EMU size index
-                            ) = ...
-                                EMU( ...
-                                iSelectedYnList(jSelectedYnList, 5), ... % substrate EMU index
-                                1:iSelectedSize + 1 ... % EMU size
-                            );
-
-                        else
-
-                            XnIdx = ...
-                                obj.tableEMUSizeInfo.EMUSize == ...
-                                iSelectedYnList(jSelectedYnList, 5);
-
-                            Yn( ...
-                                iSelectedYnList(jSelectedYnList, 2), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                iSelectedSize ... % EMU size index
-                            ) = ...
-                                Xn( ...
-                                iSelectedYnList(jSelectedYnList, 6), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                XnIdx ... % EMU size index
-                            );
-
-                        end % if isSelectedYnList(jSelectedYnList,4)==0
-
-                    else
-
-                        % Substrate EMU
-                        currentYn = Yn( ...
-                            iSelectedYnList(jSelectedYnList, 2), ... % i index
-                            1:iSelectedSize + 1, ... % j index
-                            iSelectedSize ... % EMU size index
-                        );
-
-                        if iSelectedYnList(jSelectedYnList, 4) == 1
-
-                            jConvolution = ...
-                                conv( ...
-                                EMU( ...
-                                iSelectedYnList(jSelectedYnList, 5), ... % substrate EMU index
-                                1:iSelectedSize + 1 ... % EMU size
-                            ), ...
-                                currentYn ...
-                            );
-
-                            Yn( ...
-                                iSelectedYnList(jSelectedYnList, 2), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                iSelectedSize ... % EMU size index
-                            ) = jConvolution(1:iSelectedSize + 1);
-
-                        else
-
-                            XnIdx = ...
-                                obj.tableEMUSizeInfo.EMUSize == ...
-                                iSelectedYnList(jSelectedYnList, 5);
-
-                            jConvolution = ...
-                                conv( ...
-                                Xn( ...
-                                iSelectedYnList(jSelectedYnList, 6), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                XnIdx ... % EMU size index
-                            ), ...
-                                currentYn ...
-                            );
-
-                            Yn( ...
-                                iSelectedYnList(jSelectedYnList, 2), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                iSelectedSize ... % EMU size index
-                            ) = jConvolution(1:iSelectedSize + 1);
-
-                        end % if isSelectedYnList(jSelectedYnList,4)==0
-
-                    end % if iSelectedYnList(jSelectedYnList,3)==0
-
-                end % for jSelectedYnList
-
-                Ann = obj.tableEMUSizeInfo.An(iSelectedSize);
-                Bnn = obj.tableEMUSizeInfo.Bn(iSelectedSize);
-
-                % Calculate Xn
-                lambdaE = 10 ^ -8 * eye(Ann);
-
-                if nargin < 5
-                    iXn = ...
-                        (lambdaE + An(1:Ann, 1:Ann, iSelectedSize)) \ (Bn(1:Ann, 1:Bnn, iSelectedSize) * Yn(1:Bnn, 1:iSelectedSize + 1, iSelectedSize));
-
-                    Xn(1:Ann, 1:iSelectedSize + 1, iSelectedSize) = iXn;
-                end
-
-            end % for iSelectedSize = 1:height(obj.tableEMUSizeInfo)
 
         end % method substituteXnYnMatrix
 

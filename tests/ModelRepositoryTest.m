@@ -29,6 +29,22 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
         end
 
+        function loadedModelExposesEmuNetworkSnapshot(testCase)
+
+            repository = openmebius.infrastructure.model.ModelRepository();
+            model = repository.load( ...
+                ModelRepositoryTest.templateModelLocation());
+
+            snapshot = model.getEMUNetworkSnapshot();
+
+            testCase.verifyClass( ...
+                snapshot, ...
+                "openmebius.domain.model.EMUNetworkSnapshot");
+            testCase.verifyNotEmpty(snapshot.TableEMU);
+            testCase.verifyNotEmpty(snapshot.TableEMUReaction);
+
+        end
+
         function readModelSheetReturnsValidatedTable(testCase)
 
             repository = openmebius.infrastructure.model.ModelRepository();
