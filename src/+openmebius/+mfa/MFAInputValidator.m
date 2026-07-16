@@ -5,7 +5,16 @@ classdef MFAInputValidator
     methods
 
         function result = validateEfflux( ...
-                ~, model, experiments, experimentList, config)
+                ~, model, experiments, experimentList, settings)
+
+            arguments
+                ~
+                model
+                experiments
+                experimentList
+                settings (1, 1) openmebius.mfa ...
+                    .EffluxPerturbationSettings
+            end
 
             info = experiments.getInfoTable();
 
@@ -80,15 +89,11 @@ classdef MFAInputValidator
 
             standardDeviations = zeros(0, 1);
             freeMask = false(0, 1);
-            isPerturbated = isfield(config, "perturbateEfflux") && ...
-                isscalar(config.perturbateEfflux) && ...
-                logical(config.perturbateEfflux);
-
-            if isPerturbated
+            if settings.Enabled
                 [standardDeviations, freeMask, errorMessage] = ...
                     openmebius.mfa.MFAInputValidator ...
                     .alignPerturbationConfiguration( ...
-                    substrates, config);
+                    substrates, settings);
 
                 if strlength(errorMessage) > 0
                     result = openmebius.mfa ...
@@ -156,26 +161,15 @@ classdef MFAInputValidator
     methods (Static, Access = private)
 
         function [standardDeviations, freeMask, errorMessage] = ...
-                alignPerturbationConfiguration(substrates, config)
+                alignPerturbationConfiguration(substrates, settings)
 
             standardDeviations = zeros(0, 1);
             freeMask = false(0, 1);
             errorMessage = "";
 
-            if ~isfield(config, "efflux") || ...
-                    ~isstruct(config.efflux) || ...
-                    ~all(isfield(config.efflux, ...
-                    ["substrate", "selection", "substrateSD"]))
-                errorMessage = ...
-                    "Efflux perturbation configuration is incomplete.";
-                return;
-            end
-
-            configuredSubstrates = string( ...
-                config.efflux.substrate(:));
-            configuredSelection = config.efflux.selection(:);
-            configuredStandardDeviations = ...
-                config.efflux.substrateSD(:);
+            configuredSubstrates = settings.Substrates;
+            configuredSelection = settings.FreeSelection;
+            configuredStandardDeviations = settings.StandardDeviations;
 
             if isempty(configuredSubstrates)
                 errorMessage = ...

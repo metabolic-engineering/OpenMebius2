@@ -7,6 +7,7 @@ classdef MFAExperimentalDataBuilderStub < handle
 
     properties (SetAccess = private)
         CallCount (1, 1) double = 0
+        LastFragmentSelection = []
     end
 
     methods
@@ -17,9 +18,10 @@ classdef MFAExperimentalDataBuilderStub < handle
 
         end
 
-        function result = build(obj, ~, ~, ~, ~)
+        function result = build(obj, ~, ~, ~, selection)
 
             obj.CallCount = obj.CallCount + 1;
+            obj.LastFragmentSelection = selection;
 
             if strlength(obj.ErrorIdentifier) > 0
                 error( ...
