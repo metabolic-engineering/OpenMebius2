@@ -1191,7 +1191,8 @@ classdef EMUModel < Stoichiometry
                 end % if isempty(emuOfCurrentSize)
 
                 EMUReactantProducts = vertcat(emuOfCurrentSize.Reactants, emuOfCurrentSize.Products);
-                emuReactantUnique = getUniqueEMUName(obj, EMUReactantProducts);
+                emuReactantUnique = openmebius.mfa.EMUMatrixBuilder ...
+                    .uniqueEMUGroups(EMUReactantProducts);
 
                 isSubstrate = false(length(emuReactantUnique), 1);
 
@@ -1224,62 +1225,6 @@ classdef EMUModel < Stoichiometry
             emuInfo = sortrows(emuInfo, 'EMUSize', 'ascend');
 
         end % method getEMUSizeInformation
-
-        function enuOut = getUniqueEMUName(~, emu)
-            % GETUNIQUEEMUNAME: Get a unique EMU name by replacing underscores with hyphens.
-            %
-            % Parameters
-            % ----------
-            % emu: cell
-            %    EMU name
-            %
-            % Returns
-            % -------
-            % emu: cell
-            %    Unique EMU name
-
-            numEMU = length(emu);
-
-            enuOut = cell(0);
-
-            for i = 1:numEMU
-
-                currentEMU = emu{i};
-
-                % Get current listed EMU
-                tmpEMU = enuOut;
-                isListed = false;
-
-                for j = 1:length(tmpEMU)
-
-                    if length(currentEMU) ~= length(tmpEMU{j})
-                        continue;
-                    end % if length(currentEMU)~=length(tmpEMU{j})
-
-                    for k = 1:length(currentEMU)
-
-                        if strcmp(currentEMU{k}, tmpEMU{j}{k})
-                            isListed = true;
-                        else
-                            isListed = false;
-                            break;
-                        end % if strcmp(currentEMU{k}, tmpEMU{j}{k})
-
-                    end % for k=1:length(currentEMU)
-
-                    if isListed
-                        break;
-                    end % if isListed
-
-                end % for j=1:length(currentEMU)
-
-                if ~isListed
-                    enuOut{end + 1} = currentEMU; %#ok<AGROW>
-                end % if ~isListed
-
-            end % for i=1:numEMU
-
-        end % method getUniqueEMUName
 
         function pos = getAtomPosition(~, reactant, product)
             % GETATOMPOSITION: Get the atom position from the reactant to the product.
@@ -1798,146 +1743,26 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            % Initialize
-            info = obj.tableEMUSizeInfo;
-            maxAn = max(info.An);
-            maxBn = max(info.Bn);
-            numSizes = max(info.EMUSize);
-
-            obj.globalAn = zeros(maxAn, maxAn, numSizes);
-            obj.globalBn = zeros(maxAn, maxBn, numSizes);
-            obj.globalAnEMUName = cell(maxAn, numSizes);
-            obj.globalAnEMUNameMetabolite = cell(maxAn, numSizes);
-            obj.globalBnEMUName = cell(maxBn, numSizes);
-            obj.globalBnEMUNameMetabolite = cell(maxBn, numSizes);
-            tableEMURxn = obj.tableEMUReaction(obj.tableEMUReaction.Target == false, :);
-
-            % Message
-            msg = 'List up A and B EMUs for each EMU size.';
-            emitMsg(obj, msg, "Info", obj.logLevel);
-
-            for iSizeEMU = 1:numSizes
-
-                iAnCount = 0;
-                iBnCount = 0;
-                iEMU = tableEMURxn( ...
-                    tableEMURxn.Size == iSizeEMU, :);
-
-                if isempty(iEMU)
-                    continue
-                end % if isempty(iEMU)
-
-                iEMUList = vertcat(iEMU.Reactants, iEMU.Products);
-                iEMUUnique = getUniqueEMUName(obj, iEMUList);
-
-                % An and Bn EMUs
-                for j = 1:length(iEMUUnique)
-
-                    isSubstrate = false;
-
-                    if length(iEMUUnique{j}) > 1
-                        isSubstrate = true;
-                    end % if length(iEMUUnique{j})>1
-
-                    for k = 1:length(iEMUUnique{j})
-
-                        tmpEMU = iEMUUnique{j}{k};
-                        tmpMetabolite = obj.tableEMU.Metabolite( ...
-                            obj.tableEMU.EMU == tmpEMU);
-
-                        if obj.isSubstrateMetabolite(tmpMetabolite)
-                            isSubstrate = true;
-                            break;
-                        end % if isSubstrateMetabolite(tmpMetabolite)
-
-                    end % for k=1:length(iEMUUnique{j})
-
-                    if ~isSubstrate
-                        iAnCount = iAnCount + 1;
-                        obj.globalAnEMUName{iAnCount, iSizeEMU} = iEMUUnique{j};
-                        obj.globalAnEMUNameMetabolite{iAnCount, iSizeEMU} = tmpMetabolite;
-                    else
-                        iBnCount = iBnCount + 1;
-                        obj.globalBnEMUName{iBnCount, iSizeEMU} = iEMUUnique{j};
-                        obj.globalBnEMUNameMetabolite{iBnCount, iSizeEMU} = tmpMetabolite;
-                    end % if ~isSubstrate
-
-                end % for j=1:length(iEMUUnique)
-
-            end % for iSizeEMU=1:numSizes
-
-            % EMU size loop
-            for iSizeEMU = 1:numSizes
-
-                iAnEMU = obj.globalAnEMUName(1:info.An(iSizeEMU), iSizeEMU);
-                iBnEMU = obj.globalBnEMUName(1:info.Bn(iSizeEMU), iSizeEMU);
-                iAnBnEMU = [iAnEMU; iBnEMU];
-
-                % | EMUSize | RxnIdx | i | j | coefficient |
-                tmpRxnList = nan(0, 5);
-
-                % EMU loop
-                for j = 1:(length(iAnEMU))
-
-                    jRxns = tableEMURxn( ...
-                        cellfun(@(x) any(isequal(x, iAnEMU{j})), tableEMURxn.Reactants) | ...
-                        cellfun(@(x) any(isequal(x, iAnEMU{j})), tableEMURxn.Products), :);
-
-                    % Each reaction loop
-                    for k = 1:height(jRxns)
-
-                        kRxnID = jRxns.RxnID{k};
-                        kRxnIdx = findRxnIdx(obj, kRxnID);
-
-                        if isempty(kRxnIdx)
-                            kRxnIdx = -1;
-                        end % if isempty(kRxnIdx)
-
-                        kReactants = jRxns.Reactants{k};
-                        kProducts = jRxns.Products{k};
-                        kCoefficient = jRxns.Coefficient(k);
-
-                        if isequal(kProducts, iAnBnEMU{j})
-
-                            kCurrentColIdx = find(cellfun(@(x) isequal(x, kReactants), iAnBnEMU));
-                            tmpRxnList(end + 1, :) = [ ...
-                                                          iSizeEMU, ...
-                                                          kRxnIdx, ...
-                                                          j, ...
-                                                          kCurrentColIdx, ...
-                                                          -kCoefficient ...
-                                                      ]; %#ok<AGROW>
-
-                            tmpRxnList(end + 1, :) = [ ...
-                                                          iSizeEMU, ...
-                                                          kRxnIdx, ...
-                                                          j, ...
-                                                          j, ...
-                                                          kCoefficient ...
-                                                      ]; %#ok<AGROW>
-
-                        end % if isequal(kProducts, iAnBnEMU{j})
-
-                    end % for k=1:height(jRxns)
-
-                end % for j=1:(info.An(i)+info.Bn(i))
-
-                tmpAnList = tmpRxnList(tmpRxnList(:, 4) <= info.An(iSizeEMU), :);
-                tmpAnList(:, 5) = -tmpAnList(:, 5);
-                tmpBnList = tmpRxnList(tmpRxnList(:, 4) > info.An(iSizeEMU), :);
-                tmpBnList(:, 4) = tmpBnList(:, 4) - info.An(iSizeEMU);
-                obj.globalAnList = [obj.globalAnList; tmpAnList];
-                obj.globalBnList = [obj.globalBnList; tmpBnList];
-
-            end % for iSizeEMU=1:numSizes
-
-            [uniqueAnRows, ~, icAn] = unique(obj.globalAnList(:, 1:4), 'rows');
-            sumCol = accumarray(icAn, obj.globalAnList(:, 5));
-            obj.globalAnList = [uniqueAnRows, sumCol];
-
-            [uniqueBnRows, ~, icBn] = unique(obj.globalBnList(:, 1:4), 'rows');
-            sumCol = accumarray(icBn, obj.globalBnList(:, 5));
-            obj.globalBnList = [uniqueBnRows, sumCol];
+            emitMsg( ...
+                obj, ...
+                "List up A and B EMUs for each EMU size.", ...
+                "Info", ...
+                obj.logLevel);
+            modelReactions = obj.getModelRxnRev();
+            result = obj.MatrixBuilder.buildAnBn( ...
+                obj.tableEMUSizeInfo, ...
+                obj.tableEMU, ...
+                obj.tableEMUReaction, ...
+                obj.getMetaboliteTableSubstrate(), ...
+                string(modelReactions.Properties.RowNames));
+            obj.globalAn = result.An;
+            obj.globalBn = result.Bn;
+            obj.globalAnEMUName = result.AnNames;
+            obj.globalAnEMUNameMetabolite = result.AnMetabolites;
+            obj.globalBnEMUName = result.BnNames;
+            obj.globalBnEMUNameMetabolite = result.BnMetabolites;
+            obj.globalAnList = result.AnList;
+            obj.globalBnList = result.BnList;
 
         end % method buildAnBnMatrix
 

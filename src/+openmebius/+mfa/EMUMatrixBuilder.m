@@ -3,6 +3,165 @@ classdef EMUMatrixBuilder
 
     methods
 
+        function result = buildAnBn( ...
+                ~, sizeInfo, tableEMU, tableEMUReaction, ...
+                substrateMetabolites, reactionIDs)
+
+            arguments
+                ~
+                sizeInfo table
+                tableEMU table
+                tableEMUReaction table
+                substrateMetabolites string
+                reactionIDs string
+            end
+
+            maxAn = max(sizeInfo.An);
+            maxBn = max(sizeInfo.Bn);
+            numSizes = max(sizeInfo.EMUSize);
+            an = zeros(maxAn, maxAn, numSizes);
+            bn = zeros(maxAn, maxBn, numSizes);
+            anNames = cell(maxAn, numSizes);
+            anMetabolites = cell(maxAn, numSizes);
+            bnNames = cell(maxBn, numSizes);
+            bnMetabolites = cell(maxBn, numSizes);
+            anList = [];
+            bnList = [];
+            substrateMetabolites = string(substrateMetabolites(:));
+            reactionIDs = string(reactionIDs(:));
+            reactions = tableEMUReaction( ...
+                tableEMUReaction.Target == false, :);
+
+            for emuSize = 1:numSizes
+                anCount = 0;
+                bnCount = 0;
+                sizeReactions = reactions( ...
+                    reactions.Size == emuSize, :);
+
+                if isempty(sizeReactions)
+                    continue
+                end
+
+                emuGroups = vertcat( ...
+                    sizeReactions.Reactants, ...
+                    sizeReactions.Products);
+                uniqueGroups = openmebius.mfa.EMUMatrixBuilder ...
+                    .uniqueEMUGroups(emuGroups);
+
+                for groupIndex = 1:length(uniqueGroups)
+                    group = uniqueGroups{groupIndex};
+                    isSubstrate = length(group) > 1;
+                    metabolite = "";
+
+                    for emuIndex = 1:length(group)
+                        emuName = group{emuIndex};
+                        metabolite = tableEMU.Metabolite( ...
+                            tableEMU.EMU == emuName);
+
+                        if ismember(metabolite, substrateMetabolites)
+                            isSubstrate = true;
+                            break
+                        end
+                    end
+
+                    if ~isSubstrate
+                        anCount = anCount + 1;
+                        anNames{anCount, emuSize} = group;
+                        anMetabolites{anCount, emuSize} = metabolite;
+                    else
+                        bnCount = bnCount + 1;
+                        bnNames{bnCount, emuSize} = group;
+                        bnMetabolites{bnCount, emuSize} = metabolite;
+                    end
+                end
+            end
+
+            for emuSize = 1:numSizes
+                sizeAnNames = anNames(1:sizeInfo.An(emuSize), emuSize);
+                sizeBnNames = bnNames(1:sizeInfo.Bn(emuSize), emuSize);
+                sizeNames = [sizeAnNames; sizeBnNames];
+                reactionList = nan(0, 5);
+
+                for anIndex = 1:length(sizeAnNames)
+                    matchingReactions = reactions( ...
+                        cellfun( ...
+                            @(value) any(isequal( ...
+                                value, sizeAnNames{anIndex})), ...
+                            reactions.Reactants) | ...
+                        cellfun( ...
+                            @(value) any(isequal( ...
+                                value, sizeAnNames{anIndex})), ...
+                            reactions.Products), ...
+                        :);
+
+                    for reactionIndex = 1:height(matchingReactions)
+                        reactionID = matchingReactions.RxnID{reactionIndex};
+                        modelReactionIndex = find(strcmp( ...
+                            reactionIDs, reactionID));
+
+                        if isempty(modelReactionIndex)
+                            modelReactionIndex = -1;
+                        end
+
+                        reactants = matchingReactions.Reactants{reactionIndex};
+                        products = matchingReactions.Products{reactionIndex};
+                        coefficient = ...
+                            matchingReactions.Coefficient(reactionIndex);
+
+                        if isequal(products, sizeNames{anIndex})
+                            currentColumn = find(cellfun( ...
+                                @(value) isequal(value, reactants), ...
+                                sizeNames));
+                            reactionList(end + 1, :) = [ ...
+                                emuSize, ...
+                                modelReactionIndex, ...
+                                anIndex, ...
+                                currentColumn, ...
+                                -coefficient ...
+                            ]; %#ok<AGROW>
+                            reactionList(end + 1, :) = [ ...
+                                emuSize, ...
+                                modelReactionIndex, ...
+                                anIndex, ...
+                                anIndex, ...
+                                coefficient ...
+                            ]; %#ok<AGROW>
+                        end
+                    end
+                end
+
+                sizeAnList = reactionList( ...
+                    reactionList(:, 4) <= sizeInfo.An(emuSize), :);
+                sizeAnList(:, 5) = -sizeAnList(:, 5);
+                sizeBnList = reactionList( ...
+                    reactionList(:, 4) > sizeInfo.An(emuSize), :);
+                sizeBnList(:, 4) = ...
+                    sizeBnList(:, 4) - sizeInfo.An(emuSize);
+                anList = [anList; sizeAnList]; %#ok<AGROW>
+                bnList = [bnList; sizeBnList]; %#ok<AGROW>
+            end
+
+            [uniqueAnRows, ~, anGroups] = unique( ...
+                anList(:, 1:4), "rows");
+            anCoefficients = accumarray(anGroups, anList(:, 5));
+            anList = [uniqueAnRows, anCoefficients];
+            [uniqueBnRows, ~, bnGroups] = unique( ...
+                bnList(:, 1:4), "rows");
+            bnCoefficients = accumarray(bnGroups, bnList(:, 5));
+            bnList = [uniqueBnRows, bnCoefficients];
+
+            result = openmebius.mfa.EMUAnBnMatrixResult( ...
+                An = an, ...
+                Bn = bn, ...
+                AnNames = anNames, ...
+                AnMetabolites = anMetabolites, ...
+                BnNames = bnNames, ...
+                BnMetabolites = bnMetabolites, ...
+                AnList = anList, ...
+                BnList = bnList);
+
+        end % buildAnBn
+
         function result = buildCn( ...
                 ~, sizeInfo, anEMUMetabolites, metaboliteNames)
 
@@ -112,5 +271,47 @@ classdef EMUMatrixBuilder
         end % buildMDV
 
     end % methods
+
+    methods (Static)
+
+        function uniqueGroups = uniqueEMUGroups(emuGroups)
+
+            uniqueGroups = cell(0);
+
+            for groupIndex = 1:length(emuGroups)
+                currentGroup = emuGroups{groupIndex};
+                isListed = false;
+
+                for listedIndex = 1:length(uniqueGroups)
+                    listedGroup = uniqueGroups{listedIndex};
+
+                    if length(currentGroup) ~= length(listedGroup)
+                        continue
+                    end
+
+                    isListed = true;
+
+                    for emuIndex = 1:length(currentGroup)
+                        if ~strcmp( ...
+                                currentGroup{emuIndex}, ...
+                                listedGroup{emuIndex})
+                            isListed = false;
+                            break
+                        end
+                    end
+
+                    if isListed
+                        break
+                    end
+                end
+
+                if ~isListed
+                    uniqueGroups{end + 1} = currentGroup; %#ok<AGROW>
+                end
+            end
+
+        end % uniqueEMUGroups
+
+    end % methods (Static)
 
 end % classdef
