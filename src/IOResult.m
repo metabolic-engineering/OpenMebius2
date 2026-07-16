@@ -19,6 +19,7 @@ classdef IOResult < handle
 
         ResultLocation openmebius.domain.result.ResultLocation
         ResultRepository
+        Hdf5ResultRepository
 
     end % properties
 
@@ -35,6 +36,9 @@ classdef IOResult < handle
                 resultInput
                 options.ResultRepository = ...
                     openmebius.infrastructure.result.ResultRepository()
+                options.Hdf5ResultRepository = ...
+                    openmebius.infrastructure.result ...
+                    .Hdf5ResultRepository()
             end
 
             resultLocation = ...
@@ -43,6 +47,8 @@ classdef IOResult < handle
 
             obj.ResultLocation = resultLocation;
             obj.ResultRepository = options.ResultRepository;
+            obj.Hdf5ResultRepository = ...
+                options.Hdf5ResultRepository;
             obj.MessagePublisher = openmebius.presentation ...
                 .notification.GeneralMessagePublisher();
 
@@ -473,68 +479,25 @@ classdef IOResult < handle
                 RxnID (1, 1) string
             end % arguments
 
-            % Load the result file
-            filePath = obj.ResultLocation.resultFile(batchID);
-            data = [];
-
             if ~obj.ResultLocation.hasResultFile(batchID)
                 notifyGeneralMessage(obj, "error", "Result file does not exist.");
+                data = [];
                 return;
             end
 
-            % Load the result data
-            % Load the status
-            data = struct;
-            status = h5read(filePath, '/status');
+            data = obj.Hdf5ResultRepository.readConfidenceInterval( ...
+                obj.ResultLocation, ...
+                batchID, ...
+                RxnID);
 
-            if ~(status(1) && status(2) && status(3))
-                return;
-            end % if
-
-            data.status = status;
-
-            % Set initial data
-            data.RxnID = RxnID;
-
-            % Load the model data
-            data.model.modelID = h5read(filePath, '/model/modelID');
-            data.model.modelReaction = h5read(filePath, '/model/modelReaction');
-
-            % Result of FVA
-            data.fluxVariability.fluxUBFwd = ...
-                h5read(filePath, '/fluxVariability/fluxUBFwd');
-            data.fluxVariability.fluxLBFwd = ...
-                h5read(filePath, '/fluxVariability/fluxLBFwd');
-
-            % Flux distribution
-            data.RSSIdx = ...
-                h5read(filePath, "/RSSIndex");
-            iterName = string(sprintf("%04d", data.RSSIdx(1)));
-            addressName = "/fluxResult/" + iterName;
-            data.fluxFwd = ...
-                h5read(filePath, addressName + "/fluxFwd");
-
-            % Confidence interval data
-            data.fluxLB = ...
-                h5read(filePath, "/fluxLB");
-            data.fluxUB = ...
-                h5read(filePath, "/fluxUB");
-            data.CI.algorithm = ...
-                h5read(filePath, "/CI/algorithm");
-
-            % Switch data
-            switch data.CI.algorithm
-                case "Monte Carlo"
-                    data.CI.flux = h5read(filePath, "/CI/fluxes");
-                    data.CI.fluxLB = h5read(filePath, "/CI/fluxLB");
-                    data.CI.fluxUB = h5read(filePath, "/CI/fluxUB");
-
-                    % Extract the reaction flux
-
-                otherwise
-                    notifyGeneralMessage(obj, "error", "Unknown confidence interval algorithm: " + data.CI.algorithm);
-                    return;
-            end % switch
+            if ~isempty(data) && ...
+                    data.CI.algorithm ~= "Monte Carlo"
+                notifyGeneralMessage( ...
+                    obj, ...
+                    "error", ...
+                    "Unknown confidence interval algorithm: " + ...
+                    data.CI.algorithm);
+            end
 
         end % getCIReaction
 
@@ -552,62 +515,10 @@ classdef IOResult < handle
                 batchID (1, 1) string
             end % arguments
 
-            % Load the result file
-            isExist = true;
-            data = struct;
-            filePath = obj.ResultLocation.resultFile(batchID);
-
-            if ~obj.ResultLocation.hasResultFile(batchID)
-                isExist = false;
-                return;
-            end
-
-            % Load the suggestion data
-            try
-                data.ID = h5read(filePath, '/model/modelID');
-                data.ID = [data.ID; "biomass"];
-                data.rxn = h5read(filePath, '/model/modelReaction');
-                data.rxn = [data.rxn; "biomass"];
-                data.colName = h5read(filePath, '/nextLabelPattern/suggestionTable/colName');
-                data.data = h5read(filePath, '/nextLabelPattern/suggestionTable/data');
-                data.fluxLB = h5read(filePath, '/fluxLB');
-                data.fluxUB = h5read(filePath, '/fluxUB');
-            catch
-                isExist = false;
-                return;
-            end % try-catch
-
-            try
-                RSSIdx = h5read(filePath, '/RSSIndex');
-                data.bestfit = h5read(filePath, "/fluxResult/" + string(sprintf("%04d", RSSIdx(1))) + "/fluxFwd");
-                data.FVALB = h5read(filePath, '/fluxVariability/fluxLBFwd');
-                data.FVAUB = h5read(filePath, '/fluxVariability/fluxUBFwd');
-            catch
-                isExist = false;
-                return;
-            end
-
-            try
-                numData = size(data.data, 1);
-                data.patternLabel = strings(numData, 1);
-
-                for i = 1:numData
-
-                    pattern = data.data(i, :);
-                    patternStr = strjoin(pattern, '_');
-                    patternStr = matlab.lang.makeValidName(patternStr);
-                    data.patternLabel(i) = patternStr;
-
-                    data.(patternStr).fluxLB = ...
-                        h5read(filePath, '/nextLabelPattern/' + patternStr + '/fluxLB');
-                    data.(patternStr).fluxUB = ...
-                        h5read(filePath, '/nextLabelPattern/' + patternStr + '/fluxUB');
-
-                end % for i
-
-            catch
-
-            end
+            [isExist, data] = obj.Hdf5ResultRepository ...
+                .readNextLabelSuggestion( ...
+                obj.ResultLocation, ...
+                batchID);
 
         end % getNextLabelSuggestion
 
@@ -1133,95 +1044,16 @@ classdef IOResult < handle
                 options.readstatus (1, 4) logical = [true, true, true, true]
             end % arguments
 
-            % Load the result file
-            filePath = obj.ResultLocation.resultFile(id);
-            data = [];
-
             if ~obj.ResultLocation.hasResultFile(id)
                 notifyGeneralMessage(obj, "error", "Result file does not exist.");
+                data = [];
                 return;
             end
 
-            % Load the status
-            data = struct;
-            data.ID = h5read(filePath, '/ID');
-            status = h5read(filePath, '/status');
-            data.status = status;
-
-            status = and(status, options.readstatus);
-
-            if status(1)
-
-                % Load the model data
-                data.model.modelID = h5read(filePath, '/model/modelID');
-                data.model.modelReaction = h5read(filePath, '/model/modelReaction');
-
-                % Load MDV data
-                data.MDVExp = h5read(filePath, '/MDVExp');
-                data.MDVExpName = h5read(filePath, '/MDVFragList');
-                data.MDVFragMask = h5read(filePath, '/MDVFragMask');
-
-                % Result of FVA
-                data.fluxVariability.fluxUBFwd = ...
-                    h5read(filePath, '/fluxVariability/fluxUBFwd');
-                data.fluxVariability.fluxLBFwd = ...
-                    h5read(filePath, '/fluxVariability/fluxLBFwd');
-                data.fluxVariability.time = ...
-                    h5read(filePath, '/fluxVariability/time');
-
-            end
-
-            if status(1)
-
-                % Result of InitialFlux
-                data.initialFlux.fluxFwd = ...
-                    h5read(filePath, '/initialFlux/fluxFwd');
-                data.initialFlux.RSS = ...
-                    h5read(filePath, '/initialFlux/RSS');
-                data.initialFlux.time = ...
-                    h5read(filePath, '/initialFlux/time');
-
-            end % if status(1)
-
-            if status(2)
-
-                % Result of FVA
-                data.RSS = ...
-                    h5read(filePath, "/RSS");
-                data.RSSIdx = ...
-                    h5read(filePath, "/RSSIndex");
-                data.threshold = ...
-                    h5read(filePath, "/threshold");
-
-                for i = 1:length(data.RSSIdx)
-
-                    iterName = string(sprintf("%04d", data.RSSIdx(i)));
-                    fieldName = "fluxResult" + iterName;
-                    addressName = "/fluxResult/" + iterName;
-                    data.(fieldName).fluxFwd = ...
-                        h5read(filePath, addressName + "/fluxFwd");
-                    data.(fieldName).RSS = ...
-                        h5read(filePath, addressName + "/RSS");
-                    data.(fieldName).MDV = ...
-                        h5read(filePath, addressName + "/MDV");
-                    data.(fieldName).exitflag = ...
-                        h5read(filePath, addressName + "/exitflag");
-                    data.(fieldName).time = ...
-                        h5read(filePath, addressName + "/time");
-
-                end % for i
-
-            end % if status(2)
-
-            if status(3)
-
-                % Result of FVA
-                data.fluxLB = ...
-                    h5read(filePath, "/fluxLB");
-                data.fluxUB = ...
-                    h5read(filePath, "/fluxUB");
-
-            end % if status(3)
+            data = obj.Hdf5ResultRepository.readResultData( ...
+                obj.ResultLocation, ...
+                id, ...
+                ReadStatus = options.readstatus);
 
         end % getResultData
 

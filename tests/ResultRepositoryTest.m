@@ -66,6 +66,40 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
         end
 
+        function openedResultUsesInjectedHdf5Repository(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            cleanup = onCleanup(@() ...
+                ResultRepositoryTest.removeDirectory(resultDirectory));
+
+            reader = helpers.RecordingResultDataRepository();
+            repository = openmebius.infrastructure.result.ResultRepository( ...
+                Hdf5ResultRepository = reader);
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(resultDirectory);
+            resultId = "delegated-result";
+            fileId = fopen(resultLocation.resultFile(resultId), "w");
+            testCase.assertGreaterThan(fileId, 0);
+            fclose(fileId);
+
+            result = repository.open(resultLocation);
+            data = result.loadResultFile( ...
+                resultId, ...
+                readstatus = [true, false, false, false]);
+
+            testCase.verifyEqual(data, reader.ResultData);
+            testCase.verifyEqual(reader.ReadCount, 1);
+            testCase.verifyEqual(reader.ResultLocation, resultLocation);
+            testCase.verifyEqual(reader.ResultId, resultId);
+            testCase.verifyEqual( ...
+                reader.ReadStatus, ...
+                [true, false, false, false]);
+
+            clear cleanup
+
+        end
+
         function writeExcelTableCanBeReadBack(testCase)
 
             resultDirectory = string(tempname);
