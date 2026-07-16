@@ -16,6 +16,7 @@ classdef FluxAnalysisComposition
         InitialPointGenerator
         InitialFluxWorkflow
         InitialFluxApplicationWorkflow
+        MFAIterationApplicationWorkflow
         MFAProblemFactory
         SteadyStateSolver
         MFAIterationRunner
@@ -64,6 +65,7 @@ classdef FluxAnalysisComposition
                     openmebius.mfa.InitialPointGenerator()
                 options.InitialFluxWorkflow = []
                 options.InitialFluxApplicationWorkflow = []
+                options.MFAIterationApplicationWorkflow = []
                 options.MFAProblemFactory = ...
                     openmebius.mfa.MFAProblemFactory()
                 options.SteadyStateSolver = ...
@@ -123,6 +125,8 @@ classdef FluxAnalysisComposition
             obj.InitialFluxWorkflow = options.InitialFluxWorkflow;
             obj.InitialFluxApplicationWorkflow = ...
                 options.InitialFluxApplicationWorkflow;
+            obj.MFAIterationApplicationWorkflow = ...
+                options.MFAIterationApplicationWorkflow;
             obj.MFAProblemFactory = options.MFAProblemFactory;
             obj.SteadyStateSolver = options.SteadyStateSolver;
             obj.MFAIterationRunner = options.MFAIterationRunner;
