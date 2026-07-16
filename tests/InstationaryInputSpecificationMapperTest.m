@@ -1,0 +1,86 @@
+classdef InstationaryInputSpecificationMapperTest < ...
+        matlab.unittest.TestCase
+
+    methods (TestMethodSetup)
+
+        function addSourcePath(~)
+
+            addpath( ...
+                InstationaryInputSpecificationMapperTest.sourcePath());
+
+        end
+
+    end
+
+    methods (Test)
+
+        function mapsNamedPoolSizesAndTimePoints(testCase)
+
+            config.INSTMFA = struct( ...
+                poolMetabolite = ["A", "B"], ...
+                poolSize = [2, 4], ...
+                timePoints = [0, 1, 2]);
+
+            specification = openmebius.application.analysis ...
+                .InstationaryInputSpecificationMapper ...
+                .fromBatchConfig(config);
+
+            testCase.verifyClass( ...
+                specification, ...
+                'openmebius.mfa.InstationaryInputSpecification');
+            testCase.verifyEqual( ...
+                specification.PoolMetabolites, ["A"; "B"]);
+            testCase.verifyEqual(specification.PoolSizes, [2; 4]);
+            testCase.verifyEqual(specification.TimePoints, [0; 1; 2]);
+
+        end
+
+        function mapsPositionalPoolSizes(testCase)
+
+            config.INSTMFA = struct( ...
+                poolSize = [2; 4], ...
+                timePoints = [0; 1]);
+
+            specification = openmebius.application.analysis ...
+                .InstationaryInputSpecificationMapper ...
+                .fromBatchConfig(config);
+
+            testCase.verifyEmpty(specification.PoolMetabolites);
+            testCase.verifyEqual(specification.PoolSizes, [2; 4]);
+
+        end
+
+        function requiresInstationaryConfiguration(testCase)
+
+            errorID = ...
+                "OpenMebius2:InstationaryInputSpecificationMapper:" + ...
+                "MissingConfiguration";
+
+            testCase.verifyError( ...
+                @() openmebius.application.analysis ...
+                .InstationaryInputSpecificationMapper ...
+                .fromBatchConfig(struct), ...
+                errorID);
+            testCase.verifyError( ...
+                @() openmebius.application.analysis ...
+                .InstationaryInputSpecificationMapper ...
+                .fromBatchConfig(struct(INSTMFA = struct)), ...
+                errorID);
+
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function path = sourcePath()
+
+            path = fullfile( ...
+                fileparts(fileparts(mfilename('fullpath'))), ...
+                'src');
+
+        end
+
+    end
+
+end

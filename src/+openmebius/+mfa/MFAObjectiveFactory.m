@@ -3,6 +3,7 @@ classdef MFAObjectiveFactory
 
     properties (SetAccess = private)
         MDVPredictor
+        EffluxPenaltyFactory
     end
 
     methods
@@ -13,21 +14,30 @@ classdef MFAObjectiveFactory
                 options.MDVPredictor (1, 1) ...
                     openmebius.mfa.SteadyStateMDVPredictor = ...
                     openmebius.mfa.SteadyStateMDVPredictor()
+                options.EffluxPenaltyFactory = ...
+                    openmebius.mfa.EffluxPenaltyFactory()
             end
 
             obj.MDVPredictor = options.MDVPredictor;
+            obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
 
         end % constructor
 
-        function objective = create(obj, input, penalty)
+        function objective = create(obj, input)
 
             arguments
                 obj (1, 1) openmebius.mfa.MFAObjectiveFactory
                 input (1, 1) openmebius.mfa.MFAIterationInput
-                penalty (1, 1) openmebius.mfa.EffluxPenalty
             end
 
-            if input.usesInstationaryMFA()
+            penalty = obj.EffluxPenaltyFactory.create( ...
+                input.Model, ...
+                input.SubstrateList, ...
+                input.Efflux, ...
+                input.EffluxStandardDeviation, ...
+                input.EffluxFree);
+
+            if input.analysisMode().isInstationary()
                 objective = openmebius.mfa.InstationaryObjective( ...
                     Problem = input.Problem, ...
                     RightHandSide = input.RightHandSide, ...

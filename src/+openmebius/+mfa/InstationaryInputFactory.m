@@ -4,21 +4,13 @@ classdef InstationaryInputFactory
 
     methods
 
-        function input = create(~, model, config)
+        function input = create(~, model, specification)
 
             arguments
                 ~
                 model
-                config (1, 1) struct
-            end
-
-            if ~isfield(config, 'poolSize') || ...
-                    ~isfield(config, 'timePoints')
-                error( ...
-                    "OpenMebius2:InstationaryInputFactory:" + ...
-                    "MissingConfiguration", ...
-                    "INST-MFA configuration requires poolSize and " + ...
-                    "timePoints fields.");
+                specification (1, 1) openmebius.mfa ...
+                    .InstationaryInputSpecification
             end
 
             modelMetabolites = ...
@@ -33,13 +25,14 @@ classdef InstationaryInputFactory
                     "pool-size alignment.");
             end
 
-            configuredPoolSizes = double(config.poolSize(:));
+            configuredPoolSizes = specification.PoolSizes;
             poolSizes = ...
                 openmebius.mfa.InstationaryInputFactory.alignPoolSizes( ...
-                modelMetabolites, configuredPoolSizes, config);
+                modelMetabolites, configuredPoolSizes, ...
+                specification.PoolMetabolites);
             input = openmebius.mfa.InstationaryInput( ...
                 PoolSizes = poolSizes, ...
-                TimePoints = double(config.timePoints(:)));
+                TimePoints = specification.TimePoints);
 
         end % create
 
@@ -48,11 +41,10 @@ classdef InstationaryInputFactory
     methods (Static, Access = private)
 
         function poolSizes = alignPoolSizes( ...
-                modelMetabolites, configuredPoolSizes, config)
+                modelMetabolites, configuredPoolSizes, ...
+                configuredMetabolites)
 
-            hasMetaboliteNames = ...
-                isfield(config, 'poolMetabolite') && ...
-                ~isempty(config.poolMetabolite);
+            hasMetaboliteNames = ~isempty(configuredMetabolites);
 
             if ~hasMetaboliteNames
                 if numel(configuredPoolSizes) ~= numel(modelMetabolites)
@@ -66,8 +58,6 @@ classdef InstationaryInputFactory
                 poolSizes = configuredPoolSizes;
                 return;
             end
-
-            configuredMetabolites = string(config.poolMetabolite(:));
 
             if numel(configuredMetabolites) ~= ...
                     numel(configuredPoolSizes)

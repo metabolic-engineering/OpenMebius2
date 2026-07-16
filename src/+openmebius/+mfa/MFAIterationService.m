@@ -5,7 +5,6 @@ classdef MFAIterationService
     properties (SetAccess = private)
         Runner
         ObjectiveFactory
-        EffluxPenaltyFactory
     end
 
     methods
@@ -16,13 +15,10 @@ classdef MFAIterationService
                 options.Runner = openmebius.mfa.MFAIterationRunner()
                 options.ObjectiveFactory = ...
                     openmebius.mfa.MFAObjectiveFactory()
-                options.EffluxPenaltyFactory = ...
-                    openmebius.mfa.EffluxPenaltyFactory()
             end
 
             obj.Runner = options.Runner;
             obj.ObjectiveFactory = options.ObjectiveFactory;
-            obj.EffluxPenaltyFactory = options.EffluxPenaltyFactory;
 
         end
 
@@ -35,77 +31,20 @@ classdef MFAIterationService
                     @(~, ~) []
             end
 
-            reporter = options.MessageReporter;
-            penalty = obj.EffluxPenaltyFactory.create( ...
-                input.Model, ...
-                input.SubstrateList, ...
-                input.Efflux, ...
-                input.EffluxStandardDeviation, ...
-                input.EffluxFree);
-
-            objective = obj.ObjectiveFactory.create(input, penalty);
-
-            if input.usesInstationaryMFA()
-                context = " for instationary MFA";
-            else
-                context = "";
-            end
-
+            reporter = openmebius.mfa.MFAIterationReporter( ...
+                MessageReporter = options.MessageReporter);
+            objective = obj.ObjectiveFactory.create(input);
             settings = input.Settings;
-
-            if settings.requestsHybridOptimization()
-                reporter( ...
-                    "info", ...
-                    "Hybrid GA optimization is temporarily disabled. " + ...
-                    "Using FMINCON only.");
-            elseif ~settings.hasKnownOptimizationMethod()
-                reporter( ...
-                    "warning", ...
-                    "Unknown optimizationMethod '" + ...
-                    settings.OptimizationMethod + ...
-                    "'. Using FMINCON only.");
-            end
-
-            for iWarning = 1:numel(settings.OptionWarnings)
-                reporter("warning", settings.OptionWarnings(iWarning));
-            end
+            reporter.reportSettings(settings);
 
             iterationResult = obj.Runner.run( ...
                 input.Problem, ...
                 input.RightHandSide, ...
                 objective, ...
                 settings.SolverOptions, ...
-                MessageReporter = reporter);
-            fval = iterationResult.ObjectiveValue;
-            subject = "Nonlinear optimization" + context;
-
-            if iterationResult.IsError || ~isfinite(fval)
-                message = subject + " failed.";
-
-                if strlength(iterationResult.ErrorMessage) > 0
-                    message = message + " " + ...
-                        iterationResult.ErrorMessage;
-                end
-
-                reporter("error", message);
-                return
-            end
-
-            stepSizeMessage = "";
-            optimizationOutput = iterationResult.Output;
-
-            if isfield( ...
-                    optimizationOutput, ...
-                    'fminconFiniteDifferenceStepSize')
-                stepSizeMessage = " FiniteDifferenceStepSize: " + ...
-                    string(optimizationOutput ...
-                    .fminconFiniteDifferenceStepSize) + ".";
-            end
-
-            reporter( ...
-                "info", ...
-                subject + " completed. RSS: " + string(fval) + ...
-                "." + stepSizeMessage);
+                MessageReporter = reporter.callback());
+            reporter.reportResult( ...
+                iterationResult, input.analysisMode());
 
         end
 

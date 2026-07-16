@@ -14,7 +14,6 @@ classdef MFAIterationInput
         Efflux (:, 1) double
         EffluxStandardDeviation (:, 1) double
         EffluxFree (:, 1) logical
-        ForceSteadyState (1, 1) logical
     end
 
     methods
@@ -36,7 +35,6 @@ classdef MFAIterationInput
                 options.Efflux double
                 options.EffluxStandardDeviation double
                 options.EffluxFree
-                options.ForceSteadyState (1, 1) logical = false
             end
 
             options.Problem.extractIndependentValues( ...
@@ -57,8 +55,8 @@ classdef MFAIterationInput
                     "Efflux values must match the substrate list.");
             end
 
-            useInstationary = options.Settings.UseInstationaryMFA && ...
-                ~options.ForceSteadyState;
+            useInstationary = ...
+                options.Settings.AnalysisMode.isInstationary();
 
             if useInstationary && isempty(options.InstationaryInput)
                 error( ...
@@ -92,16 +90,14 @@ classdef MFAIterationInput
             obj.Efflux = efflux;
             obj.EffluxStandardDeviation = effluxStandardDeviation;
             obj.EffluxFree = effluxFree;
-            obj.ForceSteadyState = options.ForceSteadyState;
 
         end % constructor
 
-        function value = usesInstationaryMFA(obj)
+        function mode = analysisMode(obj)
 
-            value = obj.Settings.UseInstationaryMFA && ...
-                ~obj.ForceSteadyState;
+            mode = obj.Settings.AnalysisMode;
 
-        end % usesInstationaryMFA
+        end % analysisMode
 
         function arrangedMDV = arrangedExperimentalMDV(obj)
 

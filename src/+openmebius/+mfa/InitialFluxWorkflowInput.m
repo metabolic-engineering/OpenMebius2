@@ -3,7 +3,7 @@ classdef InitialFluxWorkflowInput
 
     properties (SetAccess = private)
         Model
-        IterationCount (1, 1) double
+        Settings (1, 1) openmebius.mfa.InitialFluxSettings
         RightHandSide (:, 1) double
         LowerBounds (:, 1) double
         UpperBounds (:, 1) double
@@ -12,13 +12,18 @@ classdef InitialFluxWorkflowInput
         EffluxPenalty
     end
 
+    properties (Dependent, SetAccess = private)
+        IterationCount (1, 1) double
+    end
+
     methods
 
         function obj = InitialFluxWorkflowInput(options)
 
             arguments
                 options.Model
-                options.IterationCount (1, 1) double
+                options.Settings (1, 1) ...
+                    openmebius.mfa.InitialFluxSettings
                 options.RightHandSide (:, 1) double
                 options.LowerBounds (:, 1) double
                 options.UpperBounds (:, 1) double
@@ -26,15 +31,6 @@ classdef InitialFluxWorkflowInput
                 options.ExperimentalData (1, 1) ...
                     openmebius.mfa.MFAExperimentalData
                 options.EffluxPenalty
-            end
-
-            if ~isfinite(options.IterationCount) || ...
-                    options.IterationCount <= 0 || ...
-                    fix(options.IterationCount) ~= options.IterationCount
-                error( ...
-                    "OpenMebius2:InitialFluxInput:InvalidIterationCount", ...
-                    "The initial-flux iteration count must be a " + ...
-                    "positive integer.");
             end
 
             if ~ismethod(options.Model, 'getS') || ...
@@ -73,7 +69,7 @@ classdef InitialFluxWorkflowInput
             end
 
             obj.Model = options.Model;
-            obj.IterationCount = options.IterationCount;
+            obj.Settings = options.Settings;
             obj.RightHandSide = options.RightHandSide;
             obj.LowerBounds = options.LowerBounds;
             obj.UpperBounds = options.UpperBounds;
@@ -82,6 +78,12 @@ classdef InitialFluxWorkflowInput
             obj.EffluxPenalty = options.EffluxPenalty;
 
         end % constructor
+
+        function value = get.IterationCount(obj)
+
+            value = obj.Settings.IterationCount;
+
+        end
 
         function substrateEMUs = scoringSubstrateEMUs( ...
                 obj, forNextSuggestion)
