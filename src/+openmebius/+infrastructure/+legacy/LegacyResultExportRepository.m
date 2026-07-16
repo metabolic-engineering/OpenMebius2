@@ -1,5 +1,5 @@
 classdef LegacyResultExportRepository < handle
-    % Adapter for the legacy IOResult export implementation.
+    % Adapter for the legacy result workspace export API.
 
     methods
 

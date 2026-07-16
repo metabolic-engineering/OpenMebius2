@@ -40,7 +40,9 @@ classdef LegacyProjectInitializerTest < matlab.unittest.TestCase
             testCase.verifyClass(artifacts.Model, "EMUModel");
             testCase.verifyClass(artifacts.Experiments, "IOExps");
             testCase.verifyClass(artifacts.Batch, "Batch");
-            testCase.verifyClass(artifacts.Result, "IOResult");
+            testCase.verifyClass( ...
+                artifacts.Result, ...
+                "openmebius.application.result.ResultWorkspace");
             testCase.verifyGreaterThanOrEqual(numel(artifacts.Messages), 4);
 
             testCase.verifyEqual( ...

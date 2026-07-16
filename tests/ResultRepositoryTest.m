@@ -25,7 +25,9 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
             result = repository.open(resultLocation);
 
-            testCase.verifyClass(result, "IOResult");
+            testCase.verifyClass( ...
+                result, ...
+                "openmebius.application.result.ResultWorkspace");
             testCase.verifyEqual( ...
                 result.getResultLocation().Directory, ...
                 resultDirectory);
@@ -95,6 +97,26 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 reader.ReadStatus, ...
                 [true, false, false, false]);
+
+            clear cleanup
+
+        end
+
+        function legacyIOResultRemainsCompatible(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            cleanup = onCleanup(@() ...
+                ResultRepositoryTest.removeDirectory(resultDirectory));
+
+            result = IOResult(resultDirectory);
+
+            testCase.verifyTrue(isa( ...
+                result, ...
+                "openmebius.application.result.ResultWorkspace"));
+            testCase.verifyEqual( ...
+                result.getResultLocation().Directory, ...
+                resultDirectory);
 
             clear cleanup
 

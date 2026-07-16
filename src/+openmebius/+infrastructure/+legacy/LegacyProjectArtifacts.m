@@ -6,7 +6,7 @@ classdef LegacyProjectArtifacts
     %   EMUModel
     %   IOExps
     %   Batch
-    %   IOResult
+    %   openmebius.application.result.ResultWorkspace
 
     properties (SetAccess = private)
         Model
