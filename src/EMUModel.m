@@ -113,12 +113,13 @@ classdef EMUModel < Stoichiometry
     properties (Access = private)
 
         charList = ['A':'Z' 'a':'z'];
+        CacheRepository
 
     end % properties (Access = private)
 
     methods
 
-        function obj = EMUModel(modelInput, varargin)
+        function obj = EMUModel(modelInput, options)
             % EMUMODEL: Constructor for the EMUModel class.
             %
             % Parameters:
@@ -126,22 +127,26 @@ classdef EMUModel < Stoichiometry
             % modelInput
             %     File directory or openmebius.domain.model.ModelLocation.
 
-            obj = obj@Stoichiometry(modelInput, varargin{:});
+            arguments
+                modelInput
+                options.ModelRepository = ...
+                    openmebius.infrastructure.model.ModelRepository()
+                options.CacheRepository = ...
+                    openmebius.infrastructure.model ...
+                        .EMUNetworkCacheRepository()
+            end
 
-            if ~obj.isUpdatedModel
+            obj = obj@Stoichiometry( ...
+                modelInput, ...
+                ModelRepository = options.ModelRepository);
+            obj.CacheRepository = options.CacheRepository;
 
-                isSucceeded = obj.loadEMUModelFromFile();
+            isSucceeded = obj.loadEMUModelFromFile();
 
-                if ~isSucceeded
-                    isConstructed = constructEMUNetwork(obj);
-                else
-                    isConstructed = false;
-                end % if
-
-            else
-
+            if ~isSucceeded
                 isConstructed = constructEMUNetwork(obj);
-
+            else
+                isConstructed = false;
             end % if
 
             if isConstructed
@@ -2167,106 +2172,106 @@ classdef EMUModel < Stoichiometry
         function tf = saveEMUModelToFile(obj)
             % SAVEMODEL Save the model cache and source-file hash.
             %
-            % The file locations are resolved by ModelWorkspace.pathCache
-            % and ModelWorkspace.pathModel.
+            % File locations and source-hash validation are owned by the
+            % cache repository.
 
             tf = false;
 
-            tableEMU = obj.tableEMU;
-            tableEMUReaction = obj.tableEMUReaction;
-            tableEMUSizeInfo = obj.tableEMUSizeInfo;
-            searchedProduct = obj.searchedProduct;
-            globalAn = obj.globalAn;
-            globalAnEMUName = obj.globalAnEMUName;
-            globalAnEMUNameMetabolite = obj.globalAnEMUNameMetabolite;
-            globalAnList = obj.globalAnList;
-            globalBn = obj.globalBn;
-            globalBnEMUName = obj.globalBnEMUName;
-            globalBnEMUNameMetabolite = obj.globalBnEMUNameMetabolite;
-            globalBnList = obj.globalBnList;
-            globalCn = obj.globalCn;
-            globalCnDiag = obj.globalCnDiag;
-            globalXn = obj.globalXn;
-            globalXnList = obj.globalXnList;
-            globalYn = obj.globalYn;
-            globalYnList = obj.globalYnList;
-            globalMDVInfo = obj.globalMDVInfo;
-            globalMDVList = obj.globalMDVList;
-            globalMDVSize = obj.globalMDVSize;
-
-            filePath = obj.pathCache;
-
             try
-                save(filePath, ...
-                    'tableEMU', ...
-                    'tableEMUReaction', ...
-                    'tableEMUSizeInfo', ...
-                    'searchedProduct', ...
-                    'globalAn', ...
-                    'globalAnEMUName', ...
-                    'globalAnEMUNameMetabolite', ...
-                    'globalAnList', ...
-                    'globalBn', ...
-                    'globalBnEMUName', ...
-                    'globalBnEMUNameMetabolite', ...
-                    'globalBnList', ...
-                    'globalCn', ...
-                    'globalCnDiag', ...
-                    'globalXn', ...
-                    'globalXnList', ...
-                    'globalYn', ...
-                    'globalYnList', ...
-                    'globalMDVInfo', ...
-                    'globalMDVList', ...
-                    'globalMDVSize' ...
-                );
+                snapshot = createCacheSnapshot(obj);
+                obj.CacheRepository.save( ...
+                    obj.getModelLocation(), ...
+                    obj.fileModel, ...
+                    obj.fileTypeModel, ...
+                    snapshot);
                 tf = true;
             catch ME
-                msg = "Failed to save the model: " + ME.message;
+                msg = "Failed to save the EMU cache: " + ME.message;
                 emitMsg(obj, msg, "Error", obj.logLevel);
             end % try-catch
 
-            try
-                saveHashFile(obj, obj.pathModel);
-            catch ME
-                msg = "Failed to compute    hash for the model file: " + ME.message;
-                emitMsg(obj, msg, "Error", obj.logLevel);
-                return;
-            end % try-catch
-
-        end % saveModel
+        end % saveEMUModelToFile
 
         function tf = loadEMUModelFromFile(obj)
-            % LOADMODEL Load the model cache resolved by
-            % ModelWorkspace.pathCache.
-
-            tf = false;
-            filePath = obj.pathCache;
-
-            if ~isfile(filePath)
-                msg = "Model file not found: " + filePath;
-                emitMsg(obj, msg, "Warning", obj.logLevel);
-                return;
-            end % if ~isfile(filePath)
+            % LOADEMUMODELFROMFILE Restore a current EMU network snapshot.
 
             try
-                loadedData = load(filePath);
-                fields = fieldnames(loadedData);
+                [snapshot, tf] = obj.CacheRepository.load( ...
+                    obj.getModelLocation(), ...
+                    obj.fileModel, ...
+                    obj.fileTypeModel);
 
-                for i = 1:length(fields)
-                    obj.(fields{i}) = loadedData.(fields{i});
-                end % for i=1:length(fields)
-
-                ensureCnMatrixAvailable(obj);
-
-                tf = true;
+                if tf
+                    applyCacheSnapshot(obj, snapshot);
+                    ensureCnMatrixAvailable(obj);
+                end
 
             catch ME
-                msg = "Failed to load the model: " + ME.message;
+                tf = false;
+                msg = "Failed to load the EMU cache: " + ME.message;
                 emitMsg(obj, msg, "Error", obj.logLevel);
             end % try-catch
 
-        end % loadModel
+        end % loadEMUModelFromFile
+
+        function snapshot = createCacheSnapshot(obj)
+
+            payload = struct( ...
+                "tableEMU", obj.tableEMU, ...
+                "tableEMUReaction", obj.tableEMUReaction, ...
+                "tableEMUSizeInfo", obj.tableEMUSizeInfo, ...
+                "searchedProduct", {obj.searchedProduct}, ...
+                "globalAn", obj.globalAn, ...
+                "globalAnEMUName", {obj.globalAnEMUName}, ...
+                "globalAnEMUNameMetabolite", ...
+                    {obj.globalAnEMUNameMetabolite}, ...
+                "globalAnList", obj.globalAnList, ...
+                "globalBn", obj.globalBn, ...
+                "globalBnEMUName", {obj.globalBnEMUName}, ...
+                "globalBnEMUNameMetabolite", ...
+                    {obj.globalBnEMUNameMetabolite}, ...
+                "globalBnList", obj.globalBnList, ...
+                "globalCn", obj.globalCn, ...
+                "globalCnDiag", obj.globalCnDiag, ...
+                "globalXn", obj.globalXn, ...
+                "globalXnList", obj.globalXnList, ...
+                "globalYn", obj.globalYn, ...
+                "globalYnList", obj.globalYnList, ...
+                "globalMDVInfo", obj.globalMDVInfo, ...
+                "globalMDVList", obj.globalMDVList, ...
+                "globalMDVSize", obj.globalMDVSize);
+
+            snapshot = openmebius.domain.model.EMUNetworkSnapshot(payload);
+
+        end % createCacheSnapshot
+
+        function applyCacheSnapshot(obj, snapshot)
+
+            obj.tableEMU = snapshot.TableEMU;
+            obj.tableEMUReaction = snapshot.TableEMUReaction;
+            obj.tableEMUSizeInfo = snapshot.TableEMUSizeInfo;
+            obj.searchedProduct = snapshot.SearchedProduct;
+            obj.globalAn = snapshot.GlobalAn;
+            obj.globalAnEMUName = snapshot.GlobalAnEMUName;
+            obj.globalAnEMUNameMetabolite = ...
+                snapshot.GlobalAnEMUNameMetabolite;
+            obj.globalAnList = snapshot.GlobalAnList;
+            obj.globalBn = snapshot.GlobalBn;
+            obj.globalBnEMUName = snapshot.GlobalBnEMUName;
+            obj.globalBnEMUNameMetabolite = ...
+                snapshot.GlobalBnEMUNameMetabolite;
+            obj.globalBnList = snapshot.GlobalBnList;
+            obj.globalCn = snapshot.GlobalCn;
+            obj.globalCnDiag = snapshot.GlobalCnDiag;
+            obj.globalXn = snapshot.GlobalXn;
+            obj.globalXnList = snapshot.GlobalXnList;
+            obj.globalYn = snapshot.GlobalYn;
+            obj.globalYnList = snapshot.GlobalYnList;
+            obj.globalMDVInfo = snapshot.GlobalMDVInfo;
+            obj.globalMDVList = snapshot.GlobalMDVList;
+            obj.globalMDVSize = snapshot.GlobalMDVSize;
+
+        end % applyCacheSnapshot
 
         function ensureCnMatrixAvailable(obj)
             % ENSURECNMATRIXAVAILABLE Build Cn matrices when absent from an old cache.
@@ -2321,27 +2326,6 @@ classdef EMUModel < Stoichiometry
             end % try-catch
 
         end % isCnMatrixConsistent
-
-        function resetHashFile(obj)
-            % RESETHASHFILE Delete hash file
-            %
-            % resetHashFile(obj)
-            %
-            % Parameters
-            % ----------
-            % None
-            %
-            % Returns
-            % -------
-            % None
-
-            filePath = obj.pathHash;
-
-            if isfile(filePath)
-                delete(filePath);
-            end
-
-        end % resetHashFile
 
     end % methods (Access = private)
 

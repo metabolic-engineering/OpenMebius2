@@ -77,14 +77,9 @@ classdef ModelWorkspace < handle
         pathModel (1, 1) string;
         pathLabel (1, 1) string;
         pathPathway (1, 1) string;
-        pathHash (1, 1) string;
-        pathCache (1, 1) string;
 
         % Dependent table for GUI
         tableModelGUI table;
-
-        % Model modification
-        isUpdatedModel (1, 1) logical;
 
     end
 
@@ -167,15 +162,6 @@ classdef ModelWorkspace < handle
                 obj.fileTypeLabel);
         end % get.pathLabel
 
-        % Get the hash file
-        function pathHash = get.pathHash(obj)
-            pathHash = obj.ModelLocation.hashFile(obj.fileModel);
-        end % get.pathHash
-
-        function pathCache = get.pathCache(obj)
-            pathCache = obj.ModelLocation.cacheFile(obj.fileModel);
-        end % get.pathCache
-
         function tableModelGUI = get.tableModelGUI(obj)
 
             try
@@ -187,37 +173,6 @@ classdef ModelWorkspace < handle
             end
 
         end % get.tableModelGUI
-
-        function isUpdatedModel = get.isUpdatedModel(obj)
-            % Check if the model is updated
-            %
-            % Returns
-            % -------
-            % isUpdatedModel logical
-            %     True if the model is updated
-            %     If any error occurs, the function returns true (enforce the model reconstructions)
-
-            isUpdatedModel = false;
-
-            % Load the hash file
-            try
-                fid = fopen(obj.pathHash, 'r');
-                hash = fscanf(fid, '%s');
-                fclose(fid);
-            catch
-                isUpdatedModel = true;
-                return;
-            end
-
-            % Generate hash
-            hashCurrentModel = obj.getHashFromFile(obj.pathModel);
-
-            % Compare the hash
-            if ~strcmp(hash, hashCurrentModel)
-                isUpdatedModel = true;
-            end
-
-        end % get.isUpdatedModel
 
         %% Public setup methods
         function setupTableInfo(obj)
@@ -426,31 +381,6 @@ classdef ModelWorkspace < handle
                 obj.logLevel);
 
         end % exportLabel
-
-        function hash = getHashFromFile(obj, pathFile, options)
-
-            arguments
-                obj
-                pathFile (1, 1) string
-                options.Algorithm (1, 1) string = "SHA256"
-            end
-
-            hash = obj.ModelRepository.hashFile( ...
-                pathFile, ...
-                Algorithm = options.Algorithm);
-
-        end % getHashFromFile
-
-        function saveHashFile(obj, pathFile)
-
-            arguments
-                obj
-                pathFile (1, 1) string
-            end
-
-            obj.ModelRepository.saveHashFile(pathFile);
-
-        end % saveHashFile
 
         function tableLabel = convertLabelCellToTable(obj, cellLabel)
 
