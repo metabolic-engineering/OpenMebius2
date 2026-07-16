@@ -112,10 +112,10 @@ classdef EMUModel < Stoichiometry
 
     properties (Access = private)
 
-        charList = ['A':'Z' 'a':'z'];
         CacheRepository
         NetworkBuilder
         MatrixBuilder
+        NetworkEnumerator
 
     end % properties (Access = private)
 
@@ -138,6 +138,8 @@ classdef EMUModel < Stoichiometry
                         .EMUNetworkCacheRepository()
                 options.NetworkBuilder = openmebius.mfa.EMUNetworkBuilder()
                 options.MatrixBuilder = openmebius.mfa.EMUMatrixBuilder()
+                options.NetworkEnumerator = ...
+                    openmebius.mfa.EMUNetworkEnumerator()
             end
 
             obj = obj@Stoichiometry( ...
@@ -146,6 +148,7 @@ classdef EMUModel < Stoichiometry
             obj.CacheRepository = options.CacheRepository;
             obj.NetworkBuilder = options.NetworkBuilder;
             obj.MatrixBuilder = options.MatrixBuilder;
+            obj.NetworkEnumerator = options.NetworkEnumerator;
 
             isSucceeded = obj.loadEMUModelFromFile();
 
@@ -1069,31 +1072,6 @@ classdef EMUModel < Stoichiometry
 
         end % assertEMUConstructionSucceeded
 
-        %% Private initialize methods
-        function initialzeEMUModel(obj)
-            % INITIALIZEEMUTABLE Initialize EMU table
-            %
-            % Parameters
-            % ----------
-            % None
-            %
-            % Returns
-            % -------
-            % None
-
-            % Initialize EMU table
-            obj.tableEMU = table('Size', [0 5], ...
-                'VariableNames', {'EMU', 'Metabolite', 'Position', 'Size', 'Target'}, ...
-                'VariableTypes', {'string', 'string', 'cell', 'double', 'logical'});
-            obj.tableEMU.Properties.Description = 'EMU table';
-
-            obj.tableEMUReaction = table('Size', [0 6], ...
-                'VariableNames', {'RxnID', 'Reactants', 'Products', 'Coefficient', 'Size', 'Target'}, ...
-                'VariableTypes', {'string', 'cell', 'cell', 'double', 'double', 'logical'});
-            obj.tableEMUReaction.Properties.Description = 'EMU reaction table';
-
-        end % method initialzeEMUModel
-
         function listupAllEMU(obj)
             % LISTUPALLEMU: List up all EMUs from the model.
             %
@@ -1105,51 +1083,35 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            initialzeEMUModel(obj);
+            emitMsg( ...
+                obj, ...
+                "Listing up all EMUs from the model.", ...
+                "Info", ...
+                obj.logLevel);
+            source = openmebius.mfa.EMUNetworkSource( ...
+                MSReactions = obj.getMSRxnTable(), ...
+                MSTransitions = obj.getMSTransTable(), ...
+                Reactions = obj.getModelRxnRev(), ...
+                Transitions = obj.getModelTransRev(), ...
+                Metabolites = obj.getMetaboliteTable());
+            result = obj.NetworkEnumerator.enumerate(source);
 
-            msg = 'Listing up all EMUs from the model.';
-            emitMsg(obj, msg, "Info", obj.logLevel);
+            for message = result.ErrorMessages'
+                emitMsg(obj, message, "Error", obj.logLevel);
+            end
 
-            % List up all EMUs
-            [~, isError] = listupEMUs(obj);
-
-            if isError
+            if ~result.IsValid
                 recordValidationError( ...
                     obj, ...
                     "The EMU network contains invalid MS reactions.");
                 return;
-            end % if isError
+            end
+
+            obj.tableEMU = result.TableEMU;
+            obj.tableEMUReaction = result.TableEMUReaction;
+            obj.searchedProduct = result.SearchedProducts;
 
         end % method listupAllEMU
-
-        %% Private get methods
-        function emu = getEMULabel(~, metabolite, position)
-            % GETEMULABEL: Get the EMU label.
-            %
-            % Parameters
-            % ----------
-            % metabolite: string
-            %    Metabolite name
-            % position: array
-            %    Position of the atoms in the metabolite
-            %
-            % Returns
-            % -------
-            % emu: string
-            %    EMU label
-
-            if isempty(metabolite) || isempty(position)
-                emu = "";
-                return;
-            end % if
-
-            % Replace underscores with hyphens in metabolite name
-            metName = strrep(metabolite, '_', '-');
-            posStr = strjoin(string(position), '');
-
-            emu = sprintf('%s_{%s}', metName, posStr);
-
-        end % method getEMULabel
 
         function emuInfo = getEMUSizeInformation(obj)
             % GETEMUSIZEINFORMATION: Get EMU size information.
@@ -1226,486 +1188,6 @@ classdef EMUModel < Stoichiometry
 
         end % method getEMUSizeInformation
 
-        function pos = getAtomPosition(~, reactant, product)
-            % GETATOMPOSITION: Get the atom position from the reactant to the product.
-            %
-            % Parameters
-            % ----------
-            % reactant: string
-            %    Reactant atom string example: 'ABC'
-            % product: string
-            %    Product atom string example: 'AC'
-            %
-            % Returns
-            % -------
-            % pos: array
-            %    Position of the atoms in the reactant corresponding to the product
-            %    Example:
-            %        reactant = 'ABC'
-            %        product = 'AC'
-            %        pos = [1 3]
-            %        >> getAtomPosition('ABC', 'AC')
-            %        ans =
-            %             1     3
-            %        >> getAtomPosition('ABC', 'CDE')
-            %        ans =
-            %             3
-            %        >> getAtomPosition('ABC', 'DEF')
-            %        ans =
-            %             []
-            %        >> getAtomPosition('ABCD', 'ABC')
-            %        ans =
-            %             1     2     3
-
-            pos = [];
-
-            if isempty(reactant) || isempty(product)
-                return;
-            end % if
-
-            for i = 1:strlength(product)
-                idx = strfind(reactant, product(i));
-
-                if isempty(idx)
-                    continue;
-                end % if
-
-                pos = [pos idx]; %#ok<AGROW>
-            end % for i=1:strlength(product)
-
-        end % method getAtomPosition
-
-        %% Private search methods
-        function [EMUs, isError] = listupEMUs(obj)
-            % LISTUPEMUS: List up all EMUs from the model.
-            %
-            % Parameters
-            % ----------
-            % None
-            %
-            % Returns
-            % -------
-            % EMUs: table
-            %    Table containing all EMUs
-
-            EMUs = table();
-            isError = false;
-
-            MSRxn = getMSRxnTable(obj);
-
-            errorRows = false(height(MSRxn), 1);
-
-            % Check if the MSRxn table is more than 1 row
-            for i = 1:height(MSRxn)
-
-                if size(MSRxn.Products{i}, 2) > 1 || ~strcmp(MSRxn.Products{i}{1}, MSRxn.Properties.RowNames{i})
-                    errorRows(i) = true;
-                    msg = sprintf('EMUModel: More than one product or no reactant.');
-                    emitMsg(obj, msg, "Error", obj.logLevel);
-                    continue;
-                end % if
-
-            end % for i=1:height(MSRxn)
-
-            if any(errorRows)
-                isError = true;
-                return;
-            end % if any(errorRows)
-
-            listupTargetEMUs(obj);
-            listupIntermediateEMUs(obj);
-
-            % Sort
-            obj.tableEMU = ...
-                sortrows(obj.tableEMU, {'Size', 'Metabolite', 'EMU'}, {'descend', 'ascend', 'ascend'});
-            EMUs = obj.tableEMU;
-            obj.tableEMUReaction = ...
-                sortrows(obj.tableEMUReaction, {'Size', 'RxnID'}, {'descend', 'ascend'});
-
-        end % method listupEMUs
-
-        function listupTargetEMUs(obj)
-            % LISTUPTARGETEMUS: List up target EMUs from the model.
-            %
-            % Parameters
-            % ----------
-            % isIncludeAllMetabolites: bool, optional
-            %    If true, include all metabolites as target EMUs. Default is false.
-            %
-            % Returns
-            % -------
-            % None
-
-            MSRxn = getMSRxnTable(obj);
-            MSTrans = getMSTransTable(obj);
-
-            for i = 1:height(MSTrans)
-
-                % 'Ala57'
-                targetMetabolite = MSRxn.Products{i}{1};
-                % 'ABC'
-                targetAtomString = MSTrans.Products{i}{1};
-                % 3
-                targetNumAtoms = strlength(targetAtomString);
-                % [1 2 3]
-                targetPosition = 1:targetNumAtoms;
-                % 'BC' --> 'AB'
-                targetArrangedAtomString = obj.charList(1:targetNumAtoms);
-                % Ala57_{ABC}
-                targetEMU = getEMULabel(obj, targetMetabolite, targetArrangedAtomString);
-
-                products = {targetEMU};
-                reactants = {};
-
-                if strlength(targetAtomString) == 0
-                    continue;
-                end % if strlength(targetAtomString)==0
-
-                addEMUToList( ...
-                    obj, targetEMU, targetMetabolite, targetPosition, targetNumAtoms, true);
-
-                for j = 1:numel(MSTrans.Reactants{i})
-
-                    reactantMetabolite = MSRxn.Reactants{i}{j};
-                    reactantAtomString = MSTrans.Reactants{i}{j};
-                    reactantNumAtoms = strlength(reactantAtomString);
-                    reactantPosition = getAtomPosition(obj, reactantAtomString, targetAtomString);
-                    reactantArrangedAtomString = obj.charList(1:reactantNumAtoms);
-                    reactantPositionArranged = reactantArrangedAtomString(reactantPosition);
-                    reactantEMU = getEMULabel(obj, reactantMetabolite, reactantPositionArranged);
-
-                    if strlength(reactantAtomString) == 0 || isempty(reactantPosition)
-                        continue;
-                    end % if strlength(reactantAtomString)==0 || isempty(reactantPosition)
-
-                    reactants{end + 1} = reactantEMU; %#ok<AGROW>
-                    addEMUToList( ...
-                        obj, reactantEMU, reactantMetabolite, reactantPosition, numel(reactantPosition), false);
-
-                end % for j=1:numel(MSTrans.Reactants{i})
-
-                addEMUReactionToList( ...
-                    obj, MSRxn.Properties.RowNames{i}, reactants, products, 1, targetNumAtoms, true);
-
-            end % for i=1:height(MSTrans)
-
-        end % method listupTargetEMUs
-
-        function listupIntermediateEMUs(obj)
-            % LISTUPINTERMEDIATEEMUS: List up intermediate EMUs from the model.
-            %
-            % Parameters
-            % ----------
-            % None
-            %
-            % Returns
-            % -------
-            % None
-
-            % Get the EMU reactions already listed
-            existingEMUReactions = obj.tableEMUReaction;
-            obj.searchedProduct = existingEMUReactions.Products;
-
-            for iRxn = 1:height(existingEMUReactions)
-
-                for jReactant = 1:length(existingEMUReactions.Reactants{iRxn})
-
-                    if obj.isSearchedProduct( ...
-                            existingEMUReactions.Reactants{iRxn}{jReactant})
-                        continue;
-                    end % if obj.isSearchedProduct(
-
-                    iReactant = existingEMUReactions.Reactants{iRxn}{jReactant};
-                    EMUrow = obj.tableEMU( ...
-                        obj.tableEMU.EMU == iReactant, :);
-                    searchEMU(obj, iReactant, false, EMUrow);
-
-                end % for j=1:length(existingEMUReactions.Reactants{iRxn})
-
-            end % for i=1:height(existingEMUReactions)
-
-        end % method listupIntermediateEMUs
-
-        function isSearched = isSearchedProduct(obj, productEMU)
-            % ISSEARCHEDPRODUCT: Check if the product EMU has already been searched.
-            %
-            % Parameters
-            % ----------
-            % productEMU: cell
-            %    Product EMU
-            %
-            % Returns
-            % -------
-            % None
-
-            isSearched = false;
-
-            for i = 1:length(obj.searchedProduct)
-
-                iEMU = obj.searchedProduct{i};
-
-                if isequal(iEMU, productEMU)
-                    isSearched = true;
-                    break;
-                end % if isequal(iEMU, productEMU)
-
-            end % for i=1:length(obj.searchedProduct)
-
-            if ~isSearched
-                obj.searchedProduct{end + 1} = productEMU;
-            end % if ~isSearched
-
-        end % method isSearchedProduct
-
-        function searchEMU(obj, emuName, continueFlag, tableEMU)
-            % SEARCHEMU: Search for an EMU from the EMU reaction table recursively.
-            %
-            % Parameters
-            % ----------
-            % emuName: string
-            %    EMU name
-            % continueFlag: bool, optional
-            %    If true, continue searching for EMUs recursively.
-
-            % If the EMU already exists, return
-            isSearched = obj.tableEMU.EMU == emuName;
-
-            if any(isSearched) && continueFlag
-                return;
-            end % if any(obj.tableEMU.EMU == emuName)
-
-            metabolite = tableEMU.Metabolite( ...
-                tableEMU.EMU == emuName);
-            position = tableEMU.Position{tableEMU.EMU == emuName};
-
-            % Add the EMU to the list
-            obj.addEMUToList( ...
-                emuName, metabolite, position, length(position), false);
-
-            % If the metabolite is a substrate, return
-            if isSubstrateMetabolite(obj, metabolite)
-                return;
-            end % if isSubstrateMetabolite(obj, metabolite)
-
-            % Get reactions involving the metabolite as a product
-            idx = findReaction(obj, metabolite, true);
-            rxn = getModelRxnRev(obj, idx);
-            trans = getModelTransRev(obj, idx);
-
-            % Each reaction
-            for i = 1:height(rxn)
-
-                % Each product in the reaction
-                for j = 1:length(trans.Products{i})
-
-                    coefficient = 1;
-
-                    if isSymmetricMetabolite(obj, rxn.Products{i}{j})
-                        coefficient = coefficient / 2;
-                    end % if isSymmetricMetabolite(obj, rxn.Products{i}{j})
-
-                    % If the product metabolite is not the target metabolite, continue
-                    if ~strcmp(metabolite, string(rxn.Products{i}{j}))
-                        continue
-                    end % if ~strcmp(metabolite, rxn.Products{i}{j})
-
-                    productAtomString = trans.Products{i}{j};
-                    % Extract the atom position corresponding to the target EMU
-                    productAtomString = productAtomString(position);
-                    [tableEMU, ~] = parseEMUReaction( ...
-                        obj, ...
-                        emuName, ...
-                        productAtomString, ...
-                        rxn(i, :), ...
-                        trans(i, :), ...
-                        coefficient ...
-                    );
-
-                    for k = 1:height(tableEMU)
-
-                        % Recursive search for the reactant EMUs
-                        searchEMU(obj, tableEMU.EMU{k}, true, tableEMU);
-
-                    end % for k=1:height(tableEMU)
-
-                    if isSymmetricMetabolite(obj, rxn.Products{i}{j})
-
-                        % For symmetric metabolites, search for the other symmetric EMU
-                        % position = [2 3 4], numAtoms = 4 --> symPosition = [3 2 1]
-                        % position = [1 3], numAtoms = 4 --> symPosition = [4 2]
-                        % position = [1 2 3], numAtoms = 4 --> symPosition = [4 3 2]
-                        numAtoms = strlength(trans.Products{i}{j});
-                        positionLogical = false(1, numAtoms);
-                        positionLogical(position) = true;
-                        symPositionLogical = flip(positionLogical);
-                        symProductAtomString = trans.Products{i}{j}(symPositionLogical);
-                        symTableEMU = parseEMUReaction( ...
-                            obj, ...
-                            emuName, ...
-                            symProductAtomString, ...
-                            rxn(i, :), ...
-                            trans(i, :), ...
-                            coefficient ...
-                        );
-
-                        for k = 1:height(symTableEMU)
-
-                            % Recursive search for the reactant EMUs
-                            searchEMU(obj, symTableEMU.EMU{k}, true, symTableEMU);
-
-                        end % for k=1:height(symTableEMU)
-
-                    end % if isSymmetricMetabolite(obj, rxn.Products{i}{j})
-
-                end % for j=1:length(trans.Products{i})
-
-            end % for i=1:length(rxn)
-
-        end % method searchEMU
-
-        function [tableEMU, tableEMURxn] = parseEMUReaction( ...
-                obj, ...
-                EMUname, ...
-                productAtomString, ...
-                rxn, ...
-                trans, ...
-                coefficient ...
-            )
-            % PARSEEMUREACTION: Parse an EMU reaction from the model.
-            %
-            % Parameters
-            % ----------
-            % EMUname: string
-            %    EMU name
-            % rxn: table
-            %    Reaction table
-            % trans
-            %    Transformation table
-            %
-            % Returns
-            % -------
-            % None
-
-            sizeEMU = strlength(productAtomString);
-
-            tableEMU = table('Size', [0 5], ...
-                'VariableNames', {'EMU', 'Metabolite', 'Position', 'Size', 'Target'}, ...
-                'VariableTypes', {'string', 'string', 'cell', 'double', 'logical'});
-            tableEMU.Properties.Description = 'EMU table';
-            tableEMURxn = table('Size', [0 6], ...
-                'VariableNames', {'RxnID', 'Reactants', 'Products', 'Coefficient', 'Size', 'Target'}, ...
-                'VariableTypes', {'string', 'cell', 'cell', 'double', 'double', 'logical'});
-            tableEMURxn.Properties.Description = 'EMU reaction table';
-
-            numReactants = length(trans.Reactants{1});
-            reactantEMU = {};
-            reactantNumAtoms = [];
-
-            for i = 1:numReactants
-
-                iReactantAtomString = trans.Reactants{1}{i};
-                iReactantMetabolite = rxn.Reactants{1}{i};
-                iPosition = getAtomPosition(obj, iReactantAtomString, productAtomString);
-
-                if isempty(iPosition)
-                    continue;
-                end % if isempty(iPosition)
-
-                % Flip the position if the reactant metabolite is symmetric
-                if isSymmetricMetabolite(obj, iReactantMetabolite)
-                    numAtoms = strlength(iReactantAtomString);
-                    positionLogical = false(1, numAtoms);
-                    positionLogical(iPosition) = true;
-                    symPositionLogical = flip(positionLogical);
-
-                    if find(positionLogical) >= find(symPositionLogical)
-                        iPosition = find(symPositionLogical);
-                    end % if find(positionLpogical) >= find(symPositionLogical)
-
-                end % if isSymmetricMetabolite(obj, iReactantMetabolite)
-
-                iReactantLabel = obj.charList(sort(iPosition));
-                iReactantEMU = getEMULabel(obj, iReactantMetabolite, iReactantLabel);
-
-                reactantEMU = [reactantEMU, iReactantEMU]; %#ok<AGROW>
-                reactantNumAtoms = [reactantNumAtoms, numel(iPosition)]; %#ok<AGROW>
-                tableEMU = [tableEMU; ...
-                                {iReactantEMU, iReactantMetabolite, iPosition, numel(iPosition), false}]; %#ok<AGROW>
-
-            end % for i=1:numReactants
-
-            addEMUReactionToList( ...
-                obj, rxn.Properties.RowNames{1}, reactantEMU, {EMUname}, coefficient, sizeEMU, false);
-
-        end % method parseEMUReaction
-
-        function addEMUToList( ...
-                obj, EMUname, targetMet, position, numAtoms, isTarget)
-            % ADDEMUTOLIST: Add an EMU to the EMU list.
-            %
-            % Parameters
-            % ----------
-            % EMUname: string
-            %    EMU name
-            % targetMet: string
-            %    Metabolite name of the EMU
-            % position: array
-            %    Position of the atoms in the metabolite
-            % numAtoms: double
-            %    EMU size
-            % isTarget: bool
-            %    True if the EMU is a target EMU
-            %
-            % Returns
-            % -------
-            % None
-
-            newRow = {EMUname, targetMet, position, numAtoms, isTarget};
-
-            % Check if the EMU already exists
-            if any(obj.tableEMU.EMU == EMUname)
-                return;
-            end % if any(obj.tableEMU.EMU == EMUname)
-
-            % If numAtoms is zero, do not add
-            if numAtoms == 0
-                return;
-            end % if numAtoms == 0
-
-            obj.tableEMU = [obj.tableEMU; newRow];
-
-        end % method addEMUToList
-
-        function addEMUReactionToList( ...
-                obj, rxnID, reactants, products, coefficient, size, isTarget)
-            % ADDEMUREACTIONTOLIST: Add an EMU reaction to the EMU reaction list.
-            %
-            % Parameters
-            % ----------
-            % rxnID: string
-            %    Reaction ID
-            % reactants: cell
-            %    Reactant EMUs
-            % products: cell
-            %    Product EMUs
-            % coefficient: double
-            %    Stoichiometric coefficient
-            % size: double
-            %    EMU reaction size
-            % isTarget: bool
-            %    True if the EMU reaction is a target reaction
-            %
-            % Returns
-            % -------
-            % None
-
-            newRow = {rxnID, {reactants}, {products}, coefficient, size, isTarget};
-            newRowTable = cell2table(newRow, 'VariableNames', obj.tableEMUReaction.Properties.VariableNames);
-
-            % Add the new row to the table
-            obj.tableEMUReaction = [obj.tableEMUReaction; newRowTable];
-
-        end % method addEMUReactionToList
 
         %% Private matrix methods
         function buildAnBnMatrix(obj)
