@@ -4,6 +4,7 @@ classdef FluxAnalysisComposition
 
     properties (SetAccess = private)
         RuntimeFactory
+        AnalysisControllerFactory
         Hdf5ResultRepository
         MFAInputSnapshotWriter
         MFAResultCheckpointWriter
@@ -47,6 +48,9 @@ classdef FluxAnalysisComposition
 
             arguments
                 options.RuntimeFactory = []
+                options.AnalysisControllerFactory = ...
+                    openmebius.application.analysis ...
+                    .MFAAnalysisControllerFactory()
                 options.Hdf5ResultRepository = ...
                     openmebius.infrastructure.result ...
                     .Hdf5ResultRepository()
@@ -104,6 +108,8 @@ classdef FluxAnalysisComposition
             end
 
             obj.RuntimeFactory = options.RuntimeFactory;
+            obj.AnalysisControllerFactory = ...
+                options.AnalysisControllerFactory;
             obj.Hdf5ResultRepository = ...
                 options.Hdf5ResultRepository;
             obj.MFAInputSnapshotWriter = ...

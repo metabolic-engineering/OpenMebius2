@@ -37,8 +37,7 @@ classdef MFAAnalysisControllerTest < matlab.unittest.TestCase
                 confidenceWorkflow, ...
                 nextWorkflow);
 
-            distributionResult = controller.runFluxDistribution( ...
-                "run-1");
+            distributionResult = controller.runFluxDistribution();
             confidenceResult = ...
                 controller.calculateConfidenceInterval();
             nextResult = controller.suggestNextFluxExperiment();
@@ -55,6 +54,10 @@ classdef MFAAnalysisControllerTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 nextWorkflow.LastArguments{7}, ...
                 inputPreparation);
+            testCase.verifyEqual( ...
+                distributionWorkflow.LastArguments{7}, "run-1");
+            testCase.verifyFalse(controller.IsError);
+            testCase.verifyFalse(controller.IsCanceled);
 
         end
 
@@ -71,7 +74,6 @@ classdef MFAAnalysisControllerTest < matlab.unittest.TestCase
                 settings, distributionWorkflow);
 
             result = controller.runFluxDistribution( ...
-                "run-1", ...
                 MessageReporter = @(level, message) ...
                     observer.report(level, message));
 
@@ -81,6 +83,7 @@ classdef MFAAnalysisControllerTest < matlab.unittest.TestCase
             testCase.verifyEqual(observer.Levels, "error");
             testCase.verifyEqual( ...
                 observer.Messages, settings.DistributionErrorMessage);
+            testCase.verifyTrue(controller.IsError);
 
         end
 
@@ -103,6 +106,7 @@ classdef MFAAnalysisControllerTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 result.ErrorMessage, ...
                 settings.ConfidenceIntervalErrorMessage);
+            testCase.verifyTrue(controller.IsError);
 
         end
 
@@ -126,6 +130,46 @@ classdef MFAAnalysisControllerTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 result.ErrorMessage, ...
                 settings.NextExperimentErrorMessage);
+            testCase.verifyTrue(controller.IsError);
+
+        end
+
+        function ownsInitialFailureAndCancellationState(testCase)
+
+            controller = MFAAnalysisControllerTest.createController( ...
+                MFAAnalysisControllerTest.validSettings(), ...
+                [], [], [], true);
+
+            testCase.verifyTrue(controller.IsError);
+            testCase.verifyFalse(controller.IsCanceled);
+
+            controller.requestCancellation();
+
+            testCase.verifyTrue(controller.IsCanceled);
+
+        end
+
+        function ownsRunLifecycleAndReportsLifecycleFailure(testCase)
+
+            lifecycle = helpers.AnalysisRunLifecycleStub();
+            lifecycle.FinishErrors = "manifest failed";
+            observer = helpers.FailureObserverStub();
+            controller = MFAAnalysisControllerTest.createController( ...
+                MFAAnalysisControllerTest.validSettings(), ...
+                [], [], [], false, lifecycle, true);
+
+            controller.initializeRunScope( ...
+                FailureReporter = @(message) ...
+                    observer.report(message));
+            controller.finishRun();
+
+            testCase.verifyClass( ...
+                controller.RunScope, ...
+                'openmebius.application.analysis.AnalysisRunScope');
+            testCase.verifyEqual(lifecycle.StartCallCount, 1);
+            testCase.verifyEqual(lifecycle.FinishCallCount, 1);
+            testCase.verifyEqual(observer.Messages, "manifest failed");
+            testCase.verifyTrue(controller.IsError);
 
         end
 
@@ -143,7 +187,8 @@ classdef MFAAnalysisControllerTest < matlab.unittest.TestCase
 
         function controller = createController( ...
                 settings, distributionWorkflow, ...
-                confidenceWorkflow, nextWorkflow)
+                confidenceWorkflow, nextWorkflow, initialError, ...
+                analysisRunLifecycle, isExport)
 
             arguments
                 settings (1, 1) openmebius.application.analysis ...
@@ -151,6 +196,9 @@ classdef MFAAnalysisControllerTest < matlab.unittest.TestCase
                 distributionWorkflow = []
                 confidenceWorkflow = []
                 nextWorkflow = []
+                initialError (1, 1) logical = false
+                analysisRunLifecycle = []
+                isExport (1, 1) logical = false
             end
 
             if isempty(distributionWorkflow)
@@ -187,7 +235,11 @@ classdef MFAAnalysisControllerTest < matlab.unittest.TestCase
                 FluxDistributionWorkflow = distributionWorkflow, ...
                 ConfidenceIntervalApplicationWorkflow = ...
                     confidenceWorkflow, ...
-                NextFluxExperimentWorkflow = nextWorkflow);
+                NextFluxExperimentWorkflow = nextWorkflow, ...
+                ResultID = "run-1", ...
+                IsExport = isExport, ...
+                AnalysisRunLifecycle = analysisRunLifecycle, ...
+                InitialError = initialError);
 
         end
 

@@ -7,41 +7,26 @@ classdef FluxAnalysis < handle
 
     end % events
 
-    properties (Access = public)
-
-        % Cancel flag
-        isCanceled (1, 1) logical = false
-        isError (1, 1) logical = false
-
-    end % properties (Access = public)
-
     properties (SetAccess = private)
-
-        %% Objects
-        model % The EMU model object
-        exps % The EMU experiments object
-        config % The configuration object
-        Dependencies
-        RunContext (1, 1) ...
-            openmebius.application.analysis.MFAAnalysisRunContext
-        ResultSession (1, 1) ...
-            openmebius.application.analysis.MFAResultSession
         AnalysisController
-        AnalysisRunScope = []
-
-        % File export
-        isExport = true
-        ResultLocation openmebius.domain.result.ResultLocation
-        HDF5FileName = ""
-        HDF5FilePath = ""
-        Provenance = struct
-
-        % List of experimental conditions
-        expsList = []
-
     end % properties
 
     properties (Dependent, SetAccess = private)
+        model
+        exps
+        config
+        Dependencies
+        RunContext
+        ResultSession
+        isExport
+        ResultLocation
+        HDF5FileName
+        HDF5FilePath
+        Provenance
+        expsList
+        isCanceled
+        isError
+        AnalysisRunScope
         RunSettings
         InputPreparation
     end
@@ -79,7 +64,6 @@ classdef FluxAnalysis < handle
                 options.Provenance (1, 1) struct = struct
             end
 
-            obj.Provenance = options.Provenance;
             composition = options.Composition;
             obj.MessagePublisher = openmebius.presentation ...
                 .notification.GeneralMessagePublisher();
@@ -96,43 +80,17 @@ classdef FluxAnalysis < handle
                 composition, ...
                 FailureReporter = ...
                 @(message) handleAnalysisFailure(obj, message));
-            obj.ResultLocation = runtime.ResultLocation;
-            obj.HDF5FileName = runtime.ResultID;
-            obj.HDF5FilePath = runtime.ResultFilePath;
-            obj.isExport = runtime.IsExport;
-            obj.isError = runtime.IsError;
-            obj.Dependencies = runtime.Dependencies;
-            obj.RunContext = runtime.RunContext;
-            obj.ResultSession = runtime.ResultSession;
             obj.MessagePublisher.write( ...
                 runtime.DirectoryMessageLevel, ...
                 runtime.DirectoryMessage);
-
-            obj.model = model;
-            obj.exps = experiments;
-
-            obj.expsList = obj.Dependencies ...
-                .MFAExperimentListNormalizer.normalize( ...
-                expList);
-
-            obj.config = config;
-            runSettings = openmebius.application.analysis ...
-                .FluxAnalysisRunSettingsMapper.fromBatchConfig(config);
-            obj.AnalysisController = openmebius.application.analysis ...
-                .MFAAnalysisController( ...
-                obj.model, ...
-                obj.exps, ...
-                obj.expsList, ...
-                runSettings, ...
-                obj.RunContext, ...
-                obj.ResultSession, ...
-                FluxDistributionWorkflow = ...
-                    obj.Dependencies.FluxDistributionWorkflow, ...
-                ConfidenceIntervalApplicationWorkflow = ...
-                    obj.Dependencies ...
-                    .ConfidenceIntervalApplicationWorkflow, ...
-                NextFluxExperimentWorkflow = ...
-                    obj.Dependencies.NextFluxExperimentWorkflow);
+            obj.AnalysisController = ...
+                composition.AnalysisControllerFactory.create( ...
+                model, ...
+                experiments, ...
+                expList, ...
+                config, ...
+                runtime, ...
+                options.Provenance);
 
             if ~isempty(controller) && isa(controller, 'handle') && isvalid(controller)
 
@@ -162,28 +120,24 @@ classdef FluxAnalysis < handle
 
             workflowResult = obj.AnalysisController ...
                 .runFluxDistribution( ...
-                obj.HDF5FileName, ...
                 MessageReporter = ...
                     @(level, message) ...
                     reportAnalysisMessage(obj, level, message), ...
                 ProgressReporter = ...
                     @(iteration, total) ...
-                    notifyMFAIterationProgress(obj, iteration, total), ...
-                CancellationRequested = @() obj.isCanceled);
+                    notifyMFAIterationProgress(obj, iteration, total));
             if workflowResult.IsCanceled
-                obj.isCanceled = true;
                 return
             end
 
             if workflowResult.IsError
-                obj.isError = true;
                 return
             end
 
             % Notify the result of the flux calculation
             eventData = openmebius.presentation.result ...
                 .FluxResultEventMapper.fromSessionResult( ...
-                obj.ResultSession.Result);
+                obj.AnalysisController.ResultSession.Result);
             notify(obj, 'FluxResult', eventData);
 
             tStop = toc(tStart);
@@ -215,17 +169,10 @@ classdef FluxAnalysis < handle
                 PersistResult = ~options.forNextSuggestion, ...
                 MessageReporter = ...
                     @(level, message) ...
-                    reportAnalysisMessage(obj, level, message), ...
-                CancellationRequested = @() obj.isCanceled);
+                    reportAnalysisMessage(obj, level, message));
             fluxLB = workflowResult.LowerBounds;
             fluxUB = workflowResult.UpperBounds;
             output = workflowResult.Output;
-
-            if workflowResult.IsCanceled
-                obj.isCanceled = true;
-            elseif workflowResult.IsError
-                obj.isError = true;
-            end
 
         end % calculateConfidenceInterval
 
@@ -246,17 +193,10 @@ classdef FluxAnalysis < handle
                 .suggestNextFluxExperiment( ...
                 MessageReporter = ...
                     @(level, message) ...
-                    reportAnalysisMessage(obj, level, message), ...
-                CancellationRequested = @() obj.isCanceled);
+                    reportAnalysisMessage(obj, level, message));
             fluxLB = workflowResult.LowerBounds;
             fluxUB = workflowResult.UpperBounds;
             output = workflowResult.Output;
-
-            if workflowResult.IsCanceled
-                obj.isCanceled = true;
-            elseif workflowResult.IsError
-                obj.isError = true;
-            end
 
         end % suggestNextFluxExperiment
 
@@ -272,13 +212,103 @@ classdef FluxAnalysis < handle
             %   config: struct
             %       The configuration of the FluxAnalysis object.
 
-            config = obj.config;
+            config = obj.AnalysisController.Config;
 
         end % getConfig
 
         function value = get.RunSettings(obj)
 
             value = obj.AnalysisController.RunSettings;
+
+        end
+
+        function value = get.model(obj)
+
+            value = obj.AnalysisController.Model;
+
+        end
+
+        function value = get.exps(obj)
+
+            value = obj.AnalysisController.Experiments;
+
+        end
+
+        function value = get.config(obj)
+
+            value = obj.AnalysisController.Config;
+
+        end
+
+        function value = get.Dependencies(obj)
+
+            value = obj.AnalysisController.Dependencies;
+
+        end
+
+        function value = get.RunContext(obj)
+
+            value = obj.AnalysisController.RunContext;
+
+        end
+
+        function value = get.ResultSession(obj)
+
+            value = obj.AnalysisController.ResultSession;
+
+        end
+
+        function value = get.isExport(obj)
+
+            value = obj.AnalysisController.IsExport;
+
+        end
+
+        function value = get.ResultLocation(obj)
+
+            value = obj.AnalysisController.ResultLocation;
+
+        end
+
+        function value = get.HDF5FileName(obj)
+
+            value = obj.AnalysisController.ResultID;
+
+        end
+
+        function value = get.HDF5FilePath(obj)
+
+            value = obj.AnalysisController.ResultFilePath;
+
+        end
+
+        function value = get.Provenance(obj)
+
+            value = obj.AnalysisController.Provenance;
+
+        end
+
+        function value = get.expsList(obj)
+
+            value = obj.AnalysisController.ExperimentList;
+
+        end
+
+        function value = get.isCanceled(obj)
+
+            value = obj.AnalysisController.IsCanceled;
+
+        end
+
+        function value = get.isError(obj)
+
+            value = obj.AnalysisController.IsError;
+
+        end
+
+        function value = get.AnalysisRunScope(obj)
+
+            value = obj.AnalysisController.RunScope;
 
         end
 
@@ -291,10 +321,7 @@ classdef FluxAnalysis < handle
         function finalizeRun(obj)
             % FINALIZERUN Refresh the analysis metadata after a run phase.
 
-            if ~isempty(obj.AnalysisRunScope)
-                obj.AnalysisRunScope.finish( ...
-                    obj.isError, obj.isCanceled);
-            end
+            obj.AnalysisController.finishRun();
 
         end % finalizeRun
 
@@ -322,19 +349,10 @@ classdef FluxAnalysis < handle
         %% Export functions
         function initializeRunMetadata(obj)
 
-            obj.AnalysisRunScope = openmebius.application.analysis ...
-                .AnalysisRunScope( ...
-                obj.Dependencies.AnalysisRunLifecycle, ...
-                obj.config, ...
-                obj.HDF5FileName, ...
-                obj.model, ...
-                obj.expsList, ...
-                obj.Provenance, ...
-                obj.ResultLocation, ...
-                string(obj.HDF5FilePath), ...
-                IsExport = obj.isExport, ...
+            obj.AnalysisController.initializeRunScope( ...
                 FailureReporter = ...
-                @(message) handleAnalysisFailure(obj, message));
+                @(message) reportAnalysisMessage( ...
+                    obj, "error", message));
 
         end % initializeRunMetadata
 
@@ -346,13 +364,13 @@ classdef FluxAnalysis < handle
             %   obj: FluxAnalysis
             %       The FluxAnalysis object.
 
-            obj.isCanceled = true;
+            obj.AnalysisController.requestCancellation();
 
         end % cancel
 
         function handleAnalysisFailure(obj, message)
 
-            obj.isError = true;
+            obj.AnalysisController.recordFailure();
             reportAnalysisMessage(obj, "error", message);
 
         end % handleAnalysisFailure

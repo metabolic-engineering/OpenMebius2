@@ -12,6 +12,17 @@ classdef MFAAnalysisController < handle
         ResultSession (1, 1) openmebius.application.analysis ...
             .MFAResultSession
         InputPreparation = []
+        IsError (1, 1) logical = false
+        IsCanceled (1, 1) logical = false
+        RunScope = []
+        Config (1, 1) struct = struct
+        ResultID (1, 1) string = ""
+        ResultLocation = []
+        ResultFilePath (1, 1) string = ""
+        IsExport (1, 1) logical = false
+        Provenance (1, 1) struct = struct
+        AnalysisRunLifecycle = []
+        Dependencies = []
         FluxDistributionWorkflow
         ConfidenceIntervalApplicationWorkflow
         NextFluxExperimentWorkflow
@@ -42,6 +53,15 @@ classdef MFAAnalysisController < handle
                 options.NextFluxExperimentWorkflow = ...
                     openmebius.application.analysis ...
                     .NextFluxExperimentWorkflow()
+                options.Config (1, 1) struct = struct
+                options.ResultID (1, 1) string = ""
+                options.ResultLocation = []
+                options.ResultFilePath (1, 1) string = ""
+                options.IsExport (1, 1) logical = false
+                options.Provenance (1, 1) struct = struct
+                options.AnalysisRunLifecycle = []
+                options.Dependencies = []
+                options.InitialError (1, 1) logical = false
             end
 
             obj.Model = model;
@@ -50,6 +70,16 @@ classdef MFAAnalysisController < handle
             obj.RunSettings = runSettings;
             obj.RunContext = runContext;
             obj.ResultSession = resultSession;
+            obj.Config = options.Config;
+            obj.ResultID = options.ResultID;
+            obj.ResultLocation = options.ResultLocation;
+            obj.ResultFilePath = options.ResultFilePath;
+            obj.IsExport = options.IsExport;
+            obj.Provenance = options.Provenance;
+            obj.AnalysisRunLifecycle = ...
+                options.AnalysisRunLifecycle;
+            obj.Dependencies = options.Dependencies;
+            obj.IsError = options.InitialError;
             obj.FluxDistributionWorkflow = ...
                 options.FluxDistributionWorkflow;
             obj.ConfidenceIntervalApplicationWorkflow = ...
@@ -59,19 +89,15 @@ classdef MFAAnalysisController < handle
 
         end
 
-        function result = runFluxDistribution( ...
-                obj, resultID, options)
+        function result = runFluxDistribution(obj, options)
 
             arguments
                 obj (1, 1) openmebius.application.analysis ...
                     .MFAAnalysisController
-                resultID (1, 1) string
                 options.MessageReporter (1, 1) function_handle = ...
                     @(~, ~) []
                 options.ProgressReporter (1, 1) function_handle = ...
                     @(~, ~) []
-                options.CancellationRequested ...
-                    (1, 1) function_handle = @() false
             end
 
             if ~obj.RunSettings.canRunDistribution()
@@ -83,6 +109,7 @@ classdef MFAAnalysisController < handle
                     FailureStage = ...
                         obj.RunSettings.DistributionFailureStage, ...
                     ErrorMessage = message);
+                obj.recordResult(result);
                 return
             end
 
@@ -93,12 +120,13 @@ classdef MFAAnalysisController < handle
                 obj.RunSettings.DistributionSettings, ...
                 obj.RunContext, ...
                 obj.ResultSession, ...
-                resultID, ...
+                obj.ResultID, ...
                 MessageReporter = options.MessageReporter, ...
                 ProgressReporter = options.ProgressReporter, ...
                 CancellationRequested = ...
-                    options.CancellationRequested);
+                    @() obj.IsCanceled);
             obj.InputPreparation = result.InputPreparation;
+            obj.recordResult(result);
 
         end
 
@@ -110,8 +138,6 @@ classdef MFAAnalysisController < handle
                 options.PersistResult (1, 1) logical = true
                 options.MessageReporter (1, 1) function_handle = ...
                     @(~, ~) []
-                options.CancellationRequested ...
-                    (1, 1) function_handle = @() false
             end
 
             if ~obj.RunSettings.canCalculateConfidenceInterval()
@@ -122,6 +148,7 @@ classdef MFAAnalysisController < handle
                     .ConfidenceIntervalWorkflowResult( ...
                     IsError = true, ...
                     ErrorMessage = message);
+                obj.recordResult(result);
                 return
             end
 
@@ -134,7 +161,8 @@ classdef MFAAnalysisController < handle
                 PersistResult = options.PersistResult, ...
                 MessageReporter = options.MessageReporter, ...
                 CancellationRequested = ...
-                    options.CancellationRequested);
+                    @() obj.IsCanceled);
+            obj.recordResult(result);
 
         end
 
@@ -145,8 +173,6 @@ classdef MFAAnalysisController < handle
                     .MFAAnalysisController
                 options.MessageReporter (1, 1) function_handle = ...
                     @(~, ~) []
-                options.CancellationRequested ...
-                    (1, 1) function_handle = @() false
             end
 
             if ~obj.RunSettings.canSuggestNextExperiment()
@@ -156,6 +182,7 @@ classdef MFAAnalysisController < handle
                     .NextFluxExperimentResult( ...
                     IsError = true, ...
                     ErrorMessage = message);
+                obj.recordResult(result);
                 return
             end
 
@@ -169,7 +196,75 @@ classdef MFAAnalysisController < handle
                 obj.InputPreparation, ...
                 MessageReporter = options.MessageReporter, ...
                 CancellationRequested = ...
-                    options.CancellationRequested);
+                    @() obj.IsCanceled);
+            obj.recordResult(result);
+
+        end
+
+        function initializeRunScope(obj, options)
+
+            arguments
+                obj (1, 1) openmebius.application.analysis ...
+                    .MFAAnalysisController
+                options.FailureReporter (1, 1) function_handle = ...
+                    @(~) []
+            end
+
+            obj.RunScope = openmebius.application.analysis ...
+                .AnalysisRunScope( ...
+                obj.AnalysisRunLifecycle, ...
+                obj.Config, ...
+                obj.ResultID, ...
+                obj.Model, ...
+                obj.ExperimentList, ...
+                obj.Provenance, ...
+                obj.ResultLocation, ...
+                obj.ResultFilePath, ...
+                IsExport = obj.IsExport, ...
+                FailureReporter = @(message) ...
+                    obj.recordLifecycleFailure( ...
+                    message, options.FailureReporter));
+
+        end
+
+        function finishRun(obj)
+
+            if ~isempty(obj.RunScope)
+                obj.RunScope.finish(obj.IsError, obj.IsCanceled);
+            end
+
+        end
+
+        function requestCancellation(obj)
+
+            obj.IsCanceled = true;
+
+        end
+
+        function recordFailure(obj)
+
+            obj.IsError = true;
+
+        end
+
+    end
+
+    methods (Access = private)
+
+        function recordResult(obj, result)
+
+            if result.IsCanceled
+                obj.IsCanceled = true;
+            elseif result.IsError
+                obj.IsError = true;
+            end
+
+        end
+
+        function recordLifecycleFailure(obj, message, reporter)
+
+            obj.recordFailure();
+            reporter(string(message));
 
         end
 
