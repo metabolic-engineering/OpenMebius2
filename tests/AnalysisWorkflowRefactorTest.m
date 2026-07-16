@@ -405,6 +405,38 @@ classdef AnalysisWorkflowRefactorTest < matlab.unittest.TestCase
 
         end
 
+        function invalidConfidenceSettingsStopAtFacadeBoundary(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            cleanup = onCleanup( ...
+                @() rmdir(resultDirectory, 's'));
+            input = helpers.FluxAnalysisInputStub();
+            workflow = helpers.WorkflowResultStub( ...
+                openmebius.mfa.ConfidenceIntervalWorkflowResult( ...
+                Method = "Monte Carlo", ...
+                IsError = true, ...
+                ErrorMessage = "CI workflow should not run."));
+            composition = openmebius.application.analysis ...
+                .FluxAnalysisComposition( ...
+                ConfidenceIntervalApplicationWorkflow = workflow);
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.algorithm = "unsupported";
+            analysis = FluxAnalysis( ...
+                input, input, 1, config, resultDirectory, ...
+                "unit-test", [], Composition = composition);
+
+            [lowerBounds, upperBounds, output] = ...
+                analysis.calculateConfidenceInterval();
+
+            testCase.verifyEqual(workflow.CallCount, 0);
+            testCase.verifyTrue(analysis.isError);
+            testCase.verifyEmpty(lowerBounds);
+            testCase.verifyEmpty(upperBounds);
+            testCase.verifyEqual(output, struct);
+
+        end
+
         function fluxAnalysisPublishesGeneralMessageEvent(testCase)
 
             resultDirectory = string(tempname);
@@ -479,6 +511,38 @@ classdef AnalysisWorkflowRefactorTest < matlab.unittest.TestCase
             testCase.verifyEqual(workflow.CallCount, 1);
             testCase.verifyTrue(analysis.isCanceled);
             testCase.verifyFalse(analysis.isError);
+
+        end
+
+        function invalidNextExperimentSettingsStopAtFacadeBoundary(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            cleanup = onCleanup( ...
+                @() rmdir(resultDirectory, 's'));
+            input = helpers.FluxAnalysisInputStub();
+            workflow = helpers.WorkflowResultStub( ...
+                openmebius.application.analysis ...
+                .NextFluxExperimentResult(IsCanceled = true));
+            composition = openmebius.application.analysis ...
+                .FluxAnalysisComposition( ...
+                NextFluxExperimentWorkflow = workflow);
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.suggestionTable = ["A", "B"];
+            config.suggestionTableVarNames = "Tracer";
+            analysis = FluxAnalysis( ...
+                input, input, 1, config, resultDirectory, ...
+                "unit-test", [], Composition = composition);
+
+            [lowerBounds, upperBounds, output] = ...
+                analysis.suggestNextFluxExperiment();
+
+            testCase.verifyEqual(workflow.CallCount, 0);
+            testCase.verifyTrue(analysis.isError);
+            testCase.verifyFalse(analysis.isCanceled);
+            testCase.verifyEmpty(lowerBounds);
+            testCase.verifyEmpty(upperBounds);
+            testCase.verifyEqual(output, struct);
 
         end
 
