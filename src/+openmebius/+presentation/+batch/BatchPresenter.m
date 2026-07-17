@@ -37,6 +37,69 @@ classdef BatchPresenter < handle
 
         end
 
+        function viewModel = presentRunStarted(~)
+
+            viewModel = ...
+                openmebius.presentation.batch.BatchRunViewModel( ...
+                    SectionStatus = "running", ...
+                    Notification = openmebius.presentation.notification ...
+                        .Notification.info("Batch jobs are running..."));
+
+        end % presentRunStarted
+
+        function viewModel = presentCancelRequested(~)
+
+            viewModel = ...
+                openmebius.presentation.batch.BatchRunViewModel( ...
+                    Notification = openmebius.presentation.notification ...
+                        .Notification.info( ...
+                            "Canceling batch jobs. " + ...
+                            "It may take several minutes..."));
+
+        end % presentCancelRequested
+
+        function viewModel = presentRunOutcome(~, outcome)
+
+            arguments
+                ~
+                outcome (1, 1) openmebius.application.batch.BatchRunOutcome
+            end
+
+            switch outcome.Status
+                case "finished"
+                    sectionStatus = "finished";
+                    message = "All batch jobs are completed.";
+                    notification = openmebius.presentation.notification ...
+                        .Notification.info(message);
+
+                case "canceled"
+                    sectionStatus = "finished";
+                    message = "Batch jobs are canceled.";
+                    notification = openmebius.presentation.notification ...
+                        .Notification.info(message);
+
+                case "error"
+                    sectionStatus = "error";
+                    message = outcome.ErrorMessage;
+
+                    if message == ""
+                        message = "Batch jobs failed.";
+                    end
+
+                    notification = openmebius.presentation.notification ...
+                        .Notification.error(message);
+            end
+
+            viewModel = ...
+                openmebius.presentation.batch.BatchRunViewModel( ...
+                    SectionStatus = sectionStatus, ...
+                    Notification = notification, ...
+                    CompletionStatus = outcome.Status, ...
+                    ElapsedTime = outcome.ElapsedTime, ...
+                    ErrorMessage = outcome.ErrorMessage);
+
+        end % presentRunOutcome
+
         function styleRules = styleRulesForStatus(obj, tableData, status)
 
             if isempty(tableData)

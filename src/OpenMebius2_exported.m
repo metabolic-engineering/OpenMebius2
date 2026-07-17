@@ -203,6 +203,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProjectSession openmebius.domain.project.ProjectSession
         TemplateModelLoadService openmebius.application.model.TemplateModelLoadService
         BatchLoadService openmebius.application.batch.BatchLoadService
+        BatchRunController openmebius.application.batch.BatchRunController
         ResultLoadService openmebius.application.result.ResultLoadService
         ResultExportService openmebius.application.result.ResultExportService
         ReportGenerationService openmebius.application.report.ReportGenerationService
@@ -624,6 +625,29 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             drawnow limitrate
 
         end % method renderBatchProgress
+
+        function renderBatchRunViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            if viewModel.SectionStatus ~= ""
+                app.updateStatus("batch", viewModel.SectionStatus);
+            end
+
+            if ~isempty(viewModel.Notification)
+                app.showNotification(viewModel.Notification);
+            end
+
+            if viewModel.CompletionStatus ~= ""
+                app.notifySlackBatchCompleted( ...
+                    viewModel.CompletionStatus, ...
+                    ErrorMessage = viewModel.ErrorMessage, ...
+                    DeltaTime = viewModel.ElapsedTime);
+            end
+
+        end % renderBatchRunViewModel
 
         function renderResultMainTable(app, viewModel)
 
@@ -2709,6 +2733,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureBatchPresenter
 
+        function ensureBatchRunController(app)
+
+            if isempty(app.BatchRunController)
+                app.BatchRunController = ...
+                    openmebius.application.batch.BatchRunController();
+            end
+
+        end % ensureBatchRunController
+
         function ensureProgressBar(app)
 
             if isempty(app.ProgressBar) || ~isvalid(app.ProgressBar)
@@ -4292,6 +4325,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.experiment.ExperimentImportService();
             app.BatchLoadService = ...
                 openmebius.application.batch.BatchLoadService();
+            app.BatchRunController = ...
+                openmebius.application.batch.BatchRunController();
             app.ResultLoadService = ...
                 openmebius.application.result.ResultLoadService();
             app.ResultExportService = ...
@@ -5261,16 +5296,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: RunRunButton
         function RunRunButtonPushed(app, event)
 
-            tStart = datetime("now");
+            app.ensureBatchPresenter();
+            app.ensureBatchRunController();
 
             if app.Presenter.isRunning()
 
                 app.requestPresentationCancelRun();
 
-                msg = "Canceling batch jobs. It may take several minutes...";
-                app.LogTextDate(msg, "Info");
-
-                cancelBatch(app.batch)
+                app.renderBatchRunViewModel( ...
+                    app.BatchPresenter.presentCancelRequested());
+                app.BatchRunController.cancel(app.batch);
 
                 return
             end
@@ -5279,50 +5314,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             cleanupPresentation = onCleanup( ...
                 @() app.finishPresentationRunSafely());
 
-            try
-                app.updateStatus("batch", "running");
+            app.renderBatchRunViewModel( ...
+                app.BatchPresenter.presentRunStarted());
 
-                msg = "Batch jobs are running...";
-                app.LogTextDate(msg, "Info");
+            updateBatchTable(app);
 
-                updateBatchTable(app);
+            % updateBatchTable may reset RunTable.ColumnEditable.
+            app.refreshPresentation();
 
-                % updateBatchTable may reset RunTable.ColumnEditable.
-                app.refreshPresentation();
-
-                status = runBatch(app.batch, app.directoryResult);
-
-                if strcmp(status, "canceled")
-                    msg = "Batch jobs are canceled.";
-                    app.LogTextDate(msg, "Info");
-                    app.updateStatus("batch", "finished");
-                    app.notifySlackBatchCompleted( ...
-                        "canceled", ...
-                        DeltaTime = datetime("now") - tStart ...
-                    );
-                    return
-                end
-
-                msg = "All batch jobs are completed.";
-                app.LogTextDate(msg, "Info");
-                app.updateStatus("batch", "finished");
-                app.notifySlackBatchCompleted( ...
-                    "finished", ...
-                    DeltaTime = datetime("now") - tStart ...
-                );
-
-            catch ME
-                app.updateStatus("batch", "error");
-                app.LogTextDate(string(ME.message), "Error");
-
-                app.notifySlackBatchCompleted( ...
-                    "error", ...
-                    ErrorMessage = string(ME.message), ...
-                    DeltaTime = datetime("now") - tStart ...
-                );
-
-                rethrow(ME)
-            end
+            outcome = app.BatchRunController.run( ...
+                app.batch, app.directoryResult);
+            app.renderBatchRunViewModel( ...
+                app.BatchPresenter.presentRunOutcome(outcome));
+            outcome.rethrowFailure();
 
         end
 
