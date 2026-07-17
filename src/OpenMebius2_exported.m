@@ -208,8 +208,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ResultLoadService openmebius.application.result.ResultLoadService
         ResultExportService openmebius.application.result.ResultExportService
         ReportGenerationService openmebius.application.report.ReportGenerationService
-        ExperimentImportService openmebius.application.experiment.ExperimentImportService
-        RawMSImportService openmebius.application.experiment.RawMSImportService
+        ExperimentImportController openmebius.application.experiment.ExperimentImportController
         ExperimentCalculationController openmebius.application.experiment.ExperimentCalculationController
         ExperimentEditService openmebius.application.experiment.ExperimentEditService
 
@@ -664,6 +663,31 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % renderExperimentCalculationViewModel
+
+        function renderExperimentImportViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            if ~isempty(viewModel.Result)
+                app.renderExperimentImportResult( ...
+                    viewModel.Result, ...
+                    LogMessages = false);
+            end
+
+            if viewModel.SectionStatus ~= ""
+                app.updateStatus( ...
+                    "experiment", ...
+                    viewModel.SectionStatus);
+            end
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+        end % renderExperimentImportViewModel
 
         function renderResultMainTable(app, viewModel)
 
@@ -2130,14 +2154,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureTemplateModelLoadService
 
-        function ensureExperimentImportService(app)
+        function ensureExperimentImportController(app)
 
-            if isempty(app.ExperimentImportService)
-                app.ExperimentImportService = ...
-                    openmebius.application.experiment.ExperimentImportService();
+            if isempty(app.ExperimentImportController)
+                app.ExperimentImportController = ...
+                    openmebius.application.experiment ...
+                    .ExperimentImportController();
             end
 
-        end % method ensureExperimentImportService
+        end % method ensureExperimentImportController
 
         function ensureBatchLoadService(app)
 
@@ -2528,15 +2553,17 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.LogMessages (1, 1) logical = true
             end
 
-            app.ensureExperimentImportService();
+            app.ensureExperimentImportController();
 
             experimentLocation = ...
                 openmebius.domain.experiment.ExperimentLocation ...
                 .fromDirectory(app.directoryExp);
 
-            result = app.ExperimentImportService.reload( ...
+            outcome = app.ExperimentImportController.reload( ...
                 experimentLocation, ...
                 app.model);
+            outcome.rethrowFailure();
+            result = outcome.Result;
 
             app.renderExperimentImportResult( ...
                 result, ...
@@ -4357,8 +4384,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.TemplateModelLoadService = ...
                 openmebius.application.model.TemplateModelLoadService();
-            app.ExperimentImportService = ...
-                openmebius.application.experiment.ExperimentImportService();
+            app.ExperimentImportController = ...
+                openmebius.application.experiment ...
+                .ExperimentImportController();
             app.BatchLoadService = ...
                 openmebius.application.batch.BatchLoadService();
             app.BatchRunController = ...
@@ -4369,8 +4397,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.result.ResultExportService();
             app.ReportGenerationService = ...
                 openmebius.application.report.ReportGenerationService();
-            app.RawMSImportService = ...
-                openmebius.application.experiment.RawMSImportService();
             app.ExperimentCalculationController = ...
                 openmebius.application.experiment ...
                 .ExperimentCalculationController();
@@ -4999,7 +5025,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ExpImportButton
-        function ExpImportButtonPushed(app, event)
+        function ExpImportButtonPushed(app, ~)
 
             % Wrap
             [files, isOK] = app.uiGetFileWrap( ...
@@ -5009,66 +5035,50 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             );
 
             if ~isOK || isempty(files)
-                % User canceled the dialog
-                msg = "No file selected.";
-                app.LogTextDate(msg, "Warning");
+                app.ensureExperimentPresenter();
+                app.renderExperimentImportViewModel( ...
+                    app.ExperimentPresenter ...
+                    .presentFileImportCanceled());
                 return
             end
 
             files = string(files(:));
-            numFiles = length(files);
-            msg = "Importing experimental data from " + string(numFiles) + " file(s): ";
-            app.LogTextDate(msg, "Info");
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+            app.ensureExperimentImportController();
+            app.ensureExperimentPresenter();
+            app.renderExperimentImportViewModel( ...
+                app.ExperimentPresenter.presentImportStarted());
 
-            updateStatus(app, "experiment", "running");
-
-            try
-                experimentLocation = ...
-                    openmebius.domain.experiment.ExperimentLocation ...
-                    .fromDirectory(app.directoryExp);
-
-                result = app.ExperimentImportService.importFiles( ...
-                    experimentLocation, ...
-                    files, ...
-                    app.model);
-
-                app.renderExperimentImportResult(result);
-
-                updateStatus(app, "experiment", "finished");
-
-                msg = "Experimental data imported successfully.";
-                app.LogTextDate(msg, "Info");
-            catch ME
-                updateStatus(app, "experiment", "error");
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Experiment import failed", ...
-                    Alert = true);
-            end
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(app.directoryExp);
+            outcome = app.ExperimentImportController.importFiles( ...
+                experimentLocation, ...
+                files, ...
+                app.model);
+            app.renderExperimentImportViewModel( ...
+                app.ExperimentPresenter ...
+                .presentFileImportOutcome(outcome));
 
         end
 
         % Button pushed function: ExpReloadButton
-        function ExpReloadButtonPushed(app, event)
+        function ExpReloadButtonPushed(app, ~)
 
-            updateStatus(app, "experiment", "running");
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+            app.ensureExperimentImportController();
+            app.ensureExperimentPresenter();
+            app.renderExperimentImportViewModel( ...
+                app.ExperimentPresenter.presentImportStarted());
 
-            try
-                app.reloadExperimentState();
-
-                updateStatus(app, "experiment", "finished");
-                msg = openmebius.infrastructure.logging.Logger ...
-                    .formatDatedMessage( ...
-                    "Experimental data reloaded", ...
-                "Info");
-                app.LogText(msg);
-            catch ME
-                updateStatus(app, "experiment", "error");
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Experiment reload failed", ...
-                    Alert = true);
-            end
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(app.directoryExp);
+            outcome = app.ExperimentImportController.reload( ...
+                experimentLocation, ...
+                app.model);
+            app.renderExperimentImportViewModel( ...
+                app.ExperimentPresenter.presentReloadOutcome(outcome));
 
         end
 
@@ -5748,7 +5758,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: ImportMSdatafromtextfilesMenu
-        function ImportMSdatafromtextfilesMenuSelected(app, event)
+        function ImportMSdatafromtextfilesMenuSelected(app, ~)
 
             [importDirectory, isOK] = app.uiGetDirWrap( ...
                 Title = "Select Directory Containing MS Data Text Files", ...
@@ -5758,30 +5768,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            updateStatus(app, "experiment", "running");
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+            app.ensureExperimentImportController();
+            app.ensureExperimentPresenter();
+            app.renderExperimentImportViewModel( ...
+                app.ExperimentPresenter.presentImportStarted());
 
-            try
-                experimentLocation = ...
-                    openmebius.domain.experiment.ExperimentLocation ...
-                    .fromDirectory(app.directoryExp);
-
-                result = app.RawMSImportService.importShimadzuASCII( ...
+            experimentLocation = ...
+                openmebius.domain.experiment.ExperimentLocation ...
+                .fromDirectory(app.directoryExp);
+            outcome = app.ExperimentImportController ...
+                .importShimadzuASCII( ...
                     importDirectory, ...
                     experimentLocation, ...
                     app.model);
-
-                app.renderExperimentImportResult(result);
-
-                updateStatus(app, "experiment", "finished");
-
-                app.notifyInfo("Raw MS data imported successfully.");
-            catch ME
-                updateStatus(app, "experiment", "error");
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Raw MS data import failed", ...
-                    Alert = true);
-            end
+            app.renderExperimentImportViewModel( ...
+                app.ExperimentPresenter ...
+                .presentRawMSImportOutcome(outcome));
 
         end
 

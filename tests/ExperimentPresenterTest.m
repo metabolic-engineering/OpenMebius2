@@ -64,6 +64,76 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsImportStarted(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+
+            viewModel = presenter.presentImportStarted();
+
+            testCase.verifyEqual(viewModel.SectionStatus, "running");
+            testCase.verifyEmpty(viewModel.Result);
+            testCase.verifyEmpty(viewModel.Notifications);
+
+        end
+
+        function presentsCanceledFileSelection(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+
+            viewModel = presenter.presentFileImportCanceled();
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(viewModel.SectionStatus, "");
+            testCase.verifyEqual(notification.Level, "warning");
+            testCase.verifyEqual(notification.Message, "No file selected.");
+
+        end
+
+        function presentsFileImportResultAndMessages(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+            result = struct("Messages", ["Copied."; "Reloaded."]);
+            outcome = openmebius.application.experiment ...
+                .ExperimentImportOutcome( ...
+                    "finished", Result = result);
+
+            viewModel = presenter.presentFileImportOutcome(outcome);
+            messages = cellfun( ...
+                @(notification) notification.Message, ...
+                viewModel.Notifications);
+
+            testCase.verifyEqual(viewModel.SectionStatus, "finished");
+            testCase.verifyEqual(viewModel.Result, result);
+            testCase.verifyEqual( ...
+                messages, ...
+                ["Copied."; "Reloaded."; ...
+                 "Experimental data imported successfully."]);
+
+        end
+
+        function presentsRawImportFailureAsAlert(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+            outcome = openmebius.application.experiment ...
+                .ExperimentImportOutcome( ...
+                    "error", ErrorMessage = "Raw import failed.");
+
+            viewModel = presenter.presentRawMSImportOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(viewModel.SectionStatus, "error");
+            testCase.verifyEmpty(viewModel.Result);
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyEqual( ...
+                notification.Title, "Raw MS data import failed");
+            testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
     end % methods (Test)
 
 end % classdef
