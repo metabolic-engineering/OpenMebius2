@@ -97,6 +97,121 @@ classdef ResultPresenter < handle
 
         end
 
+        function viewModel = presentReportOutcome(obj, outcome)
+
+            arguments
+                obj
+                outcome (1, 1) openmebius.application.result ...
+                    .ResultOperationOutcome
+            end
+
+            report = [];
+
+            if outcome.Status == "finished"
+                report = outcome.Result.Report;
+                notifications = obj.operationNotifications( ...
+                    outcome.Result, "Report generated successfully.");
+            else
+                identifier = obj.outcomeIdentifier(outcome);
+
+                switch identifier
+                    case "OpenMebius2:Report:UnavailableInDeployed"
+                        notification = ...
+                            openmebius.presentation.notification ...
+                            .Notification.warning( ...
+                                obj.outcomeMessage( ...
+                                    outcome, ...
+                                    "Report generation is unavailable."));
+
+                    case "OpenMebius2:Report:DataUnavailable"
+                        notification = ...
+                            openmebius.presentation.notification ...
+                            .Notification.error( ...
+                                obj.outcomeMessage( ...
+                                    outcome, ...
+                                    "Report data is unavailable."));
+
+                    otherwise
+                        notification = ...
+                            openmebius.presentation.notification ...
+                            .Notification.error( ...
+                                obj.outcomeMessage( ...
+                                    outcome, ...
+                                    "Report generation failed."), ...
+                                Title = "Report generation failed", ...
+                                ShowAlert = true);
+                end
+
+                notifications = {notification};
+            end
+
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                    Report = report, ...
+                    Notifications = notifications);
+
+        end % presentReportOutcome
+
+        function viewModel = presentExportOutcome(obj, outcome)
+
+            arguments
+                obj
+                outcome (1, 1) openmebius.application.result ...
+                    .ResultOperationOutcome
+            end
+
+            if outcome.Status == "finished"
+                notifications = obj.operationNotifications( ...
+                    outcome.Result, ...
+                    "Result export completed successfully.");
+            else
+                identifier = obj.outcomeIdentifier(outcome);
+                knownIdentifiers = [ ...
+                    "OpenMebius2:ResultExport:ResultUnavailable"
+                    "OpenMebius2:ResultExport:EmptySelection"
+                    "OpenMebius2:ResultExport:SelectionMismatch"
+                    "OpenMebius2:ResultExport:OutputDirectoryUnavailable"
+                    "OpenMebius2:ResultExport:OutputDirectoryNotFound"
+                    "OpenMebius2:ResultExport:OutputDirectoryExists"
+                    "OpenMebius2:ResultExport:CreateDirectoryFailed"];
+                isKnownError = any(identifier == knownIdentifiers);
+                notification = ...
+                    openmebius.presentation.notification ...
+                    .Notification.error( ...
+                        obj.outcomeMessage( ...
+                            outcome, "Result export failed."), ...
+                        Title = "Result export failed", ...
+                        ShowAlert = ~isKnownError);
+                notifications = {notification};
+            end
+
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                    Notifications = notifications);
+
+        end % presentExportOutcome
+
+        function viewModel = presentReloaded(~)
+
+            notification = openmebius.presentation.notification ...
+                .Notification.info("Result data reloaded");
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                    Notifications = {notification});
+
+        end % presentReloaded
+
+        function viewModel = presentExportSelectionRequired(~)
+
+            notification = openmebius.presentation.notification ...
+                .Notification.warning( ...
+                    "Please select a result to save.");
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                    Notifications = {notification});
+
+        end % presentExportSelectionRequired
+
     end
 
     methods (Access = private)
@@ -373,6 +488,46 @@ classdef ResultPresenter < handle
             end
 
         end % method mustBeValidHandle
+
+        function notifications = operationNotifications( ...
+                ~, result, fallbackMessage)
+
+            messages = string(result.Messages);
+            messages = messages(:);
+
+            if isempty(messages)
+                messages = fallbackMessage;
+            end
+
+            notifications = cell(numel(messages), 1);
+
+            for messageIndex = 1:numel(messages)
+                notifications{messageIndex} = ...
+                    openmebius.presentation.notification ...
+                    .Notification.info(messages(messageIndex));
+            end
+
+        end % operationNotifications
+
+        function identifier = outcomeIdentifier(~, outcome)
+
+            identifier = "";
+
+            if ~isempty(outcome.Exception)
+                identifier = string(outcome.Exception.identifier);
+            end
+
+        end % outcomeIdentifier
+
+        function message = outcomeMessage(~, outcome, fallbackMessage)
+
+            message = outcome.ErrorMessage;
+
+            if message == ""
+                message = fallbackMessage;
+            end
+
+        end % outcomeMessage
 
     end
 

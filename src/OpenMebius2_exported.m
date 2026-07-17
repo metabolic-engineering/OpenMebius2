@@ -206,8 +206,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         BatchLoadService openmebius.application.batch.BatchLoadService
         BatchRunController openmebius.application.batch.BatchRunController
         ResultLoadService openmebius.application.result.ResultLoadService
-        ResultExportService openmebius.application.result.ResultExportService
-        ReportGenerationService openmebius.application.report.ReportGenerationService
+        ResultOperationController openmebius.application.result.ResultOperationController
         ExperimentImportController openmebius.application.experiment.ExperimentImportController
         ExperimentCalculationController openmebius.application.experiment.ExperimentCalculationController
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
@@ -711,6 +710,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % renderExperimentEditViewModel
+
+        function renderResultOperationViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            if ~isempty(viewModel.Report)
+                app.report = viewModel.Report;
+            end
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+        end % renderResultOperationViewModel
 
         function renderResultMainTable(app, viewModel)
 
@@ -2215,23 +2231,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureResultLoadService
 
-        function ensureResultExportService(app)
+        function ensureResultOperationController(app)
 
-            if isempty(app.ResultExportService)
-                app.ResultExportService = ...
-                    openmebius.application.result.ResultExportService();
+            if isempty(app.ResultOperationController)
+                app.ResultOperationController = ...
+                    openmebius.application.result ...
+                    .ResultOperationController();
             end
 
-        end % method ensureResultExportService
-
-        function ensureReportGenerationService(app)
-
-            if isempty(app.ReportGenerationService)
-                app.ReportGenerationService = ...
-                    openmebius.application.report.ReportGenerationService();
-            end
-
-        end % method ensureReportGenerationService
+        end % method ensureResultOperationController
 
         function attachLegacyListeners(app)
 
@@ -2566,18 +2574,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.attachLegacyListeners();
 
         end % method applyResultLoadResult
-
-        function applyReportGenerationResult(app, reportGenerationResult)
-
-            arguments
-                app
-                reportGenerationResult ...
-                    openmebius.application.report.ReportGenerationResult
-            end
-
-            app.report = reportGenerationResult.Report;
-
-        end % method applyReportGenerationResult
 
         function result = reloadExperimentState(app, options)
 
@@ -4426,10 +4422,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.batch.BatchRunController();
             app.ResultLoadService = ...
                 openmebius.application.result.ResultLoadService();
-            app.ResultExportService = ...
-                openmebius.application.result.ResultExportService();
-            app.ReportGenerationService = ...
-                openmebius.application.report.ReportGenerationService();
+            app.ResultOperationController = ...
+                openmebius.application.result ...
+                .ResultOperationController();
             app.ExperimentCalculationController = ...
                 openmebius.application.experiment ...
                 .ExperimentCalculationController();
@@ -5503,122 +5498,70 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ResultReportButton
-        function ResultReportButtonPushed(app, event)
+        function ResultReportButtonPushed(app, ~)
 
-            try
-                app.ensureReportGenerationService();
-
-                resultLocation = openmebius.domain.result.ResultLocation ...
-                    .fromDirectory(app.directoryResult);
-
-                reportGenerationResult = ...
-                    app.ReportGenerationService.generate( ...
-                    resultLocation, ...
-                    app.model, ...
-                    app.exp, ...
-                    app.result, ...
-                    IsDeployed = isdeployed);
-
-                app.applyReportGenerationResult(reportGenerationResult);
-
-                for i = 1:numel(reportGenerationResult.Messages)
-                    app.notifyInfo(reportGenerationResult.Messages(i));
-                end
-
-            catch ME
-
-                switch string(ME.identifier)
-
-                    case "OpenMebius2:Report:UnavailableInDeployed"
-                        app.notifyWarning(string(ME.message));
-
-                    case "OpenMebius2:Report:DataUnavailable"
-                        app.notifyError(string(ME.message));
-
-                    otherwise
-                        app.notifyException( ...
-                            ME, ...
-                            Title = "Report generation failed", ...
-                            Alert = true);
-                end
-
-            end
+            app.ensureResultOperationController();
+            app.ensureResultPresenter();
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(app.directoryResult);
+            outcome = app.ResultOperationController.generateReport( ...
+                resultLocation, ...
+                app.model, ...
+                app.exp, ...
+                app.result, ...
+                IsDeployed = isdeployed);
+            app.renderResultOperationViewModel( ...
+                app.ResultPresenter.presentReportOutcome(outcome));
 
         end
 
         % Button pushed function: ResultReloadButton
-        function ResultReloadButtonPushed(app, event)
+        function ResultReloadButtonPushed(app, ~)
 
             app.updateResult();
-            msg = openmebius.infrastructure.logging.Logger ...
-                .formatDatedMessage("Result data reloaded", "Info");
-            app.LogText(msg);
+            app.ensureResultPresenter();
+            app.renderResultOperationViewModel( ...
+                app.ResultPresenter.presentReloaded());
         end
 
         % Button pushed function: ResultSaveButton
-        function ResultSaveButtonPushed(app, event)
+        function ResultSaveButtonPushed(app, ~)
 
-            try
-                app.ensureResultExportService();
+            [folder, isOK] = app.uiGetDirWrap( ...
+                StartPath = app.directoryResult, ...
+                Title = "Select Directory to Save Result Files" ...
+            );
 
-                [folder, isOK] = app.uiGetDirWrap( ...
-                    StartPath = app.directoryResult, ...
-                    Title = "Select Directory to Save Result Files" ...
-                );
-
-                if ~isOK
-                    return; % User canceled the dialog
-                end
-
-                selectedRows = app.selectedTableRows(app.ResultSubTable);
-
-                if isempty(selectedRows)
-                    app.notifyWarning("Please select a result to save.");
-                    return
-                end % if
-
-                batchIDs = app.ResultSubTable.Data.ID;
-                selectedBatchIDs = string(batchIDs(selectedRows));
-                selectedBatchIDs = selectedBatchIDs(:);
-                batchNames = app.ResultSubTable.Data.Name;
-                selectedBatchNames = string(batchNames(selectedRows));
-                selectedBatchNames = selectedBatchNames(:);
-                outputLocation = openmebius.domain.result.ResultLocation ...
-                    .fromDirectory(folder);
-
-                resultExportResult = app.ResultExportService.export( ...
-                    app.result, ...
-                    selectedBatchIDs, ...
-                    selectedBatchNames, ...
-                    outputLocation);
-
-                for i = 1:numel(resultExportResult.Messages)
-                    app.notifyInfo(resultExportResult.Messages(i));
-                end
-
-            catch ME
-
-                switch string(ME.identifier)
-
-                        case { ...
-                                  "OpenMebius2:ResultExport:ResultUnavailable", ...
-                                  "OpenMebius2:ResultExport:EmptySelection", ...
-                                  "OpenMebius2:ResultExport:SelectionMismatch", ...
-                                  "OpenMebius2:ResultExport:OutputDirectoryUnavailable", ...
-                                  "OpenMebius2:ResultExport:OutputDirectoryNotFound", ...
-                                  "OpenMebius2:ResultExport:OutputDirectoryExists", ...
-                                  "OpenMebius2:ResultExport:CreateDirectoryFailed" ...
-                              }
-                        app.notifyError(string(ME.message));
-
-                    otherwise
-                        app.notifyException( ...
-                            ME, ...
-                            Title = "Result export failed", ...
-                            Alert = true);
-                end
-
+            if ~isOK
+                return
             end
+
+            app.ensureResultPresenter();
+            selectedRows = app.selectedTableRows(app.ResultSubTable);
+
+            if isempty(selectedRows)
+                app.renderResultOperationViewModel( ...
+                    app.ResultPresenter ...
+                    .presentExportSelectionRequired());
+                return
+            end
+
+            batchIDs = app.ResultSubTable.Data.ID;
+            selectedBatchIDs = string(batchIDs(selectedRows));
+            selectedBatchIDs = selectedBatchIDs(:);
+            batchNames = app.ResultSubTable.Data.Name;
+            selectedBatchNames = string(batchNames(selectedRows));
+            selectedBatchNames = selectedBatchNames(:);
+            outputLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(folder);
+            app.ensureResultOperationController();
+            outcome = app.ResultOperationController.exportResults( ...
+                app.result, ...
+                selectedBatchIDs, ...
+                selectedBatchNames, ...
+                outputLocation);
+            app.renderResultOperationViewModel( ...
+                app.ResultPresenter.presentExportOutcome(outcome));
 
         end
 
