@@ -194,6 +194,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         Presenter openmebius.presentation.main.MainPresenter
         BatchPresenter openmebius.presentation.batch.BatchPresenter
+        ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         ResultPresenter openmebius.presentation.result.ResultPresenter
         ResultPlotPresenter openmebius.presentation.result.ResultPlotPresenter
         DialogService openmebius.presentation.dialog.AppDialogService
@@ -209,7 +210,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ReportGenerationService openmebius.application.report.ReportGenerationService
         ExperimentImportService openmebius.application.experiment.ExperimentImportService
         RawMSImportService openmebius.application.experiment.RawMSImportService
-        ExperimentCalculationService openmebius.application.experiment.ExperimentCalculationService
+        ExperimentCalculationController openmebius.application.experiment.ExperimentCalculationController
         ExperimentEditService openmebius.application.experiment.ExperimentEditService
 
         LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
@@ -648,6 +649,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % renderBatchRunViewModel
+
+        function renderExperimentCalculationViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            app.updateStatus("experiment", viewModel.SectionStatus);
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+        end % renderExperimentCalculationViewModel
 
         function renderResultMainTable(app, viewModel)
 
@@ -2742,6 +2758,26 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % ensureBatchRunController
 
+        function ensureExperimentCalculationController(app)
+
+            if isempty(app.ExperimentCalculationController)
+                app.ExperimentCalculationController = ...
+                    openmebius.application.experiment ...
+                    .ExperimentCalculationController();
+            end
+
+        end % ensureExperimentCalculationController
+
+        function ensureExperimentPresenter(app)
+
+            if isempty(app.ExperimentPresenter)
+                app.ExperimentPresenter = ...
+                    openmebius.presentation.experiment ...
+                    .ExperimentPresenter();
+            end
+
+        end % ensureExperimentPresenter
+
         function ensureProgressBar(app)
 
             if isempty(app.ProgressBar) || ~isvalid(app.ProgressBar)
@@ -4335,8 +4371,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.report.ReportGenerationService();
             app.RawMSImportService = ...
                 openmebius.application.experiment.RawMSImportService();
-            app.ExperimentCalculationService = ...
-                openmebius.application.experiment.ExperimentCalculationService();
+            app.ExperimentCalculationController = ...
+                openmebius.application.experiment ...
+                .ExperimentCalculationController();
             app.ExperimentEditService = ...
                 openmebius.application.experiment.ExperimentEditService();
 
@@ -4347,6 +4384,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.BatchPresenter = ...
                 openmebius.presentation.batch.BatchPresenter();
+            app.ExperimentPresenter = ...
+                openmebius.presentation.experiment.ExperimentPresenter();
             app.ResultPresenter = ...
                 openmebius.presentation.result.ResultPresenter();
             app.ResultPlotPresenter = ...
@@ -4941,33 +4980,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ExpCalculationButtonPushed(app, event)
 
             cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+            app.ensureExperimentCalculationController();
+            app.ensureExperimentPresenter();
+            app.renderExperimentCalculationViewModel( ...
+                app.ExperimentPresenter.presentCalculationStarted());
 
-            try
-                app.updateStatus("experiment", "running");
-
-                result = app.ExperimentCalculationService.calculateMDV( ...
-                    app.model, ...
-                    app.exp, ...
-                    app.batch, ...
-                    app.ExpTable.Data, ...
-                    app.UptakeTable.Data, ...
-                    app.LabelTable.Data);
-
-                app.updateStatus("experiment", "finished");
-
-                for i = 1:numel(result.Messages)
-                    app.LogTextDate(result.Messages(i), "Info");
-                end
-
-                app.notifyInfo(result.Messages(end));
-
-            catch ME
-                app.updateStatus("experiment", "error");
-                app.notifyException( ...
-                    ME, ...
-                    Title = "MDV calculation failed", ...
-                    Alert = true);
-            end
+            outcome = app.ExperimentCalculationController.calculate( ...
+                app.model, ...
+                app.exp, ...
+                app.batch, ...
+                app.ExpTable.Data, ...
+                app.UptakeTable.Data, ...
+                app.LabelTable.Data);
+            app.renderExperimentCalculationViewModel( ...
+                app.ExperimentPresenter ...
+                .presentCalculationOutcome(outcome));
 
         end
 
