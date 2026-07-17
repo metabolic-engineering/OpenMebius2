@@ -210,7 +210,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ReportGenerationService openmebius.application.report.ReportGenerationService
         ExperimentImportController openmebius.application.experiment.ExperimentImportController
         ExperimentCalculationController openmebius.application.experiment.ExperimentCalculationController
-        ExperimentEditService openmebius.application.experiment.ExperimentEditService
+        ExperimentEditController openmebius.application.experiment.ExperimentEditController
 
         LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
         LegacyProjectInitializer openmebius.infrastructure.legacy.LegacyProjectInitializer
@@ -688,6 +688,29 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % renderExperimentImportViewModel
+
+        function renderExperimentEditViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            if ~isempty(viewModel.UpdatedTable)
+                app.LabelTable.Data = viewModel.UpdatedTable;
+            end
+
+            if viewModel.SectionStatus ~= ""
+                app.updateStatus( ...
+                    "experiment", ...
+                    viewModel.SectionStatus);
+            end
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+        end % renderExperimentEditViewModel
 
         function renderResultMainTable(app, viewModel)
 
@@ -2163,6 +2186,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method ensureExperimentImportController
+
+        function ensureExperimentEditController(app)
+
+            if isempty(app.ExperimentEditController)
+                app.ExperimentEditController = ...
+                    openmebius.application.experiment ...
+                    .ExperimentEditController();
+            end
+
+        end % method ensureExperimentEditController
 
         function ensureBatchLoadService(app)
 
@@ -4400,8 +4433,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ExperimentCalculationController = ...
                 openmebius.application.experiment ...
                 .ExperimentCalculationController();
-            app.ExperimentEditService = ...
-                openmebius.application.experiment.ExperimentEditService();
+            app.ExperimentEditController = ...
+                openmebius.application.experiment ...
+                .ExperimentEditController();
 
             app.LegacyProjectLoader = ...
                 openmebius.infrastructure.legacy.LegacyProjectLoader();
@@ -5083,31 +5117,22 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ExpSaveButton
-        function ExpSaveButtonPushed(app, event)
+        function ExpSaveButtonPushed(app, ~)
 
-            cleanupPresentation = app.beginPresentationOperation();
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+            app.ensureExperimentEditController();
+            app.ensureExperimentPresenter();
+            app.renderExperimentEditViewModel( ...
+                app.ExperimentPresenter.presentEditStarted());
 
-            try
-                updateStatus(app, "experiment", "running");
-
-                result = app.ExperimentEditService.saveInfo( ...
-                    app.model, ...
-                    app.exp, ...
-                    app.batch, ...
-                    app.ExpTable.Data);
-
-                for i = 1:numel(result.Messages)
-                    app.LogTextDate(result.Messages(i), "Info");
-                end
-
-                updateStatus(app, "experiment", "finished");
-            catch ME
-                updateStatus(app, "experiment", "error");
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Experiment save failed", ...
-                    Alert = true);
-            end
+            outcome = app.ExperimentEditController.saveInfo( ...
+                app.model, ...
+                app.exp, ...
+                app.batch, ...
+                app.ExpTable.Data);
+            app.renderExperimentEditViewModel( ...
+                app.ExperimentPresenter ...
+                .presentInfoSaveOutcome(outcome));
 
         end
 
@@ -5192,32 +5217,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: TracerSaveButton
-        function TracerSaveButtonPushed(app, event)
+        function TracerSaveButtonPushed(app, ~)
 
-            cleanupPresentation = app.beginPresentationOperation();
+            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+            app.ensureExperimentEditController();
+            app.ensureExperimentPresenter();
+            app.renderExperimentEditViewModel( ...
+                app.ExperimentPresenter.presentEditStarted());
 
-            try
-                updateStatus(app, "experiment", "running");
-
-                result = app.ExperimentEditService.saveTracer( ...
-                    app.model, ...
-                    app.exp, ...
-                    app.batch, ...
-                    app.UptakeTable.Data, ...
-                    app.LabelTable.Data);
-
-                for i = 1:numel(result.Messages)
-                    app.LogTextDate(result.Messages(i), "Info");
-                end
-
-                updateStatus(app, "experiment", "finished");
-            catch ME
-                updateStatus(app, "experiment", "error");
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Tracer save failed", ...
-                    Alert = true);
-            end
+            outcome = app.ExperimentEditController.saveTracer( ...
+                app.model, ...
+                app.exp, ...
+                app.batch, ...
+                app.UptakeTable.Data, ...
+                app.LabelTable.Data);
+            app.renderExperimentEditViewModel( ...
+                app.ExperimentPresenter ...
+                .presentTracerSaveOutcome(outcome));
 
         end
 
@@ -5723,37 +5739,30 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: CopythistracerforallentriesMenu
-        function CopythistracerforallentriesMenuSelected(app, event)
+        function CopythistracerforallentriesMenuSelected(app, ~)
 
             currentData = app.LabelTable.Data;
             selected = app.LabelTable.Selection;
+            app.ensureExperimentPresenter();
 
             if isempty(selected)
-                msg = "Please select a tracer to copy.";
-                LogTextDate(app, msg, "Warning");
+                app.renderExperimentEditViewModel( ...
+                    app.ExperimentPresenter ...
+                    .presentTracerCopySelectionRequired());
                 return
             end
 
-            try
-                result = app.ExperimentEditService.copyTracerToAllEntries( ...
-                    app.model, ...
-                    app.exp, ...
-                    app.batch, ...
-                    currentData, ...
-                    selected);
-
-                app.LabelTable.Data = result.UpdatedTable;
-
-                for i = 1:numel(result.Messages)
-                    app.LogTextDate(result.Messages(i), "Info");
-                end
-
-            catch ME
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Tracer copy failed", ...
-                    Alert = true);
-            end
+            app.ensureExperimentEditController();
+            outcome = app.ExperimentEditController ...
+                .copyTracerToAllEntries( ...
+                app.model, ...
+                app.exp, ...
+                app.batch, ...
+                currentData, ...
+                selected);
+            app.renderExperimentEditViewModel( ...
+                app.ExperimentPresenter ...
+                .presentTracerCopyOutcome(outcome));
 
         end
 

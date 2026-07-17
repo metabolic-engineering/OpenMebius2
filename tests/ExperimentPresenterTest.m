@@ -134,6 +134,80 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsExperimentEditStarted(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+
+            viewModel = presenter.presentEditStarted();
+
+            testCase.verifyEqual(viewModel.SectionStatus, "running");
+            testCase.verifyEmpty(viewModel.UpdatedTable);
+            testCase.verifyEmpty(viewModel.Notifications);
+
+        end
+
+        function presentsInfoSaveOutcome(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+            result = struct("Messages", ["Updated."; "Saved."]);
+            outcome = openmebius.application.experiment ...
+                .ExperimentEditOutcome( ...
+                    "finished", Result = result);
+
+            viewModel = presenter.presentInfoSaveOutcome(outcome);
+            messages = cellfun( ...
+                @(notification) notification.Message, ...
+                viewModel.Notifications);
+
+            testCase.verifyEqual(viewModel.SectionStatus, "finished");
+            testCase.verifyEqual(messages, ["Updated."; "Saved."]);
+
+        end
+
+        function presentsTracerCopyTable(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+            updatedTable = table( ...
+                ["12C1~1"; "12C1~1"], VariableNames = "Tracer");
+            result = struct( ...
+                "Messages", "Tracer copied.", ...
+                "UpdatedTable", updatedTable);
+            outcome = openmebius.application.experiment ...
+                .ExperimentEditOutcome( ...
+                    "finished", Result = result);
+
+            viewModel = presenter.presentTracerCopyOutcome(outcome);
+
+            testCase.verifyEqual(viewModel.SectionStatus, "");
+            testCase.verifyEqual( ...
+                viewModel.UpdatedTable, updatedTable);
+            testCase.verifyEqual( ...
+                viewModel.Notifications{1}.Message, ...
+                "Tracer copied.");
+
+        end
+
+        function presentsTracerSaveFailureAsAlert(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+            outcome = openmebius.application.experiment ...
+                .ExperimentEditOutcome( ...
+                    "error", ErrorMessage = "Save failed.");
+
+            viewModel = presenter.presentTracerSaveOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(viewModel.SectionStatus, "error");
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyEqual(notification.Title, "Tracer save failed");
+            testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
     end % methods (Test)
 
 end % classdef

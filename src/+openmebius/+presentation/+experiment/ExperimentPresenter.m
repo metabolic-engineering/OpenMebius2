@@ -95,6 +95,50 @@ classdef ExperimentPresenter
 
         end % presentRawMSImportOutcome
 
+        function viewModel = presentEditStarted(~)
+
+            viewModel = openmebius.presentation.experiment ...
+                .ExperimentEditViewModel( ...
+                    SectionStatus = "running");
+
+        end % presentEditStarted
+
+        function viewModel = presentInfoSaveOutcome(obj, outcome)
+
+            viewModel = obj.presentEditOutcome( ...
+                outcome, "Experiment save failed");
+
+        end % presentInfoSaveOutcome
+
+        function viewModel = presentTracerSaveOutcome(obj, outcome)
+
+            viewModel = obj.presentEditOutcome( ...
+                outcome, "Tracer save failed");
+
+        end % presentTracerSaveOutcome
+
+        function viewModel = presentTracerCopySelectionRequired(~)
+
+            notification = openmebius.presentation.notification ...
+                .Notification.warning( ...
+                    "Please select a tracer to copy.");
+            viewModel = openmebius.presentation.experiment ...
+                .ExperimentEditViewModel( ...
+                    Notifications = {notification});
+
+        end % presentTracerCopySelectionRequired
+
+        function viewModel = presentTracerCopyOutcome(obj, outcome)
+
+            viewModel = obj.presentEditOutcome( ...
+                outcome, ...
+                "Tracer copy failed", ...
+                SuccessStatus = "", ...
+                ErrorStatus = "", ...
+                IncludeUpdatedTable = true);
+
+        end % presentTracerCopyOutcome
+
     end % methods
 
     methods (Access = private)
@@ -144,6 +188,57 @@ classdef ExperimentPresenter
 
         end % presentImportOutcome
 
+        function viewModel = presentEditOutcome( ...
+                ~, outcome, errorTitle, options)
+
+            arguments
+                ~
+                outcome (1, 1) openmebius.application.experiment ...
+                    .ExperimentEditOutcome
+                errorTitle (1, 1) string
+                options.SuccessStatus (1, 1) string = "finished"
+                options.ErrorStatus (1, 1) string = "error"
+                options.IncludeUpdatedTable (1, 1) logical = false
+            end
+
+            updatedTable = table();
+
+            switch outcome.Status
+                case "finished"
+                    notifications = ...
+                        openmebius.presentation.experiment ...
+                        .ExperimentPresenter.editNotifications( ...
+                            outcome.Result);
+                    sectionStatus = options.SuccessStatus;
+
+                    if options.IncludeUpdatedTable
+                        updatedTable = outcome.Result.UpdatedTable;
+                    end
+
+                case "error"
+                    message = outcome.ErrorMessage;
+
+                    if message == ""
+                        message = errorTitle + ".";
+                    end
+
+                    notifications = { ...
+                        openmebius.presentation.notification ...
+                        .Notification.error( ...
+                            message, ...
+                            Title = errorTitle, ...
+                            ShowAlert = true)};
+                    sectionStatus = options.ErrorStatus;
+            end
+
+            viewModel = openmebius.presentation.experiment ...
+                .ExperimentEditViewModel( ...
+                    SectionStatus = sectionStatus, ...
+                    UpdatedTable = updatedTable, ...
+                    Notifications = notifications);
+
+        end % presentEditOutcome
+
     end % methods (Access = private)
 
     methods (Static, Access = private)
@@ -181,6 +276,25 @@ classdef ExperimentPresenter
             end
 
         end % importNotifications
+
+        function notifications = editNotifications(result)
+
+            messages = string(result.Messages);
+            messages = messages(:);
+
+            if isempty(messages)
+                messages = "Experiment data updated.";
+            end
+
+            notifications = cell(numel(messages), 1);
+
+            for messageIndex = 1:numel(messages)
+                notifications{messageIndex} = ...
+                    openmebius.presentation.notification ...
+                    .Notification.info(messages(messageIndex));
+            end
+
+        end % editNotifications
 
     end % methods (Static, Access = private)
 
