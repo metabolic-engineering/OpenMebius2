@@ -193,6 +193,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
     properties (Access = private)
 
+        AppDependencies openmebius.bootstrap.MainAppDependencies
         Presenter openmebius.presentation.main.MainPresenter
         ProjectPresenter openmebius.presentation.project.ProjectPresenter
         ModelPresenter openmebius.presentation.model.ModelPresenter
@@ -469,6 +470,52 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     methods (Access = private)
 
         %% Private presentation adapter functions
+        function applyApplicationDependencies(app, dependencies)
+
+            arguments
+                app
+                dependencies (1, 1) openmebius.bootstrap ...
+                    .MainAppDependencies
+            end
+
+            app.AppDependencies = dependencies;
+            app.Presenter = dependencies.MainPresenter;
+            app.ProjectPresenter = dependencies.ProjectPresenter;
+            app.ModelPresenter = dependencies.ModelPresenter;
+            app.LabelConfigPresenter = dependencies.LabelConfigPresenter;
+            app.BatchPresenter = dependencies.BatchPresenter;
+            app.RunConfigPresenter = dependencies.RunConfigPresenter;
+            app.BatchExperimentSelectionEditorPresenter = ...
+                dependencies.BatchExperimentSelectionEditorPresenter;
+            app.ExperimentPresenter = dependencies.ExperimentPresenter;
+            app.ResultPresenter = dependencies.ResultPresenter;
+            app.ResultPlotPresenter = dependencies.ResultPlotPresenter;
+            app.ProjectOperationController = ...
+                dependencies.ProjectOperationController;
+            app.ModelOperationController = ...
+                dependencies.ModelOperationController;
+            app.LabelConfigurationLaunchController = ...
+                dependencies.LabelConfigurationLaunchController;
+            app.BatchOperationController = ...
+                dependencies.BatchOperationController;
+            app.BatchConfigurationController = ...
+                dependencies.BatchConfigurationController;
+            app.BatchConfigurationLaunchController = ...
+                dependencies.BatchConfigurationLaunchController;
+            app.BatchExperimentSelectionEditorController = ...
+                dependencies.BatchExperimentSelectionEditorController;
+            app.BatchRunController = dependencies.BatchRunController;
+            app.ResultOperationController = ...
+                dependencies.ResultOperationController;
+            app.ExperimentImportController = ...
+                dependencies.ExperimentImportController;
+            app.ExperimentCalculationController = ...
+                dependencies.ExperimentCalculationController;
+            app.ExperimentEditController = ...
+                dependencies.ExperimentEditController;
+
+        end % applyApplicationDependencies
+
         function renderMainViewModel(app, viewModel)
             % RENDERMAINVIEWMODEL Render the main view model
             % renderMainViewModel(app, viewModel)
@@ -1657,10 +1704,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function initializePresentation(app)
 
-            if isempty(app.Presenter)
-                app.Presenter = ...
-                    openmebius.presentation.main.MainPresenter();
-            end
+            app.requireApplicationDependency( ...
+                app.Presenter, "MainPresenter");
 
             app.refreshPresentation();
 
@@ -1723,10 +1768,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function resetPresentation(app)
 
-            if isempty(app.Presenter)
-                app.Presenter = ...
-                    openmebius.presentation.main.MainPresenter();
-            end
+            app.requireApplicationDependency( ...
+                app.Presenter, "MainPresenter");
 
             context = app.capturePresentationContext();
 
@@ -2638,70 +2681,77 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureDialogService
 
+        function requireApplicationDependency(~, dependency, name)
+
+            arguments
+                ~
+                dependency
+                name (1, 1) string
+            end
+
+            isInvalidHandle = isa(dependency, "handle") && ...
+                ~isvalid(dependency);
+
+            if isempty(dependency) || isInvalidHandle
+                error( ...
+                    "OpenMebius2:Composition:MissingDependency", ...
+                    "%s was not provided by MainAppCompositionRoot.", ...
+                    name);
+            end
+
+        end % requireApplicationDependency
+
         function ensureProjectOperationController(app)
 
-            if isempty(app.ProjectOperationController)
-                app.ProjectOperationController = ...
-                    openmebius.application.project ...
-                    .ProjectOperationController();
-            end
+            app.requireApplicationDependency( ...
+                app.ProjectOperationController, ...
+                "ProjectOperationController");
 
         end % ensureProjectOperationController
 
         function ensureProjectPresenter(app)
 
-            if isempty(app.ProjectPresenter)
-                app.ProjectPresenter = ...
-                    openmebius.presentation.project.ProjectPresenter();
-            end
+            app.requireApplicationDependency( ...
+                app.ProjectPresenter, "ProjectPresenter");
 
         end % ensureProjectPresenter
 
         function ensureModelOperationController(app)
 
-            if isempty(app.ModelOperationController)
-                app.ModelOperationController = ...
-                    openmebius.application.model.ModelOperationController();
-            end
+            app.requireApplicationDependency( ...
+                app.ModelOperationController, ...
+                "ModelOperationController");
 
         end % ensureModelOperationController
 
         function ensureModelPresenter(app)
 
-            if isempty(app.ModelPresenter)
-                app.ModelPresenter = ...
-                    openmebius.presentation.model.ModelPresenter();
-            end
+            app.requireApplicationDependency( ...
+                app.ModelPresenter, "ModelPresenter");
 
         end % ensureModelPresenter
 
         function ensureExperimentImportController(app)
 
-            if isempty(app.ExperimentImportController)
-                app.ExperimentImportController = ...
-                    openmebius.application.experiment ...
-                    .ExperimentImportController();
-            end
+            app.requireApplicationDependency( ...
+                app.ExperimentImportController, ...
+                "ExperimentImportController");
 
         end % method ensureExperimentImportController
 
         function ensureExperimentEditController(app)
 
-            if isempty(app.ExperimentEditController)
-                app.ExperimentEditController = ...
-                    openmebius.application.experiment ...
-                    .ExperimentEditController();
-            end
+            app.requireApplicationDependency( ...
+                app.ExperimentEditController, ...
+                "ExperimentEditController");
 
         end % method ensureExperimentEditController
 
         function ensureResultOperationController(app)
 
-            if isempty(app.ResultOperationController)
-                app.ResultOperationController = ...
-                    openmebius.application.result ...
-                    .ResultOperationController();
-            end
+            app.requireApplicationDependency( ...
+                app.ResultOperationController, ...
+                "ResultOperationController");
 
         end % method ensureResultOperationController
 
@@ -3621,49 +3671,38 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function ensureBatchPresenter(app)
 
-            if isempty(app.BatchPresenter)
-                app.BatchPresenter = ...
-                    openmebius.presentation.batch.BatchPresenter();
-            end
+            app.requireApplicationDependency( ...
+                app.BatchPresenter, "BatchPresenter");
 
         end % method ensureBatchPresenter
 
         function ensureBatchOperationController(app)
 
-            if isempty(app.BatchOperationController)
-                app.BatchOperationController = ...
-                    openmebius.application.batch ...
-                    .BatchOperationController();
-            end
+            app.requireApplicationDependency( ...
+                app.BatchOperationController, ...
+                "BatchOperationController");
 
         end % ensureBatchOperationController
 
         function ensureBatchRunController(app)
 
-            if isempty(app.BatchRunController)
-                app.BatchRunController = ...
-                    openmebius.application.batch.BatchRunController();
-            end
+            app.requireApplicationDependency( ...
+                app.BatchRunController, "BatchRunController");
 
         end % ensureBatchRunController
 
         function ensureExperimentCalculationController(app)
 
-            if isempty(app.ExperimentCalculationController)
-                app.ExperimentCalculationController = ...
-                    openmebius.application.experiment ...
-                    .ExperimentCalculationController();
-            end
+            app.requireApplicationDependency( ...
+                app.ExperimentCalculationController, ...
+                "ExperimentCalculationController");
 
         end % ensureExperimentCalculationController
 
         function ensureExperimentPresenter(app)
 
-            if isempty(app.ExperimentPresenter)
-                app.ExperimentPresenter = ...
-                    openmebius.presentation.experiment ...
-                    .ExperimentPresenter();
-            end
+            app.requireApplicationDependency( ...
+                app.ExperimentPresenter, "ExperimentPresenter");
 
         end % ensureExperimentPresenter
 
@@ -3677,19 +3716,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function ensureResultPresenter(app)
 
-            if isempty(app.ResultPresenter)
-                app.ResultPresenter = ...
-                    openmebius.presentation.result.ResultPresenter();
-            end
+            app.requireApplicationDependency( ...
+                app.ResultPresenter, "ResultPresenter");
 
         end % method ensureResultPresenter
 
         function ensureResultPlotPresenter(app)
 
-            if isempty(app.ResultPlotPresenter)
-                app.ResultPlotPresenter = ...
-                    openmebius.presentation.result.ResultPlotPresenter();
-            end
+            app.requireApplicationDependency( ...
+                app.ResultPlotPresenter, "ResultPlotPresenter");
 
         end % method ensureResultPlotPresenter
 
@@ -5065,60 +5100,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.presentation.dialog.AppDialogService( ...
                 app.OpenMebius2UIFigure);
 
-            app.ProjectOperationController = ...
-                openmebius.application.project ...
-                .ProjectOperationController();
-
-            app.ModelOperationController = ...
-                openmebius.application.model.ModelOperationController();
-            app.LabelConfigurationLaunchController = ...
-                openmebius.application.model ...
-                .LabelConfigurationLaunchController();
-            app.BatchOperationController = ...
-                openmebius.application.batch.BatchOperationController();
-            app.BatchConfigurationController = ...
-                openmebius.application.batch ...
-                .BatchConfigurationController();
-            app.BatchConfigurationLaunchController = ...
-                openmebius.application.batch ...
-                .BatchConfigurationLaunchController();
-            app.BatchExperimentSelectionEditorController = ...
-                openmebius.application.batch ...
-                .BatchExperimentSelectionEditorController();
-            app.ExperimentImportController = ...
-                openmebius.application.experiment ...
-                .ExperimentImportController();
-            app.BatchRunController = ...
-                openmebius.application.batch.BatchRunController();
-            app.ResultOperationController = ...
-                openmebius.application.result ...
-                .ResultOperationController();
-            app.ExperimentCalculationController = ...
-                openmebius.application.experiment ...
-                .ExperimentCalculationController();
-            app.ExperimentEditController = ...
-                openmebius.application.experiment ...
-                .ExperimentEditController();
-
-            app.ProjectPresenter = ...
-                openmebius.presentation.project.ProjectPresenter();
-            app.ModelPresenter = ...
-                openmebius.presentation.model.ModelPresenter();
-            app.LabelConfigPresenter = ...
-                openmebius.presentation.model.LabelConfigPresenter();
-            app.BatchPresenter = ...
-                openmebius.presentation.batch.BatchPresenter();
-            app.RunConfigPresenter = ...
-                openmebius.presentation.batch.RunConfigPresenter();
-            app.BatchExperimentSelectionEditorPresenter = ...
-                openmebius.presentation.batch ...
-                .BatchExperimentSelectionEditorPresenter();
-            app.ExperimentPresenter = ...
-                openmebius.presentation.experiment.ExperimentPresenter();
-            app.ResultPresenter = ...
-                openmebius.presentation.result.ResultPresenter();
-            app.ResultPlotPresenter = ...
-                openmebius.presentation.result.ResultPlotPresenter();
+            dependencies = openmebius.bootstrap ...
+                .MainAppCompositionRoot.create();
+            app.applyApplicationDependencies(dependencies);
 
             app.SlackNotifier = ...
                 openmebius.infrastructure.notification.SlackWebhookNotifier();
