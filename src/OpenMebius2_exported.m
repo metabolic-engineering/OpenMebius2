@@ -203,6 +203,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProjectOperationController openmebius.application.project.ProjectOperationController
         ProjectSession openmebius.domain.project.ProjectSession
         ModelOperationController openmebius.application.model.ModelOperationController
+        BatchOperationController openmebius.application.batch.BatchOperationController
         BatchRunController openmebius.application.batch.BatchRunController
         ResultOperationController openmebius.application.result.ResultOperationController
         ExperimentImportController openmebius.application.experiment.ExperimentImportController
@@ -769,6 +770,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.applyBatchStyleRules(viewModel.StyleRules);
 
         end % method renderBatchTable
+
+        function renderBatchOperationViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            if ~isempty(viewModel.TableViewModel)
+                app.renderBatchTable(viewModel.TableViewModel);
+                app.refreshPresentation();
+            end
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+        end % renderBatchOperationViewModel
 
         function renderBatchProgress(app, viewModel)
 
@@ -2882,6 +2901,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureBatchPresenter
 
+        function ensureBatchOperationController(app)
+
+            if isempty(app.BatchOperationController)
+                app.BatchOperationController = ...
+                    openmebius.application.batch ...
+                    .BatchOperationController();
+            end
+
+        end % ensureBatchOperationController
+
         function ensureBatchRunController(app)
 
             if isempty(app.BatchRunController)
@@ -2979,6 +3008,38 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method selectedTableRows
+
+        function removeSelectedBatches(app)
+
+            selectedRows = app.selectedTableRows(app.RunTable);
+
+            if isempty(selectedRows)
+                app.notifyWarning("Please select a batch to remove.");
+                return
+            end
+
+            batchIds = string(app.RunTable.Data.ID(selectedRows));
+            [answer, isOK] = app.uiConfirmWrap( ...
+                "Are you sure you want to remove the selected batch?", ...
+                "Remove Batch", ...
+                Options = ["Yes", "No"], ...
+                DefaultOption = "No", ...
+                CancelOption = "No", ...
+                Icon = "warning");
+
+            if ~isOK || answer ~= "Yes"
+                return
+            end
+
+            app.ensureBatchOperationController();
+            app.ensureBatchPresenter();
+            outcome = app.BatchOperationController.remove( ...
+                app.batch, batchIds);
+            app.renderBatchOperationViewModel( ...
+                app.BatchPresenter.presentRemoveOutcome( ...
+                    outcome, app.batch));
+
+        end % removeSelectedBatches
 
         function fluxCells = toFluxLabelCell(~, values)
 
@@ -4425,6 +4486,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.ModelOperationController = ...
                 openmebius.application.model.ModelOperationController();
+            app.BatchOperationController = ...
+                openmebius.application.batch.BatchOperationController();
             app.ExperimentImportController = ...
                 openmebius.application.experiment ...
                 .ExperimentImportController();
@@ -5134,16 +5197,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: RunAutoButton
-        function RunAutoButtonPushed(app, event)
+        function RunAutoButtonPushed(app, ~)
 
-            app.batch.autoFillBatch();
-            updateBatchTable(app);
-
-            msg = openmebius.infrastructure.logging.Logger ...
-                .formatDatedMessage( ...
-                "Batch table has been automatically filled.", ...
-            "Info");
-            app.LogText(msg);
+            app.ensureBatchOperationController();
+            app.ensureBatchPresenter();
+            outcome = app.BatchOperationController.autoFill(app.batch);
+            app.renderBatchOperationViewModel( ...
+                app.BatchPresenter.presentAutoFillOutcome( ...
+                    outcome, app.batch));
         end
 
         % Button pushed function: RunConfigButton
@@ -5168,27 +5229,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: RunReloadButton
-        function RunReloadButtonPushed(app, event)
+        function RunReloadButtonPushed(app, ~)
 
-            updateBatchTable(app);
-            msg = openmebius.infrastructure.logging.Logger ...
-                .formatDatedMessage("Batch table reloaded", "Info");
-            app.LogText(msg);
+            app.ensureBatchPresenter();
+            app.renderBatchOperationViewModel( ...
+                app.BatchPresenter.presentReloaded(app.batch));
         end
 
         % Button pushed function: RunSaveButton
-        function RunSaveButtonPushed(app, event)
+        function RunSaveButtonPushed(app, ~)
 
-            app.batch.updateBatchFromGUI(app.RunTable.Data);
-            updateBatchTable(app);
-
-            app.batch.saveBatchFile()
-
-            msg = openmebius.infrastructure.logging.Logger ...
-                .formatDatedMessage( ...
-                "Batch table has been saved.", ...
-            "Info");
-            app.LogText(msg);
+            app.ensureBatchOperationController();
+            app.ensureBatchPresenter();
+            outcome = app.BatchOperationController.save( ...
+                app.batch, app.RunTable.Data);
+            app.renderBatchOperationViewModel( ...
+                app.BatchPresenter.presentSaveOutcome( ...
+                    outcome, app.batch));
         end
 
         % Button pushed function: RunRunButton
@@ -5235,41 +5292,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: RemovethisbatchMenu
-        function RunRemovethisbatchMenuSelected(app, event)
+        function RunRemovethisbatchMenuSelected(app, ~)
 
-            selectedRows = app.RunTable.Selection;
-
-            if isempty(selectedRows)
-                msg = "Please select a batch to remove.";
-                LogTextDate(app, msg, "Warning");
-                return
-            end % if
-
-            selectedRows = selectedRows(:, 1); % Get the first column (row indices)
-            selectedRows = unique(selectedRows); % Ensure unique selection
-            batchIDs = app.RunTable.Data.ID(selectedRows);
-
-            [answer, isOK] = app.uiConfirmWrap( ...
-                "Are you sure you want to remove the selected batch?", ...
-                "Remove Batch", ...
-                Options = ["Yes", "No"], ...
-                DefaultOption = "No", ...
-                CancelOption = "No", ...
-                Icon = "warning");
-
-            if isOK && answer == "Yes"
-
-                for i = 1:length(batchIDs)
-                    batchID = batchIDs(i);
-                    app.batch.removeBatch(batchID);
-                end % for i
-
-                updateBatchTable(app);
-
-                msg = "Selected batch has been removed.";
-                LogTextDate(app, msg, "Info");
-
-            end % if
+            app.removeSelectedBatches();
 
         end
 
@@ -5281,44 +5306,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Key press function: RunTable
         function RunKeyPress(app, event)
 
-            key = event.Key;
-
-            % If delete key is pressed
-            isDelete = strcmp(key, 'delete');
-
-            if isDelete
-
-                % Get selected rows
-                selectedRows = app.RunTable.Selection;
-
-                if isempty(selectedRows)
-                    return
-                end % if
-
-                selectedRows = selectedRows(:, 1); % Get the first column (row indices)
-                selectedRows = unique(selectedRows); % Ensure unique selection
-                batchIDs = app.RunTable.Data.ID(selectedRows);
-
-                % Confirm deletion
-                answer = uiconfirm(app.OpenMebius2UIFigure, ...
-                    "Are you sure you want to delete the selected batch?", ...
-                    "Delete Batch", ...
-                    'Options', {'Yes', 'No'}, ...
-                    'DefaultOption', 'No', ...
-                    'CancelOption', 'No');
-
-                if strcmp(answer, 'Yes')
-
-                    for i = 1:length(batchIDs)
-                        batchID = batchIDs(i);
-                        app.batch.removeBatch(batchID);
-                    end % for i
-
-                    updateBatchTable(app);
-
-                end % if
-
-            end % if isDelete
+            if strcmp(event.Key, 'delete')
+                app.removeSelectedBatches();
+            end
 
         end
 
