@@ -2,6 +2,7 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
 
     events
         Applied
+        Closed
     end
 
     % Properties that correspond to app components
@@ -121,6 +122,7 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
         % Close request function: AddbatchUIFigure
         function AddbatchUIFigureCloseRequest(app, event)
             uiresume(app.AddbatchUIFigure);
+            notify(app, "Closed");
             delete(app);
         end
 

@@ -2874,11 +2874,18 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function attachRunAddBatchListeners(app, runAddBatchApp)
 
             app.detachRunAddBatchListeners();
-            app.RunAddBatchListeners = addlistener( ...
+            listeners = event.listener.empty(0, 1);
+            listeners(end + 1, 1) = addlistener( ...
                 runAddBatchApp, ...
                 "Applied", ...
                 @(source, event) ...
                     app.onBatchExperimentSelectionApplied(source, event));
+            listeners(end + 1, 1) = addlistener( ...
+                runAddBatchApp, ...
+                "Closed", ...
+                @(source, event) ...
+                    app.onRunAddBatchClosed(source, event));
+            app.RunAddBatchListeners = listeners;
 
         end % attachRunAddBatchListeners
 
@@ -2917,6 +2924,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     outcome, app.batch));
 
         end % onBatchExperimentSelectionApplied
+
+        function onRunAddBatchClosed(app, ~, ~)
+
+            app.RunAddBatchApp = [];
+
+        end % onRunAddBatchClosed
 
         function onRunConfigurationApplied(app, ~, ~)
 
@@ -5621,10 +5634,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             editor = presenter.presentEditor(session);
             controller = openmebius.application.batch ...
                 .BatchConfigurationController();
+            app.ensureExperimentEditController();
+            app.ensureExperimentPresenter();
 
             app.detachRunConfigListeners();
             app.RunConfigApp = RunConfig( ...
-                session, presenter, editor, controller);
+                session, presenter, editor, controller, ...
+                app.ExperimentEditController, ...
+                app.ExperimentPresenter);
             app.attachRunConfigListeners(app.RunConfigApp);
 
             for notificationIndex = 1:numel(editor.Notifications)

@@ -69,6 +69,53 @@ classdef BatchConfigurationControllerTest < matlab.unittest.TestCase
 
         end
 
+        function preparesInstMfaExperimentSelectionEditor(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            experiments = helpers.MSViewExperimentsStub();
+            session = openmebius.application.batch ...
+                .BatchConfigurationSession( ...
+                    batch, experiments, "batch-a");
+            controller = openmebius.application.batch ...
+                .BatchConfigurationController();
+
+            outcome = controller ...
+                .prepareINSTMFAExperimentSelection(session);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyClass( ...
+                outcome.Result, ...
+                ['openmebius.application.batch.' ...
+                 'BatchExperimentSelectionEditorRequest']);
+            testCase.verifyEqual( ...
+                outcome.Result.ExperimentNames, ...
+                ["Experiment A"; "Experiment B"]);
+            testCase.verifyEqual(outcome.Result.Mode, "inst-mfa");
+            testCase.verifyEqual(outcome.Result.BatchId, "batch-a");
+
+        end
+
+        function rejectsInstMfaEditorForMultipleBatches(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            experiments = helpers.MSViewExperimentsStub();
+            session = openmebius.application.batch ...
+                .BatchConfigurationSession( ...
+                    batch, experiments, ["batch-a"; "batch-b"]);
+            controller = openmebius.application.batch ...
+                .BatchConfigurationController();
+
+            outcome = controller ...
+                .prepareINSTMFAExperimentSelection(session);
+
+            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyEqual( ...
+                string(outcome.Exception.identifier), ...
+                "OpenMebius2:BatchConfigurationController:" + ...
+                "MultipleBatchesForINSTMFA");
+
+        end
+
     end % methods (Test)
 
     methods (Static, Access = private)

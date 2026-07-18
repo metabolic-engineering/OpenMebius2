@@ -127,7 +127,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         Presenter openmebius.presentation.batch.RunConfigPresenter
         Controller openmebius.application.batch.BatchConfigurationController
         RunAddBatchApp
-        RunAddBatchListener event.listener = event.listener.empty(0, 1)
+        RunAddBatchListeners event.listener = event.listener.empty(0, 1)
         TracerConfigApp
         TracerConfigListeners event.listener = event.listener.empty(0, 1)
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
@@ -356,23 +356,22 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function editTimeCourse(app)
             % EDITTIMECOURSE Edit the time course table for INST-MFA
 
-            batchIDs = app.Session.BatchIds;
+            outcome = app.Controller ...
+                .prepareINSTMFAExperimentSelection(app.Session);
+            viewModel = app.Presenter ...
+                .presentExperimentSelectionEditorOutcome(outcome);
+            app.requestNotifications(viewModel.Notifications);
 
-            if length(batchIDs) ~= 1
+            if ~viewModel.IsAvailable
                 return;
             end
 
-            app.detachRunAddBatchListener();
-            experimentNames = app.Session.experimentNames();
+            app.detachRunAddBatchListeners();
             app.RunAddBatchApp = RunAddBatch( ...
-                experimentNames, ...
-                "inst-mfa", ...
-                batchIDs(1));
-            app.RunAddBatchListener = addlistener( ...
-                app.RunAddBatchApp, ...
-                "Applied", ...
-                @(source, event) ...
-                    app.forwardBatchExperimentSelection(source, event));
+                viewModel.ExperimentNames, ...
+                viewModel.Mode, ...
+                viewModel.BatchId);
+            app.attachRunAddBatchListeners(app.RunAddBatchApp);
 
         end % editTimeCourse
 
@@ -387,42 +386,48 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % forwardBatchExperimentSelection
 
-        function detachRunAddBatchListener(app)
+        function attachRunAddBatchListeners(app, runAddBatchApp)
 
-            if isempty(app.RunAddBatchListener)
+            app.detachRunAddBatchListeners();
+            listeners = event.listener.empty(0, 1);
+            listeners(end + 1, 1) = addlistener( ...
+                runAddBatchApp, ...
+                "Applied", ...
+                @(source, event) ...
+                    app.forwardBatchExperimentSelection(source, event));
+            listeners(end + 1, 1) = addlistener( ...
+                runAddBatchApp, ...
+                "Closed", ...
+                @(source, event) ...
+                    app.onRunAddBatchClosed(source, event));
+            app.RunAddBatchListeners = listeners;
+
+        end % attachRunAddBatchListeners
+
+        function onRunAddBatchClosed(app, ~, ~)
+
+            app.RunAddBatchApp = [];
+
+        end % onRunAddBatchClosed
+
+        function detachRunAddBatchListeners(app)
+
+            if isempty(app.RunAddBatchListeners)
                 return
             end
 
-            try
-                if isvalid(app.RunAddBatchListener)
-                    delete(app.RunAddBatchListener);
+            for listenerIndex = 1:numel(app.RunAddBatchListeners)
+                try
+                    if isvalid(app.RunAddBatchListeners(listenerIndex))
+                        delete(app.RunAddBatchListeners(listenerIndex));
+                    end
+                catch
                 end
-            catch
             end
 
-            app.RunAddBatchListener = event.listener.empty(0, 1);
+            app.RunAddBatchListeners = event.listener.empty(0, 1);
 
-        end % detachRunAddBatchListener
-
-        function ensureExperimentEditController(app)
-
-            if isempty(app.ExperimentEditController)
-                app.ExperimentEditController = ...
-                    openmebius.application.experiment ...
-                    .ExperimentEditController();
-            end
-
-        end % ensureExperimentEditController
-
-        function ensureExperimentPresenter(app)
-
-            if isempty(app.ExperimentPresenter)
-                app.ExperimentPresenter = ...
-                    openmebius.presentation.experiment ...
-                    .ExperimentPresenter();
-            end
-
-        end % ensureExperimentPresenter
+        end % detachRunAddBatchListeners
 
         function attachTracerConfigListeners(app, tracerConfigApp)
 
@@ -459,10 +464,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function openTracerConfiguration(app, position)
 
-            app.ensureExperimentEditController();
-            app.ensureExperimentPresenter();
-            outcome = app.Session.loadTracerConfiguration( ...
-                app.ExperimentEditController, position);
+            outcome = app.Controller.loadTracerConfiguration( ...
+                app.Session, app.ExperimentEditController, position);
             viewModel = app.ExperimentPresenter ...
                 .presentTracerConfigurationLoadOutcome(outcome);
             app.renderTracerConfigurationViewModel(viewModel);
@@ -480,11 +483,10 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function onTracerConfigurationApplied(app, ~, event)
 
-            app.ensureExperimentEditController();
-            app.ensureExperimentPresenter();
-            outcome = app.ExperimentEditController ...
-                .applyTracerConfiguration( ...
-                    event.Position, event.EditorTable);
+            outcome = app.Controller.applyTracerConfiguration( ...
+                app.ExperimentEditController, ...
+                event.Position, ...
+                event.EditorTable);
             viewModel = app.ExperimentPresenter ...
                 .presentTracerConfigurationApplyOutcome(outcome);
             app.renderTracerConfigurationViewModel(viewModel);
@@ -677,11 +679,15 @@ classdef RunConfig_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, session, presenter, editor, controller)
+        function startupFcn( ...
+                app, session, presenter, editor, controller, ...
+                experimentController, experimentPresenter)
 
             app.Session = session;
             app.Presenter = presenter;
             app.Controller = controller;
+            app.ExperimentEditController = experimentController;
+            app.ExperimentPresenter = experimentPresenter;
             app.renderRunConfigViewModel(editor.Config)
             app.MSFragmentTableMetadata = ...
                 editor.MSFragmentTable.Metadata;
@@ -1739,7 +1745,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Code that executes before app deletion
         function delete(app)
 
-            app.detachRunAddBatchListener();
+            app.detachRunAddBatchListeners();
             app.detachTracerConfigListeners();
 
             if ~isempty(app.RunAddBatchApp)

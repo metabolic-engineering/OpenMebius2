@@ -2,7 +2,7 @@ classdef BatchExperimentSelectionEventData < event.EventData
     % BATCHEXPERIMENTSELECTIONEVENTDATA Carries a typed batch selection.
 
     properties (SetAccess = private)
-        Selection (1, 1) openmebius.domain.batch.BatchExperimentSelection
+        Selection
     end
 
     methods

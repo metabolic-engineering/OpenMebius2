@@ -47,6 +47,74 @@ classdef BatchConfigurationController < handle
 
         end % apply
 
+        function outcome = prepareINSTMFAExperimentSelection(~, session)
+
+            arguments
+                ~
+                session (1, 1) openmebius.application.batch ...
+                    .BatchConfigurationSession
+            end
+
+            try
+                if ~session.isSingleBatch()
+                    error( ...
+                        "OpenMebius2:BatchConfigurationController:" + ...
+                        "MultipleBatchesForINSTMFA", ...
+                        "INST-MFA experiments can only be edited for " + ...
+                        "a single batch.");
+                end
+
+                request = openmebius.application.batch ...
+                    .BatchExperimentSelectionEditorRequest( ...
+                        session.experimentNames(), ...
+                        "inst-mfa", ...
+                        session.BatchIds(1));
+                outcome = openmebius.application.batch ...
+                    .BatchConfigurationChildOutcome( ...
+                        "finished", Result = request);
+            catch exception
+                outcome = openmebius.application.batch ...
+                    .BatchConfigurationChildOutcome( ...
+                        "error", ...
+                        ErrorMessage = string(exception.message), ...
+                        Exception = exception);
+            end
+
+        end % prepareINSTMFAExperimentSelection
+
+        function outcome = loadTracerConfiguration( ...
+                ~, session, experimentController, position)
+
+            arguments
+                ~
+                session (1, 1) openmebius.application.batch ...
+                    .BatchConfigurationSession
+                experimentController (1, 1) openmebius.application ...
+                    .experiment.ExperimentEditController
+                position (1, 2) double
+            end
+
+            outcome = session.loadTracerConfiguration( ...
+                experimentController, position);
+
+        end % loadTracerConfiguration
+
+        function outcome = applyTracerConfiguration( ...
+                ~, experimentController, position, editorTable)
+
+            arguments
+                ~
+                experimentController (1, 1) openmebius.application ...
+                    .experiment.ExperimentEditController
+                position (1, 2) double
+                editorTable table
+            end
+
+            outcome = experimentController.applyTracerConfiguration( ...
+                position, editorTable);
+
+        end % applyTracerConfiguration
+
     end % methods
 
 end % classdef
