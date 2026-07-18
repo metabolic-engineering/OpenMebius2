@@ -3,6 +3,7 @@ classdef ResultOperationViewModel
 
     properties (SetAccess = private)
         Report = []
+        Suggestion = []
         Notifications (:, 1) cell
     end
 
@@ -12,10 +13,12 @@ classdef ResultOperationViewModel
 
             arguments
                 options.Report = []
+                options.Suggestion = []
                 options.Notifications (:, 1) cell = cell(0, 1)
             end
 
             obj.Report = options.Report;
+            obj.Suggestion = options.Suggestion;
             obj.Notifications = options.Notifications;
 
         end % constructor

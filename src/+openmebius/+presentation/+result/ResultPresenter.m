@@ -212,6 +212,46 @@ classdef ResultPresenter < handle
 
         end % presentExportSelectionRequired
 
+        function viewModel = presentSuggestionOutcome(obj, outcome)
+
+            arguments
+                obj
+                outcome (1, 1) openmebius.application.result ...
+                    .ResultOperationOutcome
+            end
+
+            if outcome.Status == "finished"
+                viewModel = openmebius.presentation.result ...
+                    .ResultOperationViewModel( ...
+                        Suggestion = outcome.Result.Suggestion);
+                return
+            end
+
+            identifier = obj.outcomeIdentifier(outcome);
+            message = obj.outcomeMessage( ...
+                outcome, "Failed to load labeling suggestion.");
+            knownIdentifiers = [ ...
+                "OpenMebius2:ResultSuggestion:SelectionRequired"
+                "OpenMebius2:ResultSuggestion:NotAvailable"
+                "OpenMebius2:ResultSuggestion:ResultUnavailable"];
+
+            if any(identifier == knownIdentifiers)
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning(message);
+            else
+                notification = openmebius.presentation.notification ...
+                    .Notification.error( ...
+                        message, ...
+                        Title = "Suggestion load failed", ...
+                        ShowAlert = true);
+            end
+
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                    Notifications = {notification});
+
+        end % presentSuggestionOutcome
+
     end
 
     methods (Access = private)

@@ -903,6 +903,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.report = viewModel.Report;
             end
 
+            if ~isempty(viewModel.Suggestion)
+                app.ViewSuggestionApp = ...
+                    ViewSuggestion(viewModel.Suggestion);
+            end
+
             for notificationIndex = 1:numel(viewModel.Notifications)
                 app.showNotification( ...
                     viewModel.Notifications{notificationIndex});
@@ -5566,32 +5571,28 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: ViewsuggestionMenu
-        function ViewsuggestionMenuSelected(app, event)
+        function ViewsuggestionMenuSelected(app, ~)
 
-            % Selected rows
-            selectedRows = app.ResultSubTable.Selection;
+            selectedRows = ...
+                app.selectedTableRows(app.ResultSubTable);
+            batchIDs = strings(0, 1);
+            batchNames = strings(0, 1);
 
-            if isempty(selectedRows) || size(selectedRows, 1) > 1
-                msg = "Please select one flux to view suggestions.";
-                LogTextDate(app, msg, "Warning");
-                return
+            if ~isempty(selectedRows)
+                batchIDs = string( ...
+                    app.ResultSubTable.Data.ID(selectedRows));
+                batchNames = string( ...
+                    app.ResultSubTable.Data.Name(selectedRows));
+                batchIDs = batchIDs(:);
+                batchNames = batchNames(:);
             end
 
-            [isExist, suggestion] = getNextLabelSuggestion( ...
-                app.result, ...
-                app.ResultSubTable.Data.ID{selectedRows(1)} ...
-            );
-
-            if ~isExist
-                msg = "No labeling suggestion available for the selected flux.";
-                LogTextDate(app, msg, "Warning");
-                return
-            end
-
-            suggestion.sampleName = app.ResultSubTable.Data.Name{selectedRows(1)};
-            suggestion.batchID = app.ResultSubTable.Data.ID{selectedRows(1)};
-
-            app.ViewSuggestionApp = ViewSuggestion(suggestion);
+            app.ensureResultOperationController();
+            app.ensureResultPresenter();
+            outcome = app.ResultOperationController.loadSuggestion( ...
+                app.result, batchIDs, batchNames);
+            app.renderResultOperationViewModel( ...
+                app.ResultPresenter.presentSuggestionOutcome(outcome));
         end
 
         % Menu selected function: CopythistracerforallentriesMenu

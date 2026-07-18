@@ -113,6 +113,67 @@ classdef ResultPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsResultSuggestion(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            suggestion = struct("Value", 1);
+            result = openmebius.application.result ...
+                .ResultSuggestionResult( ...
+                    Suggestion = suggestion, ...
+                    BatchID = "batch-1", ...
+                    BatchName = "First");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome("finished", Result = result);
+
+            viewModel = presenter.presentSuggestionOutcome(outcome);
+
+            testCase.verifyEqual(viewModel.Suggestion, suggestion);
+            testCase.verifyEmpty(viewModel.Notifications);
+
+        end
+
+        function presentsSuggestionSelectionErrorAsWarning(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:ResultSuggestion:SelectionRequired", ...
+                "Please select one result.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    "error", ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentSuggestionOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "warning");
+            testCase.verifyFalse(notification.ShowAlert);
+
+        end
+
+        function presentsUnexpectedSuggestionFailureAsAlert(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:Test:Unexpected", ...
+                "Unexpected failure.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    "error", ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentSuggestionOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyEqual( ...
+                notification.Title, "Suggestion load failed");
+            testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
     end % methods (Test)
 
 end % classdef

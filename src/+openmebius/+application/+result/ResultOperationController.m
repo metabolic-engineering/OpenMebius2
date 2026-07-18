@@ -4,6 +4,7 @@ classdef ResultOperationController < handle
     properties (Access = private)
         ResultExportService
         ReportGenerationService
+        ResultSuggestionService
     end
 
     methods
@@ -15,11 +16,15 @@ classdef ResultOperationController < handle
                     openmebius.application.result.ResultExportService()
                 options.ReportGenerationService = ...
                     openmebius.application.report.ReportGenerationService()
+                options.ResultSuggestionService = ...
+                    openmebius.application.result.ResultSuggestionService()
             end
 
             obj.ResultExportService = options.ResultExportService;
             obj.ReportGenerationService = ...
                 options.ReportGenerationService;
+            obj.ResultSuggestionService = ...
+                options.ResultSuggestionService;
 
         end % constructor
 
@@ -64,6 +69,22 @@ classdef ResultOperationController < handle
                     outputLocation));
 
         end % exportResults
+
+        function outcome = loadSuggestion( ...
+                obj, result, batchIDs, batchNames)
+
+            arguments
+                obj
+                result
+                batchIDs (:, 1) string
+                batchNames (:, 1) string
+            end
+
+            outcome = obj.execute( ...
+                @() obj.ResultSuggestionService.load( ...
+                    result, batchIDs, batchNames));
+
+        end % loadSuggestion
 
     end % methods
 
