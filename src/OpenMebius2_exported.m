@@ -193,14 +193,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     properties (Access = private)
 
         Presenter openmebius.presentation.main.MainPresenter
+        ProjectPresenter openmebius.presentation.project.ProjectPresenter
         BatchPresenter openmebius.presentation.batch.BatchPresenter
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         ResultPresenter openmebius.presentation.result.ResultPresenter
         ResultPlotPresenter openmebius.presentation.result.ResultPlotPresenter
         DialogService openmebius.presentation.dialog.AppDialogService
-        ProjectRepository openmebius.infrastructure.project.FileProjectRepository
-        OpenProjectUseCase openmebius.application.project.OpenProjectUseCase
-        CreateProjectUseCase openmebius.application.project.CreateProjectUseCase
+        ProjectOperationController openmebius.application.project.ProjectOperationController
         ProjectSession openmebius.domain.project.ProjectSession
         TemplateModelLoadService openmebius.application.model.TemplateModelLoadService
         BatchLoadService openmebius.application.batch.BatchLoadService
@@ -211,8 +210,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ExperimentCalculationController openmebius.application.experiment.ExperimentCalculationController
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
 
-        LegacyProjectLoader openmebius.infrastructure.legacy.LegacyProjectLoader
-        LegacyProjectInitializer openmebius.infrastructure.legacy.LegacyProjectInitializer
         LegacyListeners event.listener = event.listener.empty(0, 1)
 
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
@@ -505,6 +502,60 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             "MainViewModel must contain UiState.");
 
         end % method renderMainViewModel
+
+        function renderProjectOperationViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            if viewModel.ModelStatus ~= ""
+                app.updateStatus("model", viewModel.ModelStatus);
+            end
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+            if isempty(viewModel.Session)
+                return
+            end
+
+            try
+                app.applyProjectSession(viewModel.Session);
+                app.ensureProjectDirectoryItem( ...
+                    viewModel.Session.Paths.RootDirectory);
+
+                if ~isempty(viewModel.Artifacts)
+                    app.applyLegacyProjectArtifacts(viewModel.Artifacts);
+                end
+
+                switch viewModel.ArtifactMode
+                    case "open"
+                        app.renderLegacyProjectArtifacts();
+                        app.refreshPresentation();
+
+                    case "create"
+                        app.renderCreatedProjectArtifacts();
+                        app.refreshPresentation();
+                end
+            catch exception
+                app.updateStatus("model", "error");
+
+                if viewModel.ArtifactMode == "create"
+                    title = "Project create failed";
+                else
+                    title = "Project load failed";
+                end
+
+                app.notifyException( ...
+                    exception, ...
+                    Title = title, ...
+                    Alert = true);
+            end
+
+        end % renderProjectOperationViewModel
 
         function renderLegacyProjectArtifacts(app)
 
@@ -2154,35 +2205,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method ensureDialogService
 
-        function ensureProjectServices(app)
+        function ensureProjectOperationController(app)
 
-            if isempty(app.ProjectRepository)
-                app.ProjectRepository = ...
-                    openmebius.infrastructure.project.FileProjectRepository();
+            if isempty(app.ProjectOperationController)
+                app.ProjectOperationController = ...
+                    openmebius.application.project ...
+                    .ProjectOperationController();
             end
 
-            if isempty(app.OpenProjectUseCase)
-                app.OpenProjectUseCase = ...
-                    openmebius.application.project.OpenProjectUseCase( ...
-                    app.ProjectRepository);
+        end % ensureProjectOperationController
+
+        function ensureProjectPresenter(app)
+
+            if isempty(app.ProjectPresenter)
+                app.ProjectPresenter = ...
+                    openmebius.presentation.project.ProjectPresenter();
             end
 
-            if isempty(app.CreateProjectUseCase)
-                app.CreateProjectUseCase = ...
-                    openmebius.application.project.CreateProjectUseCase( ...
-                    app.ProjectRepository);
-            end
-
-        end % method ensureProjectServices
-
-        function ensureLegacyProjectInitializer(app)
-
-            if isempty(app.LegacyProjectInitializer)
-                app.LegacyProjectInitializer = ...
-                    openmebius.infrastructure.legacy.LegacyProjectInitializer();
-            end
-
-        end % method ensureLegacyProjectInitializer
+        end % ensureProjectPresenter
 
         function ensureTemplateModelLoadService(app)
 
@@ -2450,6 +2490,18 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 session.Paths.ResultDirectory;
 
         end % method applyProjectSession
+
+        function ensureProjectDirectoryItem(app, projectDirectory)
+
+            projectDirectory = string(projectDirectory);
+            items = string(app.ProjectDirectoryDropDown.Items);
+
+            if ~any(items == projectDirectory)
+                items(end + 1) = projectDirectory;
+                app.ProjectDirectoryDropDown.Items = items;
+            end
+
+        end % ensureProjectDirectoryItem
 
         function projectDirectory = resolveProjectOpenInput(app, projectInput)
 
@@ -4401,15 +4453,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.presentation.dialog.AppDialogService( ...
                 app.OpenMebius2UIFigure);
 
-            app.ProjectRepository = ...
-                openmebius.infrastructure.project.FileProjectRepository();
-
-            app.OpenProjectUseCase = ...
-                openmebius.application.project.OpenProjectUseCase( ...
-                app.ProjectRepository);
-            app.CreateProjectUseCase = ...
-                openmebius.application.project.CreateProjectUseCase( ...
-                app.ProjectRepository);
+            app.ProjectOperationController = ...
+                openmebius.application.project ...
+                .ProjectOperationController();
 
             app.TemplateModelLoadService = ...
                 openmebius.application.model.TemplateModelLoadService();
@@ -4432,11 +4478,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.experiment ...
                 .ExperimentEditController();
 
-            app.LegacyProjectLoader = ...
-                openmebius.infrastructure.legacy.LegacyProjectLoader();
-            app.LegacyProjectInitializer = ...
-                openmebius.infrastructure.legacy.LegacyProjectInitializer();
-
+            app.ProjectPresenter = ...
+                openmebius.presentation.project.ProjectPresenter();
             app.BatchPresenter = ...
                 openmebius.presentation.batch.BatchPresenter();
             app.ExperimentPresenter = ...
@@ -4528,84 +4571,42 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ProjectLoadButton
-        function ProjectLoadButtonPushed(app, event)
+        function ProjectLoadButtonPushed(app, ~)
 
             cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+            app.ensureProjectOperationController();
+            app.ensureProjectPresenter();
+            app.renderProjectOperationViewModel( ...
+                app.ProjectPresenter.presentLoadStarted());
 
-            try
-                projectDirectory = app.resolveProjectOpenInput( ...
-                    string(app.ProjectDirectoryDropDown.Value));
-
-                session = app.OpenProjectUseCase.execute(projectDirectory);
-
-                artifacts = app.LegacyProjectLoader.load(session);
-
-                app.applyProjectSession(session);
-                app.applyLegacyProjectArtifacts(artifacts);
-
-                for i = 1:numel(artifacts.Messages)
-                    app.notifyInfo(artifacts.Messages(i));
-                end
-
-                app.renderLegacyProjectArtifacts();
-
-                app.refreshPresentation();
-
-            catch ME
-                app.updateStatus("model", "error");
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Project load failed", ...
-                    Alert = true);
-            end
+            outcome = app.ProjectOperationController.open( ...
+                string(app.ProjectDirectoryDropDown.Value));
+            app.renderProjectOperationViewModel( ...
+                app.ProjectPresenter.presentOpenOutcome(outcome));
 
         end
 
         % Button pushed function: ProjectSaveButton
-        function ProjectSaveButtonPushed(app, event)
+        function ProjectSaveButtonPushed(app, ~)
 
-            try
+            app.ensureProjectOperationController();
+            app.ensureProjectPresenter();
 
-                if isempty(app.ProjectSession) || ~isvalid(app.ProjectSession)
-
-                    projectDirectory = app.resolveProjectOpenInput( ...
-                        string(app.ProjectDirectoryDropDown.Value));
-
-                    app.ProjectSession = app.OpenProjectUseCase.execute( ...
-                        projectDirectory);
-                end
-
-                metadata = openmebius.domain.project.ProjectMetadata( ...
-                    Name = string(app.ProjectNameEditField.Value), ...
-                    Author = string(app.ProjectAuthorEditField.Value), ...
-                    Organism = string(app.OrganismEditField.Value));
-
-                session = openmebius.domain.project.ProjectSession( ...
-                    metadata, ...
-                    app.ProjectSession.Paths);
-
-                app.ProjectSession = session;
-
-                app.ProjectRepository.saveProject(app.ProjectSession);
-
-                msg = "Project setting saved to " + ...
-                    app.ProjectSession.Paths.SettingFile + ...
-                    " and " + ...
-                    app.ProjectSession.Paths.LegacySettingFile;
-
-                app.notifyInfo(msg);
-
-            catch ME
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Project save failed", ...
-                    Alert = true);
-            end
+            metadata = openmebius.domain.project.ProjectMetadata( ...
+                Name = string(app.ProjectNameEditField.Value), ...
+                Author = string(app.ProjectAuthorEditField.Value), ...
+                Organism = string(app.OrganismEditField.Value));
+            outcome = app.ProjectOperationController.save( ...
+                app.ProjectSession, ...
+                string(app.ProjectDirectoryDropDown.Value), ...
+                metadata);
+            app.renderProjectOperationViewModel( ...
+                app.ProjectPresenter.presentSaveOutcome(outcome));
 
         end
 
         % Button pushed function: ProjectCreateButton
-        function ProjectCreateButtonPushed(app, event)
+        function ProjectCreateButtonPushed(app, ~)
 
             cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
 
@@ -4646,55 +4647,22 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             templateModelDirectory = string( ...
                 app.TemplateModelDirectoryDropDown.Value);
 
-            try
-                app.ensureProjectServices();
-                app.ensureLegacyProjectInitializer();
+            app.ensureProjectOperationController();
+            app.ensureProjectPresenter();
+            app.renderProjectOperationViewModel( ...
+                app.ProjectPresenter.presentCreateStarted());
 
-                metadata = openmebius.domain.project.ProjectMetadata( ...
-                    Name = string(app.ProjectNameEditField.Value), ...
-                    Author = string(app.ProjectAuthorEditField.Value), ...
-                    Organism = string(app.OrganismEditField.Value));
-
-                createResult = app.CreateProjectUseCase.execute( ...
-                    ParentDirectory = projectParentDirectory, ...
-                    ProjectDirectoryName = string(directoryName), ...
-                    TemplateModelDirectory = templateModelDirectory, ...
-                    Metadata = metadata);
-
-                app.applyProjectSession(createResult.Session);
-
-                items = string(app.ProjectDirectoryDropDown.Items);
-
-                if ~any(items == createResult.Session.Paths.RootDirectory)
-                    items(end + 1) = createResult.Session.Paths.RootDirectory;
-                    app.ProjectDirectoryDropDown.Items = items;
-                end
-
-                app.updateStatus("model", "init");
-
-                for i = 1:numel(createResult.Messages)
-                    app.notifyInfo(createResult.Messages(i));
-                end
-
-                artifacts = app.LegacyProjectInitializer.initialize( ...
-                    createResult.Session);
-
-                app.applyLegacyProjectArtifacts(artifacts);
-
-                for i = 1:numel(artifacts.Messages)
-                    app.notifyInfo(artifacts.Messages(i));
-                end
-
-                app.renderCreatedProjectArtifacts();
-                app.refreshPresentation();
-
-            catch ME
-                app.updateStatus("model", "error");
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Project create failed", ...
-                    Alert = true);
-            end
+            metadata = openmebius.domain.project.ProjectMetadata( ...
+                Name = string(app.ProjectNameEditField.Value), ...
+                Author = string(app.ProjectAuthorEditField.Value), ...
+                Organism = string(app.OrganismEditField.Value));
+            outcome = app.ProjectOperationController.create( ...
+                ParentDirectory = projectParentDirectory, ...
+                ProjectDirectoryName = string(directoryName), ...
+                TemplateModelDirectory = templateModelDirectory, ...
+                Metadata = metadata);
+            app.renderProjectOperationViewModel( ...
+                app.ProjectPresenter.presentCreateOutcome(outcome));
 
         end
 
