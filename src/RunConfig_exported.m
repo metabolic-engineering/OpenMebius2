@@ -125,6 +125,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
     properties (Access = private)
         Session openmebius.application.batch.BatchConfigurationSession
         Presenter openmebius.presentation.batch.RunConfigPresenter
+        Controller openmebius.application.batch.BatchConfigurationController
         RunAddBatchApp
         RunAddBatchListener event.listener = event.listener.empty(0, 1)
         TracerConfigApp
@@ -513,15 +514,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % renderTracerConfigurationViewModel
 
-        function config = buildGeneralConfig(app)
-            % BUILDGENERALCONFIG Convert the current controls to config.
-
-            viewModel = app.collectRunConfigViewModel();
-            config = app.Presenter.applyViewModel( ...
-                    viewModel, app.Session.primaryConfig());
-
-        end % buildGeneralConfig
-
         function viewModel = collectRunConfigViewModel(app)
 
             viewModel = openmebius.presentation.batch ...
@@ -574,16 +566,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             end
 
         end % collectRunConfigViewModel
-
-        function fragmentSelections = buildMSFragmentSelections(app)
-
-            data = app.MSTable.Data;
-            fragmentSelections = ...
-                openmebius.presentation.batch.MSFragmentTableMapper.fromViewTable( ...
-                data, ...
-                app.MSFragmentTableMetadata);
-
-        end % buildMSFragmentSelections
 
         function wireActionButtons(app)
 
@@ -654,37 +636,23 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function applyCurrentSettings(app)
 
-            try
-                config = app.buildGeneralConfig();
-                fragmentSelections = ...
-                    app.buildMSFragmentSelections();
-                suggestionTable = app.buildSuggestionSettings();
-                app.Session.apply( ...
-                    config, fragmentSelections, suggestionTable);
+            requestFactory = @() app.Presenter.createApplyRequest( ...
+                app.Session, ...
+                app.collectRunConfigViewModel(), ...
+                app.MSTable.Data, ...
+                app.MSFragmentTableMetadata, ...
+                app.LabelTable.Data, ...
+                app.SuggestionCheckBox.Value);
+            outcome = app.Controller.apply( ...
+                app.Session, requestFactory);
+            viewModel = app.Presenter.presentApplyOutcome(outcome);
+            app.requestNotifications(viewModel.Notifications);
+
+            if viewModel.IsSuccessful
                 notify(app, "Applied");
-            catch exception
-                notification = openmebius.presentation.notification ...
-                    .Notification.fromException( ...
-                        exception, ...
-                        Title = "Batch configuration error", ...
-                        ShowAlert = true);
-                eventData = openmebius.presentation.notification ...
-                    .NotificationEventData(notification);
-                notify(app, "NotificationRequested", eventData);
             end
 
         end % applyCurrentSettings
-
-        function data = buildSuggestionSettings(app)
-
-            data = app.LabelTable.Data;
-
-            if ~app.SuggestionCheckBox.Value || ~istable(data)
-                data = [];
-                return
-            end
-
-        end % buildSuggestionSettings
 
         function cancelChanges(app)
 
@@ -709,10 +677,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, session, presenter, editor)
+        function startupFcn(app, session, presenter, editor, controller)
 
             app.Session = session;
             app.Presenter = presenter;
+            app.Controller = controller;
             app.renderRunConfigViewModel(editor.Config)
             app.MSFragmentTableMetadata = ...
                 editor.MSFragmentTable.Metadata;

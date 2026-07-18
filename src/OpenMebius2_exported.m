@@ -5619,9 +5619,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             presenter = openmebius.presentation.batch ...
                 .RunConfigPresenter();
             editor = presenter.presentEditor(session);
+            controller = openmebius.application.batch ...
+                .BatchConfigurationController();
 
             app.detachRunConfigListeners();
-            app.RunConfigApp = RunConfig(session, presenter, editor);
+            app.RunConfigApp = RunConfig( ...
+                session, presenter, editor, controller);
             app.attachRunConfigListeners(app.RunConfigApp);
 
             for notificationIndex = 1:numel(editor.Notifications)

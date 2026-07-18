@@ -19,8 +19,13 @@ classdef RunConfigBoundaryTest < matlab.unittest.TestCase
             end
 
             testCase.verifyFalse(contains(source, "uialert("));
+            testCase.verifyFalse(contains(source, "Session.apply("));
+            testCase.verifyFalse(contains(source, "Session.primaryConfig("));
+            testCase.verifyFalse(contains(source, "MSFragmentTableMapper"));
             testCase.verifyTrue(contains(source, "RunConfigPresenter"));
             testCase.verifyTrue(contains(source, "RunConfigTableViewModel"));
+            testCase.verifyTrue( ...
+                contains(source, "BatchConfigurationController"));
 
         end
 
@@ -34,7 +39,9 @@ classdef RunConfigBoundaryTest < matlab.unittest.TestCase
                 contains(source, "editor = presenter.presentEditor(session)"));
             testCase.verifyTrue( ...
                 contains(source, ...
-                    "RunConfig(session, presenter, editor)"));
+                    "session, presenter, editor, controller"));
+            testCase.verifyTrue( ...
+                contains(source, "BatchConfigurationController()"));
 
         end
 

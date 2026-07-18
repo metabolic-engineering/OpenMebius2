@@ -239,7 +239,10 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.batch ...
                 .RunConfigPresenter();
             editor = presenter.presentEditor(session);
-            app = RunConfig_exported(session, presenter, editor);
+            controller = openmebius.application.batch ...
+                .BatchConfigurationController();
+            app = RunConfig_exported( ...
+                session, presenter, editor, controller);
 
         end % createApp
 
