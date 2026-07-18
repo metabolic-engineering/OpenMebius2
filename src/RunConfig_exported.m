@@ -1,5 +1,9 @@
 classdef RunConfig_exported < matlab.apps.AppBase
 
+    events
+        BatchExperimentSelectionApplied
+    end
+
     % Properties that correspond to app components
     properties (Access = public)
         BatchconfigUIFigure matlab.ui.Figure
@@ -120,6 +124,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
     properties (Access = private)
         MainApp
         RunAddBatchApp
+        RunAddBatchListener event.listener = event.listener.empty(0, 1)
         selection
         selectedConfig
         MSFragmentTableMetadata
@@ -566,9 +571,47 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 return;
             end
 
-            app.RunAddBatchApp = RunAddBatch(app.MainApp, 'inst-mfa', batchIDs(1));
+            app.detachRunAddBatchListener();
+            experimentNames = string(getExpList(app.exp));
+            app.RunAddBatchApp = RunAddBatch( ...
+                experimentNames, ...
+                "inst-mfa", ...
+                batchIDs(1));
+            app.RunAddBatchListener = addlistener( ...
+                app.RunAddBatchApp, ...
+                "Applied", ...
+                @(source, event) ...
+                    app.forwardBatchExperimentSelection(source, event));
 
         end % editTimeCourse
+
+        function forwardBatchExperimentSelection(app, ~, event)
+
+            eventData = openmebius.presentation.batch ...
+                .BatchExperimentSelectionEventData(event.Selection);
+            notify( ...
+                app, ...
+                "BatchExperimentSelectionApplied", ...
+                eventData);
+
+        end % forwardBatchExperimentSelection
+
+        function detachRunAddBatchListener(app)
+
+            if isempty(app.RunAddBatchListener)
+                return
+            end
+
+            try
+                if isvalid(app.RunAddBatchListener)
+                    delete(app.RunAddBatchListener);
+                end
+            catch
+            end
+
+            app.RunAddBatchListener = event.listener.empty(0, 1);
+
+        end % detachRunAddBatchListener
 
         function applyGeneral(app)
             % APPLYGENERAL Apply the general settings to the selected batch
@@ -1874,6 +1917,17 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         % Code that executes before app deletion
         function delete(app)
+
+            app.detachRunAddBatchListener();
+
+            if ~isempty(app.RunAddBatchApp)
+                try
+                    if isvalid(app.RunAddBatchApp)
+                        delete(app.RunAddBatchApp);
+                    end
+                catch
+                end
+            end
 
             % Delete UIFigure when app is deleted
             delete(app.BatchconfigUIFigure)

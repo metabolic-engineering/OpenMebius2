@@ -141,6 +141,17 @@ classdef BatchPresenter < handle
 
         end % presentRemoveOutcome
 
+        function viewModel = presentExperimentSelectionOutcome( ...
+                obj, outcome, batch)
+
+            viewModel = obj.presentOperationOutcome( ...
+                outcome, ...
+                batch, ...
+                "Batch experiments have been updated.", ...
+                "Batch experiment update failed");
+
+        end % presentExperimentSelectionOutcome
+
         function styleRules = styleRulesForStatus(obj, tableData, status)
 
             if isempty(tableData)

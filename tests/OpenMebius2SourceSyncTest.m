@@ -4,8 +4,33 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
 
         function mlappCodeMatchesExportedSource(testCase)
 
+            OpenMebius2SourceSyncTest.verifyAppSource( ...
+                testCase, "OpenMebius2");
+
+        end
+
+        function runAddBatchCodeMatchesExportedSource(testCase)
+
+            OpenMebius2SourceSyncTest.verifyAppSource( ...
+                testCase, "RunAddBatch");
+
+        end
+
+        function runConfigCodeMatchesExportedSource(testCase)
+
+            OpenMebius2SourceSyncTest.verifyAppSource( ...
+                testCase, "RunConfig");
+
+        end
+
+    end % methods (Test)
+
+    methods (Static, Access = private)
+
+        function verifyAppSource(testCase, appName)
+
             root = fileparts(fileparts(mfilename("fullpath")));
-            mlappPath = fullfile(root, "src", "OpenMebius2.mlapp");
+            mlappPath = fullfile(root, "src", appName + ".mlapp");
             archive = java.util.zip.ZipFile(mlappPath);
             archiveCleanup = onCleanup(@() archive.close());
             documentEntry = archive.getEntry("matlab/document.xml");
@@ -18,9 +43,9 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
             testCase.assertGreaterThan(textNodes.getLength(), 0);
             mlappCode = string(textNodes.item(0).getTextContent());
             exportedCode = string(fileread( ...
-                fullfile(root, "src", "OpenMebius2_exported.m")));
+                fullfile(root, "src", appName + "_exported.m")));
             exportedCode = replace( ...
-                exportedCode, "OpenMebius2_exported", "OpenMebius2");
+                exportedCode, appName + "_exported", appName);
 
             testCase.verifyEqual( ...
                 OpenMebius2SourceSyncTest.normalizeCode(mlappCode), ...
@@ -28,11 +53,7 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
             testCase.verifyNotEmpty( ...
                 archive.getEntry("appdesigner/appModel.mat"));
 
-        end
-
-    end % methods (Test)
-
-    methods (Static, Access = private)
+        end % verifyAppSource
 
         function code = normalizeCode(code)
 

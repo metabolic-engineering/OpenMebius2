@@ -217,6 +217,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         PreferencesApp
         PreferencesListeners event.listener = event.listener.empty(0, 1)
         MSViewListeners event.listener = event.listener.empty(0, 1)
+        RunConfigListeners event.listener = event.listener.empty(0, 1)
+        RunAddBatchListeners event.listener = event.listener.empty(0, 1)
 
         MainInteractionSnapshot cell = {}
 
@@ -2496,6 +2498,71 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.PreferencesListeners = event.listener.empty(0, 1);
 
         end % method detachPreferencesListeners
+
+        function attachRunConfigListeners(app, runConfigApp)
+
+            app.detachRunConfigListeners();
+            app.RunConfigListeners = addlistener( ...
+                runConfigApp, ...
+                "BatchExperimentSelectionApplied", ...
+                @(source, event) ...
+                    app.onBatchExperimentSelectionApplied(source, event));
+
+        end % attachRunConfigListeners
+
+        function detachRunConfigListeners(app)
+
+            app.RunConfigListeners = app.deleteListeners( ...
+                app.RunConfigListeners);
+
+        end % detachRunConfigListeners
+
+        function attachRunAddBatchListeners(app, runAddBatchApp)
+
+            app.detachRunAddBatchListeners();
+            app.RunAddBatchListeners = addlistener( ...
+                runAddBatchApp, ...
+                "Applied", ...
+                @(source, event) ...
+                    app.onBatchExperimentSelectionApplied(source, event));
+
+        end % attachRunAddBatchListeners
+
+        function detachRunAddBatchListeners(app)
+
+            app.RunAddBatchListeners = app.deleteListeners( ...
+                app.RunAddBatchListeners);
+
+        end % detachRunAddBatchListeners
+
+        function listeners = deleteListeners(~, listeners)
+
+            for listenerIndex = 1:numel(listeners)
+                try
+                    if isvalid(listeners(listenerIndex))
+                        delete(listeners(listenerIndex));
+                    end
+                catch
+                end
+            end
+
+            listeners = event.listener.empty(0, 1);
+
+        end % deleteListeners
+
+        function onBatchExperimentSelectionApplied(app, ~, event)
+
+            app.ensureBatchOperationController();
+            app.ensureBatchPresenter();
+            outcome = app.BatchOperationController ...
+                .applyExperimentSelection( ...
+                    app.batch, event.Selection);
+            app.renderBatchOperationViewModel( ...
+                app.BatchPresenter ...
+                .presentExperimentSelectionOutcome( ...
+                    outcome, app.batch));
+
+        end % onBatchExperimentSelectionApplied
 
         %% Apply Session
         function applyMainInteractionEnabled(app, enabled)
@@ -5225,7 +5292,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             cleanupPresentation = app.beginPresentationOperation();
 
+            app.detachRunConfigListeners();
             app.RunConfigApp = RunConfig(app, selection);
+            app.attachRunConfigListeners(app.RunConfigApp);
         end
 
         % Button pushed function: RunReloadButton
@@ -5286,9 +5355,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: AddbatchMenu
-        function RunAddbatchMenuSelected(app, event)
+        function RunAddbatchMenuSelected(app, ~)
 
-            app.RunAddBatchApp = RunAddBatch(app, 'parallel');
+            app.detachRunAddBatchListeners();
+            experimentNames = string(getExpList(app.exp));
+            app.RunAddBatchApp = RunAddBatch( ...
+                experimentNames, "parallel");
+            app.attachRunAddBatchListeners(app.RunAddBatchApp);
         end
 
         % Menu selected function: RemovethisbatchMenu
@@ -6569,6 +6642,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Code that executes before app deletion
         function delete(app)
+
+            app.detachRunConfigListeners();
+            app.detachRunAddBatchListeners();
 
             % Delete UIFigure when app is deleted
             delete(app.OpenMebius2UIFigure)

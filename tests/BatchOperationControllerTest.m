@@ -79,6 +79,73 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
 
         end
 
+        function addsParallelExperimentSelection(testCase)
+
+            batch = helpers.BatchOperationStub();
+            controller = openmebius.application.batch ...
+                .BatchOperationController();
+            selection = openmebius.domain.batch ...
+                .BatchExperimentSelection( ...
+                    Mode = "parallel", ...
+                    Experiments = ["exp-a"; "exp-b"], ...
+                    AddAsParallel = true);
+
+            outcome = controller.applyExperimentSelection( ...
+                batch, selection);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyEqual(batch.AddedNames, "exp-a, exp-b");
+            testCase.verifyEqual( ...
+                batch.AddedExperiments{1}, {selection.Experiments'});
+            testCase.verifyTrue(batch.AddedConfigs{1}.isParallel);
+            testCase.verifyEqual( ...
+                batch.AddedConfigs{1}.numExperiments, 2);
+
+        end
+
+        function addsIndividualExperimentSelections(testCase)
+
+            batch = helpers.BatchOperationStub();
+            controller = openmebius.application.batch ...
+                .BatchOperationController();
+            selection = openmebius.domain.batch ...
+                .BatchExperimentSelection( ...
+                    Mode = "parallel", ...
+                    Experiments = ["exp-a"; "exp-b"], ...
+                    AddAsParallel = false);
+
+            outcome = controller.applyExperimentSelection( ...
+                batch, selection);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyEqual( ...
+                batch.AddedNames, ["exp-a"; "exp-b"]);
+            testCase.verifyEqual(numel(batch.AddedConfigs), 2);
+
+        end
+
+        function editsInstationaryExperimentSelection(testCase)
+
+            batch = helpers.BatchOperationStub();
+            controller = openmebius.application.batch ...
+                .BatchOperationController();
+            selection = openmebius.domain.batch ...
+                .BatchExperimentSelection( ...
+                    Mode = "inst-mfa", ...
+                    Experiments = ["exp-a"; "exp-b"], ...
+                    BatchId = "batch-a");
+
+            outcome = controller.applyExperimentSelection( ...
+                batch, selection);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyEqual(batch.EditedId, "batch-a");
+            testCase.verifyEqual(batch.EditedName, "exp-a, exp-b");
+            testCase.verifyTrue(batch.EditedConfig.isINSTMFA);
+            testCase.verifyFalse(batch.EditedConfig.isParallel);
+
+        end
+
     end % methods (Test)
 
 end % classdef

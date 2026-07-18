@@ -13,6 +13,15 @@ classdef BatchOperationStub < handle
         SaveCalled (1, 1) logical = false
         SavedTable table = table()
         RemovedIds (:, 1) string = strings(0, 1)
+        AddedNames (:, 1) string = strings(0, 1)
+        AddedExperiments (:, 1) cell = cell(0, 1)
+        AddedDescriptions (:, 1) string = strings(0, 1)
+        AddedConfigs (:, 1) cell = cell(0, 1)
+        EditedId (1, 1) string = ""
+        EditedName (1, 1) string = ""
+        EditedExperiments cell = cell(0, 1)
+        EditedDescription (1, 1) string = ""
+        EditedConfig struct = struct()
         Exception = []
     end
 
@@ -44,6 +53,28 @@ classdef BatchOperationStub < handle
 
             obj.throwIfRequested();
             obj.RemovedIds(end + 1, 1) = string(batchId);
+
+        end
+
+        function addBatch(obj, name, experiments, description, config)
+
+            obj.throwIfRequested();
+            obj.AddedNames(end + 1, 1) = string(name);
+            obj.AddedExperiments{end + 1, 1} = experiments;
+            obj.AddedDescriptions(end + 1, 1) = string(description);
+            obj.AddedConfigs{end + 1, 1} = config;
+
+        end
+
+        function editBatch( ...
+                obj, batchId, name, experiments, description, config)
+
+            obj.throwIfRequested();
+            obj.EditedId = string(batchId);
+            obj.EditedName = string(name);
+            obj.EditedExperiments = experiments;
+            obj.EditedDescription = string(description);
+            obj.EditedConfig = config;
 
         end
 
