@@ -7,9 +7,21 @@ classdef TracerConfigurationServiceStub < handle
         Experiments
         Position (1, 2) double = [NaN, NaN]
         EditorTable table = table()
+        CurrentTracerTable table = table()
     end
 
     methods
+
+        function result = prepare( ...
+                obj, experiments, currentTracerTable, position)
+
+            obj.LastOperation = "prepare";
+            obj.Experiments = experiments;
+            obj.CurrentTracerTable = currentTracerTable;
+            obj.Position = position;
+            result = obj.complete();
+
+        end
 
         function result = load(obj, experiments, position)
 

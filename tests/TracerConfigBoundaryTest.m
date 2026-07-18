@@ -42,6 +42,28 @@ classdef TracerConfigBoundaryTest < matlab.unittest.TestCase
 
         end
 
+        function mainAppUsesTracerPreparationBoundary(testCase)
+
+            root = fileparts(fileparts(mfilename("fullpath")));
+            source = string(fileread( ...
+                fullfile(root, "src", "OpenMebius2_exported.m")));
+
+            testCase.verifyTrue(contains( ...
+                source, ".prepareTracerConfiguration("));
+            testCase.verifyTrue(contains( ...
+                source, ...
+                ".presentTracerConfigurationPreparationOutcome("));
+            testCase.verifyTrue(contains( ...
+                source, "renderTracerConfigurationViewModel"));
+            testCase.verifyTrue(contains( ...
+                source, "closeTracerConfigApp"));
+            testCase.verifyFalse(contains( ...
+                source, "app.exp.tableTracersInfo"));
+            testCase.verifyFalse(contains( ...
+                source, "function openTracerConfiguration(app"));
+
+        end
+
     end
 
 end

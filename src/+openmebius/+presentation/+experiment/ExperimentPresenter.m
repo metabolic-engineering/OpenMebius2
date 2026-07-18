@@ -191,6 +191,41 @@ classdef ExperimentPresenter
 
         end % presentTracerConfigurationLoadOutcome
 
+        function viewModel = ...
+                presentTracerConfigurationPreparationOutcome( ...
+                    obj, outcome)
+
+            arguments
+                obj
+                outcome (1, 1) openmebius.application.experiment ...
+                    .ExperimentEditOutcome
+            end
+
+            if outcome.Status ~= "finished"
+                viewModel = obj.presentTracerConfigurationOutcome( ...
+                    outcome, "Tracer configuration load failed");
+                return
+            end
+
+            decision = outcome.Result;
+
+            if ~decision.IsAllowed
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning(decision.Message);
+                viewModel = openmebius.presentation.experiment ...
+                    .TracerConfigurationViewModel( ...
+                        Notifications = {notification});
+                return
+            end
+
+            viewModel = openmebius.presentation.experiment ...
+                .TracerConfigurationViewModel( ...
+                    IsSuccessful = true, ...
+                    Position = decision.Position, ...
+                    EditorTable = decision.EditorTable);
+
+        end % presentTracerConfigurationPreparationOutcome
+
         function viewModel = presentTracerConfigurationApplyOutcome( ...
                 obj, outcome)
 

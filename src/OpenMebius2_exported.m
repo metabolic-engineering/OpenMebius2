@@ -323,25 +323,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method updateStatus
 
-        function updateModel(app)
-
-            if isempty(app.model) || ~isvalid(app.model)
-                return
-            elseif isempty(app.exp) || ~isvalid(app.exp)
-                msg = "Experiment data is not loaded. Cannot update model.";
-                LogTextDate(app, msg, "Error");
-                return
-            elseif isempty(app.batch) || ~isvalid(app.batch)
-                msg = "Batch data is not loaded. Cannot update model.";
-                LogTextDate(app, msg, "Error");
-                return
-            end
-
-            app.exp.updateModel(app.model);
-            app.batch.updateExperimentalData(app.exp);
-
-        end % method updateModel
-
         function updateBatchTable(app)
 
             loadBatchTable(app);
@@ -2946,6 +2927,25 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % detachTracerConfigListeners
 
+        function closeTracerConfigApp(app)
+
+            app.detachTracerConfigListeners();
+            childApp = app.TracerConfigApp;
+            app.TracerConfigApp = [];
+
+            if isempty(childApp)
+                return
+            end
+
+            try
+                if isvalid(childApp)
+                    delete(childApp);
+                end
+            catch
+            end
+
+        end % closeTracerConfigApp
+
         function attachComparisonViewListeners(app, comparisonViewApp)
 
             app.detachComparisonViewListeners();
@@ -3093,26 +3093,20 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % onLabelConfigurationClosed
 
-        function openTracerConfiguration(app, position)
+        function renderTracerConfigurationViewModel(app, viewModel)
 
-            app.ensureExperimentEditController();
-            app.ensureExperimentPresenter();
-            outcome = app.ExperimentEditController ...
-                .loadTracerConfiguration(app.exp, position);
-            viewModel = app.ExperimentPresenter ...
-                .presentTracerConfigurationLoadOutcome(outcome);
             app.renderTracerConfigurationNotifications(viewModel);
 
             if ~viewModel.IsSuccessful
                 return
             end
 
-            app.detachTracerConfigListeners();
+            app.closeTracerConfigApp();
             app.TracerConfigApp = TracerConfig( ...
                 viewModel.EditorTable, viewModel.Position);
             app.attachTracerConfigListeners(app.TracerConfigApp);
 
-        end % openTracerConfiguration
+        end % renderTracerConfigurationViewModel
 
         function onTracerConfigurationApplied(app, ~, event)
 
@@ -5686,16 +5680,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Double-clicked callback: LabelTable
         function LabelTableDoubleClicked(app, event)
 
-            tableOriginal = app.exp.tableTracersInfo;
-            tableNow = app.LabelTable.Data;
-
-            if ~isequaln(tableOriginal, tableNow)
-                app.notifyWarning( ...
-                    "Label table has been modified. " + ...
-                    "Please save the table before editing.");
-                return
-            end
-
             displayRow = event.InteractionInformation.DisplayRow;
             displayColumn = event.InteractionInformation.DisplayColumn;
 
@@ -5703,10 +5687,17 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            cleanupPresentation = app.beginPresentationOperation();
-
-            app.openTracerConfiguration( ...
-                [displayRow, displayColumn]);
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            app.ensureExperimentEditController();
+            app.ensureExperimentPresenter();
+            position = [displayRow, displayColumn];
+            outcome = app.ExperimentEditController ...
+                .prepareTracerConfiguration( ...
+                    app.exp, app.LabelTable.Data, position);
+            viewModel = app.ExperimentPresenter ...
+                .presentTracerConfigurationPreparationOutcome(outcome);
+            app.renderTracerConfigurationViewModel(viewModel);
         end
 
         % Key press function: UptakeTable
@@ -7118,7 +7109,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function delete(app)
 
             app.closeLabelConfigApp();
-            app.detachTracerConfigListeners();
+            app.closeTracerConfigApp();
             app.detachComparisonViewListeners();
             app.closeRunConfigApp();
             app.closeRunAddBatchApp();

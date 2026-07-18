@@ -118,6 +118,34 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
 
         end
 
+        function preparesTracerConfiguration(testCase)
+
+            service = helpers.TracerConfigurationServiceStub();
+            tracerTable = table( ...
+                "12C1~1", VariableNames = "Tracer");
+            service.Result = openmebius.application.experiment ...
+                .TracerConfigurationLaunchDecision( ...
+                    IsAllowed = true, ...
+                    Position = [2, 3], ...
+                    EditorTable = table());
+            controller = openmebius.application.experiment ...
+                .ExperimentEditController( ...
+                    TracerConfigurationService = service);
+            experiments = helpers.TracerConfigurationExperimentStub();
+
+            outcome = controller.prepareTracerConfiguration( ...
+                experiments, tracerTable, [2, 3]);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyEqual(service.LastOperation, "prepare");
+            testCase.verifyEqual(service.Experiments, experiments);
+            testCase.verifyEqual( ...
+                service.CurrentTracerTable, tracerTable);
+            testCase.verifyEqual(service.Position, [2, 3]);
+            testCase.verifyEqual(outcome.Result, service.Result);
+
+        end
+
         function appliesTracerConfiguration(testCase)
 
             service = helpers.TracerConfigurationServiceStub();

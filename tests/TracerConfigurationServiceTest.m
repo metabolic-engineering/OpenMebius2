@@ -33,6 +33,50 @@ classdef TracerConfigurationServiceTest < matlab.unittest.TestCase
 
         end
 
+        function preparesEditorForSavedTracerTable(testCase)
+
+            experiments = helpers.TracerConfigurationExperimentStub();
+            experiments.TracerTable = table( ...
+                "12C1~1", VariableNames = "Tracer");
+            experiments.EditorTable = table( ...
+                true, "U-13C", 1, ...
+                VariableNames = ["Select", "Label", "Ratio"]);
+            service = openmebius.application.experiment ...
+                .TracerConfigurationService();
+
+            decision = service.prepare( ...
+                experiments, experiments.TracerTable, [2, 3]);
+
+            testCase.verifyTrue(decision.IsAllowed);
+            testCase.verifyEqual(decision.Position, [2, 3]);
+            testCase.verifyEqual( ...
+                decision.EditorTable, experiments.EditorTable);
+            testCase.verifyTrue(experiments.Called);
+
+        end
+
+        function blocksEditorForModifiedTracerTable(testCase)
+
+            experiments = helpers.TracerConfigurationExperimentStub();
+            experiments.TracerTable = table( ...
+                "12C1~1", VariableNames = "Tracer");
+            modifiedTable = table( ...
+                "13C1~1", VariableNames = "Tracer");
+            service = openmebius.application.experiment ...
+                .TracerConfigurationService();
+
+            decision = service.prepare( ...
+                experiments, modifiedTable, [1, 1]);
+
+            testCase.verifyFalse(decision.IsAllowed);
+            testCase.verifyFalse(experiments.Called);
+            testCase.verifyEqual( ...
+                decision.Message, ...
+                "Label table has been modified. " + ...
+                "Please save the table before editing.");
+
+        end
+
         function appliesEditorTable(testCase)
 
             editorTable = table( ...

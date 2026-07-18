@@ -95,6 +95,22 @@ classdef ExperimentEditController < handle
 
         end % loadTracerConfiguration
 
+        function outcome = prepareTracerConfiguration( ...
+                obj, experiments, currentTracerTable, position)
+
+            arguments
+                obj
+                experiments
+                currentTracerTable table
+                position (1, 2) double
+            end
+
+            outcome = obj.execute( ...
+                @() obj.TracerConfigurationService.prepare( ...
+                    experiments, currentTracerTable, position));
+
+        end % prepareTracerConfiguration
+
         function outcome = applyTracerConfiguration( ...
                 obj, position, editorTable)
 
