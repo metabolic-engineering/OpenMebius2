@@ -5616,10 +5616,18 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             session = openmebius.application.batch ...
                 .BatchConfigurationSession( ...
                     app.batch, app.exp, batchIds);
+            presenter = openmebius.presentation.batch ...
+                .RunConfigPresenter();
+            editor = presenter.presentEditor(session);
 
             app.detachRunConfigListeners();
-            app.RunConfigApp = RunConfig(session);
+            app.RunConfigApp = RunConfig(session, presenter, editor);
             app.attachRunConfigListeners(app.RunConfigApp);
+
+            for notificationIndex = 1:numel(editor.Notifications)
+                app.showNotification( ...
+                    editor.Notifications{notificationIndex});
+            end
         end
 
         % Button pushed function: RunReloadButton

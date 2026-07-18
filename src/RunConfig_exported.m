@@ -138,19 +138,16 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function updateINSTMFATimeCourseTable(app)
 
-            [~, isSingle] = app.getCurrentIDs();
+            viewModel = app.Presenter.presentINSTMFATables(app.Session);
+            app.requestNotifications(viewModel.Notifications);
 
-            if ~isSingle
+            if ~viewModel.IsAvailable
                 return;
             end
 
-            [timePointTable, timePointTableColumnEditable] = ...
-                app.Session.instTimePointTable();
-
-            app.INSTMFATimeCourseUITable.Data = timePointTable;
-            app.INSTMFATimeCourseUITable.ColumnName = timePointTable.Properties.VariableNames;
-            app.INSTMFATimeCourseUITable.RowName = {};
-            app.INSTMFATimeCourseUITable.ColumnEditable = timePointTableColumnEditable;
+            app.renderTableViewModel( ...
+                app.INSTMFATimeCourseUITable, ...
+                viewModel.TimePointTable);
 
         end % updateINSTMFATimeCourseTable
 
@@ -158,13 +155,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
     %% Private methods
     methods (Access = private)
-
-        function [currentID, isSingle] = getCurrentIDs(app)
-
-            currentID = app.Session.BatchIds;
-            isSingle = app.Session.isSingleBatch();
-
-        end % getCurrentIDs
 
         function renderRunConfigViewModel(app, viewModel)
             % RENDERRUNCONFIGVIEWMODEL Render typed configuration values.
@@ -209,6 +199,26 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 viewModel.INSTMFATimePointTable;
 
         end % renderRunConfigViewModel
+
+        function renderTableViewModel(~, component, viewModel)
+
+            component.Data = viewModel.Data;
+            component.ColumnName = viewModel.ColumnName;
+            component.RowName = viewModel.RowName;
+            component.ColumnEditable = viewModel.ColumnEditable;
+
+        end % renderTableViewModel
+
+        function requestNotifications(app, notifications)
+
+            for notificationIndex = 1:numel(notifications)
+                eventData = openmebius.presentation.notification ...
+                    .NotificationEventData( ...
+                        notifications{notificationIndex});
+                notify(app, "NotificationRequested", eventData);
+            end
+
+        end % requestNotifications
 
         function enabledisableCIUI(app, ~)
             app.refreshControlState();
@@ -275,30 +285,14 @@ classdef RunConfig_exported < matlab.apps.AppBase
             isEnable = app.PerturbateEffluxCheckBox.Value;
 
             if isEnable
-
-                % Enable efflux perturbation components
-                app.EffluxUITable.Enable = 'on';
-
-                [tableEffluxPerturbation, editable] = ...
-                    app.Session.effluxTable();
-
-                tableData = tableEffluxPerturbation;
-                app.EffluxUITable.Data = tableData;
-                app.EffluxUITable.ColumnName = tableData.Properties.VariableNames;
-                app.EffluxUITable.ColumnEditable = editable;
-                app.EffluxUITable.RowName = tableData.Properties.RowNames;
-
+                viewModel = app.Presenter.presentEffluxTable(app.Session);
             else
-
-                app.EffluxUITable.Data = [];
-                app.EffluxUITable.ColumnName = {};
-                app.EffluxUITable.ColumnEditable = [];
-                app.EffluxUITable.RowName = {};
-
-                % Disable efflux perturbation components
-                app.EffluxUITable.Enable = 'off';
-
+                viewModel = openmebius.presentation.batch ...
+                    .RunConfigTableViewModel();
             end
+
+            app.renderTableViewModel(app.EffluxUITable, viewModel);
+            app.refreshControlState();
 
         end % enabledisableEffluxPertubation
 
@@ -309,27 +303,15 @@ classdef RunConfig_exported < matlab.apps.AppBase
             isSuggestLabel = app.SuggestionCheckBox.Value;
 
             if isSuggestLabel
-
-                % Enable suggestion-related components
-                app.LabelTable.Enable = 'on';
-
-                tableSuggestion = app.Session.suggestionTable();
-
-                app.LabelTable.Data = tableSuggestion;
-                app.LabelTable.ColumnName = tableSuggestion.Properties.VariableNames;
-                app.LabelTable.RowName = tableSuggestion.Properties.RowNames;
-
+                viewModel = app.Presenter ...
+                    .presentSuggestionTable(app.Session);
             else
-
-                % Disable suggestion-related components
-                app.LabelTable.Enable = 'off';
-
-                % cleanup suggestion table
-                app.LabelTable.Data = [];
-                app.LabelTable.ColumnName = {};
-                app.LabelTable.RowName = {};
-
+                viewModel = openmebius.presentation.batch ...
+                    .RunConfigTableViewModel();
             end
+
+            app.renderTableViewModel(app.LabelTable, viewModel);
+            app.refreshControlState();
 
         end % enabledisableSuggestion
 
@@ -338,66 +320,37 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % based on the isINSTMFA flag
 
             if isINSTMFA
+                viewModel = app.Presenter ...
+                    .presentINSTMFATables(app.Session);
+                app.requestNotifications(viewModel.Notifications);
 
-                if ~app.Session.isSingleBatch()
-                    uialert(app.BatchconfigUIFigure, ...
-                        'INST-MFA settings can only be configured when a single batch is selected.', ...
-                        'Error', ...
-                        'Icon', 'error');
+                if ~viewModel.IsAvailable
                     app.INSTMFACheckBox.Value = false;
+                    app.renderTableViewModel( ...
+                        app.INSTMFAPoolUITable, viewModel.PoolTable);
+                    app.renderTableViewModel( ...
+                        app.INSTMFATimeCourseUITable, ...
+                        viewModel.TimePointTable);
+                    app.refreshControlState();
                     return;
                 end
 
-                tablePoolSize = app.Session.instPoolTable();
-                [tableTimePoints, timePointColumnEditable] = ...
-                    app.Session.instTimePointTable();
-
-                app.INSTMFAPoolUITable.Data = tablePoolSize;
-                app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
-                app.INSTMFAPoolUITable.RowName = {};
-                app.INSTMFAPoolUITable.ColumnEditable = [false, true];
-
-                app.INSTMFATimeCourseUITable.Data = tableTimePoints;
-                app.INSTMFATimeCourseUITable.ColumnName = {'TimePointExpName', 'TimePoint'};
-                app.INSTMFATimeCourseUITable.RowName = {};
-                app.INSTMFATimeCourseUITable.ColumnEditable = timePointColumnEditable;
-
-                app.INSTMFAPoolUITable.Enable = 'on';
-                app.INSTMFATimeCourseUITable.Enable = 'on';
-
+                poolTable = viewModel.PoolTable;
+                timePointTable = viewModel.TimePointTable;
             else
-                app.INSTMFAPoolUITable.Data = [];
-                app.INSTMFAPoolUITable.ColumnName = {};
-                app.INSTMFAPoolUITable.RowName = {};
-                app.INSTMFATimeCourseUITable.Data = [];
-                app.INSTMFATimeCourseUITable.ColumnName = {};
-                app.INSTMFATimeCourseUITable.RowName = {};
-
-                % Disable INST-MFA-related components
-                app.INSTMFAPoolUITable.Enable = 'off';
-                app.INSTMFATimeCourseUITable.Enable = 'off';
+                poolTable = openmebius.presentation.batch ...
+                    .RunConfigTableViewModel();
+                timePointTable = openmebius.presentation.batch ...
+                    .RunConfigTableViewModel();
             end
 
+            app.renderTableViewModel( ...
+                app.INSTMFAPoolUITable, poolTable);
+            app.renderTableViewModel( ...
+                app.INSTMFATimeCourseUITable, timePointTable);
+            app.refreshControlState();
+
         end % enabledisableINSTMFA
-
-        function loadMSFragmentTable(app)
-            % LOADMSFRAGMENTTABLE Load the MS fragment table for
-            % the selected batch and display it in the MSTable
-            % component
-
-            fragmentSelections = app.Session.msFragmentSelections();
-            viewModel = ...
-                openmebius.presentation.batch.MSFragmentTableMapper.toViewModel( ...
-                fragmentSelections);
-            app.MSFragmentTableMetadata = viewModel.Metadata;
-
-            % Fill the MSTable with the selected and available tables
-            app.MSTable.Data = viewModel.Data;
-            app.MSTable.ColumnName = viewModel.ColumnName;
-            app.MSTable.RowName = viewModel.RowName;
-            app.MSTable.ColumnEditable = viewModel.ColumnEditable;
-
-        end % loadMSFragmentTable
 
         function editTimeCourse(app)
             % EDITTIMECOURSE Edit the time course table for INST-MFA
@@ -726,7 +679,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             data = app.LabelTable.Data;
 
-            if ~istable(data)
+            if ~app.SuggestionCheckBox.Value || ~istable(data)
                 data = [];
                 return
             end
@@ -756,19 +709,26 @@ classdef RunConfig_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, session)
+        function startupFcn(app, session, presenter, editor)
 
             app.Session = session;
-            app.Presenter = openmebius.presentation.batch ...
-                .RunConfigPresenter();
-            viewModel = app.Presenter.presentConfig( ...
-                app.Session.primaryConfig());
-            app.renderRunConfigViewModel(viewModel)
-            app.enabledisableCIUI(app.CalcCICheckBox.Value)
-            app.enabledisableEffluxPertubation()
-            app.enabledisableSuggestion()
-            app.enabledisableINSTMFA(app.INSTMFACheckBox.Value)
-            app.loadMSFragmentTable()
+            app.Presenter = presenter;
+            app.renderRunConfigViewModel(editor.Config)
+            app.MSFragmentTableMetadata = ...
+                editor.MSFragmentTable.Metadata;
+            app.renderTableViewModel( ...
+                app.MSTable, editor.MSFragmentTable);
+            app.renderTableViewModel( ...
+                app.EffluxUITable, editor.EffluxTable);
+            app.renderTableViewModel( ...
+                app.LabelTable, editor.SuggestionTable);
+            app.renderTableViewModel( ...
+                app.INSTMFAPoolUITable, ...
+                editor.INSTMFATables.PoolTable);
+            app.renderTableViewModel( ...
+                app.INSTMFATimeCourseUITable, ...
+                editor.INSTMFATables.TimePointTable);
+            app.renderControlState(editor.ControlState);
             app.wireActionButtons()
 
         end

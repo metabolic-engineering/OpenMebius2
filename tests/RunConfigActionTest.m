@@ -18,7 +18,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
             batch = helpers.RunConfigBatchStub();
             session = RunConfigActionTest.createSession(batch);
-            app = RunConfig_exported(session);
+            app = RunConfigActionTest.createApp(session);
             cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
             recorder = helpers.RunConfigEventRecorder();
             recorder.attach(app);
@@ -65,7 +65,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
             batch = helpers.RunConfigBatchStub();
             session = RunConfigActionTest.createSession(batch);
-            app = RunConfig_exported(session);
+            app = RunConfigActionTest.createApp(session);
             cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
             recorder = helpers.RunConfigEventRecorder();
             recorder.attach(app);
@@ -98,7 +98,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
             batch = helpers.RunConfigBatchStub();
             session = RunConfigActionTest.createSession(batch);
-            app = RunConfig_exported(session);
+            app = RunConfigActionTest.createApp(session);
             recorder = helpers.RunConfigEventRecorder();
             recorder.attach(app);
 
@@ -117,7 +117,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             batch.FailFragmentUpdate = true;
             originalIteration = batch.Config.iteration;
             session = RunConfigActionTest.createSession(batch);
-            app = RunConfig_exported(session);
+            app = RunConfigActionTest.createApp(session);
             cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
             recorder = helpers.RunConfigEventRecorder();
             recorder.attach(app);
@@ -143,7 +143,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             batch.Config.CIConf.MC.iteration = 222;
             batch.Config.CIConf.grid.points = 17;
             session = RunConfigActionTest.createSession(batch);
-            app = RunConfig_exported(session);
+            app = RunConfigActionTest.createApp(session);
             cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
 
             testCase.verifyEqual(app.MCLmaxEditField.Value, 222);
@@ -166,7 +166,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
             batch = helpers.RunConfigBatchStub();
             session = RunConfigActionTest.createSession(batch);
-            app = RunConfig_exported(session);
+            app = RunConfigActionTest.createApp(session);
             cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
 
             app.CalcCICheckBox.Value = true;
@@ -207,9 +207,41 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
         end
 
+        function reportsINSTMFARestrictionThroughNotification(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            session = openmebius.application.batch ...
+                .BatchConfigurationSession( ...
+                    batch, [], ["batch-a"; "batch-b"]);
+            app = RunConfigActionTest.createApp(session);
+            cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+            recorder = helpers.RunConfigEventRecorder();
+            recorder.attach(app);
+            app.INSTMFACheckBox.Value = true;
+
+            callback = app.INSTMFACheckBox.ValueChangedFcn;
+            callback([], struct(Source = app.INSTMFACheckBox));
+
+            testCase.verifyFalse(app.INSTMFACheckBox.Value);
+            testCase.verifyNumElements(recorder.Notifications, 1);
+            testCase.verifyEqual( ...
+                recorder.Notifications{1}.Level, "error");
+            testCase.verifyTrue(recorder.Notifications{1}.ShowAlert);
+
+        end
+
     end % methods (Test)
 
     methods (Static, Access = private)
+
+        function app = createApp(session)
+
+            presenter = openmebius.presentation.batch ...
+                .RunConfigPresenter();
+            editor = presenter.presentEditor(session);
+            app = RunConfig_exported(session, presenter, editor);
+
+        end % createApp
 
         function session = createSession(batch)
 

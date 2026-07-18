@@ -6,6 +6,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
 
             root = fileparts(fileparts(mfilename("fullpath")));
             addpath(fullfile(root, "src"));
+            addpath(fullfile(root, "tests"));
 
         end
 
@@ -86,6 +87,49 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(actual.iteration, 64);
             testCase.verifyEqual(actual.algorithm, 'interior-point');
             openmebius.domain.batch.BatchConfig.validate(actual);
+
+        end
+
+        function presentsCompleteEditorState(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            session = openmebius.application.batch ...
+                .BatchConfigurationSession(batch, [], "batch-a");
+            presenter = openmebius.presentation.batch ...
+                .RunConfigPresenter();
+
+            editor = presenter.presentEditor(session);
+
+            testCase.verifyClass( ...
+                editor, ...
+                'openmebius.presentation.batch.RunConfigEditorViewModel');
+            testCase.verifyEqual(editor.Config.Iteration, 30);
+            testCase.verifyEqual(height(editor.MSFragmentTable.Data), 2);
+            testCase.verifyEqual(width(editor.MSFragmentTable.Data), 1);
+            testCase.verifyFalse(editor.ControlState.EffluxEnabled);
+            testCase.verifyEmpty(editor.Notifications);
+
+        end
+
+        function reportsUnavailableINSTMFAForMultipleBatches(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            batch.Config.isINSTMFA = true;
+            session = openmebius.application.batch ...
+                .BatchConfigurationSession( ...
+                    batch, [], ["batch-a"; "batch-b"]);
+            presenter = openmebius.presentation.batch ...
+                .RunConfigPresenter();
+
+            editor = presenter.presentEditor(session);
+
+            testCase.verifyFalse(editor.Config.IsINSTMFA);
+            testCase.verifyFalse( ...
+                editor.INSTMFATables.IsAvailable);
+            testCase.verifyNumElements(editor.Notifications, 1);
+            testCase.verifyEqual( ...
+                editor.Notifications{1}.Level, "error");
+            testCase.verifyTrue(editor.Notifications{1}.ShowAlert);
 
         end
 
