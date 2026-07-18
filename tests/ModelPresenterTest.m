@@ -68,6 +68,94 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsValidModelEdit(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+            report = openmebius.domain.model.ModelValidationReport.success( ...
+                "Model updated.");
+            result = openmebius.application.model.ModelEditResult( ...
+                ModelReport = report);
+            outcome = openmebius.application.model ...
+                .ModelOperationOutcome("finished", Result = result);
+
+            viewModel = presenter.presentModelSaveOutcome(outcome);
+
+            testCase.verifyEqual(viewModel.CompletionStatus, "finished");
+            testCase.verifyTrue(viewModel.FinishEditCommit);
+            testCase.verifyTrue(viewModel.EditCommitSucceeded);
+            testCase.verifyEqual(viewModel.ValidationReports{1}, report);
+            testCase.verifyEqual( ...
+                string(viewModel.ValidationStyles(1).Target), "model");
+            testCase.verifyEmpty(viewModel.ValidationStyles(1).Rows);
+
+        end
+
+        function presentsInvalidModelEdit(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+            report = openmebius.domain.model.ModelValidationReport.failure( ...
+                "Invalid model.", InvalidRows = [2; 4]);
+            result = openmebius.application.model.ModelEditResult( ...
+                ModelReport = report);
+            outcome = openmebius.application.model ...
+                .ModelOperationOutcome("finished", Result = result);
+
+            viewModel = presenter.presentModelSaveOutcome(outcome);
+
+            testCase.verifyEqual(viewModel.SectionStatus, "error");
+            testCase.verifyTrue(viewModel.FinishEditCommit);
+            testCase.verifyFalse(viewModel.EditCommitSucceeded);
+            testCase.verifyEqual( ...
+                viewModel.ValidationStyles(1).Rows, [2; 4]);
+
+        end
+
+        function presentsValidMassSpectrometryEdit(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+            msReport = ...
+                openmebius.domain.model.ModelValidationReport.success( ...
+                    "MS updated.");
+            atomReport = ...
+                openmebius.domain.model.ModelValidationReport.success( ...
+                    "Atom updated.");
+            result = openmebius.application.model.ModelEditResult( ...
+                MSReport = msReport, ...
+                AtomReport = atomReport);
+            outcome = openmebius.application.model ...
+                .ModelOperationOutcome("finished", Result = result);
+
+            viewModel = ...
+                presenter.presentMassSpectrometrySaveOutcome(outcome);
+
+            testCase.verifyTrue(viewModel.EditCommitSucceeded);
+            testCase.verifyEqual( ...
+                string({viewModel.ValidationStyles.Target})', ...
+                ["ms"; "atom"]);
+            testCase.verifyEqual( ...
+                viewModel.CompletionNotification.Message, ...
+                "MS table saved");
+
+        end
+
+        function presentsModelEditException(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+            outcome = openmebius.application.model ...
+                .ModelOperationOutcome( ...
+                    "error", ErrorMessage = "Save failed.");
+
+            viewModel = presenter.presentModelSaveOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(viewModel.SectionStatus, "error");
+            testCase.verifyTrue(viewModel.FinishEditCommit);
+            testCase.verifyFalse(viewModel.EditCommitSucceeded);
+            testCase.verifyEqual(notification.Title, "Model table save failed");
+            testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
     end % methods (Test)
 
 end % classdef

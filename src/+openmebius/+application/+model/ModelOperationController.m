@@ -26,8 +26,76 @@ classdef ModelOperationController < handle
                 modelLocation openmebius.domain.model.ModelLocation
             end
 
+            outcome = obj.execute( ...
+                @() obj.TemplateModelLoadService.load(modelLocation));
+
+        end % loadTemplate
+
+        function outcome = saveModelTable(~, model, modelTable)
+
+            arguments
+                ~
+                model
+                modelTable table
+            end
+
+            outcome = openmebius.application.model ...
+                .ModelOperationController.executeCommand(@saveTable);
+
+            function result = saveTable()
+
+                report = model.updateModelTableGUI(modelTable);
+                result = openmebius.application.model.ModelEditResult( ...
+                    ModelReport = report);
+
+            end
+
+        end % saveModelTable
+
+        function outcome = saveMassSpectrometry( ...
+                ~, model, msTable, atomTable)
+
+            arguments
+                ~
+                model
+                msTable table
+                atomTable table
+            end
+
+            outcome = openmebius.application.model ...
+                .ModelOperationController.executeCommand(@saveTables);
+
+            function result = saveTables()
+
+                msReport = model.updateMSTable(msTable);
+                atomReport = model.updateAtomTable(atomTable);
+                result = openmebius.application.model.ModelEditResult( ...
+                    MSReport = msReport, ...
+                    AtomReport = atomReport);
+
+            end
+
+        end % saveMassSpectrometry
+
+    end % methods
+
+    methods (Access = private)
+
+        function outcome = execute(~, command)
+
+            outcome = openmebius.application.model ...
+                .ModelOperationController.executeCommand(command);
+
+        end % execute
+
+    end % methods (Access = private)
+
+    methods (Static, Access = private)
+
+        function outcome = executeCommand(command)
+
             try
-                result = obj.TemplateModelLoadService.load(modelLocation);
+                result = command();
                 outcome = openmebius.application.model ...
                     .ModelOperationOutcome( ...
                         "finished", Result = result);
@@ -39,8 +107,8 @@ classdef ModelOperationController < handle
                         Exception = exception);
             end
 
-        end % loadTemplate
+        end % executeCommand
 
-    end % methods
+    end % methods (Static, Access = private)
 
 end % classdef

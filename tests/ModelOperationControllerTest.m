@@ -57,6 +57,78 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
 
         end
 
+        function savesModelTable(testCase)
+
+            model = helpers.ModelEditWorkspaceStub();
+            model.ModelReport = ...
+                openmebius.domain.model.ModelValidationReport.success( ...
+                    "Model saved.");
+            controller = openmebius.application.model ...
+                .ModelOperationController( ...
+                    TemplateModelLoadService = ...
+                        helpers.TemplateModelLoadServiceStub());
+            modelTable = table((1:2)', VariableNames = "Value");
+
+            outcome = controller.saveModelTable(model, modelTable);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(model.ModelCalled);
+            testCase.verifyEqual(model.ModelTable, modelTable);
+            testCase.verifyEqual( ...
+                outcome.Result.ModelReport, model.ModelReport);
+
+        end
+
+        function savesMassSpectrometryTables(testCase)
+
+            model = helpers.ModelEditWorkspaceStub();
+            model.MSReport = ...
+                openmebius.domain.model.ModelValidationReport.success( ...
+                    "MS saved.");
+            model.AtomReport = ...
+                openmebius.domain.model.ModelValidationReport.success( ...
+                    "Atom saved.");
+            controller = openmebius.application.model ...
+                .ModelOperationController( ...
+                    TemplateModelLoadService = ...
+                        helpers.TemplateModelLoadServiceStub());
+            msTable = table(1, VariableNames = "MS");
+            atomTable = table(2, VariableNames = "Atom");
+
+            outcome = controller.saveMassSpectrometry( ...
+                model, msTable, atomTable);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(model.MSCalled);
+            testCase.verifyTrue(model.AtomCalled);
+            testCase.verifyEqual(outcome.Result.MSReport, model.MSReport);
+            testCase.verifyEqual( ...
+                outcome.Result.AtomReport, model.AtomReport);
+
+        end
+
+        function capturesModelEditFailure(testCase)
+
+            model = helpers.ModelEditWorkspaceStub();
+            model.Exception = MException( ...
+                "OpenMebius2:Test:ModelEditFailed", ...
+                "Model edit failed.");
+            controller = openmebius.application.model ...
+                .ModelOperationController( ...
+                    TemplateModelLoadService = ...
+                        helpers.TemplateModelLoadServiceStub());
+
+            outcome = controller.saveModelTable(model, table());
+
+            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyEqual( ...
+                outcome.ErrorMessage, "Model edit failed.");
+            testCase.verifyEqual( ...
+                string(outcome.Exception.identifier), ...
+                "OpenMebius2:Test:ModelEditFailed");
+
+        end
+
     end % methods (Test)
 
 end % classdef

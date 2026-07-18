@@ -571,17 +571,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     viewModel.Notifications{notificationIndex});
             end
 
-            if isempty(viewModel.Result)
-                return
-            end
-
             try
-                app.applyTemplateModelLoadResult(viewModel.Result);
+                app.applyModelValidationStyles( ...
+                    viewModel.ValidationStyles);
 
-                pause(0.5)
+                for reportIndex = 1:numel(viewModel.ValidationReports)
+                    app.showModelValidationReport( ...
+                        viewModel.ValidationReports{reportIndex});
+                end
 
-                app.loadEMUModel();
-                app.loadPathway();
+                if ~isempty(viewModel.Result)
+                    app.applyTemplateModelLoadResult(viewModel.Result);
+
+                    pause(0.5)
+
+                    app.loadEMUModel();
+                    app.loadPathway();
+                end
 
                 if ~isempty(viewModel.CompletionNotification)
                     app.showNotification( ...
@@ -593,7 +599,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                         "model", ...
                         viewModel.CompletionStatus);
                 end
+
+                if viewModel.FinishEditCommit
+                    app.finishPresentationEditCommit( ...
+                        viewModel.EditCommitSucceeded);
+                end
             catch exception
+                if viewModel.FinishEditCommit
+                    app.finishPresentationEditCommit(false);
+                end
+
                 app.updateStatus("model", "error");
                 app.notifyException( ...
                     exception, ...
@@ -602,6 +617,55 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % renderModelOperationViewModel
+
+        function applyModelValidationStyles(app, styleRules)
+
+            if isempty(styleRules)
+                return
+            end
+
+            targets = string({styleRules.Target});
+
+            if any(targets == "model")
+                app.resetModelTableColorFormat();
+            end
+
+            if any(targets == "ms" | targets == "atom")
+                app.resetMSTableColorFormat();
+            end
+
+            for ruleIndex = 1:numel(styleRules)
+                rows = styleRules(ruleIndex).Rows;
+
+                if isempty(rows)
+                    continue
+                end
+
+                switch string(styleRules(ruleIndex).Target)
+                    case "model"
+                        target = app.ModelTable;
+
+                    case "ms"
+                        target = app.MSTable;
+
+                    case "atom"
+                        target = app.AtomTable;
+
+                    otherwise
+                        error( ...
+                            "OpenMebius2:Model:InvalidStyleTarget", ...
+                            "Unknown model style target: %s", ...
+                            string(styleRules(ruleIndex).Target));
+                end
+
+                addStyle( ...
+                    target, ...
+                    app.styleError, ...
+                    'row', ...
+                    rows);
+            end
+
+        end % applyModelValidationStyles
 
         function renderLegacyProjectArtifacts(app)
 
@@ -4685,43 +4749,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ModelSaveButton
-        function ModelSaveButtonPushed(app, event)
+        function ModelSaveButtonPushed(app, ~)
 
             app.beginPresentationEditCommit();
+            app.ensureModelOperationController();
+            app.ensureModelPresenter();
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter.presentModelSaveStarted());
 
-            try
-                app.updateStatus("model", "running");
-
-                tableIn = app.ModelTable.Data;
-                validationReport = app.model.updateModelTableGUI(tableIn);
-
-                resetModelTableColorFormat(app);
-
-                if ~isempty(validationReport.InvalidRows)
-                    addStyle( ...
-                        app.ModelTable, ...
-                        app.styleError, ...
-                        'row', ...
-                        validationReport.InvalidRows);
-                end
-
-                app.showModelValidationReport(validationReport);
-
-                if ~validationReport.IsValid
-                    app.updateStatus("model", "error");
-
-                    app.finishPresentationEditCommit(false);
-                    return
-                end
-
-                app.updateStatus("model", "finished");
-
-                app.finishPresentationEditCommit(true);
-
-            catch ME
-                app.finishPresentationEditCommit(false);
-                rethrow(ME)
-            end
+            outcome = app.ModelOperationController.saveModelTable( ...
+                app.model, ...
+                app.ModelTable.Data);
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter.presentModelSaveOutcome(outcome));
 
         end
 
@@ -4821,57 +4861,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: MSSaveButton
-        function MSSaveButtonPushed(app, event)
+        function MSSaveButtonPushed(app, ~)
 
             app.beginPresentationEditCommit();
+            app.ensureModelOperationController();
+            app.ensureModelPresenter();
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter ...
+                .presentMassSpectrometrySaveStarted());
 
-            try
-                app.updateStatus("model", "running");
-
-                tableMS = app.MSTable.Data;
-                tableAtom = app.AtomTable.Data;
-
-                msReport = app.model.updateMSTable(tableMS);
-                resetMSTableColorFormat(app)
-
-                if ~isempty(msReport.InvalidRows)
-                    addStyle( ...
-                        app.MSTable, ...
-                        app.styleError, ...
-                        'row', ...
-                        msReport.InvalidRows);
-                end
-
-                atomReport = app.model.updateAtomTable(tableAtom);
-
-                if ~isempty(atomReport.InvalidRows)
-                    addStyle( ...
-                        app.AtomTable, ...
-                        app.styleError, ...
-                        'row', ...
-                        atomReport.InvalidRows);
-                end
-
-                app.showModelValidationReport(msReport);
-                app.showModelValidationReport(atomReport);
-
-                if ~msReport.IsValid || ~atomReport.IsValid
-                    app.updateStatus("model", "error");
-
-                    app.finishPresentationEditCommit(false);
-                    return
-                end
-
-                app.updateStatus("model", "finished");
-
-                app.LogTextDate("MS table saved", "Info");
-
-                app.finishPresentationEditCommit(true);
-
-            catch ME
-                app.finishPresentationEditCommit(false);
-                rethrow(ME)
-            end
+            outcome = app.ModelOperationController ...
+                .saveMassSpectrometry( ...
+                    app.model, ...
+                    app.MSTable.Data, ...
+                    app.AtomTable.Data);
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter ...
+                .presentMassSpectrometrySaveOutcome(outcome));
 
         end
 
