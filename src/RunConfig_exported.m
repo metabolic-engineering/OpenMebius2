@@ -177,119 +177,46 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function fillConfigValueToUI(app)
             % FILLCONFIGVALUETOUTI Fill the configuration values into the UI components
 
-            % Iteration times
-            iterationTimes = arrayfun(@(x) x.iteration, app.selectedConfig);
-            app.IterationSpinner.Value = iterationTimes(1);
-            clear iterationTimes
+            viewModel = openmebius.presentation.batch ...
+                .RunConfigMapper.toViewModel(app.selectedConfig(1));
+            app.IterationSpinner.Value = viewModel.Iteration;
+            app.AlgorithmDropDown.Value = viewModel.Algorithm;
+            app.LargeScaleCheckBox.Value = viewModel.LargeScale;
+            app.SuggestionCheckBox.Value = viewModel.SuggestNextFlux;
+            app.PerturbateEffluxCheckBox.Value = ...
+                viewModel.PerturbateEfflux;
+            app.CalcCICheckBox.Value = viewModel.CalculateCI;
+            app.AlgorithmCIDropDown.Value = viewModel.CIAlgorithm;
+            app.DeleteResultButton.Value = viewModel.DeleteResultFile;
 
-            % Algorithm
-            algorithm = arrayfun(@(x) x.algorithm, app.selectedConfig, "UniformOutput", false);
-            algorithm = algorithm{1};
+            app.MCLmaxEditField.Value = viewModel.MCIterations;
+            app.MCFixMIDCheckBox.Value = viewModel.MCFixMID;
+            app.MCMIDSDEditField.Value = ...
+                viewModel.MCMIDStandardDeviation;
+            app.MCProcedureDropDown.Value = ...
+                viewModel.MCOptimizationProcedure;
+            app.MCTTEditField.Value = ...
+                viewModel.MCTerminationTolerance;
+            app.MCProximityEditField.Value = ...
+                viewModel.MCProximityThreshold;
+            app.MCNasEditField.Value = viewModel.MCCertainThreshold;
+            app.MCKNREditField.Value = viewModel.MCNumberOfRuns;
+            app.MCMethodDropDown.Value = ...
+                viewModel.MCCalculationMethod;
 
-            app.AlgorithmDropDown.Value = ...
-                openmebius.presentation.batch.RunConfigMapper.algorithmToView(algorithm);
+            app.DeterminegridintervalautomaticallyCheckBox.Value = ...
+                viewModel.GridAutomaticInterval;
+            app.ThenumberofgridpointsEditField.Value = ...
+                viewModel.GridPoints;
+            app.GridintervalDeltaixiEditField.Value = viewModel.GridDelta;
+            app.IterationtimesforgridsearchEditField.Value = ...
+                viewModel.GridIterations;
+            app.ThresholdDropDown.Value = viewModel.GridThreshold;
 
-            clear algorithm
-
-            % Large scale problem
-            largeScale = arrayfun(@(x) x.largeScale, app.selectedConfig);
-            app.LargeScaleCheckBox.Value = largeScale(1);
-            clear largeScale
-
-            % Suggest next flux
-            suggestNextFlux = arrayfun(@(x) x.suggestNextFlux, app.selectedConfig);
-            app.SuggestionCheckBox.Value = suggestNextFlux(1);
-            clear suggestNextFlux
-
-            % Perturbate efflux
-            perturbateEfflux = arrayfun(@(x) x.perturbateEfflux, app.selectedConfig);
-            app.PerturbateEffluxCheckBox.Value = perturbateEfflux(1);
-            clear perturbateEfflux
-
-            % Calculate confidence intervals
-            isCalcCI = arrayfun(@(x) x.isCalcCI, app.selectedConfig);
-            app.CalcCICheckBox.Value = isCalcCI(1);
-            clear isCalcCI
-
-            % CI Calculation Algorithm
-            ciAlgorithm = arrayfun(@(x) x.CIConf.algorithm, app.selectedConfig, "UniformOutput", false);
-            ciAlgorithm = ciAlgorithm{1};
-
-            app.AlgorithmCIDropDown.Value = ...
-                openmebius.presentation.batch.RunConfigMapper.ciAlgorithmToView(ciAlgorithm);
-
-            clear ciAlgorithm
-
-            isDeleteResultFile = arrayfun(@(x) x.deleteResultFile, app.selectedConfig);
-            app.DeleteResultButton.Value = isDeleteResultFile(1);
-            clear isDeleteResultFile
-
-            % Monte Carlo-specific settings
-            if strcmp(app.AlgorithmCIDropDown.Value, 'Monte Carlo')
-                mcConfig = app.selectedConfig(1).CIConf.MC;
-
-                app.MCLmaxEditField.Value = mcConfig.iteration;
-                app.MCFixMIDCheckBox.Value = mcConfig.fixMID;
-                app.MCMIDSDEditField.Value = mcConfig.MIDSD;
-
-                app.MCProcedureDropDown.Value = ...
-                    openmebius.presentation.batch.RunConfigMapper.mcOptimizationProcedureToView( ...
-                    mcConfig.optimizationProcedure);
-
-                app.MCTTEditField.Value = mcConfig.terminationTolerance;
-                app.MCProximityEditField.Value = mcConfig.proximityThreshold;
-                app.MCNasEditField.Value = mcConfig.certainThreshold;
-                app.MCKNREditField.Value = mcConfig.theNumberOfRuns;
-
-                app.MCMethodDropDown.Value = ...
-                    openmebius.presentation.batch.RunConfigMapper.mcCalculationMethodToView(mcConfig.calculationMethod);
-
-            end
-
-            % Grid search-specific settings
-            if strcmp(app.AlgorithmCIDropDown.Value, 'Grid search')
-                gridConfig = app.selectedConfig(1).CIConf.grid;
-
-                app.DeterminegridintervalautomaticallyCheckBox.Value = gridConfig.isParallel;
-                app.ThenumberofgridpointsEditField.Value = gridConfig.points;
-                app.GridintervalDeltaixiEditField.Value = gridConfig.delta;
-                app.IterationtimesforgridsearchEditField.Value = gridConfig.iteration;
-
-                app.ThresholdDropDown.Value = ...
-                    openmebius.presentation.batch.RunConfigMapper.gridThresholdToView(gridConfig.threshold);
-
-            end
-
-            app.INSTMFACheckBox.Value = app.selectedConfig(1).isINSTMFA;
-
-            if app.INSTMFACheckBox.Value
-
-                INSTMFA = app.selectedConfig(1).INSTMFA;
-
-                if isempty(INSTMFA)
-                    return
-                end
-
-                % Pool size
-                app.INSTMFAPoolUITable.Data = table( ...
-                    string(INSTMFA.poolMetabolite(:)), ...
-                    double(INSTMFA.poolSize(:)), ...
-                    'VariableNames', {'Metabolite', 'PoolSize'} ...
-                );
-                app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
-                app.INSTMFAPoolUITable.RowName = {};
-                app.INSTMFAPoolUITable.ColumnEditable = [false, true];
-                % Time course
-                app.INSTMFATimeCourseUITable.Data = table( ...
-                    string(INSTMFA.timePointsExpName(:)), ...
-                    double(INSTMFA.timePoints(:)), ...
-                    'VariableNames', {'TimePointExpName', 'TimePoint'} ...
-                );
-                app.INSTMFATimeCourseUITable.ColumnName = {'TimePointExpName', 'TimePoint'};
-                app.INSTMFATimeCourseUITable.RowName = {};
-                app.INSTMFATimeCourseUITable.ColumnEditable = [false, true];
-
-            end % if app.INSTMFACheckBox.Value
+            app.INSTMFACheckBox.Value = viewModel.IsINSTMFA;
+            app.INSTMFAPoolUITable.Data = viewModel.INSTMFAPoolTable;
+            app.INSTMFATimeCourseUITable.Data = ...
+                viewModel.INSTMFATimePointTable;
 
         end % fillConfigValueToUI
 
@@ -685,93 +612,65 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function config = buildGeneralConfig(app)
             % BUILDGENERALCONFIG Convert the current controls to config.
 
-            config = app.Session.primaryConfig();
-
-            % Update the configuration with values from the UI
-            config.iteration = app.IterationSpinner.Value;
-
-            config.algorithm = ...
-                openmebius.presentation.batch.RunConfigMapper.algorithmToConfig(app.AlgorithmDropDown.Value);
-
-            config.largeScale = app.LargeScaleCheckBox.Value;
-            config.suggestNextFlux = app.SuggestionCheckBox.Value;
-            config.perturbateEfflux = app.PerturbateEffluxCheckBox.Value;
-
-            if config.perturbateEfflux
-                % Update efflux perturbation settings only when the UI table
-                % contains the table data. When the efflux panel has not been
-                % opened yet, UITable.Data can still be the default [] double.
-                % In that case, preserve the existing batch configuration.
-                tableEffluxPerturbation = app.EffluxUITable.Data;
-
-                if istable(tableEffluxPerturbation) && ...
-                        all(ismember(["Selection", "SD"], string(tableEffluxPerturbation.Properties.VariableNames)))
-                    config.efflux.selection = logical(tableEffluxPerturbation.Selection(:));
-                    config.efflux.substrate = string(tableEffluxPerturbation.Properties.RowNames(:));
-                    config.efflux.substrateSD = double(tableEffluxPerturbation.SD(:));
-                end
-
-            end
-
-            % Update the confidence interval calculation settings
-            config.isCalcCI = app.CalcCICheckBox.Value;
-            config.CIConf.algorithm = ...
-                openmebius.presentation.batch.RunConfigMapper.ciAlgorithmToConfig(app.AlgorithmCIDropDown.Value);
-
-            config.deleteResultFile = app.DeleteResultButton.Value;
-
-            % Monte Carlo-specific settings
-            if strcmp(config.CIConf.algorithm, 'Monte Carlo')
-                config.CIConf.MC.iteration = app.MCLmaxEditField.Value;
-                config.CIConf.MC.fixMID = app.MCFixMIDCheckBox.Value;
-                config.CIConf.MC.MIDSD = app.MCMIDSDEditField.Value;
-                config.CIConf.MC.procedure = app.MCProcedureDropDown.Value;
-                config.CIConf.MC.terminationTolerance = app.MCTTEditField.Value;
-                config.CIConf.MC.proximityThreshold = app.MCProximityEditField.Value;
-                config.CIConf.MC.certainThreshold = app.MCNasEditField.Value;
-                config.CIConf.MC.theNumberOfRuns = app.MCKNREditField.Value;
-                config.CIConf.MC.method = app.MCMethodDropDown.Value;
-                config.CIConf.MC.optimizationProcedure = ...
-                    openmebius.presentation.batch.RunConfigMapper.mcOptimizationProcedureToConfig( ...
-                    app.MCProcedureDropDown.Value);
-                config.CIConf.MC.calculationMethod = ...
-                    openmebius.presentation.batch.RunConfigMapper.mcCalculationMethodToConfig(app.MCMethodDropDown.Value);
-
-            end
-
-            % Grid search-specific settings
-            if strcmp(config.CIConf.algorithm, 'Grid search')
-                config.CIConf.grid.isParallel = app.DeterminegridintervalautomaticallyCheckBox.Value;
-                config.CIConf.grid.points = app.ThenumberofgridpointsEditField.Value;
-                config.CIConf.grid.delta = app.GridintervalDeltaixiEditField.Value;
-                config.CIConf.grid.iteration = app.IterationtimesforgridsearchEditField.Value;
-                config.CIConf.grid.threshold = ...
-                    openmebius.presentation.batch.RunConfigMapper.gridThresholdToConfig(app.ThresholdDropDown.Value);
-            end
-
-            config.isINSTMFA = app.INSTMFACheckBox.Value;
-
-            if config.isINSTMFA
-
-                % Get pool size table
-                tablePoolSize = app.INSTMFAPoolUITable.Data;
-                config.INSTMFA.poolMetabolite = string(tablePoolSize.Metabolite(:));
-                config.INSTMFA.poolSize = double(tablePoolSize.PoolSize(:));
-
-                % Get time course table
-                tableTimeCourse = app.INSTMFATimeCourseUITable.Data;
-
-                if isempty(tableTimeCourse)
-                    config.INSTMFA.timePointsExpName = string.empty(0, 1);
-                    config.INSTMFA.timePoints = double.empty(0, 1);
-                else
-                    config.INSTMFA.timePointsExpName = string(tableTimeCourse.TimePointExpName(:));
-                    config.INSTMFA.timePoints = double(tableTimeCourse.TimePoint(:));
-                end
-
-            end % if config.isINSTMFA
+            viewModel = app.collectRunConfigViewModel();
+            config = openmebius.presentation.batch.RunConfigMapper ...
+                .fromViewModel( ...
+                    viewModel, app.Session.primaryConfig());
 
         end % buildGeneralConfig
+
+        function viewModel = collectRunConfigViewModel(app)
+
+            viewModel = openmebius.presentation.batch ...
+                .RunConfigViewModel();
+            viewModel.Iteration = app.IterationSpinner.Value;
+            viewModel.Algorithm = app.AlgorithmDropDown.Value;
+            viewModel.LargeScale = app.LargeScaleCheckBox.Value;
+            viewModel.SuggestNextFlux = app.SuggestionCheckBox.Value;
+            viewModel.PerturbateEfflux = ...
+                app.PerturbateEffluxCheckBox.Value;
+            viewModel.CalculateCI = app.CalcCICheckBox.Value;
+            viewModel.CIAlgorithm = app.AlgorithmCIDropDown.Value;
+            viewModel.DeleteResultFile = app.DeleteResultButton.Value;
+
+            viewModel.MCIterations = app.MCLmaxEditField.Value;
+            viewModel.MCFixMID = app.MCFixMIDCheckBox.Value;
+            viewModel.MCMIDStandardDeviation = ...
+                app.MCMIDSDEditField.Value;
+            viewModel.MCOptimizationProcedure = ...
+                app.MCProcedureDropDown.Value;
+            viewModel.MCTerminationTolerance = app.MCTTEditField.Value;
+            viewModel.MCProximityThreshold = ...
+                app.MCProximityEditField.Value;
+            viewModel.MCCertainThreshold = app.MCNasEditField.Value;
+            viewModel.MCNumberOfRuns = app.MCKNREditField.Value;
+            viewModel.MCCalculationMethod = app.MCMethodDropDown.Value;
+
+            viewModel.GridAutomaticInterval = ...
+                app.DeterminegridintervalautomaticallyCheckBox.Value;
+            viewModel.GridPoints = ...
+                app.ThenumberofgridpointsEditField.Value;
+            viewModel.GridDelta = app.GridintervalDeltaixiEditField.Value;
+            viewModel.GridIterations = ...
+                app.IterationtimesforgridsearchEditField.Value;
+            viewModel.GridThreshold = app.ThresholdDropDown.Value;
+            viewModel.IsINSTMFA = app.INSTMFACheckBox.Value;
+
+            if istable(app.EffluxUITable.Data)
+                viewModel.EffluxTable = app.EffluxUITable.Data;
+            end
+
+            if istable(app.INSTMFAPoolUITable.Data)
+                viewModel.INSTMFAPoolTable = ...
+                    app.INSTMFAPoolUITable.Data;
+            end
+
+            if istable(app.INSTMFATimeCourseUITable.Data)
+                viewModel.INSTMFATimePointTable = ...
+                    app.INSTMFATimeCourseUITable.Data;
+            end
+
+        end % collectRunConfigViewModel
 
         function fragmentSelections = buildMSFragmentSelections(app)
 

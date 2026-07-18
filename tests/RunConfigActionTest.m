@@ -136,6 +136,32 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
         end
 
+        function retainsBothConfidenceIntervalModes(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            batch.Config.CIConf.algorithm = 'Grid search';
+            batch.Config.CIConf.MC.iteration = 222;
+            batch.Config.CIConf.grid.points = 17;
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfig_exported(session);
+            cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+
+            testCase.verifyEqual(app.MCLmaxEditField.Value, 222);
+            testCase.verifyEqual( ...
+                app.ThenumberofgridpointsEditField.Value, 17);
+
+            app.MCLmaxEditField.Value = 333;
+            app.ThenumberofgridpointsEditField.Value = 29;
+            callback = app.GeneralApplyButton.ButtonPushedFcn;
+            callback([], []);
+
+            testCase.verifyEqual( ...
+                batch.Config.CIConf.MC.iteration, 333);
+            testCase.verifyEqual( ...
+                batch.Config.CIConf.grid.points, 29);
+
+        end
+
     end % methods (Test)
 
     methods (Static, Access = private)
