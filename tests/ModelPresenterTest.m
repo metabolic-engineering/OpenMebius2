@@ -156,6 +156,56 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsTemplateExportUnavailable(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+
+            viewModel = presenter.presentTemplateExportUnavailable();
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyEqual( ...
+                notification.Title, "Template export unavailable");
+            testCase.verifyFalse(notification.ShowAlert);
+
+        end
+
+        function presentsTemplateExportSuccess(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+            result = openmebius.application.model ...
+                .MassSpectrometryTemplateExportResult( ...
+                    OutputPath = "template.xlsx", ...
+                    Messages = ["Exported."; "template.xlsx"]);
+            outcome = openmebius.application.model ...
+                .ModelOperationOutcome("finished", Result = result);
+
+            viewModel = presenter.presentTemplateExportOutcome(outcome);
+            messages = cellfun( ...
+                @(notification) notification.Message, ...
+                viewModel.Notifications);
+
+            testCase.verifyEqual( ...
+                messages, ["Exported."; "template.xlsx"]);
+
+        end
+
+        function presentsTemplateExportFailure(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+            outcome = openmebius.application.model ...
+                .ModelOperationOutcome( ...
+                    "error", ErrorMessage = "Write failed.");
+
+            viewModel = presenter.presentTemplateExportOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyEqual(notification.Title, "Template export failed");
+            testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
     end % methods (Test)
 
 end % classdef

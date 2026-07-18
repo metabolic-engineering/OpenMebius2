@@ -3,6 +3,7 @@ classdef ModelOperationController < handle
 
     properties (Access = private)
         TemplateModelLoadService
+        TemplateExportService
     end
 
     methods
@@ -12,10 +13,14 @@ classdef ModelOperationController < handle
             arguments
                 options.TemplateModelLoadService = ...
                     openmebius.application.model.TemplateModelLoadService()
+                options.TemplateExportService = ...
+                    openmebius.application.model ...
+                        .MassSpectrometryTemplateExportService()
             end
 
             obj.TemplateModelLoadService = ...
                 options.TemplateModelLoadService;
+            obj.TemplateExportService = options.TemplateExportService;
 
         end % constructor
 
@@ -76,6 +81,21 @@ classdef ModelOperationController < handle
             end
 
         end % saveMassSpectrometry
+
+        function outcome = exportMassSpectrometryTemplate( ...
+                obj, model, outputPath)
+
+            arguments
+                obj
+                model
+                outputPath (1, 1) string
+            end
+
+            outcome = obj.execute( ...
+                @() obj.TemplateExportService.export( ...
+                    model, outputPath));
+
+        end % exportMassSpectrometryTemplate
 
     end % methods
 

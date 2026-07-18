@@ -5687,18 +5687,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: ExporttemplateExcelfileMenu
-        function ExporttemplateExcelfileMenuSelected(app, event)
+        function ExporttemplateExcelfileMenuSelected(app, ~)
+
+            app.ensureModelPresenter();
 
             if isempty(app.model) || ~isvalid(app.model)
-                msg = "Model is not loaded. Please load a model before exporting template Excel file.";
-                LogTextDate(app, msg, "Error");
+                app.renderModelOperationViewModel( ...
+                    app.ModelPresenter ...
+                    .presentTemplateExportUnavailable());
                 return
             end
 
-            cellData = getTemplateMSTable(app.model);
-
-            msg = "Exporting template Excel file. Please select the location to save the file.";
-            app.LogTextDate(msg, "Info");
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter.presentTemplateExportStarted());
 
             [file, isOK] = app.uiGetFileWrap( ...
                 Filter = {'*.xlsx', 'Excel Files (*.xlsx)'}, ...
@@ -5709,18 +5710,18 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             );
 
             if ~isOK
-                return; % User canceled the dialog
+                return
             end
 
-            % Write cell data to Excel file
-            try
-                writematrix(cellData, file, 'Sheet', 'MS');
-                msg = "Template Excel file exported successfully: " + file;
-                app.LogTextDate(msg, "Info");
-            catch ME
-                msg = "Failed to export template Excel file. Error: " + ME.message;
-                app.LogTextDate(msg, "Error");
-            end
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            app.ensureModelOperationController();
+            outcome = app.ModelOperationController ...
+                .exportMassSpectrometryTemplate( ...
+                    app.model, string(file));
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter ...
+                .presentTemplateExportOutcome(outcome));
 
         end
 
