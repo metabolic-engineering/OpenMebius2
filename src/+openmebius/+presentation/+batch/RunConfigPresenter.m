@@ -3,6 +3,46 @@ classdef RunConfigPresenter < handle
 
     methods
 
+        function request = createLaunchRequest(~, tableData, selection)
+
+            batchIds = openmebius.presentation.batch ...
+                .BatchTableSelectionMapper.selectedBatchIds( ...
+                    tableData, selection);
+            request = openmebius.application.batch ...
+                .BatchConfigurationLaunchRequest(batchIds);
+
+        end % createLaunchRequest
+
+        function viewModel = presentLaunchOutcome(obj, outcome)
+
+            arguments
+                obj (1, 1) openmebius.presentation.batch ...
+                    .RunConfigPresenter
+                outcome (1, 1) openmebius.application.batch ...
+                    .BatchConfigurationLaunchOutcome
+            end
+
+            if outcome.Status == "error"
+                viewModel = obj.launchErrorViewModel( ...
+                    outcome.ErrorMessage, outcome.Exception);
+                return
+            end
+
+            try
+                editor = obj.presentEditor(outcome.Session);
+                viewModel = openmebius.presentation.batch ...
+                    .RunConfigLaunchViewModel( ...
+                        IsAvailable = true, ...
+                        Session = outcome.Session, ...
+                        Editor = editor, ...
+                        Notifications = editor.Notifications);
+            catch exception
+                viewModel = obj.launchErrorViewModel( ...
+                    string(exception.message), exception);
+            end
+
+        end % presentLaunchOutcome
+
         function viewModel = presentConfig(~, config)
 
             viewModel = openmebius.presentation.batch ...
@@ -250,6 +290,33 @@ classdef RunConfigPresenter < handle
         end % presentControlState
 
     end % methods
+
+    methods (Access = private)
+
+        function viewModel = launchErrorViewModel( ...
+                ~, errorMessage, exception)
+
+            if isempty(exception)
+                notification = openmebius.presentation.notification ...
+                    .Notification.error( ...
+                        errorMessage, ...
+                        Title = "Batch configuration error", ...
+                        ShowAlert = true);
+            else
+                notification = openmebius.presentation.notification ...
+                    .Notification.fromException( ...
+                        exception, ...
+                        Title = "Batch configuration error", ...
+                        ShowAlert = true);
+            end
+
+            viewModel = openmebius.presentation.batch ...
+                .RunConfigLaunchViewModel( ...
+                    Notifications = {notification});
+
+        end % launchErrorViewModel
+
+    end % methods (Access = private)
 
     methods (Static, Access = private)
 

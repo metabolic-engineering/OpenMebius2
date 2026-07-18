@@ -197,6 +197,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProjectPresenter openmebius.presentation.project.ProjectPresenter
         ModelPresenter openmebius.presentation.model.ModelPresenter
         BatchPresenter openmebius.presentation.batch.BatchPresenter
+        RunConfigPresenter openmebius.presentation.batch.RunConfigPresenter
         BatchExperimentSelectionEditorPresenter openmebius.presentation.batch.BatchExperimentSelectionEditorPresenter
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         ResultPresenter openmebius.presentation.result.ResultPresenter
@@ -206,6 +207,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProjectSession openmebius.domain.project.ProjectSession
         ModelOperationController openmebius.application.model.ModelOperationController
         BatchOperationController openmebius.application.batch.BatchOperationController
+        BatchConfigurationController openmebius.application.batch.BatchConfigurationController
+        BatchConfigurationLaunchController openmebius.application.batch.BatchConfigurationLaunchController
         BatchExperimentSelectionEditorController openmebius.application.batch.BatchExperimentSelectionEditorController
         BatchRunController openmebius.application.batch.BatchRunController
         ResultOperationController openmebius.application.result.ResultOperationController
@@ -821,6 +824,33 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % renderBatchOperationViewModel
+
+        function renderRunConfigLaunchViewModel(app, viewModel)
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+            if ~viewModel.IsAvailable
+                return
+            end
+
+            app.ensureExperimentEditController();
+            app.ensureExperimentPresenter();
+            app.closeRunConfigApp();
+            app.RunConfigApp = RunConfig( ...
+                viewModel.Session, ...
+                app.RunConfigPresenter, ...
+                viewModel.Editor, ...
+                app.BatchConfigurationController, ...
+                app.ExperimentEditController, ...
+                app.ExperimentPresenter, ...
+                app.BatchExperimentSelectionEditorController, ...
+                app.BatchExperimentSelectionEditorPresenter);
+            app.attachRunConfigListeners(app.RunConfigApp);
+
+        end % renderRunConfigLaunchViewModel
 
         function renderBatchProgress(app, viewModel)
 
@@ -2791,6 +2821,25 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.RunConfigListeners);
 
         end % detachRunConfigListeners
+
+        function closeRunConfigApp(app)
+
+            app.detachRunConfigListeners();
+            childApp = app.RunConfigApp;
+            app.RunConfigApp = [];
+
+            if isempty(childApp)
+                return
+            end
+
+            try
+                if isvalid(childApp)
+                    delete(childApp);
+                end
+            catch
+            end
+
+        end % closeRunConfigApp
 
         function attachLabelConfigListeners(app, labelConfigApp)
 
@@ -4913,6 +4962,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.model.ModelOperationController();
             app.BatchOperationController = ...
                 openmebius.application.batch.BatchOperationController();
+            app.BatchConfigurationController = ...
+                openmebius.application.batch ...
+                .BatchConfigurationController();
+            app.BatchConfigurationLaunchController = ...
+                openmebius.application.batch ...
+                .BatchConfigurationLaunchController();
             app.BatchExperimentSelectionEditorController = ...
                 openmebius.application.batch ...
                 .BatchExperimentSelectionEditorController();
@@ -4937,6 +4992,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.presentation.model.ModelPresenter();
             app.BatchPresenter = ...
                 openmebius.presentation.batch.BatchPresenter();
+            app.RunConfigPresenter = ...
+                openmebius.presentation.batch.RunConfigPresenter();
             app.BatchExperimentSelectionEditorPresenter = ...
                 openmebius.presentation.batch ...
                 .BatchExperimentSelectionEditorPresenter();
@@ -5634,49 +5691,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: RunConfigButton
-        function RunConfigButtonPushed(app, event)
+        function RunConfigButtonPushed(app, ~)
 
-            selection = app.RunTable.Selection;
-
-            if isempty(selection)
-                msg = openmebius.infrastructure.logging.Logger ...
-                    .formatDatedMessage( ...
-                    "Please select a batch to configure.", ...
-                "Warning");
-                app.LogText(msg);
-                return
-            end
-
+            requestFactory = @() app.RunConfigPresenter ...
+                .createLaunchRequest( ...
+                    app.RunTable.Data, app.RunTable.Selection);
+            outcome = app.BatchConfigurationLaunchController.prepare( ...
+                app.batch, app.exp, requestFactory);
             updateBatchTable(app);
 
             cleanupPresentation = app.beginPresentationOperation();
-
-            selectionRows = unique(selection(:, 1), "stable");
-            batchIds = string(app.RunTable.Data.ID(selectionRows));
-            session = openmebius.application.batch ...
-                .BatchConfigurationSession( ...
-                    app.batch, app.exp, batchIds);
-            presenter = openmebius.presentation.batch ...
-                .RunConfigPresenter();
-            editor = presenter.presentEditor(session);
-            controller = openmebius.application.batch ...
-                .BatchConfigurationController();
-            app.ensureExperimentEditController();
-            app.ensureExperimentPresenter();
-
-            app.detachRunConfigListeners();
-            app.RunConfigApp = RunConfig( ...
-                session, presenter, editor, controller, ...
-                app.ExperimentEditController, ...
-                app.ExperimentPresenter, ...
-                app.BatchExperimentSelectionEditorController, ...
-                app.BatchExperimentSelectionEditorPresenter);
-            app.attachRunConfigListeners(app.RunConfigApp);
-
-            for notificationIndex = 1:numel(editor.Notifications)
-                app.showNotification( ...
-                    editor.Notifications{notificationIndex});
-            end
+            viewModel = app.RunConfigPresenter ...
+                .presentLaunchOutcome(outcome);
+            app.renderRunConfigLaunchViewModel(viewModel);
         end
 
         % Button pushed function: RunReloadButton
@@ -7044,7 +7071,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.detachLabelConfigListeners();
             app.detachTracerConfigListeners();
             app.detachComparisonViewListeners();
-            app.detachRunConfigListeners();
+            app.closeRunConfigApp();
             app.closeRunAddBatchApp();
 
             if app.isLoadedObject(app.RangePlotFigure)
