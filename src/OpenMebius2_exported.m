@@ -194,6 +194,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         Presenter openmebius.presentation.main.MainPresenter
         ProjectPresenter openmebius.presentation.project.ProjectPresenter
+        ModelPresenter openmebius.presentation.model.ModelPresenter
         BatchPresenter openmebius.presentation.batch.BatchPresenter
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         ResultPresenter openmebius.presentation.result.ResultPresenter
@@ -201,10 +202,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         DialogService openmebius.presentation.dialog.AppDialogService
         ProjectOperationController openmebius.application.project.ProjectOperationController
         ProjectSession openmebius.domain.project.ProjectSession
-        TemplateModelLoadService openmebius.application.model.TemplateModelLoadService
-        BatchLoadService openmebius.application.batch.BatchLoadService
+        ModelOperationController openmebius.application.model.ModelOperationController
         BatchRunController openmebius.application.batch.BatchRunController
-        ResultLoadService openmebius.application.result.ResultLoadService
         ResultOperationController openmebius.application.result.ResultOperationController
         ExperimentImportController openmebius.application.experiment.ExperimentImportController
         ExperimentCalculationController openmebius.application.experiment.ExperimentCalculationController
@@ -331,7 +330,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function updateBatchTable(app)
 
-            loadBatchTable(app, reload = true);
+            loadBatchTable(app);
             app.refreshPresentation();
 
         end % function updateBatchTable
@@ -557,6 +556,53 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % renderProjectOperationViewModel
 
+        function renderModelOperationViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            if viewModel.SectionStatus ~= ""
+                app.updateStatus("model", viewModel.SectionStatus);
+            end
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+            if isempty(viewModel.Result)
+                return
+            end
+
+            try
+                app.applyTemplateModelLoadResult(viewModel.Result);
+
+                pause(0.5)
+
+                app.loadEMUModel();
+                app.loadPathway();
+
+                if ~isempty(viewModel.CompletionNotification)
+                    app.showNotification( ...
+                        viewModel.CompletionNotification);
+                end
+
+                if viewModel.CompletionStatus ~= ""
+                    app.updateStatus( ...
+                        "model", ...
+                        viewModel.CompletionStatus);
+                end
+            catch exception
+                app.updateStatus("model", "error");
+                app.notifyException( ...
+                    exception, ...
+                    Title = viewModel.ErrorTitle, ...
+                    Alert = true);
+            end
+
+        end % renderModelOperationViewModel
+
         function renderLegacyProjectArtifacts(app)
 
             % -------------------------------------------------------------
@@ -587,7 +633,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % -------------------------------------------------------------
             app.updateStatus("batch", "running");
 
-            loadBatchTable(app, reload = true)
+            loadBatchTable(app)
 
             app.updateStatus("batch", "finished");
             app.notifyInfo("Batch table loaded successfully.");
@@ -597,7 +643,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % -------------------------------------------------------------
             app.updateStatus("result", "running");
 
-            loadResult(app, reload = true)
+            loadResult(app)
 
             if isempty(app.ResultSubTable.Data)
                 app.updateStatus("result", "init");
@@ -2224,14 +2270,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % ensureProjectPresenter
 
-        function ensureTemplateModelLoadService(app)
+        function ensureModelOperationController(app)
 
-            if isempty(app.TemplateModelLoadService)
-                app.TemplateModelLoadService = ...
-                    openmebius.application.model.TemplateModelLoadService();
+            if isempty(app.ModelOperationController)
+                app.ModelOperationController = ...
+                    openmebius.application.model.ModelOperationController();
             end
 
-        end % method ensureTemplateModelLoadService
+        end % ensureModelOperationController
+
+        function ensureModelPresenter(app)
+
+            if isempty(app.ModelPresenter)
+                app.ModelPresenter = ...
+                    openmebius.presentation.model.ModelPresenter();
+            end
+
+        end % ensureModelPresenter
 
         function ensureExperimentImportController(app)
 
@@ -2252,24 +2307,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method ensureExperimentEditController
-
-        function ensureBatchLoadService(app)
-
-            if isempty(app.BatchLoadService)
-                app.BatchLoadService = ...
-                    openmebius.application.batch.BatchLoadService();
-            end
-
-        end % method ensureBatchLoadService
-
-        function ensureResultLoadService(app)
-
-            if isempty(app.ResultLoadService)
-                app.ResultLoadService = ...
-                    openmebius.application.result.ResultLoadService();
-            end
-
-        end % method ensureResultLoadService
 
         function ensureResultOperationController(app)
 
@@ -2597,36 +2634,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method applyExperimentImportResult
 
-        function applyBatchLoadResult(app, result)
-
-            arguments
-                app
-                result openmebius.application.batch.BatchLoadResult
-            end
-
-            app.detachLegacyListeners();
-
-            app.batch = result.Batch;
-
-            app.attachLegacyListeners();
-
-        end % method applyBatchLoadResult
-
-        function applyResultLoadResult(app, resultLoadResult)
-
-            arguments
-                app
-                resultLoadResult openmebius.application.result.ResultLoadResult
-            end
-
-            app.detachLegacyListeners();
-
-            app.result = resultLoadResult.Result;
-
-            app.attachLegacyListeners();
-
-        end % method applyResultLoadResult
-
         function result = reloadExperimentState(app, options)
 
             arguments
@@ -2662,7 +2669,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.applyExperimentImportResult(result);
             app.loadExpData();
-            loadBatchTable(app, reload = true);
+            loadBatchTable(app);
 
             if options.LogMessages
 
@@ -2801,52 +2808,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method applyResultStyleRules
-
-        function loadLegacyProjectObjects(app)
-
-            app.updateStatus("model", "running");
-
-            modelLocation = openmebius.domain.model.ModelLocation ...
-                .fromDirectory(app.directoryModel);
-            modelRepository = ...
-                openmebius.infrastructure.model.ModelRepository();
-            app.model = modelRepository.load(modelLocation);
-
-            app.notifyInfo("Model loaded successfully.");
-
-            app.notifyInfo("Constructing EMU network...");
-
-            pause(0.5)
-
-            loadEMUModel(app)
-
-            loadPathway(app)
-
-            app.notifyInfo("EMU network was successfully constructed.");
-            app.updateStatus("model", "finished");
-
-            app.updateStatus("experiment", "running");
-
-            try
-                result = app.reloadExperimentState(LogMessages = false);
-            catch ME
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Experiment reload failed", ...
-                    Alert = true);
-                app.updateStatus("experiment", "error");
-                return
-            end
-
-            app.updateStatus("experiment", "finished");
-
-            for i = 1:numel(result.Messages)
-                app.LogTextDate(result.Messages(i), "Info");
-            end
-
-            loadResult(app)
-
-        end % method loadLegacyProjectObjects
 
         function ensureBatchPresenter(app)
 
@@ -3441,32 +3402,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function loadExpTable
 
-        function loadBatchTable(app, options)
-
-            arguments
-                app
-                options.reload = false
-            end
+        function loadBatchTable(app)
 
             app.ensureBatchPresenter();
-
-            if ~options.reload
-
-                updateStatus(app, "batch", "running");
-
-                app.ensureBatchLoadService();
-
-                experimentLocation = ...
-                    openmebius.domain.experiment.ExperimentLocation ...
-                    .fromDirectory(app.directoryExp);
-
-                result = app.BatchLoadService.loadForExperiment( ...
-                    experimentLocation, ...
-                    app.exp);
-
-                app.applyBatchLoadResult(result);
-
-            end
 
             if isempty(app.batch) || ~isvalid(app.batch)
                 msg = "Batch object is not valid.";
@@ -3481,36 +3419,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.renderBatchTable(viewModel);
 
-            if ~options.reload
-                app.updateStatus("batch", "finished");
-                app.notifyInfo("Batch table loaded successfully.");
-            end
-
         end % function loadBatchTable
 
-        function loadResult(app, options)
-
-            arguments
-                app
-                options.reload = false
-            end
+        function loadResult(app)
 
             app.ensureResultPresenter();
-
-            if ~options.reload
-
-                app.updateStatus("result", "running");
-
-                app.ensureResultLoadService();
-
-                resultLocation = openmebius.domain.result.ResultLocation ...
-                    .fromDirectory(app.directoryResult);
-
-                resultLoadResult = app.ResultLoadService.load(resultLocation);
-
-                app.applyResultLoadResult(resultLoadResult);
-
-            end
 
             if isempty(app.result) || ~isvalid(app.result)
                 msg = "Result object is not valid.";
@@ -3529,18 +3442,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.presentation.result.ResultTableViewModel());
 
             if isempty(viewModel.Data)
-
-                if ~options.reload
-                    app.updateStatus("result", "init");
-                    app.notifyInfo("No result files found in the results directory.");
-                end
-
                 return
-            end
-
-            if ~options.reload
-                app.updateStatus("result", "finished");
-                app.notifyInfo("Result files loaded successfully.");
             end
 
         end % method loadResult
@@ -3902,7 +3804,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function updateResult(app, ~)
 
-            loadResult(app, reload = true);
+            loadResult(app);
 
             % Drawnow
             drawnow;
@@ -4457,17 +4359,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.application.project ...
                 .ProjectOperationController();
 
-            app.TemplateModelLoadService = ...
-                openmebius.application.model.TemplateModelLoadService();
+            app.ModelOperationController = ...
+                openmebius.application.model.ModelOperationController();
             app.ExperimentImportController = ...
                 openmebius.application.experiment ...
                 .ExperimentImportController();
-            app.BatchLoadService = ...
-                openmebius.application.batch.BatchLoadService();
             app.BatchRunController = ...
                 openmebius.application.batch.BatchRunController();
-            app.ResultLoadService = ...
-                openmebius.application.result.ResultLoadService();
             app.ResultOperationController = ...
                 openmebius.application.result ...
                 .ResultOperationController();
@@ -4480,6 +4378,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.ProjectPresenter = ...
                 openmebius.presentation.project.ProjectPresenter();
+            app.ModelPresenter = ...
+                openmebius.presentation.model.ModelPresenter();
             app.BatchPresenter = ...
                 openmebius.presentation.batch.BatchPresenter();
             app.ExperimentPresenter = ...
@@ -4717,45 +4617,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: TemplateModelLoadButton
-        function TemplateModelLoadButtonPushed(app, event)
+        function TemplateModelLoadButtonPushed(app, ~)
 
             cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
+            app.ensureModelOperationController();
+            app.ensureModelPresenter();
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter.presentTemplateLoadStarted());
 
-            try
-                app.updateStatus("model", "running");
-
-                app.ensureTemplateModelLoadService();
-
-                modelLocation = openmebius.domain.model.ModelLocation ...
-                    .fromDirectory(string(app.TemplateModelDirectoryDropDown.Value));
-
-                templateModelResult = ...
-                    app.TemplateModelLoadService.load(modelLocation);
-
-                app.applyTemplateModelLoadResult(templateModelResult);
-
-                for i = 1:numel(templateModelResult.Messages)
-                    app.notifyInfo(templateModelResult.Messages(i));
-                end
-
-                app.notifyInfo("Constructing EMU network...");
-
-                pause(0.5)
-
-                loadEMUModel(app)
-
-                loadPathway(app)
-
-                app.notifyInfo("EMU network was successfully constructed.");
-                app.updateStatus("model", "finished");
-
-            catch ME
-                app.updateStatus("model", "error");
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Template model load failed", ...
-                    Alert = true);
-            end
+            modelLocation = openmebius.domain.model.ModelLocation ...
+                .fromDirectory( ...
+                    string(app.TemplateModelDirectoryDropDown.Value));
+            outcome = app.ModelOperationController.loadTemplate( ...
+                modelLocation);
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter.presentTemplateLoadOutcome(outcome));
 
         end
 
