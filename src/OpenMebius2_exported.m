@@ -513,6 +513,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 dependencies.ExperimentCalculationController;
             app.ExperimentEditController = ...
                 dependencies.ExperimentEditController;
+            app.SlackNotifier = dependencies.SlackNotifier;
 
         end % applyApplicationDependencies
 
@@ -3735,15 +3736,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % selectedModelReactionID
 
         %% Slack notification helpers
-        function ensureSlackNotifier(app)
-
-            if isempty(app.SlackNotifier)
-                app.SlackNotifier = ...
-                    openmebius.infrastructure.notification.SlackWebhookNotifier();
-            end
-
-        end % method ensureSlackNotifier
-
         function notifySlackBatchCompleted(app, status, options)
 
             arguments
@@ -3754,8 +3746,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             try
-                app.ensureSlackNotifier();
-
                 if ~app.SlackNotifier.canNotify()
                     return
                 end
@@ -4973,9 +4963,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 .MainAppCompositionRoot.create();
             app.applyApplicationDependencies(dependencies);
 
-            app.SlackNotifier = ...
-                openmebius.infrastructure.notification.SlackWebhookNotifier();
-
             if nargin < 2
                 filepath = "";
             else
@@ -5847,8 +5834,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Menu selected function: PreferencesMenu
         function PreferencesMenuSelected(app, event)
-
-            app.ensureSlackNotifier();
 
             try
 
