@@ -3,6 +3,7 @@ classdef ExperimentEditController < handle
 
     properties (Access = private)
         Service
+        TracerConfigurationService
     end
 
     methods
@@ -12,9 +13,14 @@ classdef ExperimentEditController < handle
             arguments
                 options.Service = openmebius.application.experiment ...
                     .ExperimentEditService()
+                options.TracerConfigurationService = ...
+                    openmebius.application.experiment ...
+                        .TracerConfigurationService()
             end
 
             obj.Service = options.Service;
+            obj.TracerConfigurationService = ...
+                options.TracerConfigurationService;
 
         end % constructor
 
@@ -73,6 +79,36 @@ classdef ExperimentEditController < handle
                     tracerTable, selection));
 
         end % copyTracerToAllEntries
+
+        function outcome = loadTracerConfiguration( ...
+                obj, experiments, position)
+
+            arguments
+                obj
+                experiments
+                position (1, 2) double
+            end
+
+            outcome = obj.execute( ...
+                @() obj.TracerConfigurationService.load( ...
+                    experiments, position));
+
+        end % loadTracerConfiguration
+
+        function outcome = applyTracerConfiguration( ...
+                obj, position, editorTable)
+
+            arguments
+                obj
+                position (1, 2) double
+                editorTable table
+            end
+
+            outcome = obj.execute( ...
+                @() obj.TracerConfigurationService.apply( ...
+                    position, editorTable));
+
+        end % applyTracerConfiguration
 
     end % methods
 

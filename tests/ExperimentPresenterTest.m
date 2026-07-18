@@ -208,6 +208,67 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsTracerConfigurationLoad(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+            editorTable = table( ...
+                true, "U-13C", 1, ...
+                VariableNames = ["Select", "Label", "Ratio"]);
+            result = openmebius.application.experiment ...
+                .TracerConfigurationResult( ...
+                    Position = [2, 3], ...
+                    EditorTable = editorTable);
+            outcome = openmebius.application.experiment ...
+                .ExperimentEditOutcome("finished", Result = result);
+
+            viewModel = presenter ...
+                .presentTracerConfigurationLoadOutcome(outcome);
+
+            testCase.verifyTrue(viewModel.IsSuccessful);
+            testCase.verifyEqual(viewModel.Position, [2, 3]);
+            testCase.verifyEqual(viewModel.EditorTable, editorTable);
+
+        end
+
+        function presentsTracerConfigurationApply(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+            result = openmebius.application.experiment ...
+                .TracerConfigurationResult( ...
+                    Position = [1, 2], Pattern = "U-13C~1");
+            outcome = openmebius.application.experiment ...
+                .ExperimentEditOutcome("finished", Result = result);
+
+            viewModel = presenter ...
+                .presentTracerConfigurationApplyOutcome(outcome);
+
+            testCase.verifyTrue(viewModel.IsSuccessful);
+            testCase.verifyEqual(viewModel.Pattern, "U-13C~1");
+
+        end
+
+        function presentsTracerConfigurationFailure(testCase)
+
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+            outcome = openmebius.application.experiment ...
+                .ExperimentEditOutcome( ...
+                    "error", ErrorMessage = "Load failed.");
+
+            viewModel = presenter ...
+                .presentTracerConfigurationLoadOutcome(outcome);
+
+            testCase.verifyFalse(viewModel.IsSuccessful);
+            testCase.verifyEqual( ...
+                viewModel.Notifications{1}.Title, ...
+                "Tracer configuration load failed");
+            testCase.verifyTrue( ...
+                viewModel.Notifications{1}.ShowAlert);
+
+        end
+
     end % methods (Test)
 
 end % classdef

@@ -2,6 +2,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
     events
         BatchExperimentSelectionApplied
+        NotificationRequested
     end
 
     % Properties that correspond to app components
@@ -123,6 +124,10 @@ classdef RunConfig_exported < matlab.apps.AppBase
         MainApp
         RunAddBatchApp
         RunAddBatchListener event.listener = event.listener.empty(0, 1)
+        TracerConfigApp
+        TracerConfigListeners event.listener = event.listener.empty(0, 1)
+        ExperimentEditController openmebius.application.experiment.ExperimentEditController
+        ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         selection
         selectedConfig
         MSFragmentTableMetadata
@@ -604,6 +609,116 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.RunAddBatchListener = event.listener.empty(0, 1);
 
         end % detachRunAddBatchListener
+
+        function ensureExperimentEditController(app)
+
+            if isempty(app.ExperimentEditController)
+                app.ExperimentEditController = ...
+                    openmebius.application.experiment ...
+                    .ExperimentEditController();
+            end
+
+        end % ensureExperimentEditController
+
+        function ensureExperimentPresenter(app)
+
+            if isempty(app.ExperimentPresenter)
+                app.ExperimentPresenter = ...
+                    openmebius.presentation.experiment ...
+                    .ExperimentPresenter();
+            end
+
+        end % ensureExperimentPresenter
+
+        function attachTracerConfigListeners(app, tracerConfigApp)
+
+            app.detachTracerConfigListeners();
+            listeners = event.listener.empty(0, 1);
+            listeners(end + 1, 1) = addlistener( ...
+                tracerConfigApp, ...
+                "Applied", ...
+                @(source, event) ...
+                    app.onTracerConfigurationApplied(source, event));
+            listeners(end + 1, 1) = addlistener( ...
+                tracerConfigApp, ...
+                "Closed", ...
+                @(source, event) ...
+                    app.onTracerConfigurationClosed(source, event));
+            app.TracerConfigListeners = listeners;
+
+        end % attachTracerConfigListeners
+
+        function detachTracerConfigListeners(app)
+
+            for listenerIndex = 1:numel(app.TracerConfigListeners)
+                try
+                    if isvalid(app.TracerConfigListeners(listenerIndex))
+                        delete(app.TracerConfigListeners(listenerIndex));
+                    end
+                catch
+                end
+            end
+
+            app.TracerConfigListeners = event.listener.empty(0, 1);
+
+        end % detachTracerConfigListeners
+
+        function openTracerConfiguration(app, position)
+
+            app.ensureExperimentEditController();
+            app.ensureExperimentPresenter();
+            outcome = app.ExperimentEditController ...
+                .loadTracerConfiguration(app.exp, position);
+            viewModel = app.ExperimentPresenter ...
+                .presentTracerConfigurationLoadOutcome(outcome);
+            app.renderTracerConfigurationViewModel(viewModel);
+
+            if ~viewModel.IsSuccessful
+                return
+            end
+
+            app.detachTracerConfigListeners();
+            app.TracerConfigApp = TracerConfig( ...
+                viewModel.EditorTable, viewModel.Position);
+            app.attachTracerConfigListeners(app.TracerConfigApp);
+
+        end % openTracerConfiguration
+
+        function onTracerConfigurationApplied(app, ~, event)
+
+            app.ensureExperimentEditController();
+            app.ensureExperimentPresenter();
+            outcome = app.ExperimentEditController ...
+                .applyTracerConfiguration( ...
+                    event.Position, event.EditorTable);
+            viewModel = app.ExperimentPresenter ...
+                .presentTracerConfigurationApplyOutcome(outcome);
+            app.renderTracerConfigurationViewModel(viewModel);
+
+            if viewModel.IsSuccessful
+                position = viewModel.Position;
+                app.LabelTable.Data{position(1), position(2)} = ...
+                    {char(viewModel.Pattern)};
+            end
+
+        end % onTracerConfigurationApplied
+
+        function onTracerConfigurationClosed(app, ~, ~)
+
+            app.TracerConfigApp = [];
+
+        end % onTracerConfigurationClosed
+
+        function renderTracerConfigurationViewModel(app, viewModel)
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                eventData = openmebius.presentation.notification ...
+                    .NotificationEventData( ...
+                        viewModel.Notifications{notificationIndex});
+                notify(app, "NotificationRequested", eventData);
+            end
+
+        end % renderTracerConfigurationViewModel
 
         function applyGeneral(app)
             % APPLYGENERAL Apply the general settings to the selected batch
@@ -1111,11 +1226,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 return
             end
 
-            app.MainApp.TracerConfigApp = ...
-                TracerConfig( ...
-                app, ...
-                [displayRow, displayColumn] ...
-            );
+            app.openTracerConfiguration( ...
+                [displayRow, displayColumn]);
 
         end
 
@@ -1981,11 +2093,21 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function delete(app)
 
             app.detachRunAddBatchListener();
+            app.detachTracerConfigListeners();
 
             if ~isempty(app.RunAddBatchApp)
                 try
                     if isvalid(app.RunAddBatchApp)
                         delete(app.RunAddBatchApp);
+                    end
+                catch
+                end
+            end
+
+            if ~isempty(app.TracerConfigApp)
+                try
+                    if isvalid(app.TracerConfigApp)
+                        delete(app.TracerConfigApp);
                     end
                 catch
                 end

@@ -233,6 +233,58 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
 
         end
 
+        function appliesLabelConfiguration(testCase)
+
+            service = helpers.LabelConfigurationUpdateServiceStub();
+            service.Result = openmebius.application.model ...
+                .LabelConfigurationUpdateResult( ...
+                    Messages = "Applied.");
+            controller = openmebius.application.model ...
+                .ModelOperationController( ...
+                    LabelConfigurationUpdateService = service);
+            model = helpers.LabelConfigurationModelStub();
+            experiments = helpers.LabelConfigurationExperimentStub();
+            batch = helpers.LabelConfigurationBatchStub();
+            labelTable = table( ...
+                {"Uniform"}, {1}, ...
+                VariableNames = ["Name", "Num"]);
+            ratioTables = struct();
+
+            outcome = controller.applyLabelConfiguration( ...
+                model, experiments, batch, ...
+                labelTable, ratioTables);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(service.Called);
+            testCase.verifyEqual(service.Model, model);
+            testCase.verifyEqual(service.Experiments, experiments);
+            testCase.verifyEqual(service.Batch, batch);
+            testCase.verifyEqual(service.LabelTable, labelTable);
+            testCase.verifyEqual(service.RatioTables, ratioTables);
+            testCase.verifyEqual(outcome.Result, service.Result);
+
+        end
+
+        function capturesLabelConfigurationFailure(testCase)
+
+            service = helpers.LabelConfigurationUpdateServiceStub();
+            service.Exception = MException( ...
+                "OpenMebius2:Test:LabelConfigurationFailed", ...
+                "Label configuration failed.");
+            controller = openmebius.application.model ...
+                .ModelOperationController( ...
+                    LabelConfigurationUpdateService = service);
+
+            outcome = controller.applyLabelConfiguration( ...
+                [], [], [], table(), struct());
+
+            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyEqual( ...
+                outcome.ErrorMessage, ...
+                "Label configuration failed.");
+
+        end
+
     end % methods (Test)
 
 end % classdef

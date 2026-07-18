@@ -30,6 +30,27 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
 
         end
 
+        function labelConfigCodeMatchesExportedSource(testCase)
+
+            OpenMebius2SourceSyncTest.verifyAppSource( ...
+                testCase, "LabelConfig");
+
+        end
+
+        function tracerConfigCodeMatchesExportedSource(testCase)
+
+            OpenMebius2SourceSyncTest.verifyAppSource( ...
+                testCase, "TracerConfig");
+
+        end
+
+        function comparisonViewCodeMatchesExportedSource(testCase)
+
+            OpenMebius2SourceSyncTest.verifyAppSource( ...
+                testCase, "ComparisonView");
+
+        end
+
         function allMlappCodeStoresAreSynchronized(testCase)
 
             root = fileparts(fileparts(mfilename("fullpath")));

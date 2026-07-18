@@ -5,6 +5,7 @@ classdef ModelOperationController < handle
         TemplateModelLoadService
         TemplateExportService
         PathwayLabelService
+        LabelConfigurationUpdateService
     end
 
     methods
@@ -19,12 +20,17 @@ classdef ModelOperationController < handle
                         .MassSpectrometryTemplateExportService()
                 options.PathwayLabelService = ...
                     openmebius.application.model.PathwayLabelService()
+                options.LabelConfigurationUpdateService = ...
+                    openmebius.application.model ...
+                        .LabelConfigurationUpdateService()
             end
 
             obj.TemplateModelLoadService = ...
                 options.TemplateModelLoadService;
             obj.TemplateExportService = options.TemplateExportService;
             obj.PathwayLabelService = options.PathwayLabelService;
+            obj.LabelConfigurationUpdateService = ...
+                options.LabelConfigurationUpdateService;
 
         end % constructor
 
@@ -131,6 +137,26 @@ classdef ModelOperationController < handle
                     model, reactionID));
 
         end % removePathwayLabelPosition
+
+        function outcome = applyLabelConfiguration( ...
+                obj, model, experiments, batch, ...
+                labelTable, ratioTables)
+
+            arguments
+                obj
+                model
+                experiments
+                batch
+                labelTable table
+                ratioTables struct
+            end
+
+            outcome = obj.execute( ...
+                @() obj.LabelConfigurationUpdateService.apply( ...
+                    model, experiments, batch, ...
+                    labelTable, ratioTables));
+
+        end % applyLabelConfiguration
 
     end % methods
 

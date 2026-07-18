@@ -317,6 +317,45 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsLabelConfigurationSuccess(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+            result = openmebius.application.model ...
+                .LabelConfigurationUpdateResult( ...
+                    Messages = "Applied.");
+            outcome = openmebius.application.model ...
+                .ModelOperationOutcome("finished", Result = result);
+
+            viewModel = presenter ...
+                .presentLabelConfigurationOutcome(outcome);
+
+            testCase.verifyEqual( ...
+                viewModel.CompletionStatus, "finished");
+            testCase.verifyEqual( ...
+                viewModel.Notifications{1}.Message, "Applied.");
+            testCase.verifyEmpty(viewModel.Result);
+
+        end
+
+        function presentsLabelConfigurationFailure(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+            outcome = openmebius.application.model ...
+                .ModelOperationOutcome( ...
+                    "error", ErrorMessage = "Apply failed.");
+
+            viewModel = presenter ...
+                .presentLabelConfigurationOutcome(outcome);
+
+            testCase.verifyEqual(viewModel.SectionStatus, "error");
+            testCase.verifyEqual( ...
+                viewModel.Notifications{1}.Title, ...
+                "Label configuration update failed");
+            testCase.verifyTrue( ...
+                viewModel.Notifications{1}.ShowAlert);
+
+        end
+
     end % methods (Test)
 
 end % classdef

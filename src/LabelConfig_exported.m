@@ -1,5 +1,11 @@
 classdef LabelConfig_exported < matlab.apps.AppBase
 
+    events
+        Applied
+        NotificationRequested
+        Closed
+    end
+
     % Properties that correspond to app components
     properties (Access = public)
         LabelconfigUIFigure matlab.ui.Figure
@@ -22,7 +28,6 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
     properties (Access = private)
 
-        MainApp
         initStructLabel struct
         initTableLabel table
         initFieldNames cell
@@ -47,7 +52,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             idx = app.idxLabel;
             field = app.fieldNames(idx);
             field = field{:};
-            ratioTable = app.MainApp.model.convertLabelCellToTable(app.RatioTable.Data);
+            ratioTable = app.normalizeRatioTable(app.RatioTable.Data);
             app.structLabel.(field) = ratioTable;
 
         end
@@ -84,25 +89,57 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
         end
 
+        function requestInfo(app, message)
+
+            notification = openmebius.presentation.notification ...
+                .Notification.info(string(message));
+            eventData = openmebius.presentation.notification ...
+                .NotificationEventData(notification);
+            notify(app, "NotificationRequested", eventData);
+
+        end % requestInfo
+
+        function ratioTable = normalizeRatioTable(~, ratioData)
+
+            if istable(ratioData)
+                ratioTable = ratioData;
+                return
+            end
+
+            if isempty(ratioData)
+                ratioData = cell(0, 2);
+            end
+
+            if ~iscell(ratioData) || size(ratioData, 2) ~= 2
+                error( ...
+                    "OpenMebius2:LabelConfig:InvalidRatioTable", ...
+                    "Ratio settings must contain Label and Ratio columns.");
+            end
+
+            ratioTable = cell2table( ...
+                ratioData, ...
+                VariableNames = ["Label", "Ratio"]);
+
+        end % normalizeRatioTable
+
     end
 
     % Callbacks that handle component events
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, MainApp, tableLavelView, structLabelView)
+        function startupFcn(app, tableLabelView, structLabelView)
 
-            app.MainApp = MainApp;
             app.initStructLabel = structLabelView;
-            app.initTableLabel = tableLavelView;
+            app.initTableLabel = tableLabelView;
             app.initFieldNames = fieldnames(structLabelView);
 
             app.structLabel = structLabelView;
-            app.tableLabel = tableLavelView;
+            app.tableLabel = tableLabelView;
             app.fieldNames = fieldnames(structLabelView);
 
-            app.LabelTable.Data = tableLavelView;
-            app.LabelTable.ColumnName = tableLavelView.Properties.VariableNames;
+            app.LabelTable.Data = tableLabelView;
+            app.LabelTable.ColumnName = tableLabelView.Properties.VariableNames;
 
         end
 
@@ -145,7 +182,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             app.fieldNames = app.makeStructLabel(app.fieldNames);
             app.structLabel.(app.fieldNames{end}) = {};
 
-            app.MainApp.LogTextDate("New label added", "Info");
+            app.requestInfo("New label added");
 
         end
 
@@ -167,7 +204,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
                 app.fieldNames(idx) = [];
 
                 text = "Label pattern [" + label + "] removed from the list";
-                app.MainApp.LogTextDate(text, "Info");
+                app.requestInfo(text);
 
             end
 
@@ -187,7 +224,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
             app.structLabel.(fieldName) = app.RatioTable.Data;
 
-            app.MainApp.LogTextDate("New ratio added to [" + label + "]", "Info");
+            app.requestInfo("New ratio added to [" + label + "]");
 
         end
 
@@ -211,7 +248,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
                 app.structLabel.(fieldName) = app.RatioTable.Data;
 
                 text = "Ratio pattern removed from [" + label + "]";
-                app.MainApp.LogTextDate(text, "Info");
+                app.requestInfo(text);
 
             end
 
@@ -225,6 +262,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             % Reload the label pattern
             app.LabelTable.Data = app.initTableLabel;
             app.structLabel = app.initStructLabel;
+            app.tableLabel = app.initTableLabel;
             app.fieldNames = app.initFieldNames;
 
         end
@@ -232,18 +270,12 @@ classdef LabelConfig_exported < matlab.apps.AppBase
         % Button pushed function: SaveButton
         function SaveButtonPushed(app, event)
 
-            app.MainApp.model.tableLabelView = app.LabelTable.Data;
-            app.MainApp.model.structLabelView = app.structLabel;
-
-            app.MainApp.model.exportLabel()
-
-            app.initTableLabel = app.LabelTable.Data;
-            app.initStructLabel = app.structLabel;
-            app.initFieldNames = app.fieldNames;
-
-            app.MainApp.updateModel()
-
-            delete(app)
+            app.updateLabelTable();
+            eventData = openmebius.presentation.model ...
+                .LabelConfigurationAppliedEventData( ...
+                    app.tableLabel, app.structLabel);
+            notify(app, "Applied", eventData);
+            close(app.LabelconfigUIFigure);
 
         end
 
@@ -264,8 +296,8 @@ classdef LabelConfig_exported < matlab.apps.AppBase
         % Close request function: LabelconfigUIFigure
         function LabelconfigUIFigureCloseRequest(app, event)
 
-            app.MainApp.unlockAllFeature()
-            delete(app)
+            notify(app, "Closed");
+            delete(app);
 
         end
 
@@ -274,7 +306,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
             if strcmp(event.Key, 'escape')
 
-                delete(app)
+                close(app.LabelconfigUIFigure);
 
             end
 

@@ -217,7 +217,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         PreferencesApp
         PreferencesListeners event.listener = event.listener.empty(0, 1)
+        LabelConfigListeners event.listener = event.listener.empty(0, 1)
+        TracerConfigListeners event.listener = event.listener.empty(0, 1)
         MSViewListeners event.listener = event.listener.empty(0, 1)
+        ComparisonViewListeners event.listener = event.listener.empty(0, 1)
         RunConfigListeners event.listener = event.listener.empty(0, 1)
         RunAddBatchListeners event.listener = event.listener.empty(0, 1)
 
@@ -2432,7 +2435,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function openMSComparison(app)
 
-            app.ComparisonViewApp = ComparisonView(app, "ms");
+            presenter = openmebius.presentation.experiment ...
+                .ComparisonViewPresenter(app.exp);
+            catalogViewModel = presenter.presentCatalog();
+
+            for notificationIndex = 1:numel( ...
+                    catalogViewModel.Notifications)
+                app.showNotification( ...
+                    catalogViewModel.Notifications{notificationIndex});
+            end
+
+            if ~catalogViewModel.IsAvailable
+                return
+            end
+
+            app.detachComparisonViewListeners();
+            app.ComparisonViewApp = ComparisonView( ...
+                presenter, catalogViewModel, "ms");
+            app.attachComparisonViewListeners(app.ComparisonViewApp);
 
         end % method openMSComparison
 
@@ -2738,11 +2758,18 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function attachRunConfigListeners(app, runConfigApp)
 
             app.detachRunConfigListeners();
-            app.RunConfigListeners = addlistener( ...
+            listeners = event.listener.empty(0, 1);
+            listeners(end + 1, 1) = addlistener( ...
                 runConfigApp, ...
                 "BatchExperimentSelectionApplied", ...
                 @(source, event) ...
                     app.onBatchExperimentSelectionApplied(source, event));
+            listeners(end + 1, 1) = addlistener( ...
+                runConfigApp, ...
+                "NotificationRequested", ...
+                @(source, event) ...
+                    app.onNotificationRequested(source, event));
+            app.RunConfigListeners = listeners;
 
         end % attachRunConfigListeners
 
@@ -2752,6 +2779,87 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.RunConfigListeners);
 
         end % detachRunConfigListeners
+
+        function attachLabelConfigListeners(app, labelConfigApp)
+
+            app.detachLabelConfigListeners();
+            listeners = event.listener.empty(0, 1);
+            listeners(end + 1, 1) = addlistener( ...
+                labelConfigApp, ...
+                "Applied", ...
+                @(source, event) ...
+                    app.onLabelConfigurationApplied(source, event));
+            listeners(end + 1, 1) = addlistener( ...
+                labelConfigApp, ...
+                "NotificationRequested", ...
+                @(source, event) ...
+                    app.onNotificationRequested( ...
+                        source, event));
+            listeners(end + 1, 1) = addlistener( ...
+                labelConfigApp, ...
+                "Closed", ...
+                @(source, event) ...
+                    app.onLabelConfigurationClosed(source, event));
+            app.LabelConfigListeners = listeners;
+
+        end % attachLabelConfigListeners
+
+        function detachLabelConfigListeners(app)
+
+            app.LabelConfigListeners = app.deleteListeners( ...
+                app.LabelConfigListeners);
+
+        end % detachLabelConfigListeners
+
+        function attachTracerConfigListeners(app, tracerConfigApp)
+
+            app.detachTracerConfigListeners();
+            listeners = event.listener.empty(0, 1);
+            listeners(end + 1, 1) = addlistener( ...
+                tracerConfigApp, ...
+                "Applied", ...
+                @(source, event) ...
+                    app.onTracerConfigurationApplied(source, event));
+            listeners(end + 1, 1) = addlistener( ...
+                tracerConfigApp, ...
+                "Closed", ...
+                @(source, event) ...
+                    app.onTracerConfigurationClosed(source, event));
+            app.TracerConfigListeners = listeners;
+
+        end % attachTracerConfigListeners
+
+        function detachTracerConfigListeners(app)
+
+            app.TracerConfigListeners = app.deleteListeners( ...
+                app.TracerConfigListeners);
+
+        end % detachTracerConfigListeners
+
+        function attachComparisonViewListeners(app, comparisonViewApp)
+
+            app.detachComparisonViewListeners();
+            listeners = event.listener.empty(0, 1);
+            listeners(end + 1, 1) = addlistener( ...
+                comparisonViewApp, ...
+                "NotificationRequested", ...
+                @(source, event) ...
+                    app.onNotificationRequested(source, event));
+            listeners(end + 1, 1) = addlistener( ...
+                comparisonViewApp, ...
+                "Closed", ...
+                @(source, event) ...
+                    app.onComparisonViewClosed(source, event));
+            app.ComparisonViewListeners = listeners;
+
+        end % attachComparisonViewListeners
+
+        function detachComparisonViewListeners(app)
+
+            app.ComparisonViewListeners = app.deleteListeners( ...
+                app.ComparisonViewListeners);
+
+        end % detachComparisonViewListeners
 
         function attachRunAddBatchListeners(app, runAddBatchApp)
 
@@ -2799,6 +2907,99 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     outcome, app.batch));
 
         end % onBatchExperimentSelectionApplied
+
+        function onLabelConfigurationApplied(app, ~, event)
+
+            app.ensureModelOperationController();
+            app.ensureModelPresenter();
+            outcome = app.ModelOperationController ...
+                .applyLabelConfiguration( ...
+                    app.model, ...
+                    app.exp, ...
+                    app.batch, ...
+                    event.LabelTable, ...
+                    event.RatioTables);
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter ...
+                    .presentLabelConfigurationOutcome(outcome));
+
+        end % onLabelConfigurationApplied
+
+        function onNotificationRequested(app, ~, event)
+
+            app.showNotification(event.Notification);
+
+        end % onNotificationRequested
+
+        function onLabelConfigurationClosed(app, ~, ~)
+
+            app.LabelConfigApp = [];
+            app.refreshPresentation();
+
+        end % onLabelConfigurationClosed
+
+        function openTracerConfiguration(app, position)
+
+            app.ensureExperimentEditController();
+            app.ensureExperimentPresenter();
+            outcome = app.ExperimentEditController ...
+                .loadTracerConfiguration(app.exp, position);
+            viewModel = app.ExperimentPresenter ...
+                .presentTracerConfigurationLoadOutcome(outcome);
+            app.renderTracerConfigurationNotifications(viewModel);
+
+            if ~viewModel.IsSuccessful
+                return
+            end
+
+            app.detachTracerConfigListeners();
+            app.TracerConfigApp = TracerConfig( ...
+                viewModel.EditorTable, viewModel.Position);
+            app.attachTracerConfigListeners(app.TracerConfigApp);
+
+        end % openTracerConfiguration
+
+        function onTracerConfigurationApplied(app, ~, event)
+
+            app.ensureExperimentEditController();
+            app.ensureExperimentPresenter();
+            outcome = app.ExperimentEditController ...
+                .applyTracerConfiguration( ...
+                    event.Position, event.EditorTable);
+            viewModel = app.ExperimentPresenter ...
+                .presentTracerConfigurationApplyOutcome(outcome);
+            app.renderTracerConfigurationNotifications(viewModel);
+
+            if viewModel.IsSuccessful
+                position = viewModel.Position;
+                app.LabelTable.Data{position(1), position(2)} = ...
+                    {char(viewModel.Pattern)};
+            end
+
+        end % onTracerConfigurationApplied
+
+        function onTracerConfigurationClosed(app, ~, ~)
+
+            app.TracerConfigApp = [];
+            app.refreshPresentation();
+
+        end % onTracerConfigurationClosed
+
+        function onComparisonViewClosed(app, ~, ~)
+
+            app.ComparisonViewApp = [];
+            app.refreshPresentation();
+
+        end % onComparisonViewClosed
+
+        function renderTracerConfigurationNotifications(app, viewModel)
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+        end % renderTracerConfigurationNotifications
 
         %% Apply Session
         function applyMainInteractionEnabled(app, enabled)
@@ -5274,7 +5475,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function LabelConfigButtonPushed(app, event)
 
             cleanupPresentation = app.beginPresentationOperation();
-            app.LabelConfigApp = LabelConfig(app, app.model.tableLabelView, app.model.structLabelView);
+            app.detachLabelConfigListeners();
+            app.LabelConfigApp = LabelConfig( ...
+                app.model.tableLabelView, ...
+                app.model.structLabelView);
+            app.attachLabelConfigListeners(app.LabelConfigApp);
         end
 
         % Button pushed function: TracerReloadButton
@@ -5316,12 +5521,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             tableNow = app.LabelTable.Data;
 
             if ~isequaln(tableOriginal, tableNow)
-                msg = openmebius.infrastructure.logging.Logger ...
-                    .formatDatedMessage( ...
+                app.notifyWarning( ...
                     "Label table has been modified. " + ...
-                    "Please save the table before editing.", ...
-                "Warning");
-                app.LogText(msg);
+                    "Please save the table before editing.");
                 return
             end
 
@@ -5334,11 +5536,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             cleanupPresentation = app.beginPresentationOperation();
 
-            app.TracerConfigApp = ...
-                TracerConfig( ...
-                app, ...
-                [displayRow, displayColumn] ...
-            );
+            app.openTracerConfiguration( ...
+                [displayRow, displayColumn]);
         end
 
         % Key press function: UptakeTable
@@ -6741,6 +6940,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Code that executes before app deletion
         function delete(app)
 
+            app.detachLabelConfigListeners();
+            app.detachTracerConfigListeners();
+            app.detachComparisonViewListeners();
             app.detachRunConfigListeners();
             app.detachRunAddBatchListeners();
 

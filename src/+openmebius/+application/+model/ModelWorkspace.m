@@ -297,24 +297,22 @@ classdef ModelWorkspace < handle
 
         end % exportLabel
 
-        function tableLabel = convertLabelCellToTable(obj, cellLabel)
+        function updateLabelConfiguration( ...
+                obj, tableLabelView, structLabelView)
 
-            ratioVariableNames = obj.ratioTableVariableNames;
-
-            % テーブルであるか判定
-            if istable(cellLabel)
-
-                tableLabel = cellLabel;
-
-            else
-
-                tableLabel = cell2table(cellLabel, 'VariableNames', ratioVariableNames);
-
+            arguments
+                obj
+                tableLabelView table
+                structLabelView struct
             end
 
-            disp(tableLabel);
+            obj.validateLabelConfiguration( ...
+                tableLabelView, structLabelView);
+            obj.tableLabelView = tableLabelView;
+            obj.structLabelView = structLabelView;
+            obj.exportLabel();
 
-        end % convertLabelCellToTable
+        end % updateLabelConfiguration
 
         %% Public judge methods
         function tf = isSymmetricMetabolite(obj, metaboliteName)
@@ -824,23 +822,61 @@ classdef ModelWorkspace < handle
             labelFieldNames = makeStructLabel(app, label.Name);
             ratioFieldNames = fieldnames(ratio);
 
+            convertedLabel = struct();
+
             for i = 1:numLabel
 
                 labelFieldName = labelFieldNames{i};
                 ratioFieldName = ratioFieldNames{i};
 
-                if ~isfield(app.structLabel, labelFieldName)
-                    app.structLabel.(labelFieldName) = struct();
-                end
-
-                app.structLabel.(labelFieldName).name = label.Name{i};
-                app.structLabel.(labelFieldName).num = label.Num{i};
-                app.structLabel.(labelFieldName).label = ratio.(ratioFieldName).Label;
-                app.structLabel.(labelFieldName).ratio = ratio.(ratioFieldName).Ratio;
+                convertedLabel.(labelFieldName).name = label.Name{i};
+                convertedLabel.(labelFieldName).num = label.Num{i};
+                convertedLabel.(labelFieldName).label = ...
+                    ratio.(ratioFieldName).Label;
+                convertedLabel.(labelFieldName).ratio = ...
+                    ratio.(ratioFieldName).Ratio;
 
             end % for
 
+            app.structLabel = convertedLabel;
+
         end % convertLabelViewToStruct
+
+        function validateLabelConfiguration(~, labelTable, ratioTables)
+
+            requiredLabelColumns = ["Name", "Num"];
+
+            if ~all(ismember( ...
+                    requiredLabelColumns, ...
+                    string(labelTable.Properties.VariableNames)))
+                error( ...
+                    "OpenMebius2:LabelConfiguration:InvalidLabelTable", ...
+                    "Label settings must contain Name and Num columns.");
+            end
+
+            ratioFields = fieldnames(ratioTables);
+
+            if numel(ratioFields) ~= height(labelTable)
+                error( ...
+                    "OpenMebius2:LabelConfiguration:RatioCountMismatch", ...
+                    "A ratio table is required for each label " + ...
+                    "configuration row.");
+            end
+
+            for fieldIndex = 1:numel(ratioFields)
+                ratioTable = ratioTables.(ratioFields{fieldIndex});
+
+                if ~istable(ratioTable) || ...
+                        ~all(ismember( ...
+                            ["Label", "Ratio"], ...
+                            string(ratioTable.Properties.VariableNames)))
+                    error( ...
+                        "OpenMebius2:LabelConfiguration:InvalidRatioTable", ...
+                        "Each ratio setting must contain Label and Ratio columns.");
+                end
+            end
+
+        end % validateLabelConfiguration
 
         function label = makeStructLabel(~, input)
 

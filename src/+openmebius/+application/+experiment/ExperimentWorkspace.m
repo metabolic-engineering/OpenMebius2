@@ -505,45 +505,6 @@ classdef ExperimentWorkspace < handle
 
         end % createAvailableTracer
 
-        function label = disparseLabelPattern(~, table)
-            % DISPARSELABELPATTERN: Convert table of labels and ratios to text
-            %
-            % INPUT:
-            %   table table
-            %     The table of labels and ratios.
-            %
-            % OUTPUT:
-            %   label string
-            %     The label pattern as a text string.
-
-            % Initialize an empty cell array to store label patterns
-
-            tableFiltered = table(table.Select, :);
-
-            if size(tableFiltered, 1) == 1
-                tableNonZero = tableFiltered;
-                tableNonZero.Ratio = 1;
-            else
-                tableNonZero = tableFiltered(tableFiltered.Ratio ~= 0, :);
-            end
-
-            cellLabelPattern = cell(height(tableNonZero), 1);
-
-            % Iterate over each row of the table
-            for i = 1:height(tableNonZero)
-                % Extract the label and ratio
-                iLabel = tableNonZero.Label{i};
-                iRatio = tableNonZero.Ratio(i);
-
-                % Combine label and ratio into a single string
-                cellLabelPattern{i} = sprintf('%s~%g', iLabel, iRatio);
-            end
-
-            % Combine all label patterns into a single string separated by semicolons
-            label = strjoin(cellLabelPattern, ';');
-
-        end % disparseLabelPattern
-
     end % methods (Access = public)
 
     methods (Access = public)

@@ -92,6 +92,74 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
 
         end
 
+        function loadsTracerConfiguration(testCase)
+
+            service = helpers.TracerConfigurationServiceStub();
+            editorTable = table( ...
+                true, "U-13C", 1, ...
+                VariableNames = ["Select", "Label", "Ratio"]);
+            service.Result = openmebius.application.experiment ...
+                .TracerConfigurationResult( ...
+                    Position = [2, 3], ...
+                    EditorTable = editorTable);
+            controller = openmebius.application.experiment ...
+                .ExperimentEditController( ...
+                    TracerConfigurationService = service);
+            experiments = helpers.TracerConfigurationExperimentStub();
+
+            outcome = controller.loadTracerConfiguration( ...
+                experiments, [2, 3]);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyEqual(service.LastOperation, "load");
+            testCase.verifyEqual(service.Experiments, experiments);
+            testCase.verifyEqual(service.Position, [2, 3]);
+            testCase.verifyEqual(outcome.Result, service.Result);
+
+        end
+
+        function appliesTracerConfiguration(testCase)
+
+            service = helpers.TracerConfigurationServiceStub();
+            editorTable = table( ...
+                true, "U-13C", 1, ...
+                VariableNames = ["Select", "Label", "Ratio"]);
+            service.Result = openmebius.application.experiment ...
+                .TracerConfigurationResult( ...
+                    Position = [1, 2], Pattern = "U-13C~1");
+            controller = openmebius.application.experiment ...
+                .ExperimentEditController( ...
+                    TracerConfigurationService = service);
+
+            outcome = controller.applyTracerConfiguration( ...
+                [1, 2], editorTable);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyEqual(service.LastOperation, "apply");
+            testCase.verifyEqual(service.Position, [1, 2]);
+            testCase.verifyEqual(service.EditorTable, editorTable);
+
+        end
+
+        function capturesTracerConfigurationFailure(testCase)
+
+            service = helpers.TracerConfigurationServiceStub();
+            service.Exception = MException( ...
+                "OpenMebius2:Test:TracerConfigurationFailed", ...
+                "Tracer configuration failed.");
+            controller = openmebius.application.experiment ...
+                .ExperimentEditController( ...
+                    TracerConfigurationService = service);
+
+            outcome = controller.applyTracerConfiguration( ...
+                [1, 1], table());
+
+            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyEqual( ...
+                outcome.ErrorMessage, "Tracer configuration failed.");
+
+        end
+
     end % methods (Test)
 
 end % classdef
