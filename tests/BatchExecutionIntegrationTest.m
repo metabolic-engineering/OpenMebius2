@@ -38,14 +38,12 @@ classdef BatchExecutionIntegrationTest < matlab.unittest.TestCase
                 "", ...
                 config);
             observer = helpers.AnalysisNotificationObserverStub();
-            listener = addlistener( ...
-                batch, ...
-                'ProgressUpdate', ...
-                @(~, eventData) observer.publish(eventData));
-            listenerCleanup = onCleanup(@() delete(listener));
             buildCountBeforeRun = numel(provenanceBuilder.BatchIds);
 
-            status = batch.runBatch(resultDirectory);
+            status = batch.runBatch( ...
+                resultDirectory, ...
+                ProgressReporter = ...
+                    @(progress) observer.publish(progress));
 
             updatedTable = batch.getBatch();
             testCase.verifyEqual(status, "finished");
@@ -53,8 +51,8 @@ classdef BatchExecutionIntegrationTest < matlab.unittest.TestCase
                 string(updatedTable.config.status), "finished");
             testCase.verifyEqual(observer.EventCount, 1);
             testCase.verifyEqual( ...
-                observer.LastEvent.data.status, "finished");
-            testCase.verifyEqual(observer.LastEvent.data.rate, 1);
+                observer.LastEvent.status, "finished");
+            testCase.verifyEqual(observer.LastEvent.rate, 1);
             batchFile = fullfile(experimentDirectory, "batch.json");
             testCase.verifyTrue(isfile(batchFile));
             document = jsondecode(fileread(batchFile));

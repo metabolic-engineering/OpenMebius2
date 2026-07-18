@@ -13,8 +13,13 @@ classdef BatchRunController < handle
 
             arguments
                 options.Runner (1, 1) function_handle = ...
-                    @(batch, resultDirectory) ...
-                    runBatch(batch, resultDirectory)
+                    @(batch, resultDirectory, reporters) ...
+                    runBatch( ...
+                        batch, ...
+                        resultDirectory, ...
+                        ProgressReporter = reporters.Progress, ...
+                        NotificationReporter = reporters.Notification, ...
+                        ResultReporter = reporters.Result)
                 options.Canceler (1, 1) function_handle = ...
                     @(batch) cancelBatch(batch)
                 options.Clock (1, 1) function_handle = @() datetime("now")
@@ -26,13 +31,26 @@ classdef BatchRunController < handle
 
         end % constructor
 
-        function outcome = run(obj, batch, resultDirectory)
+        function outcome = run(obj, batch, resultDirectory, options)
+
+            arguments
+                obj (1, 1) openmebius.application.batch.BatchRunController
+                batch
+                resultDirectory
+                options.ProgressReporter (1, 1) function_handle = @(~) []
+                options.NotificationReporter (1, 1) function_handle = @(~) []
+                options.ResultReporter (1, 1) function_handle = @(~) []
+            end
 
             startedAt = obj.Clock();
 
             try
+                reporters = struct( ...
+                    Progress = options.ProgressReporter, ...
+                    Notification = options.NotificationReporter, ...
+                    Result = options.ResultReporter);
                 status = obj.normalizeStatus( ...
-                    obj.Runner(batch, resultDirectory));
+                    obj.executeRunner(batch, resultDirectory, reporters));
                 elapsedTime = obj.Clock() - startedAt;
 
                 switch status
@@ -86,5 +104,21 @@ classdef BatchRunController < handle
         end % normalizeStatus
 
     end % methods (Static, Access = private)
+
+    methods (Access = private)
+
+        function status = executeRunner( ...
+                obj, batch, resultDirectory, reporters)
+
+            if nargin(obj.Runner) == 2
+                status = obj.Runner(batch, resultDirectory);
+                return
+            end
+
+            status = obj.Runner(batch, resultDirectory, reporters);
+
+        end % executeRunner
+
+    end % methods (Access = private)
 
 end % classdef

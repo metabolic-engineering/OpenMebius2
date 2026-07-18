@@ -1,12 +1,5 @@
 classdef ResultWorkspace < handle
 
-    events
-
-        GeneralMsg
-        ResultDataLoad
-
-    end % events
-
     properties (SetAccess = public)
 
         % Result data
@@ -25,6 +18,7 @@ classdef ResultWorkspace < handle
 
     properties (Access = private)
         MessagePublisher
+        NotificationReporter (1, 1) function_handle = @(~) []
     end
 
     methods
@@ -39,6 +33,7 @@ classdef ResultWorkspace < handle
                 options.Hdf5ResultRepository = ...
                     openmebius.infrastructure.result ...
                     .Hdf5ResultRepository()
+                options.NotificationReporter (1, 1) function_handle = @(~) []
             end
 
             resultLocation = ...
@@ -51,6 +46,7 @@ classdef ResultWorkspace < handle
                 options.Hdf5ResultRepository;
             obj.MessagePublisher = openmebius.presentation ...
                 .notification.GeneralMessagePublisher();
+            obj.NotificationReporter = options.NotificationReporter;
 
             obj.ResultRepository.assertResultDirectory(resultLocation);
 
@@ -64,6 +60,17 @@ classdef ResultWorkspace < handle
     end % methods
 
     methods (Access = public)
+
+        function setNotificationReporter(obj, reporter)
+
+            arguments
+                obj (1, 1) openmebius.application.result.ResultWorkspace
+                reporter (1, 1) function_handle
+            end
+
+            obj.NotificationReporter = reporter;
+
+        end % setNotificationReporter
 
         %% Public get functions
         function resultLocation = getResultLocation(obj)
@@ -931,10 +938,8 @@ classdef ResultWorkspace < handle
                 msg (1, 1) string
             end % arguments
 
-            obj.MessagePublisher.report( ...
-                status, ...
-                msg, ...
-                @(eventData) notify(obj, 'GeneralMsg', eventData));
+            notification = obj.MessagePublisher.write(status, msg);
+            obj.NotificationReporter(notification);
 
         end % notifyGeneralMessage
 

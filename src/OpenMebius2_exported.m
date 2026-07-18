@@ -133,10 +133,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         calcStatus (4, 1) string {mustBeMember(calcStatus, ["init", "running", "finished", "error"])} = "init";
         typeSimulation (1, 1) string {mustBeMember(typeSimulation, ["MDV", "Flux", "Label"])} = "Flux";
-        model;
-        exp;
-        batch;
-        result;
         report;
 
         LabelConfigApp;
@@ -194,6 +190,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     properties (Access = private)
 
         AppDependencies openmebius.bootstrap.MainAppDependencies
+        Session openmebius.application.session.MainApplicationSession
         Presenter openmebius.presentation.main.MainPresenter
         ProjectPresenter openmebius.presentation.project.ProjectPresenter
         ModelPresenter openmebius.presentation.model.ModelPresenter
@@ -207,7 +204,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProgressBarFactory openmebius.presentation.main.ProgressBarFactory
         DialogService openmebius.presentation.dialog.AppDialogService
         ProjectOperationController openmebius.application.project.ProjectOperationController
-        ProjectSession openmebius.domain.project.ProjectSession
         ModelOperationController openmebius.application.model.ModelOperationController
         LabelConfigurationLaunchController openmebius.application.model.LabelConfigurationLaunchController
         BatchOperationController openmebius.application.batch.BatchOperationController
@@ -219,8 +215,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ExperimentImportController openmebius.application.experiment.ExperimentImportController
         ExperimentCalculationController openmebius.application.experiment.ExperimentCalculationController
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
-
-        LegacyListeners event.listener = event.listener.empty(0, 1)
 
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
 
@@ -470,6 +464,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             app.AppDependencies = dependencies;
+            app.Session = dependencies.Session;
             app.Presenter = dependencies.MainPresenter;
             app.ProjectPresenter = dependencies.ProjectPresenter;
             app.ModelPresenter = dependencies.ModelPresenter;
@@ -557,13 +552,20 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             try
+                if isempty(viewModel.Artifacts)
+                    app.Session.setProject(viewModel.Session);
+                else
+                    app.Session.replaceProject( ...
+                        viewModel.Session, ...
+                        viewModel.Artifacts.Model, ...
+                        viewModel.Artifacts.Experiments, ...
+                        viewModel.Artifacts.Batch, ...
+                        viewModel.Artifacts.Result);
+                end
+
                 app.applyProjectSession(viewModel.Session);
                 app.addProjectDirectoryHistoryItem( ...
                     viewModel.Session.Paths.RootDirectory);
-
-                if ~isempty(viewModel.Artifacts)
-                    app.applyLegacyProjectArtifacts(viewModel.Artifacts);
-                end
 
                 switch viewModel.ArtifactMode
                     case "open"
@@ -1937,15 +1939,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % ---------------------------------------------------------------------
             % Legacy domain objects
             % ---------------------------------------------------------------------
-            context.HasModelObject = app.isLoadedObject(app.model);
-            context.HasExperimentObject = app.isLoadedObject(app.exp);
-            context.HasBatchObject = app.isLoadedObject(app.batch);
-            context.HasResultObject = app.isLoadedObject(app.result);
+            context.HasModelObject = app.isLoadedObject(app.Session.Model);
+            context.HasExperimentObject = app.isLoadedObject(app.Session.Experiments);
+            context.HasBatchObject = app.isLoadedObject(app.Session.Batch);
+            context.HasResultObject = app.isLoadedObject(app.Session.Result);
 
-            context.HasModelError = app.objectHasError(app.model);
-            context.HasExperimentError = app.objectHasError(app.exp);
-            context.HasBatchError = app.objectHasError(app.batch);
-            context.HasResultError = app.objectHasError(app.result);
+            context.HasModelError = app.objectHasError(app.Session.Model);
+            context.HasExperimentError = app.objectHasError(app.Session.Experiments);
+            context.HasBatchError = app.objectHasError(app.Session.Batch);
+            context.HasResultError = app.objectHasError(app.Session.Result);
 
             context.HasModel = ...
                 context.HasModelObject && ~context.HasModelError;
@@ -2164,80 +2166,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.isEnabled(app.ResultReloadButton);
 
         end % method capturePresentationContext
-
-        function [status, msg] = extractGeneralMessagePayload(~, event)
-
-            payload = event;
-
-            % Unwrap event.EventData / BatchProgressEventData / nested struct.
-            for i = 1:5
-
-                if isstruct(payload) && ...
-                        isfield(payload, 'status') && ...
-                        isfield(payload, 'msg')
-                    break
-                end
-
-                if isobject(payload)
-
-                    try
-
-                        if isprop(payload, 'data')
-                            payload = payload.data;
-                            continue
-                        end
-
-                    catch
-                    end
-
-                end
-
-                if isstruct(payload) && isfield(payload, 'data')
-                    payload = payload.data;
-                    continue
-                end
-
-                break
-            end
-
-            if ~isstruct(payload) || ...
-                    ~isfield(payload, 'status') || ...
-                    ~isfield(payload, 'msg')
-
-                error( ...
-                    "OpenMebius2:Notification:InvalidGeneralMessagePayload", ...
-                "GeneralMsg event does not contain status/msg payload.");
-            end
-
-            status = lower(string(payload.status));
-            msg = string(payload.msg);
-
-            if isempty(msg)
-                msg = "";
-            else
-                msg = msg(1);
-            end
-
-            if isempty(status)
-                status = "info";
-            else
-                status = status(1);
-            end
-
-            switch status
-                case {"info", "warning", "error", "success"}
-                    % keep
-                case {"warn"}
-                    status = "warning";
-                case {"err", "exception"}
-                    status = "error";
-                case {"ok", "finished", "complete", "completed"}
-                    status = "success";
-                otherwise
-                    status = "info";
-            end
-
-        end % method extractGeneralMessagePayload
 
         function tf = isLoadedObject(app, value)
             % ISLOADEDOBJECT
@@ -2513,7 +2441,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function openMSComparison(app)
 
             presenter = openmebius.presentation.experiment ...
-                .ComparisonViewPresenter(app.exp);
+                .ComparisonViewPresenter(app.Session.Experiments);
             catalogViewModel = presenter.presentCatalog();
 
             for notificationIndex = 1:numel( ...
@@ -2672,64 +2600,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % requireApplicationDependency
-
-        function attachLegacyListeners(app)
-
-            app.LegacyListeners = event.listener.empty(0, 1);
-
-            if ~isempty(app.batch) && isvalid(app.batch)
-
-                app.LegacyListeners(end + 1, 1) = addlistener( ...
-                    app.batch, ...
-                    'ProgressUpdate', ...
-                    @(src, event) statusBatch(app, event));
-
-                app.LegacyListeners(end + 1, 1) = addlistener( ...
-                    app.batch, ...
-                    'GeneralMsg', ...
-                    @(src, event) statusGeneralMsg(app, event));
-
-                app.LegacyListeners(end + 1, 1) = addlistener( ...
-                    app.batch, ...
-                    'FluxResult', ...
-                    @(src, event) updateResult(app, event));
-
-            end
-
-            if ~isempty(app.result) && isvalid(app.result)
-
-                app.LegacyListeners(end + 1, 1) = addlistener( ...
-                    app.result, ...
-                    'GeneralMsg', ...
-                    @(src, event) statusGeneralMsg(app, event));
-
-            end
-
-        end % method attachLegacyListeners
-
-        function detachLegacyListeners(app)
-
-            if isempty(app.LegacyListeners)
-                return
-            end
-
-            for i = 1:numel(app.LegacyListeners)
-
-                try
-
-                    if isvalid(app.LegacyListeners(i))
-                        delete(app.LegacyListeners(i));
-                    end
-
-                catch
-                    % Ignore listener cleanup errors.
-                end
-
-            end
-
-            app.LegacyListeners = event.listener.empty(0, 1);
-
-        end % method detachLegacyListeners
 
         function attachPreferencesListeners(app, preferencesApp)
 
@@ -3047,11 +2917,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             outcome = app.BatchOperationController ...
                 .applyExperimentSelection( ...
-                    app.batch, event.Selection);
+                    app.Session.Batch, event.Selection);
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter ...
                 .presentExperimentSelectionOutcome( ...
-                    outcome, app.batch));
+                    outcome, app.Session.Batch));
 
         end % onBatchExperimentSelectionApplied
 
@@ -3097,9 +2967,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             outcome = app.ModelOperationController ...
                 .applyLabelConfiguration( ...
-                    app.model, ...
-                    app.exp, ...
-                    app.batch, ...
+                    app.Session.Model, ...
+                    app.Session.Experiments, ...
+                    app.Session.Batch, ...
                     event.LabelTable, ...
                     event.RatioTables);
             app.renderModelOperationViewModel( ...
@@ -3275,8 +3145,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 session openmebius.domain.project.ProjectSession
             end
 
-            app.ProjectSession = session;
-
             app.ProjectDirectoryDropDown.Value = ...
                 session.Paths.RootDirectory;
 
@@ -3365,24 +3233,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method normalizeStartupProjectInput
 
-        function applyLegacyProjectArtifacts(app, artifacts)
-
-            arguments
-                app
-                artifacts openmebius.infrastructure.legacy.LegacyProjectArtifacts
-            end
-
-            app.detachLegacyListeners();
-
-            app.model = artifacts.Model;
-            app.exp = artifacts.Experiments;
-            app.batch = artifacts.Batch;
-            app.result = artifacts.Result;
-
-            app.attachLegacyListeners();
-
-        end % method applyLegacyProjectArtifacts
-
         function applyTemplateModelLoadResult(app, templateModelResult)
 
             arguments
@@ -3391,7 +3241,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     openmebius.application.model.TemplateModelLoadResult
             end
 
-            app.model = templateModelResult.Model;
+            app.Session.replaceModel(templateModelResult.Model);
 
         end % method applyTemplateModelLoadResult
 
@@ -3402,12 +3252,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 result openmebius.application.experiment.ExperimentImportResult
             end
 
-            app.detachLegacyListeners();
-
-            app.exp = result.Experiments;
-            app.batch = result.Batch;
-
-            app.attachLegacyListeners();
+            app.Session.replaceExperimentState( ...
+                result.Experiments, result.Batch);
 
         end % method applyExperimentImportResult
 
@@ -3425,7 +3271,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             outcome = app.ExperimentImportController.reload( ...
                 experimentLocation, ...
-                app.model);
+                app.Session.Model);
             outcome.rethrowFailure();
             result = outcome.Result;
 
@@ -3662,10 +3508,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             outcome = app.BatchOperationController.remove( ...
-                app.batch, batchIds);
+                app.Session.Batch, batchIds);
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentRemoveOutcome( ...
-                    outcome, app.batch));
+                    outcome, app.Session.Batch));
 
         end % removeSelectedBatches
 
@@ -3735,8 +3581,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 try
 
-                    if ~isempty(app.ProjectSession)
-                        projectName = app.ProjectSession.Metadata.Name;
+                    if ~isempty(app.Session.Project)
+                        projectName = app.Session.Project.Metadata.Name;
                     end
 
                 catch
@@ -4028,7 +3874,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function loadEMUModel(app)
 
             viewModel = app.ModelPresenter ...
-                .presentWorkspaceTables(app.model);
+                .presentWorkspaceTables(app.Session.Model);
             app.renderModelWorkspaceViewModel(viewModel);
 
         end % function loadEMUModel
@@ -4041,7 +3887,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             viewModel = app.ModelPresenter.presentModelTable( ...
-                app.model, ...
+                app.Session.Model, ...
                 ColumnEditable = options.ColumnEditable);
             app.renderModelTableViewModel(viewModel);
 
@@ -4056,7 +3902,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             [massSpectrometry, atom] = app.ModelPresenter ...
                 .presentMassSpectrometryTables( ...
-                    app.model, ...
+                    app.Session.Model, ...
                     ColumnEditable = options.isColumnEditable);
             app.renderMassSpectrometryTableViewModels( ...
                 massSpectrometry, atom);
@@ -4072,7 +3918,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             viewModel = app.ExperimentPresenter.presentTracerTable( ...
-                app.exp, ColumnEditable = columnEditable);
+                app.Session.Experiments, ColumnEditable = columnEditable);
             app.renderWorkspaceTable(app.LabelTable, viewModel);
 
         end % function loadTracerTable
@@ -4080,7 +3926,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function loadPathway(app)
 
             viewModel = app.ModelPresenter.presentPathway( ...
-                app.model, ...
+                app.Session.Model, ...
                 IsDarkTheme = app.isDarkTheme());
 
             if ~isempty(viewModel.Notification)
@@ -4102,7 +3948,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function loadExpData(app)
 
             viewModel = app.ExperimentPresenter ...
-                .presentWorkspaceTables(app.exp);
+                .presentWorkspaceTables(app.Session.Experiments);
             app.renderExperimentWorkspaceViewModel(viewModel);
 
         end % function loadExpData
@@ -4110,7 +3956,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function loadBatchTable(app)
 
 
-            if isempty(app.batch) || ~isvalid(app.batch)
+            if isempty(app.Session.Batch) || ~isvalid(app.Session.Batch)
                 msg = "Batch object is not valid.";
                 app.notifyError(msg);
                 app.updateStatus("batch", "error");
@@ -4119,7 +3965,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.getProgressBar();
 
-            viewModel = app.BatchPresenter.presentTable(app.batch);
+            viewModel = app.BatchPresenter.presentTable(app.Session.Batch);
 
             app.renderBatchTable(viewModel);
 
@@ -4128,7 +3974,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function loadResult(app)
 
 
-            if isempty(app.result) || ~isvalid(app.result)
+            if isempty(app.Session.Result) || ~isvalid(app.Session.Result)
                 msg = "Result object is not valid.";
                 app.notifyError(msg);
                 app.updateStatus("result", "error");
@@ -4136,8 +3982,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             viewModel = app.ResultPresenter.presentIndex( ...
-                app.result, ...
-                app.batch);
+                app.Session.Result, ...
+                app.Session.Batch);
 
             app.renderResultSubTable(viewModel);
 
@@ -4223,7 +4069,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
 
             viewModel = app.ResultPresenter.presentMain( ...
-                app.result, ...
+                app.Session.Result, ...
                 "Overview", ...
                 batchID, ...
                 "", ...
@@ -4239,7 +4085,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
 
             viewModel = app.ResultPresenter.presentMain( ...
-                app.result, ...
+                app.Session.Result, ...
                 "Details", ...
                 batchID, ...
                 "", ...
@@ -4261,7 +4107,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
 
             viewModel = app.ResultPresenter.presentMain( ...
-                app.result, ...
+                app.Session.Result, ...
                 "Comparison", ...
                 batchIDs, ...
                 names, ...
@@ -4277,8 +4123,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
 
             viewModel = app.ResultPresenter.presentIndex( ...
-                app.result, ...
-                app.batch);
+                app.Session.Result, ...
+                app.Session.Batch);
 
             app.renderResultSubTable(viewModel);
 
@@ -4501,21 +4347,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function updateStatusResult
 
-        function updateResult(app, ~)
+        function handleResultAvailable(app, ~)
 
             loadResult(app);
 
             % Drawnow
             drawnow;
 
-        end % function updateResult
+        end % function handleResultAvailable
 
         function updateResultPlot(app)
 
             context = app.captureResultPlotContext();
             viewModel = app.ResultPlotPresenter.present( ...
-                app.model, ...
-                app.result, ...
+                app.Session.Model, ...
+                app.Session.Result, ...
                 context, ...
                 IsDarkTheme = app.isDarkTheme());
             app.renderResultPlot(viewModel);
@@ -4828,12 +4674,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method getResultReactionIds
 
         %% Status function
-        function statusBatch(app, data)
+        function handleBatchProgress(app, progress)
 
 
             viewModel = ...
                 app.BatchPresenter.presentProgress( ...
-                data, ...
+                progress, ...
                 app.RunTable.Data);
 
             if ~isempty(viewModel.Notification)
@@ -4844,37 +4690,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.renderBatchProgress(viewModel);
 
-        end % function statusBatch
+        end % function handleBatchProgress
 
-        function statusGeneralMsg(app, event)
+        function handleNotification(app, notification)
 
-            try
-                [status, msg] = app.extractGeneralMessagePayload(event);
-
-                notification = ...
-                    openmebius.presentation.notification.Notification( ...
-                    msg, ...
-                    status);
-
-                app.showNotification(notification);
-
-            catch ME
-                % Event callback内で例外を握り潰すと通知消失に見えるため、
-                % 最低限LogTextAreaへ落とす。
-                try
-                    app.appendLogText( ...
-                        openmebius.infrastructure.logging.Logger ...
-                        .formatDatedMessage( ...
-                        "Failed to handle GeneralMsg event: " + ...
-                        string(ME.message), ...
-                    "Error"));
-                catch
-                    disp(ME.message)
-                end
-
+            arguments
+                app
+                notification (1, 1) openmebius.presentation ...
+                    .notification.Notification
             end
 
-        end % method statusGeneralMsg
+            app.showNotification(notification);
+
+        end % method handleNotification
 
         function checkLatestVersionOnStartup(app)
             % CHECKLATESTVERSIONONSTARTUP Checks whether a newer version exists.
@@ -4943,6 +4771,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             dependencies = openmebius.bootstrap ...
                 .MainAppCompositionRoot.create();
             app.applyApplicationDependencies(dependencies);
+            app.Session.setNotificationReporter( ...
+                @(notification) app.handleNotification(notification));
 
             if nargin < 2
                 filepath = "";
@@ -5042,7 +4872,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 Author = string(app.ProjectAuthorEditField.Value), ...
                 Organism = string(app.OrganismEditField.Value));
             outcome = app.ProjectOperationController.save( ...
-                app.ProjectSession, ...
+                app.Session.Project, ...
                 string(app.ProjectDirectoryDropDown.Value), ...
                 metadata);
             app.renderProjectOperationViewModel( ...
@@ -5233,7 +5063,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.ModelPresenter.presentModelSaveStarted());
 
             outcome = app.ModelOperationController.saveModelTable( ...
-                app.model, ...
+                app.Session.Model, ...
                 app.ModelTable.Data);
             app.renderModelOperationViewModel( ...
                 app.ModelPresenter.presentModelSaveOutcome(outcome));
@@ -5263,7 +5093,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             viewModel = app.ModelPresenter.presentPathway( ...
-                app.model, ...
+                app.Session.Model, ...
                 HighlightReactionIDs = reactionIDs(row), ...
                 IsDarkTheme = app.isDarkTheme());
 
@@ -5282,7 +5112,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             reactionID = app.selectedModelReactionID();
             outcome = app.ModelOperationController ...
                 .setPathwayLabelPosition( ...
-                    app.model, reactionID, position);
+                    app.Session.Model, reactionID, position);
             app.renderModelPathwayEditViewModel( ...
                 app.ModelPresenter.presentPathwayEditOutcome( ...
                     outcome, IsDarkTheme = app.isDarkTheme()));
@@ -5295,7 +5125,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             reactionID = app.selectedModelReactionID();
             outcome = app.ModelOperationController ...
                 .removePathwayLabelPosition( ...
-                    app.model, reactionID);
+                    app.Session.Model, reactionID);
             app.renderModelPathwayEditViewModel( ...
                 app.ModelPresenter.presentPathwayEditOutcome( ...
                     outcome, IsDarkTheme = app.isDarkTheme()));
@@ -5337,7 +5167,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             outcome = app.ModelOperationController ...
                 .saveMassSpectrometry( ...
-                    app.model, ...
+                    app.Session.Model, ...
                     app.MSTable.Data, ...
                     app.AtomTable.Data);
             app.renderModelOperationViewModel( ...
@@ -5354,9 +5184,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.ExperimentPresenter.presentCalculationStarted());
 
             outcome = app.ExperimentCalculationController.calculate( ...
-                app.model, ...
-                app.exp, ...
-                app.batch, ...
+                app.Session.Model, ...
+                app.Session.Experiments, ...
+                app.Session.Batch, ...
                 app.ExpTable.Data, ...
                 app.UptakeTable.Data, ...
                 app.LabelTable.Data);
@@ -5394,7 +5224,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             outcome = app.ExperimentImportController.importFiles( ...
                 experimentLocation, ...
                 files, ...
-                app.model);
+                app.Session.Model);
             app.renderExperimentImportViewModel( ...
                 app.ExperimentPresenter ...
                 .presentFileImportOutcome(outcome));
@@ -5413,7 +5243,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 .fromDirectory(app.directoryExp);
             outcome = app.ExperimentImportController.reload( ...
                 experimentLocation, ...
-                app.model);
+                app.Session.Model);
             app.renderExperimentImportViewModel( ...
                 app.ExperimentPresenter.presentReloadOutcome(outcome));
 
@@ -5427,9 +5257,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.ExperimentPresenter.presentEditStarted());
 
             outcome = app.ExperimentEditController.saveInfo( ...
-                app.model, ...
-                app.exp, ...
-                app.batch, ...
+                app.Session.Model, ...
+                app.Session.Experiments, ...
+                app.Session.Batch, ...
                 app.ExpTable.Data);
             app.renderExperimentEditViewModel( ...
                 app.ExperimentPresenter ...
@@ -5482,7 +5312,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             cleanupPresentation = app.beginPresentationOperation();
             presenter = openmebius.presentation.experiment ...
-                .MSViewPresenter(app.exp);
+                .MSViewPresenter(app.Session.Experiments);
 
             if ~presenter.hasCalculatedMDV()
                 app.notifyWarning( ...
@@ -5507,7 +5337,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             cleanupPresentation = ...
                 app.beginPresentationOperation(); %#ok<NASGU>
             outcome = app.LabelConfigurationLaunchController ...
-                .prepare(app.model);
+                .prepare(app.Session.Model);
             viewModel = app.LabelConfigPresenter ...
                 .presentLaunchOutcome(outcome);
             app.renderLabelConfigLaunchViewModel(viewModel);
@@ -5532,9 +5362,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.ExperimentPresenter.presentEditStarted());
 
             outcome = app.ExperimentEditController.saveTracer( ...
-                app.model, ...
-                app.exp, ...
-                app.batch, ...
+                app.Session.Model, ...
+                app.Session.Experiments, ...
+                app.Session.Batch, ...
                 app.UptakeTable.Data, ...
                 app.LabelTable.Data);
             app.renderExperimentEditViewModel( ...
@@ -5558,7 +5388,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             position = [displayRow, displayColumn];
             outcome = app.ExperimentEditController ...
                 .prepareTracerConfiguration( ...
-                    app.exp, app.LabelTable.Data, position);
+                    app.Session.Experiments, app.LabelTable.Data, position);
             viewModel = app.ExperimentPresenter ...
                 .presentTracerConfigurationPreparationOutcome(outcome);
             app.renderTracerConfigurationViewModel(viewModel);
@@ -5586,10 +5416,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: RunAutoButton
         function RunAutoButtonPushed(app, ~)
 
-            outcome = app.BatchOperationController.autoFill(app.batch);
+            outcome = app.BatchOperationController.autoFill(app.Session.Batch);
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentAutoFillOutcome( ...
-                    outcome, app.batch));
+                    outcome, app.Session.Batch));
         end
 
         % Button pushed function: RunConfigButton
@@ -5599,7 +5429,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 .createLaunchRequest( ...
                     app.RunTable.Data, app.RunTable.Selection);
             outcome = app.BatchConfigurationLaunchController.prepare( ...
-                app.batch, app.exp, requestFactory);
+                app.Session.Batch, app.Session.Experiments, requestFactory);
             updateBatchTable(app);
 
             cleanupPresentation = app.beginPresentationOperation();
@@ -5612,17 +5442,17 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function RunReloadButtonPushed(app, ~)
 
             app.renderBatchOperationViewModel( ...
-                app.BatchPresenter.presentReloaded(app.batch));
+                app.BatchPresenter.presentReloaded(app.Session.Batch));
         end
 
         % Button pushed function: RunSaveButton
         function RunSaveButtonPushed(app, ~)
 
             outcome = app.BatchOperationController.save( ...
-                app.batch, app.RunTable.Data);
+                app.Session.Batch, app.RunTable.Data);
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentSaveOutcome( ...
-                    outcome, app.batch));
+                    outcome, app.Session.Batch));
         end
 
         % Button pushed function: RunRunButton
@@ -5635,7 +5465,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 app.renderBatchRunViewModel( ...
                     app.BatchPresenter.presentCancelRequested());
-                app.BatchRunController.cancel(app.batch);
+                app.BatchRunController.cancel(app.Session.Batch);
 
                 return
             end
@@ -5653,7 +5483,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.refreshPresentation();
 
             outcome = app.BatchRunController.run( ...
-                app.batch, app.directoryResult);
+                app.Session.Batch, ...
+                app.directoryResult, ...
+                ProgressReporter = ...
+                    @(progress) app.handleBatchProgress(progress), ...
+                NotificationReporter = ...
+                    @(notification) app.handleNotification(notification), ...
+                ResultReporter = ...
+                    @(resultData) app.handleResultAvailable(resultData));
             app.renderBatchRunViewModel( ...
                 app.BatchPresenter.presentRunOutcome(outcome));
             outcome.rethrowFailure();
@@ -5664,7 +5501,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function RunAddbatchMenuSelected(app, ~)
 
             outcome = app.BatchExperimentSelectionEditorController ...
-                .prepareParallel(app.exp);
+                .prepareParallel(app.Session.Experiments);
             viewModel = app.BatchExperimentSelectionEditorPresenter ...
                 .presentParallelEditor(outcome);
 
@@ -5737,9 +5574,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 .fromDirectory(app.directoryResult);
             outcome = app.ResultOperationController.generateReport( ...
                 resultLocation, ...
-                app.model, ...
-                app.exp, ...
-                app.result, ...
+                app.Session.Model, ...
+                app.Session.Experiments, ...
+                app.Session.Result, ...
                 IsDeployed = isdeployed);
             app.renderResultOperationViewModel( ...
                 app.ResultPresenter.presentReportOutcome(outcome));
@@ -5749,7 +5586,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ResultReloadButton
         function ResultReloadButtonPushed(app, ~)
 
-            app.updateResult();
+            app.handleResultAvailable([]);
             app.renderResultOperationViewModel( ...
                 app.ResultPresenter.presentReloaded());
         end
@@ -5784,7 +5621,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             outputLocation = openmebius.domain.result.ResultLocation ...
                 .fromDirectory(folder);
             outcome = app.ResultOperationController.exportResults( ...
-                app.result, ...
+                app.Session.Result, ...
                 selectedBatchIDs, ...
                 selectedBatchNames, ...
                 outputLocation);
@@ -5873,7 +5710,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             outcome = app.ResultOperationController.prepareRangePlot( ...
-                app.result, batchIDs, batchNames);
+                app.Session.Result, batchIDs, batchNames);
             app.renderResultRangePlotViewModel( ...
                 app.ResultPresenter.presentRangePlotOutcome(outcome));
 
@@ -5897,7 +5734,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             outcome = app.ResultOperationController.loadSuggestion( ...
-                app.result, batchIDs, batchNames);
+                app.Session.Result, batchIDs, batchNames);
             app.renderResultOperationViewModel( ...
                 app.ResultPresenter.presentSuggestionOutcome(outcome));
         end
@@ -5917,9 +5754,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             outcome = app.ExperimentEditController ...
                 .copyTracerToAllEntries( ...
-                app.model, ...
-                app.exp, ...
-                app.batch, ...
+                app.Session.Model, ...
+                app.Session.Experiments, ...
+                app.Session.Batch, ...
                 currentData, ...
                 selected);
             app.renderExperimentEditViewModel( ...
@@ -5950,7 +5787,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 .importShimadzuASCII( ...
                     importDirectory, ...
                     experimentLocation, ...
-                    app.model);
+                    app.Session.Model);
             app.renderExperimentImportViewModel( ...
                 app.ExperimentPresenter ...
                 .presentRawMSImportOutcome(outcome));
@@ -5994,7 +5831,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ExporttemplateExcelfileMenuSelected(app, ~)
 
 
-            if isempty(app.model) || ~isvalid(app.model)
+            if isempty(app.Session.Model) || ~isvalid(app.Session.Model)
                 app.renderModelOperationViewModel( ...
                     app.ModelPresenter ...
                     .presentTemplateExportUnavailable());
@@ -6020,7 +5857,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.beginPresentationOperation(); %#ok<NASGU>
             outcome = app.ModelOperationController ...
                 .exportMassSpectrometryTemplate( ...
-                    app.model, string(file));
+                    app.Session.Model, string(file));
             app.renderModelOperationViewModel( ...
                 app.ModelPresenter ...
                 .presentTemplateExportOutcome(outcome));

@@ -183,13 +183,11 @@ classdef BatchPresenter < handle
 
         end
 
-        function viewModel = presentProgress(obj, eventData, currentTableData)
+        function viewModel = presentProgress(obj, progress, currentTableData)
 
-            payload = eventData.data;
-
-            batchId = string(payload.id);
-            status = lower(string(payload.status));
-            rate = double(payload.rate);
+            batchId = string(progress.id);
+            status = lower(string(progress.status));
+            rate = double(progress.rate);
 
             message = obj.progressMessage(batchId, status);
 

@@ -2,6 +2,7 @@ classdef MainAppDependencies
     % MAINAPPDEPENDENCIES Stable controllers and presenters for the main app.
 
     properties (SetAccess = private)
+        Session openmebius.application.session.MainApplicationSession
         MainPresenter openmebius.presentation.main.MainPresenter
         ProjectPresenter openmebius.presentation.project.ProjectPresenter
         ModelPresenter openmebius.presentation.model.ModelPresenter
@@ -49,6 +50,8 @@ classdef MainAppDependencies
         function obj = MainAppDependencies(options)
 
             arguments
+                options.Session (1, 1) openmebius.application.session ...
+                    .MainApplicationSession
                 options.MainPresenter (1, 1) openmebius.presentation ...
                     .main.MainPresenter
                 options.ProjectPresenter (1, 1) openmebius.presentation ...

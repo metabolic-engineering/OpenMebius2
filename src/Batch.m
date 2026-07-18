@@ -2,10 +2,7 @@ classdef Batch < handle
 
     events
 
-        GeneralMsg % General message event
-        ProgressUpdate % Progress update event
         CancelRequested % Cancel requested event
-        FluxResult % Flux result event
 
     end % events
 
@@ -1161,13 +1158,21 @@ classdef Batch < handle
 
         end % loadBatchFile
 
-        function status = runBatch(obj, fileDirectory)
+        function status = runBatch(obj, fileDirectory, options)
             % RUNBATCH Run batch
             %
             % Parameters
             % ----------
             % obj: Batch
             %     Batch
+
+            arguments
+                obj
+                fileDirectory
+                options.ProgressReporter (1, 1) function_handle = @(~) []
+                options.NotificationReporter (1, 1) function_handle = @(~) []
+                options.ResultReporter (1, 1) function_handle = @(~) []
+            end
 
             resultLocation = ...
                 openmebius.domain.result.ResultLocation.fromInput( ...
@@ -1179,7 +1184,8 @@ classdef Batch < handle
                     obj, ...
                     "error", ...
                     "MDV data has not been calculated. Press the " + ...
-                    "Calculate MDV button before running batch jobs.");
+                    "Calculate MDV button before running batch jobs.", ...
+                    options.NotificationReporter);
                 return
             end
 
@@ -1201,14 +1207,11 @@ classdef Batch < handle
                 resultLocation, ...
                 provenances, ...
                 Controller = obj, ...
-                ProgressReporter = @(progress) ...
-                publishBatchProgress(obj, progress), ...
+                ProgressReporter = options.ProgressReporter, ...
                 CheckpointWriter = @(batchTable) ...
-                checkpointBatch(obj, batchTable), ...
-                MessageReporter = @(eventData) ...
-                notify(obj, 'GeneralMsg', eventData), ...
-                ResultReporter = @(eventData) ...
-                notify(obj, 'FluxResult', eventData));
+                    checkpointBatch(obj, batchTable), ...
+                MessageReporter = options.NotificationReporter, ...
+                ResultReporter = options.ResultReporter);
             obj.tableBatch = updatedTable;
 
         end % runBatch
@@ -1260,15 +1263,6 @@ classdef Batch < handle
 
         end % updateContentHash
 
-        function publishBatchProgress(obj, progress)
-
-            notify( ...
-                obj, ...
-                'ProgressUpdate', ...
-                BatchProgressEventData("BatchIteration", progress));
-
-        end % publishBatchProgress
-
         function checkpointBatch(obj, batchTable)
 
             obj.tableBatch = batchTable;
@@ -1276,12 +1270,14 @@ classdef Batch < handle
 
         end % checkpointBatch
 
-        function publishGeneralMessage(obj, level, message)
+        function publishGeneralMessage(obj, level, message, reporter)
 
-            obj.MessagePublisher.report( ...
-                level, ...
-                message, ...
-                @(eventData) notify(obj, 'GeneralMsg', eventData));
+            if nargin < 4
+                reporter = @(~) [];
+            end
+
+            notification = obj.MessagePublisher.write(level, message);
+            reporter(notification);
 
         end % method publishGeneralMessage
 

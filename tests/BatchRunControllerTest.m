@@ -76,6 +76,38 @@ classdef BatchRunControllerTest < matlab.unittest.TestCase
 
         end
 
+        function forwardsExplicitRunReporters(testCase)
+
+            recorder = helpers.BatchExecutionRecorder();
+            fixedTime = datetime(2026, 1, 1);
+            controller = openmebius.application.batch.BatchRunController( ...
+                Runner = @runWithReporters, ...
+                Clock = @() fixedTime);
+
+            outcome = controller.run( ...
+                struct(), ...
+                "result", ...
+                ProgressReporter = ...
+                    @(value) recorder.recordProgress(value), ...
+                NotificationReporter = ...
+                    @(value) recorder.recordMessage(value), ...
+                ResultReporter = ...
+                    @(value) recorder.recordResult(value));
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyEqual(recorder.Progress{1}, "progress");
+            testCase.verifyEqual(recorder.MessageCount, 1);
+            testCase.verifyEqual(recorder.ResultCount, 1);
+
+            function status = runWithReporters(~, ~, reporters)
+                reporters.Progress("progress");
+                reporters.Notification("notification");
+                reporters.Result("result");
+                status = "finished";
+            end
+
+        end
+
     end % methods (Test)
 
     methods (Static, Access = private)
