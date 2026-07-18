@@ -700,20 +700,19 @@ classdef RunConfig_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn( ...
-                app, session, presenter, editor, controller, ...
-                experimentController, experimentPresenter, ...
-                selectionController, selectionPresenter)
+        function startupFcn(app, context)
 
-            app.Session = session;
-            app.Presenter = presenter;
-            app.Controller = controller;
-            app.ExperimentEditController = experimentController;
-            app.ExperimentPresenter = experimentPresenter;
+            app.Session = context.Session;
+            app.Presenter = context.Presenter;
+            app.Controller = context.ConfigurationController;
+            app.ExperimentEditController = ...
+                context.ExperimentEditController;
+            app.ExperimentPresenter = context.ExperimentPresenter;
             app.BatchExperimentSelectionEditorController = ...
-                selectionController;
+                context.ExperimentSelectionController;
             app.BatchExperimentSelectionEditorPresenter = ...
-                selectionPresenter;
+                context.ExperimentSelectionPresenter;
+            editor = context.Editor;
             app.renderRunConfigViewModel(editor.Config)
             app.MSFragmentTableMetadata = ...
                 editor.MSFragmentTable.Metadata;
