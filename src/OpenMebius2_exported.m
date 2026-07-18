@@ -2761,6 +2761,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             listeners = event.listener.empty(0, 1);
             listeners(end + 1, 1) = addlistener( ...
                 runConfigApp, ...
+                "Applied", ...
+                @(source, event) ...
+                    app.onRunConfigurationApplied(source, event));
+            listeners(end + 1, 1) = addlistener( ...
+                runConfigApp, ...
                 "BatchExperimentSelectionApplied", ...
                 @(source, event) ...
                     app.onBatchExperimentSelectionApplied(source, event));
@@ -2769,6 +2774,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 "NotificationRequested", ...
                 @(source, event) ...
                     app.onNotificationRequested(source, event));
+            listeners(end + 1, 1) = addlistener( ...
+                runConfigApp, ...
+                "Closed", ...
+                @(source, event) ...
+                    app.onRunConfigurationClosed(source, event));
             app.RunConfigListeners = listeners;
 
         end % attachRunConfigListeners
@@ -2907,6 +2917,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     outcome, app.batch));
 
         end % onBatchExperimentSelectionApplied
+
+        function onRunConfigurationApplied(app, ~, ~)
+
+            app.updateBatchTable();
+
+        end % onRunConfigurationApplied
+
+        function onRunConfigurationClosed(app, ~, ~)
+
+            app.RunConfigApp = [];
+            app.refreshPresentation();
+
+        end % onRunConfigurationClosed
 
         function onLabelConfigurationApplied(app, ~, event)
 
@@ -5588,8 +5611,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             cleanupPresentation = app.beginPresentationOperation();
 
+            selectionRows = unique(selection(:, 1), "stable");
+            batchIds = string(app.RunTable.Data.ID(selectionRows));
+            session = openmebius.application.batch ...
+                .BatchConfigurationSession( ...
+                    app.batch, app.exp, batchIds);
+
             app.detachRunConfigListeners();
-            app.RunConfigApp = RunConfig(app, selection);
+            app.RunConfigApp = RunConfig(session);
             app.attachRunConfigListeners(app.RunConfigApp);
         end
 

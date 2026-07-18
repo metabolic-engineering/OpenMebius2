@@ -6,6 +6,7 @@ classdef RunConfigBatchStub < handle
         ConfigUpdateCount (1, 1) double = 0
         FragmentUpdateCount (1, 1) double = 0
         LastFragmentSelections = []
+        FailFragmentUpdate (1, 1) logical = false
     end
 
     methods
@@ -58,6 +59,12 @@ classdef RunConfigBatchStub < handle
 
             obj.LastFragmentSelections = selections;
             obj.FragmentUpdateCount = obj.FragmentUpdateCount + 1;
+
+            if obj.FailFragmentUpdate
+                error( ...
+                    "OpenMebius2:Test:FragmentUpdateFailed", ...
+                    "Fragment update failed.");
+            end
 
         end
 

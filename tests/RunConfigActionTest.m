@@ -17,9 +17,11 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
         function restoresDefaultsWithoutSavingPreservedTables(testCase)
 
             batch = helpers.RunConfigBatchStub();
-            mainApp = helpers.RunConfigMainAppStub(batch);
-            app = RunConfig_exported(mainApp, [1, 1]);
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfig_exported(session);
             cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+            recorder = helpers.RunConfigEventRecorder();
+            recorder.attach(app);
             efflux = table( ...
                 true, 0.25, ...
                 VariableNames = ["Selection", "SD"], ...
@@ -55,16 +57,18 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             testCase.verifyEqual(app.EffluxUITable.Enable, 'off');
             testCase.verifyTrue(all(app.MSTable.Data{:, :}, "all"));
             testCase.verifyEqual(batch.ConfigUpdateCount, 0);
-            testCase.verifyEqual(mainApp.UpdateCount, 0);
+            testCase.verifyEqual(recorder.AppliedCount, 0);
 
         end
 
         function appliesAllSettingsFromEveryTab(testCase)
 
             batch = helpers.RunConfigBatchStub();
-            mainApp = helpers.RunConfigMainAppStub(batch);
-            app = RunConfig_exported(mainApp, [1, 1]);
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfig_exported(session);
             cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+            recorder = helpers.RunConfigEventRecorder();
+            recorder.attach(app);
             app.IterationSpinner.Value = 42;
             app.MSTable.Data{1, 1} = true;
 
@@ -85,28 +89,64 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             testCase.verifyEqual(batch.FragmentUpdateCount, 5);
             testCase.verifyTrue( ...
                 batch.LastFragmentSelections(1).Selection(1));
-            testCase.verifyEqual(mainApp.UpdateCount, 5);
+            testCase.verifyEqual(recorder.AppliedCount, 5);
+            testCase.verifyEmpty(recorder.Notifications);
 
         end
 
         function cancelClosesWithoutSaving(testCase)
 
             batch = helpers.RunConfigBatchStub();
-            mainApp = helpers.RunConfigMainAppStub(batch);
-            app = RunConfig_exported(mainApp, [1, 1]);
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfig_exported(session);
+            recorder = helpers.RunConfigEventRecorder();
+            recorder.attach(app);
 
             callback = app.MSCancelButton.ButtonPushedFcn;
             callback([], []);
 
             testCase.verifyFalse(isvalid(app));
             testCase.verifyEqual(batch.ConfigUpdateCount, 0);
-            testCase.verifyEqual(mainApp.UpdateCount, 0);
+            testCase.verifyEqual(recorder.ClosedCount, 1);
+
+        end
+
+        function reportsApplyFailureAndKeepsOriginalConfig(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            batch.FailFragmentUpdate = true;
+            originalIteration = batch.Config.iteration;
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfig_exported(session);
+            cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+            recorder = helpers.RunConfigEventRecorder();
+            recorder.attach(app);
+            app.IterationSpinner.Value = 55;
+
+            callback = app.GeneralApplyButton.ButtonPushedFcn;
+            callback([], []);
+
+            testCase.verifyEqual(batch.Config.iteration, originalIteration);
+            testCase.verifyEqual(recorder.AppliedCount, 0);
+            testCase.verifyNumElements(recorder.Notifications, 1);
+            testCase.verifyEqual( ...
+                recorder.Notifications{1}.Level, "error");
+            testCase.verifyTrue( ...
+                recorder.Notifications{1}.ShowAlert);
 
         end
 
     end % methods (Test)
 
     methods (Static, Access = private)
+
+        function session = createSession(batch)
+
+            session = openmebius.application.batch ...
+                .BatchConfigurationSession( ...
+                    batch, [], "batch-a");
+
+        end % createSession
 
         function deleteIfValid(app)
 

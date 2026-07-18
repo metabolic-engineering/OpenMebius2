@@ -1,7 +1,9 @@
 classdef RunConfig_exported < matlab.apps.AppBase
 
     events
+        Applied
         BatchExperimentSelectionApplied
+        Closed
         NotificationRequested
     end
 
@@ -121,34 +123,29 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
     %% Private properties
     properties (Access = private)
-        MainApp
+        Session openmebius.application.batch.BatchConfigurationSession
         RunAddBatchApp
         RunAddBatchListener event.listener = event.listener.empty(0, 1)
         TracerConfigApp
         TracerConfigListeners event.listener = event.listener.empty(0, 1)
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
-        selection
         selectedConfig
         MSFragmentTableMetadata
-    end
-
-    %% Public methods
-    properties (Access = public)
-        exp
     end
 
     methods (Access = protected)
 
         function updateINSTMFATimeCourseTable(app)
 
-            [currentID, isSingle] = app.getCurrentIDs();
+            [~, isSingle] = app.getCurrentIDs();
 
             if ~isSingle
                 return;
             end
 
-            [timePointTable, timePointTableColumnEditable] = app.MainApp.batch.getBatchINSTMFATimePoints(currentID);
+            [timePointTable, timePointTableColumnEditable] = ...
+                app.Session.instTimePointTable();
 
             app.INSTMFATimeCourseUITable.Data = timePointTable;
             app.INSTMFATimeCourseUITable.ColumnName = timePointTable.Properties.VariableNames;
@@ -166,29 +163,14 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % SETCONFIGVALUE Set the configuration values in the app
             % based on the selected batch row
 
-            batch = app.MainApp.batch.getBatchForGUI();
-            numSelected = size(app.selection, 1);
-
-            for i = 1:numSelected
-
-                iId = batch.ID(app.selection(i));
-                iConfig = app.MainApp.batch.getBatchConfig(iId);
-                app.selectedConfig = [app.selectedConfig; iConfig];
-
-            end
+            app.selectedConfig = app.Session.configs();
 
         end % setConfigValue
 
         function [currentID, isSingle] = getCurrentIDs(app)
 
-            batch = app.MainApp.batch.getBatchForGUI();
-            currentID = batch.ID(app.selection);
-
-            if isscalar(currentID)
-                isSingle = true;
-            else
-                isSingle = false;
-            end
+            currentID = app.Session.BatchIds;
+            isSingle = app.Session.isSingleBatch();
 
         end % getCurrentIDs
 
@@ -414,15 +396,13 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             isEnable = app.PerturbateEffluxCheckBox.Value;
 
-            [currentID, ~] = app.getCurrentIDs();
-            currentID = currentID(1);
-
             if isEnable
 
                 % Enable efflux perturbation components
                 app.EffluxUITable.Enable = 'on';
 
-                [tableEffluxPerturbation, editable] = app.MainApp.batch.getBatchEffluxSDTable(currentID);
+                [tableEffluxPerturbation, editable] = ...
+                    app.Session.effluxTable();
 
                 tableData = tableEffluxPerturbation;
                 app.EffluxUITable.Data = tableData;
@@ -455,10 +435,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 % Enable suggestion-related components
                 app.LabelTable.Enable = 'on';
 
-                batch = app.MainApp.batch.getBatchForGUI();
-                batchID = batch.ID(app.selection);
-                batchIDUnique = unique(batchID);
-                tableSuggestion = getBatchSuggestionTable(app.MainApp.batch, batchIDUnique);
+                tableSuggestion = app.Session.suggestionTable();
 
                 app.LabelTable.Data = tableSuggestion;
                 app.LabelTable.ColumnName = tableSuggestion.Properties.VariableNames;
@@ -484,11 +461,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             if isINSTMFA
 
-                batch = app.MainApp.batch.getBatchForGUI();
-                batchID = batch.ID(app.selection);
-                batchIDUnique = unique(batchID);
-
-                if length(batchIDUnique) ~= 1
+                if ~app.Session.isSingleBatch()
                     uialert(app.BatchconfigUIFigure, ...
                         'INST-MFA settings can only be configured when a single batch is selected.', ...
                         'Error', ...
@@ -497,9 +470,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
                     return;
                 end
 
-                tablePoolSize = app.MainApp.batch.getBatchINSTMFAPoolTable(batchIDUnique);
+                tablePoolSize = app.Session.instPoolTable();
                 [tableTimePoints, timePointColumnEditable] = ...
-                    app.MainApp.batch.getBatchINSTMFATimePoints(batchIDUnique);
+                    app.Session.instTimePointTable();
 
                 app.INSTMFAPoolUITable.Data = tablePoolSize;
                 app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
@@ -534,18 +507,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % the selected batch and display it in the MSTable
             % component
 
-            % Get the selected batch ID
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID(app.selection);
-            batchIDUnique = unique(batchID);
-
-            if length(batchID) ~= length(batchIDUnique)
-                error('Duplicate batch IDs found in the selection.')
-            end
-
-            clear batchIDUnique
-
-            fragmentSelections = app.MainApp.batch.getBatchMSFragmentSelections(batchID);
+            fragmentSelections = app.Session.msFragmentSelections();
             viewModel = ...
                 openmebius.presentation.batch.MSFragmentTableMapper.toViewModel( ...
                 fragmentSelections);
@@ -562,14 +524,14 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function editTimeCourse(app)
             % EDITTIMECOURSE Edit the time course table for INST-MFA
 
-            batchIDs = app.MainApp.batch.getBatchForGUI().ID(app.selection);
+            batchIDs = app.Session.BatchIds;
 
             if length(batchIDs) ~= 1
                 return;
             end
 
             app.detachRunAddBatchListener();
-            experimentNames = string(getExpList(app.exp));
+            experimentNames = app.Session.experimentNames();
             app.RunAddBatchApp = RunAddBatch( ...
                 experimentNames, ...
                 "inst-mfa", ...
@@ -667,8 +629,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             app.ensureExperimentEditController();
             app.ensureExperimentPresenter();
-            outcome = app.ExperimentEditController ...
-                .loadTracerConfiguration(app.exp, position);
+            outcome = app.Session.loadTracerConfiguration( ...
+                app.ExperimentEditController, position);
             viewModel = app.ExperimentPresenter ...
                 .presentTracerConfigurationLoadOutcome(outcome);
             app.renderTracerConfigurationViewModel(viewModel);
@@ -720,12 +682,10 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % renderTracerConfigurationViewModel
 
-        function applyGeneral(app)
-            % APPLYGENERAL Apply the general settings to the selected batch
+        function config = buildGeneralConfig(app)
+            % BUILDGENERALCONFIG Convert the current controls to config.
 
-            % Get the current configuration for the selected batch
-            [batchID, ] = app.getCurrentIDs();
-            config = app.MainApp.batch.getBatchConfig(batchID(1));
+            config = app.Session.primaryConfig();
 
             % Update the configuration with values from the UI
             config.iteration = app.IterationSpinner.Value;
@@ -811,105 +771,17 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             end % if config.isINSTMFA
 
-            % Save the updated configuration back to the batch
-            app.MainApp.batch.updateBatchConfig(batchID, config);
+        end % buildGeneralConfig
 
-        end % applyGeneral
-
-        function applyMSFragment(app)
+        function fragmentSelections = buildMSFragmentSelections(app)
 
             data = app.MSTable.Data;
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID(app.selection);
-
-            batchIDUnique = unique(batchID);
-
-            if length(batchID) ~= length(batchIDUnique)
-                error('Duplicate batch IDs found in the selection.')
-            end
-
-            clear batchIDUnique
-
             fragmentSelections = ...
                 openmebius.presentation.batch.MSFragmentTableMapper.fromViewTable( ...
                 data, ...
                 app.MSFragmentTableMetadata);
 
-            app.MainApp.batch.updateBatchMSFragmentSelections(fragmentSelections)
-
-        end % applyMSFragment
-
-        function applyEffluxPerturbation(app, batchID)
-            % APPLYEFFLUXPERTURBATION Save efflux-free Selection/SD table to batch config.
-
-            arguments
-                app
-                batchID (:, 1) string
-            end
-
-            tableEffluxPerturbation = app.EffluxUITable.Data;
-
-            if isempty(tableEffluxPerturbation)
-                return
-            end
-
-            if ~istable(tableEffluxPerturbation)
-                error("Efflux perturbation table is invalid.");
-            end
-
-            if ~all(ismember(["Selection", "SD"], string(tableEffluxPerturbation.Properties.VariableNames)))
-                error("Efflux perturbation table must contain Selection and SD columns.");
-            end
-
-            tableEffluxPerturbation.Selection = logical(tableEffluxPerturbation.Selection(:));
-            tableEffluxPerturbation.SD = double(tableEffluxPerturbation.SD(:));
-
-            app.MainApp.batch.updateBatchConfigEffluxSD(batchID, tableEffluxPerturbation);
-
-            % The efflux tab has its own Apply button. Therefore the
-            % enable/disable flag must be persisted here as well, not only
-            % when the General tab Apply button is pressed.
-            for i = 1:length(batchID)
-                config = app.MainApp.batch.getBatchConfig(batchID(i));
-                config.perturbateEfflux = app.PerturbateEffluxCheckBox.Value;
-                app.MainApp.batch.updateBatchConfig(batchID(i), config);
-            end % for i
-
-        end % applyEffluxPerturbation
-
-        function applyINSTMFA(app)
-
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID(app.selection);
-            batchIDUnique = unique(batchID);
-            config = app.MainApp.batch.getBatchConfig(batchIDUnique);
-
-            config.isINSTMFA = app.INSTMFACheckBox.Value;
-
-            if config.isINSTMFA
-
-                % Get pool size table
-                tablePoolSize = app.INSTMFAPoolUITable.Data;
-                config.INSTMFA.poolMetabolite = string(tablePoolSize.Metabolite(:));
-                config.INSTMFA.poolSize = double(tablePoolSize.PoolSize(:));
-
-                % Get time course table
-                tableTimeCourse = app.INSTMFATimeCourseUITable.Data;
-
-                if isempty(tableTimeCourse)
-                    config.INSTMFA.timePointsExpName = string.empty(0, 1);
-                    config.INSTMFA.timePoints = double.empty(0, 1);
-                else
-                    config.INSTMFA.timePointsExpName = string(tableTimeCourse.TimePointExpName(:));
-                    config.INSTMFA.timePoints = double(tableTimeCourse.TimePoint(:));
-                end
-
-            end % if config.isINSTMFA
-
-            % Save the updated configuration back to the batch
-            app.MainApp.batch.updateBatchConfig(batchIDUnique, config);
-
-        end % applyINSTMFA
+        end % buildMSFragmentSelections
 
         function wireActionButtons(app)
 
@@ -987,30 +859,41 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function applyCurrentSettings(app)
 
-            app.applyGeneral();
-            app.applyMSFragment();
-            app.applySuggestionSettings();
-            app.MainApp.updateBatchTable();
+            try
+                config = app.buildGeneralConfig();
+                fragmentSelections = ...
+                    app.buildMSFragmentSelections();
+                suggestionTable = app.buildSuggestionSettings();
+                app.Session.apply( ...
+                    config, fragmentSelections, suggestionTable);
+                notify(app, "Applied");
+            catch exception
+                notification = openmebius.presentation.notification ...
+                    .Notification.fromException( ...
+                        exception, ...
+                        Title = "Batch configuration error", ...
+                        ShowAlert = true);
+                eventData = openmebius.presentation.notification ...
+                    .NotificationEventData(notification);
+                notify(app, "NotificationRequested", eventData);
+            end
 
         end % applyCurrentSettings
 
-        function applySuggestionSettings(app)
+        function data = buildSuggestionSettings(app)
 
             data = app.LabelTable.Data;
 
             if ~istable(data)
+                data = [];
                 return
             end
 
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchIDs = unique(batch.ID(app.selection));
-            updateBatchConfigSuggestionTable( ...
-                app.MainApp.batch, batchIDs, data);
-
-        end % applySuggestionSettings
+        end % buildSuggestionSettings
 
         function cancelChanges(app)
 
+            notify(app, "Closed");
             delete(app);
 
         end % cancelChanges
@@ -1037,13 +920,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, MainApp, selection)
+        function startupFcn(app, session)
 
-            app.MainApp = MainApp;
-            app.exp = MainApp.exp;
-
-            selectionRow = selection(:, 1);
-            app.selection = unique(selectionRow);
+            app.Session = session;
             app.setConfigValue()
             app.fillConfigValueToUI()
             app.enabledisableCIUI(app.CalcCICheckBox.Value)
@@ -1058,7 +937,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Close request function: BatchconfigUIFigure
         function BatchconfigUIFigureCloseRequest(app, event)
 
-            delete(app)
+            app.cancelChanges();
 
         end
 
@@ -1294,7 +1173,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             % Esc
             if strcmp(key, 'escape')
-                delete(app)
+                app.cancelChanges();
             end
 
         end
