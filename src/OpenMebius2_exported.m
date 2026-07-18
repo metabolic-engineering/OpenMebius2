@@ -622,6 +622,31 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % renderModelOperationViewModel
 
+        function renderModelPathwayEditViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+            if ~isempty(viewModel.UpdatedModelTable)
+                app.ModelTable.Data = viewModel.UpdatedModelTable;
+                app.ModelTable.ColumnName = ...
+                    viewModel.UpdatedModelTable.Properties.VariableNames;
+                app.ModelTable.RowName = ...
+                    viewModel.UpdatedModelTable.Properties.RowNames;
+            end
+
+            if ~isempty(viewModel.Pathway.Image)
+                app.renderPathwayPlot(viewModel.Pathway);
+            end
+
+        end % renderModelPathwayEditViewModel
+
         function applyModelValidationStyles(app, styleRules)
 
             if isempty(styleRules)
@@ -1148,6 +1173,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             for labelIndex = 1:numel(viewModel.Labels)
+
+                if ~isfinite(viewModel.X(labelIndex)) || ...
+                        ~isfinite(viewModel.Y(labelIndex))
+                    continue
+                end
 
                 if viewModel.Highlight(labelIndex)
                     color = '#009E73';
@@ -3341,6 +3371,26 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method captureResultPlotContext
 
+        function reactionID = selectedModelReactionID(app)
+
+            reactionID = "";
+            selectedRows = app.selectedTableRows(app.ModelTable);
+            data = app.ModelTable.Data;
+
+            if isempty(selectedRows) || ~istable(data) || ...
+                    isempty(data.Properties.RowNames)
+                return
+            end
+
+            selectedRow = selectedRows(1);
+            reactionIDs = string(data.Properties.RowNames);
+
+            if selectedRow >= 1 && selectedRow <= numel(reactionIDs)
+                reactionID = reactionIDs(selectedRow);
+            end
+
+        end % selectedModelReactionID
+
         %% Slack notification helpers
         function ensureSlackNotifier(app)
 
@@ -4981,49 +5031,34 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: AddLabelMenu
-        function AddLabelMenuSelected(app, event)
+        function AddLabelMenuSelected(app, ~)
 
-            % 座標を取得
             point = get(app.MainUIAxes, 'CurrentPoint');
-            x = point(1, 1);
-            y = point(1, 2);
+            position = [point(1, 1) point(1, 2)];
+            reactionID = app.selectedModelReactionID();
+            app.ensureModelOperationController();
+            app.ensureModelPresenter();
+            outcome = app.ModelOperationController ...
+                .setPathwayLabelPosition( ...
+                    app.model, reactionID, position);
+            app.renderModelPathwayEditViewModel( ...
+                app.ModelPresenter.presentPathwayEditOutcome( ...
+                    outcome, IsDarkTheme = app.isDarkTheme()));
 
-            % Get the label name
-            data = app.ModelTable.Data;
-            idx = app.ModelTable.Selection;
-
-            if isempty(idx)
-                msg = openmebius.infrastructure.logging.Logger ...
-                    .formatDatedMessage( ...
-                    "Please select a reaction to add a label.", ...
-                "Warning");
-                app.LogText(msg);
-                return
-            end
-
-            dataSelected = data(idx(1, 1), :);
-            dataSelected.x = x;
-            dataSelected.y = y;
-            data(idx(1, 1), :) = dataSelected;
-            app.ModelTable.Data = data;
-            dataXY = app.model.tableXY;
-            dataXY(dataSelected.Properties.RowNames, :) = dataSelected(:, {'x', 'y'});
-            app.model.tableXY = dataXY;
-
-            updateModel(app)
-            loadPathway(app)
-
-            rxnName = dataSelected.Properties.RowNames{1};
-            msg = openmebius.infrastructure.logging.Logger ...
-                .formatDatedMessage( ...
-                "Label position added to " + rxnName + ...
-                " x: " + string(x) + " y: " + string(y), ...
-            "Info");
-            app.LogText(msg);
         end
 
         % Menu selected function: RemoveLabelMenu
-        function RemoveLabelMenuSelected(app, event)
+        function RemoveLabelMenuSelected(app, ~)
+
+            reactionID = app.selectedModelReactionID();
+            app.ensureModelOperationController();
+            app.ensureModelPresenter();
+            outcome = app.ModelOperationController ...
+                .removePathwayLabelPosition( ...
+                    app.model, reactionID);
+            app.renderModelPathwayEditViewModel( ...
+                app.ModelPresenter.presentPathwayEditOutcome( ...
+                    outcome, IsDarkTheme = app.isDarkTheme()));
 
         end
 

@@ -63,6 +63,23 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 numel(pathway.ReactionIDs), numel(pathway.Y));
 
+            reactionID = pathway.ReactionIDs(1);
+            model.updatePathwayLabelPosition( ...
+                reactionID, [12.5 4.25]);
+            updated = model.getPathwayData();
+            updatedRow = find(updated.ReactionIDs == reactionID, 1);
+
+            testCase.verifyEqual(updated.X(updatedRow), 12.5);
+            testCase.verifyEqual(updated.Y(updatedRow), 4.25);
+
+            model.updatePathwayLabelPosition( ...
+                reactionID, [nan nan]);
+            removed = model.getPathwayData();
+            removedRow = find(removed.ReactionIDs == reactionID, 1);
+
+            testCase.verifyTrue(isnan(removed.X(removedRow)));
+            testCase.verifyTrue(isnan(removed.Y(removedRow)));
+
         end
 
         function readModelSheetReturnsValidatedTable(testCase)

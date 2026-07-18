@@ -175,6 +175,64 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
 
         end
 
+        function setsPathwayLabelPosition(testCase)
+
+            service = helpers.PathwayLabelServiceStub();
+            service.Result = "updated";
+            controller = openmebius.application.model ...
+                .ModelOperationController( ...
+                    PathwayLabelService = service);
+            model = helpers.PathwayLabelModelStub();
+
+            outcome = controller.setPathwayLabelPosition( ...
+                model, "R1", [2.5 4.5]);
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(service.SetCalled);
+            testCase.verifyEqual(service.Model, model);
+            testCase.verifyEqual(service.ReactionID, "R1");
+            testCase.verifyEqual(service.Position, [2.5 4.5]);
+            testCase.verifyEqual(outcome.Result, "updated");
+
+        end
+
+        function removesPathwayLabelPosition(testCase)
+
+            service = helpers.PathwayLabelServiceStub();
+            service.Result = "removed";
+            controller = openmebius.application.model ...
+                .ModelOperationController( ...
+                    PathwayLabelService = service);
+
+            outcome = controller.removePathwayLabelPosition( ...
+                helpers.PathwayLabelModelStub(), "R1");
+
+            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(service.RemoveCalled);
+            testCase.verifyEqual(outcome.Result, "removed");
+
+        end
+
+        function capturesPathwayLabelFailure(testCase)
+
+            service = helpers.PathwayLabelServiceStub();
+            service.Exception = MException( ...
+                "OpenMebius2:PathwayLabel:ReactionRequired", ...
+                "Please select a reaction.");
+            controller = openmebius.application.model ...
+                .ModelOperationController( ...
+                    PathwayLabelService = service);
+
+            outcome = controller.setPathwayLabelPosition( ...
+                [], "", [1 2]);
+
+            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyEqual( ...
+                string(outcome.Exception.identifier), ...
+                "OpenMebius2:PathwayLabel:ReactionRequired");
+
+        end
+
     end % methods (Test)
 
 end % classdef

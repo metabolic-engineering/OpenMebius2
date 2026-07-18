@@ -4,6 +4,7 @@ classdef ModelOperationController < handle
     properties (Access = private)
         TemplateModelLoadService
         TemplateExportService
+        PathwayLabelService
     end
 
     methods
@@ -16,11 +17,14 @@ classdef ModelOperationController < handle
                 options.TemplateExportService = ...
                     openmebius.application.model ...
                         .MassSpectrometryTemplateExportService()
+                options.PathwayLabelService = ...
+                    openmebius.application.model.PathwayLabelService()
             end
 
             obj.TemplateModelLoadService = ...
                 options.TemplateModelLoadService;
             obj.TemplateExportService = options.TemplateExportService;
+            obj.PathwayLabelService = options.PathwayLabelService;
 
         end % constructor
 
@@ -96,6 +100,37 @@ classdef ModelOperationController < handle
                     model, outputPath));
 
         end % exportMassSpectrometryTemplate
+
+        function outcome = setPathwayLabelPosition( ...
+                obj, model, reactionID, position)
+
+            arguments
+                obj
+                model
+                reactionID (1, 1) string
+                position (1, 2) double
+            end
+
+            outcome = obj.execute( ...
+                @() obj.PathwayLabelService.setPosition( ...
+                    model, reactionID, position));
+
+        end % setPathwayLabelPosition
+
+        function outcome = removePathwayLabelPosition( ...
+                obj, model, reactionID)
+
+            arguments
+                obj
+                model
+                reactionID (1, 1) string
+            end
+
+            outcome = obj.execute( ...
+                @() obj.PathwayLabelService.removePosition( ...
+                    model, reactionID));
+
+        end % removePathwayLabelPosition
 
     end % methods
 

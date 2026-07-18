@@ -202,6 +202,43 @@ classdef ModelWorkspace < handle
 
         end % getPathwayData
 
+        function updatePathwayLabelPosition( ...
+                obj, reactionID, position)
+
+            arguments
+                obj
+                reactionID (1, 1) string
+                position (1, 2) double
+            end
+
+            if strlength(strtrim(reactionID)) == 0
+                error( ...
+                    "OpenMebius2:PathwayLabel:ReactionRequired", ...
+                    "Please select a reaction.");
+            end
+
+            isRemoval = all(isnan(position));
+
+            if ~isRemoval && any(~isfinite(position))
+                error( ...
+                    "OpenMebius2:PathwayLabel:InvalidPosition", ...
+                    "Pathway label coordinates must be finite values.");
+            end
+
+            reactionIDs = string(obj.tableXY.Properties.RowNames);
+            row = find(reactionIDs == reactionID, 1);
+
+            if isempty(row)
+                error( ...
+                    "OpenMebius2:PathwayLabel:ReactionNotFound", ...
+                    "Reaction '%s' is not available in pathway positions.", ...
+                    reactionID);
+            end
+
+            obj.tableXY{row, ["x", "y"]} = position;
+
+        end % updatePathwayLabelPosition
+
         %% Public setup methods
         function setupTableInfo(obj)
 
