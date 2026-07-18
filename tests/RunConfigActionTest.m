@@ -162,6 +162,51 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
         end
 
+        function rendersConfidenceIntervalControlState(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfig_exported(session);
+            cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+
+            app.CalcCICheckBox.Value = true;
+            callback = app.CalcCICheckBox.ValueChangedFcn;
+            callback([], []);
+
+            testCase.verifyEqual( ...
+                string(app.AlgorithmCIDropDown.Enable), "on");
+            testCase.verifyEqual( ...
+                string(app.MCLmaxEditField.Enable), "on");
+            testCase.verifyEqual( ...
+                string(app.DeterminegridintervalautomaticallyCheckBox.Enable), ...
+                "off");
+
+            app.AlgorithmCIDropDown.Value = 'Grid search';
+            callback = app.AlgorithmCIDropDown.ValueChangedFcn;
+            callback([], []);
+
+            testCase.verifyEqual( ...
+                string(app.MCLmaxEditField.Enable), "off");
+            testCase.verifyEqual( ...
+                string(app.DeterminegridintervalautomaticallyCheckBox.Enable), ...
+                "on");
+            testCase.verifyEqual( ...
+                string(app.ThenumberofgridpointsEditField.Enable), "on");
+            testCase.verifyEqual( ...
+                string(app.GridintervalDeltaixiEditField.Enable), "off");
+
+            app.DeterminegridintervalautomaticallyCheckBox.Value = false;
+            callback = app.DeterminegridintervalautomaticallyCheckBox ...
+                .ValueChangedFcn;
+            callback([], []);
+
+            testCase.verifyEqual( ...
+                string(app.ThenumberofgridpointsEditField.Enable), "off");
+            testCase.verifyEqual( ...
+                string(app.GridintervalDeltaixiEditField.Enable), "on");
+
+        end
+
     end % methods (Test)
 
     methods (Static, Access = private)

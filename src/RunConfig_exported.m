@@ -124,13 +124,13 @@ classdef RunConfig_exported < matlab.apps.AppBase
     %% Private properties
     properties (Access = private)
         Session openmebius.application.batch.BatchConfigurationSession
+        Presenter openmebius.presentation.batch.RunConfigPresenter
         RunAddBatchApp
         RunAddBatchListener event.listener = event.listener.empty(0, 1)
         TracerConfigApp
         TracerConfigListeners event.listener = event.listener.empty(0, 1)
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
-        selectedConfig
         MSFragmentTableMetadata
     end
 
@@ -159,14 +159,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
     %% Private methods
     methods (Access = private)
 
-        function setConfigValue(app)
-            % SETCONFIGVALUE Set the configuration values in the app
-            % based on the selected batch row
-
-            app.selectedConfig = app.Session.configs();
-
-        end % setConfigValue
-
         function [currentID, isSingle] = getCurrentIDs(app)
 
             currentID = app.Session.BatchIds;
@@ -174,11 +166,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % getCurrentIDs
 
-        function fillConfigValueToUI(app)
-            % FILLCONFIGVALUETOUTI Fill the configuration values into the UI components
+        function renderRunConfigViewModel(app, viewModel)
+            % RENDERRUNCONFIGVIEWMODEL Render typed configuration values.
 
-            viewModel = openmebius.presentation.batch ...
-                .RunConfigMapper.toViewModel(app.selectedConfig(1));
             app.IterationSpinner.Value = viewModel.Iteration;
             app.AlgorithmDropDown.Value = viewModel.Algorithm;
             app.LargeScaleCheckBox.Value = viewModel.LargeScale;
@@ -218,106 +208,67 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.INSTMFATimeCourseUITable.Data = ...
                 viewModel.INSTMFATimePointTable;
 
-        end % fillConfigValueToUI
+        end % renderRunConfigViewModel
 
-        function enabledisableCIUI(app, isCalcCI)
-            % ENABLEDISABLECIUI Enable or disable CI-related UI components
-            % based on the isCalcCI flag
-
-            if isCalcCI
-                % Enable CI-related components
-                app.AlgorithmCIDropDown.Enable = 'on';
-
-                % Check the selected algorithm and enable/disable components accordingly
-                selectedAlgorithm = app.AlgorithmCIDropDown.Value;
-
-                switch selectedAlgorithm
-                    case 'Monte Carlo'
-                        % Enable Monte Carlo-specific components
-                        app.MCLmaxEditField.Enable = 'on';
-                        app.MCFixMIDCheckBox.Enable = 'on';
-                        app.MCMIDSDEditField.Enable = 'on';
-                        app.MCProcedureDropDown.Enable = 'on';
-                        app.MCTTEditField.Enable = 'on';
-                        app.MCProximityEditField.Enable = 'on';
-                        app.MCNasEditField.Enable = 'on';
-                        app.MCKNREditField.Enable = 'on';
-                        app.MCMethodDropDown.Enable = 'on';
-
-                        % Disable Grid Search-specific components
-                        app.DeterminegridintervalautomaticallyCheckBox.Enable = 'off';
-                        app.ThenumberofgridpointsEditField.Enable = 'off';
-                        app.GridintervalDeltaixiEditField.Enable = 'off';
-                        app.IterationtimesforgridsearchEditField.Enable = 'off';
-                        app.ThresholdDropDown.Enable = 'off';
-
-                    case 'Grid search'
-                        % Enable Grid Search-specific components
-                        app.DeterminegridintervalautomaticallyCheckBox.Enable = 'on';
-                        app.ThenumberofgridpointsEditField.Enable = 'on';
-                        app.GridintervalDeltaixiEditField.Enable = 'on';
-                        app.IterationtimesforgridsearchEditField.Enable = 'on';
-                        app.ThresholdDropDown.Enable = 'on';
-
-                        % Disable Monte Carlo-specific components
-                        app.MCLmaxEditField.Enable = 'off';
-                        app.MCFixMIDCheckBox.Enable = 'off';
-                        app.MCMIDSDEditField.Enable = 'off';
-                        app.MCProcedureDropDown.Enable = 'off';
-                        app.MCTTEditField.Enable = 'off';
-                        app.MCProximityEditField.Enable = 'off';
-                        app.MCNasEditField.Enable = 'off';
-                        app.MCKNREditField.Enable = 'off';
-                        app.MCMethodDropDown.Enable = 'off';
-                end
-
-            else
-                % Disable all CI-related components
-                app.AlgorithmCIDropDown.Enable = 'off';
-                app.MCLmaxEditField.Enable = 'off';
-                app.MCFixMIDCheckBox.Enable = 'off';
-                app.MCMIDSDEditField.Enable = 'off';
-                app.MCProcedureDropDown.Enable = 'off';
-                app.MCTTEditField.Enable = 'off';
-                app.MCProximityEditField.Enable = 'off';
-                app.MCNasEditField.Enable = 'off';
-                app.MCKNREditField.Enable = 'off';
-                app.MCMethodDropDown.Enable = 'off';
-                app.DeterminegridintervalautomaticallyCheckBox.Enable = 'off';
-                app.ThenumberofgridpointsEditField.Enable = 'off';
-                app.GridintervalDeltaixiEditField.Enable = 'off';
-                app.IterationtimesforgridsearchEditField.Enable = 'off';
-                app.ThresholdDropDown.Enable = 'off';
-            end
-
-            enabledisableGridSetting(app)
+        function enabledisableCIUI(app, ~)
+            app.refreshControlState();
 
         end % enabledisableCIUI
 
         function enabledisableGridSetting(app)
-            % ENABLEDISABLEGRIDSETTING Enable or disable grid setting UI components
-            % based on the selected algorithm
-            % and the value of the DeterminegridintervalautomaticallyCheckBox
-
-            isCalcCI = app.CalcCICheckBox.Value;
-            isGridSearch = strcmp(app.AlgorithmCIDropDown.Value, 'Grid search');
-            isAutoGridInterval = app.DeterminegridintervalautomaticallyCheckBox.Value;
-
-            if ~isCalcCI && ~isGridSearch
-                return
-            end
-
-            if isAutoGridInterval
-                % Enable grid setting components
-                app.ThenumberofgridpointsEditField.Enable = 'on';
-                app.GridintervalDeltaixiEditField.Enable = 'off';
-            else
-                % Disable grid setting components
-                app.ThenumberofgridpointsEditField.Enable = 'off';
-                app.GridintervalDeltaixiEditField.Enable = 'on';
-            end
+            app.refreshControlState();
 
         end % enabledisableGridSetting
+
+        function refreshControlState(app)
+
+            viewModel = app.collectRunConfigViewModel();
+            state = app.Presenter.presentControlState(viewModel);
+            app.renderControlState(state);
+
+        end % refreshControlState
+
+        function renderControlState(app, state)
+
+            app.AlgorithmCIDropDown.Enable = ...
+                app.onOff(state.CIAlgorithmEnabled);
+            monteCarlo = app.onOff(state.MonteCarloEnabled);
+            app.MCLmaxEditField.Enable = monteCarlo;
+            app.MCFixMIDCheckBox.Enable = monteCarlo;
+            app.MCMIDSDEditField.Enable = monteCarlo;
+            app.MCProcedureDropDown.Enable = monteCarlo;
+            app.MCTTEditField.Enable = monteCarlo;
+            app.MCProximityEditField.Enable = monteCarlo;
+            app.MCNasEditField.Enable = monteCarlo;
+            app.MCKNREditField.Enable = monteCarlo;
+            app.MCMethodDropDown.Enable = monteCarlo;
+
+            grid = app.onOff(state.GridEnabled);
+            app.DeterminegridintervalautomaticallyCheckBox.Enable = grid;
+            app.IterationtimesforgridsearchEditField.Enable = grid;
+            app.ThresholdDropDown.Enable = grid;
+            app.ThenumberofgridpointsEditField.Enable = ...
+                app.onOff(state.GridPointsEnabled);
+            app.GridintervalDeltaixiEditField.Enable = ...
+                app.onOff(state.GridDeltaEnabled);
+
+            app.EffluxUITable.Enable = app.onOff(state.EffluxEnabled);
+            app.LabelTable.Enable = app.onOff(state.SuggestionEnabled);
+            instMFA = app.onOff(state.INSTMFATablesEnabled);
+            app.INSTMFAPoolUITable.Enable = instMFA;
+            app.INSTMFATimeCourseUITable.Enable = instMFA;
+
+        end % renderControlState
+
+        function value = onOff(~, enabled)
+
+            if enabled
+                value = 'on';
+            else
+                value = 'off';
+            end
+
+        end % onOff
 
         function enabledisableEffluxPertubation(app)
 
@@ -613,8 +564,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % BUILDGENERALCONFIG Convert the current controls to config.
 
             viewModel = app.collectRunConfigViewModel();
-            config = openmebius.presentation.batch.RunConfigMapper ...
-                .fromViewModel( ...
+            config = app.Presenter.applyViewModel( ...
                     viewModel, app.Session.primaryConfig());
 
         end % buildGeneralConfig
@@ -719,13 +669,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             effluxData = app.EffluxUITable.Data;
             instPoolData = app.INSTMFAPoolUITable.Data;
             instTimeCourseData = app.INSTMFATimeCourseUITable.Data;
-            selectedConfig = app.selectedConfig;
-            restoreSelection = onCleanup( ...
-                @() app.restoreSelectedConfig(selectedConfig));
-
-            app.selectedConfig = ...
-                openmebius.domain.batch.BatchConfig.defaultConfig();
-            app.fillConfigValueToUI();
+            viewModel = app.Presenter.presentDefaults();
+            app.renderRunConfigViewModel(viewModel);
 
             msData = app.MSTable.Data;
 
@@ -751,8 +696,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.INSTMFATimeCourseUITable.Enable = 'off';
             app.INSTMFATimeCourseUITable.ColumnEditable = ...
                 app.readOnlyColumns(instTimeCourseData);
-
-            clear restoreSelection
 
         end % restoreDefaultValues
 
@@ -797,12 +740,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % cancelChanges
 
-        function restoreSelectedConfig(app, selectedConfig)
-
-            app.selectedConfig = selectedConfig;
-
-        end % restoreSelectedConfig
-
         function editable = readOnlyColumns(~, data)
 
             if istable(data)
@@ -822,8 +759,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function startupFcn(app, session)
 
             app.Session = session;
-            app.setConfigValue()
-            app.fillConfigValueToUI()
+            app.Presenter = openmebius.presentation.batch ...
+                .RunConfigPresenter();
+            viewModel = app.Presenter.presentConfig( ...
+                app.Session.primaryConfig());
+            app.renderRunConfigViewModel(viewModel)
             app.enabledisableCIUI(app.CalcCICheckBox.Value)
             app.enabledisableEffluxPertubation()
             app.enabledisableSuggestion()
