@@ -3960,27 +3960,77 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method loadHistory
 
-        function loadTable(~, tableObject, tableData, options)
+        function renderWorkspaceTable(~, tableObject, viewModel)
 
-            arguments
-                ~
-                tableObject
-                tableData table
-                options.ColumnEditable = false(1, width(tableData))
+            tableObject.Data = viewModel.Data;
+            tableObject.ColumnName = viewModel.ColumnName;
+            tableObject.RowName = viewModel.RowName;
+            tableObject.ColumnEditable = viewModel.ColumnEditable;
+
+        end % renderWorkspaceTable
+
+        function renderModelTableViewModel(app, viewModel)
+
+            app.renderWorkspaceTable(app.ModelTable, viewModel);
+            app.resetModelTableColorFormat();
+
+            if ~isempty(viewModel.ErrorRows)
+                addStyle( ...
+                    app.ModelTable, app.styleError, ...
+                    'row', viewModel.ErrorRows);
             end
 
-            tableObject.Data = tableData;
-            tableObject.ColumnName = tableData.Properties.VariableNames;
-            tableObject.RowName = tableData.Properties.RowNames;
-            tableObject.ColumnEditable = options.ColumnEditable;
+        end % renderModelTableViewModel
 
-        end % function loadTable
+        function renderMassSpectrometryTableViewModels( ...
+                app, massSpectrometry, atom)
+
+            app.renderWorkspaceTable(app.MSTable, massSpectrometry);
+            app.renderWorkspaceTable(app.AtomTable, atom);
+            app.resetMSTableColorFormat();
+
+            if ~isempty(massSpectrometry.ErrorRows)
+                addStyle( ...
+                    app.MSTable, app.styleError, ...
+                    'row', massSpectrometry.ErrorRows);
+            end
+
+            if ~isempty(atom.ErrorRows)
+                addStyle( ...
+                    app.AtomTable, app.styleError, ...
+                    'row', atom.ErrorRows);
+            end
+
+        end % renderMassSpectrometryTableViewModels
+
+        function renderModelWorkspaceViewModel(app, viewModel)
+
+            app.renderModelTableViewModel(viewModel.ModelTable);
+            app.renderMassSpectrometryTableViewModels( ...
+                viewModel.MassSpectrometryTable, ...
+                viewModel.AtomTable);
+            app.renderWorkspaceTable( ...
+                app.BiomassTable, viewModel.BiomassTable);
+
+        end % renderModelWorkspaceViewModel
+
+        function renderExperimentWorkspaceViewModel(app, viewModel)
+
+            app.renderWorkspaceTable( ...
+                app.ExpTable, viewModel.InformationTable);
+            app.renderWorkspaceTable( ...
+                app.LabelTable, viewModel.TracerTable);
+            app.renderWorkspaceTable( ...
+                app.UptakeTable, viewModel.UptakeTable);
+
+        end % renderExperimentWorkspaceViewModel
 
         function loadEMUModel(app)
 
-            loadModelTable(app)
-            loadMSTable(app)
-            loadBiomassTable(app)
+            app.ensureModelPresenter();
+            viewModel = app.ModelPresenter ...
+                .presentWorkspaceTables(app.model);
+            app.renderModelWorkspaceViewModel(viewModel);
 
         end % function loadEMUModel
 
@@ -3988,18 +4038,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             arguments
                 app
-                options.ColumnEditable = false(1, width(app.model.getModelTableGUI()))
+                options.ColumnEditable logical = false
             end
 
-            tableModel = app.model.getModelTableGUI();
-            loadTable(app, app.ModelTable, tableModel, ColumnEditable = options.ColumnEditable);
-            errorRows = app.model.getInvalidModelRowIdx();
-
-            resetModelTableColorFormat(app)
-
-            if ~isempty(errorRows)
-                addStyle(app.ModelTable, app.styleError, 'row', errorRows);
-            end
+            app.ensureModelPresenter();
+            viewModel = app.ModelPresenter.presentModelTable( ...
+                app.model, ...
+                ColumnEditable = options.ColumnEditable);
+            app.renderModelTableViewModel(viewModel);
 
         end % function loadModelTable
 
@@ -4010,73 +4056,30 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.isColumnEditable = false
             end
 
-            isColumnEditable = options.isColumnEditable;
-
-            % MS data table
-            tableMS = app.model.getMSTable();
-
-            if isColumnEditable
-                columnEditable = true(1, width(tableMS));
-            else
-                columnEditable = false(1, width(tableMS));
-            end
-
-            loadTable(app, app.MSTable, tableMS, ColumnEditable = columnEditable);
-            errorRows = app.model.getInvalidMSRowIdx();
-
-            resetMSTableColorFormat(app);
-
-            if ~isempty(errorRows)
-                addStyle(app.MSTable, app.styleError, 'row', errorRows);
-            end
-
-            % MS atom table
-            tableAtom = app.model.getAtomTable();
-
-            if isColumnEditable
-                columnEditable = true(1, width(tableAtom));
-            else
-                columnEditable = false(1, width(tableAtom));
-            end
-
-            loadTable(app, app.AtomTable, tableAtom, ColumnEditable = columnEditable);
-            errorRows = app.model.getInvalidAtomRowIdx();
-
-            if ~isempty(errorRows)
-                addStyle(app.AtomTable, app.styleError, 'row', errorRows);
-            end
+            app.ensureModelPresenter();
+            [massSpectrometry, atom] = app.ModelPresenter ...
+                .presentMassSpectrometryTables( ...
+                    app.model, ...
+                    ColumnEditable = options.isColumnEditable);
+            app.renderMassSpectrometryTableViewModels( ...
+                massSpectrometry, atom);
 
         end % function loadMSTable
 
-        function loadBiomassTable(app)
-
-            % Biomass data table
-            tableBiomass = app.model.getBiomassTable();
-            loadTable(app, app.BiomassTable, tableBiomass);
-
-        end % function loadBiomassTable
-
         function loadTracerTable(app)
 
-            tableTracer = app.exp.getTracerTable();
+            app.ensureExperimentPresenter();
+            columnEditable = app.LabelTable.ColumnEditable;
 
-            app.LabelTable.Data = tableTracer;
-            app.LabelTable.ColumnName = tableTracer.Properties.VariableNames;
-            app.LabelTable.RowName = tableTracer.Properties.RowNames;
+            if isempty(columnEditable)
+                columnEditable = false;
+            end
+
+            viewModel = app.ExperimentPresenter.presentTracerTable( ...
+                app.exp, ColumnEditable = columnEditable);
+            app.renderWorkspaceTable(app.LabelTable, viewModel);
 
         end % function loadTracerTable
-
-        function loadUptakeTable(app)
-
-            % Uptake data table
-            tableUptake = app.exp.getUptakeTable();
-
-            app.UptakeTable.Data = tableUptake;
-            app.UptakeTable.ColumnName = tableUptake.Properties.VariableNames;
-            app.UptakeTable.RowName = tableUptake.Properties.RowNames;
-            app.UptakeTable.ColumnEditable = true(1, size(tableUptake, 2));
-
-        end % function loadUptakeTable
 
         function loadPathway(app)
 
@@ -4103,21 +4106,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function loadExpData(app)
 
-            loadExpTable(app)
-            loadTracerTable(app)
-            loadUptakeTable(app)
+            app.ensureExperimentPresenter();
+            viewModel = app.ExperimentPresenter ...
+                .presentWorkspaceTables(app.exp);
+            app.renderExperimentWorkspaceViewModel(viewModel);
 
         end % function loadExpData
-
-        function loadExpTable(app)
-
-            tableExps = getInfoTable(app.exp);
-            app.ExpTable.Data = tableExps;
-            app.ExpTable.ColumnName = tableExps.Properties.VariableNames;
-            app.ExpTable.RowName = tableExps.Properties.RowNames;
-            app.ExpTable.ColumnEditable = true(1, size(tableExps, 2));
-
-        end % function loadExpTable
 
         function loadBatchTable(app)
 

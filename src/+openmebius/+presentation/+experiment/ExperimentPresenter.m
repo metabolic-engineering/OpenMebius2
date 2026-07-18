@@ -3,6 +3,50 @@ classdef ExperimentPresenter
 
     methods
 
+        function viewModel = presentWorkspaceTables(obj, experiments)
+
+            viewModel = openmebius.presentation.experiment ...
+                .ExperimentWorkspaceViewModel( ...
+                    InformationTable = ...
+                        obj.presentInformationTable(experiments), ...
+                    TracerTable = ...
+                        obj.presentTracerTable(experiments), ...
+                    UptakeTable = ...
+                        obj.presentUptakeTable(experiments));
+
+        end % presentWorkspaceTables
+
+        function viewModel = presentInformationTable(~, experiments)
+
+            viewModel = openmebius.presentation.WorkspaceTableViewModel( ...
+                Data = getInfoTable(experiments), ...
+                ColumnEditable = true);
+
+        end % presentInformationTable
+
+        function viewModel = presentTracerTable( ...
+                ~, experiments, options)
+
+            arguments
+                ~
+                experiments
+                options.ColumnEditable logical = false
+            end
+
+            viewModel = openmebius.presentation.WorkspaceTableViewModel( ...
+                Data = experiments.getTracerTable(), ...
+                ColumnEditable = options.ColumnEditable);
+
+        end % presentTracerTable
+
+        function viewModel = presentUptakeTable(~, experiments)
+
+            viewModel = openmebius.presentation.WorkspaceTableViewModel( ...
+                Data = experiments.getUptakeTable(), ...
+                ColumnEditable = true);
+
+        end % presentUptakeTable
+
         function viewModel = presentCalculationStarted(~)
 
             viewModel = openmebius.presentation.experiment ...

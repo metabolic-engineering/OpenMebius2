@@ -6,12 +6,48 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
 
             root = fileparts(fileparts(mfilename("fullpath")));
             addpath(fullfile(root, "src"));
+            addpath(fullfile(root, "tests"));
 
         end
 
     end
 
     methods (Test)
+
+        function presentsExperimentWorkspaceTables(testCase)
+
+            experiments = helpers.ReportExperimentsStub();
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+
+            viewModel = presenter.presentWorkspaceTables(experiments);
+
+            testCase.verifyEqual( ...
+                viewModel.InformationTable.Data, ...
+                experiments.getInfoTable());
+            testCase.verifyTrue( ...
+                all(viewModel.InformationTable.ColumnEditable));
+            testCase.verifyFalse( ...
+                any(viewModel.TracerTable.ColumnEditable));
+            testCase.verifyTrue( ...
+                all(viewModel.UptakeTable.ColumnEditable));
+
+        end
+
+        function preservesTracerEditableColumns(testCase)
+
+            experiments = helpers.ReportExperimentsStub();
+            presenter = openmebius.presentation.experiment ...
+                .ExperimentPresenter();
+            editable = [true, false, true, false];
+
+            viewModel = presenter.presentTracerTable( ...
+                experiments, ColumnEditable = editable);
+
+            testCase.verifyEqual( ...
+                viewModel.ColumnEditable, editable);
+
+        end
 
         function presentsCalculationStarted(testCase)
 

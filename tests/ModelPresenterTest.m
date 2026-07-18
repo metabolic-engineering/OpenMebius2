@@ -6,12 +6,55 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
 
             root = fileparts(fileparts(mfilename("fullpath")));
             addpath(fullfile(root, "src"));
+            addpath(fullfile(root, "tests"));
 
         end
 
     end
 
     methods (Test)
+
+        function presentsModelWorkspaceTables(testCase)
+
+            model = helpers.ModelWorkspaceTableStub();
+            presenter = openmebius.presentation.model.ModelPresenter();
+
+            viewModel = presenter.presentWorkspaceTables(model);
+
+            testCase.verifyEqual( ...
+                viewModel.ModelTable.Data, model.ModelTable);
+            testCase.verifyEqual( ...
+                viewModel.ModelTable.ErrorRows, ...
+                model.InvalidModelRows);
+            testCase.verifyEqual( ...
+                viewModel.MassSpectrometryTable.ErrorRows, ...
+                model.InvalidMassSpectrometryRows);
+            testCase.verifyEqual( ...
+                viewModel.AtomTable.ErrorRows, ...
+                model.InvalidAtomRows);
+            testCase.verifyFalse( ...
+                any(viewModel.BiomassTable.ColumnEditable));
+
+        end
+
+        function presentsEditableModelAndMassSpectrometryTables(testCase)
+
+            model = helpers.ModelWorkspaceTableStub();
+            presenter = openmebius.presentation.model.ModelPresenter();
+
+            modelTable = presenter.presentModelTable( ...
+                model, ColumnEditable = [true, false]);
+            [massSpectrometry, atom] = presenter ...
+                .presentMassSpectrometryTables( ...
+                    model, ColumnEditable = true);
+
+            testCase.verifyEqual( ...
+                modelTable.ColumnEditable, [true, false]);
+            testCase.verifyTrue( ...
+                all(massSpectrometry.ColumnEditable));
+            testCase.verifyTrue(all(atom.ColumnEditable));
+
+        end
 
         function presentsTemplateLoadStarted(testCase)
 
