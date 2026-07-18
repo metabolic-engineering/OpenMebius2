@@ -22,7 +22,7 @@ classdef ComparisonView_exported < matlab.apps.AppBase
 
     properties (Access = private)
         Presenter openmebius.presentation.experiment.ComparisonViewPresenter
-        type (1, 1) string
+        Mode (1, 1) string
     end
 
     methods (Access = private)
@@ -211,23 +211,11 @@ classdef ComparisonView_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, presenter, catalogViewModel, type)
+        function startupFcn(app, context)
 
-            app.Presenter = presenter;
-            app.type = string(type);
-
-            switch app.type
-
-                case "ms"
-                    app.applyCatalog(catalogViewModel);
-
-                otherwise
-                    error( ...
-                        "OpenMebius2:ComparisonView:UnknownType", ...
-                        "Unknown comparison view type: %s", ...
-                        app.type);
-
-            end
+            app.Presenter = context.Presenter;
+            app.Mode = context.Mode;
+            app.applyCatalog(context.InitialCatalog);
 
         end
 

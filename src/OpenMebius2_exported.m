@@ -2492,9 +2492,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            app.detachComparisonViewListeners();
-            app.ComparisonViewApp = ComparisonView( ...
-                presenter, catalogViewModel, "ms");
+            app.closeComparisonViewApp();
+            context = openmebius.presentation.experiment ...
+                .ComparisonViewContext( ...
+                    Presenter = presenter, ...
+                    InitialCatalog = catalogViewModel);
+            app.ComparisonViewApp = ComparisonView(context);
             app.attachComparisonViewListeners(app.ComparisonViewApp);
 
         end % method openMSComparison
@@ -3012,6 +3015,25 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.ComparisonViewListeners);
 
         end % detachComparisonViewListeners
+
+        function closeComparisonViewApp(app)
+
+            app.detachComparisonViewListeners();
+            childApp = app.ComparisonViewApp;
+            app.ComparisonViewApp = [];
+
+            if isempty(childApp)
+                return
+            end
+
+            try
+                if isvalid(childApp)
+                    delete(childApp);
+                end
+            catch
+            end
+
+        end % closeComparisonViewApp
 
         function attachRunAddBatchListeners(app, runAddBatchApp)
 
@@ -7165,7 +7187,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.closeLabelConfigApp();
             app.closeTracerConfigApp();
             app.closeMSViewApp();
-            app.detachComparisonViewListeners();
+            app.closeComparisonViewApp();
             app.closeRunConfigApp();
             app.closeRunAddBatchApp();
 
