@@ -196,6 +196,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         Presenter openmebius.presentation.main.MainPresenter
         ProjectPresenter openmebius.presentation.project.ProjectPresenter
         ModelPresenter openmebius.presentation.model.ModelPresenter
+        LabelConfigPresenter openmebius.presentation.model.LabelConfigPresenter
         BatchPresenter openmebius.presentation.batch.BatchPresenter
         RunConfigPresenter openmebius.presentation.batch.RunConfigPresenter
         BatchExperimentSelectionEditorPresenter openmebius.presentation.batch.BatchExperimentSelectionEditorPresenter
@@ -206,6 +207,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProjectOperationController openmebius.application.project.ProjectOperationController
         ProjectSession openmebius.domain.project.ProjectSession
         ModelOperationController openmebius.application.model.ModelOperationController
+        LabelConfigurationLaunchController openmebius.application.model.LabelConfigurationLaunchController
         BatchOperationController openmebius.application.batch.BatchOperationController
         BatchConfigurationController openmebius.application.batch.BatchConfigurationController
         BatchConfigurationLaunchController openmebius.application.batch.BatchConfigurationLaunchController
@@ -858,6 +860,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.attachRunConfigListeners(app.RunConfigApp);
 
         end % renderRunConfigLaunchViewModel
+
+        function renderLabelConfigLaunchViewModel(app, viewModel)
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+            if ~viewModel.IsAvailable
+                return
+            end
+
+            app.closeLabelConfigApp();
+            context = openmebius.presentation.model ...
+                .LabelConfigContext( ...
+                    LabelTable = viewModel.LabelTable, ...
+                    RatioTables = viewModel.RatioTables);
+            app.LabelConfigApp = LabelConfig(context);
+            app.attachLabelConfigListeners(app.LabelConfigApp);
+
+        end % renderLabelConfigLaunchViewModel
 
         function renderBatchProgress(app, viewModel)
 
@@ -2878,6 +2901,25 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.LabelConfigListeners);
 
         end % detachLabelConfigListeners
+
+        function closeLabelConfigApp(app)
+
+            app.detachLabelConfigListeners();
+            childApp = app.LabelConfigApp;
+            app.LabelConfigApp = [];
+
+            if isempty(childApp)
+                return
+            end
+
+            try
+                if isvalid(childApp)
+                    delete(childApp);
+                end
+            catch
+            end
+
+        end % closeLabelConfigApp
 
         function attachTracerConfigListeners(app, tracerConfigApp)
 
@@ -4961,6 +5003,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.ModelOperationController = ...
                 openmebius.application.model.ModelOperationController();
+            app.LabelConfigurationLaunchController = ...
+                openmebius.application.model ...
+                .LabelConfigurationLaunchController();
             app.BatchOperationController = ...
                 openmebius.application.batch.BatchOperationController();
             app.BatchConfigurationController = ...
@@ -4991,6 +5036,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 openmebius.presentation.project.ProjectPresenter();
             app.ModelPresenter = ...
                 openmebius.presentation.model.ModelPresenter();
+            app.LabelConfigPresenter = ...
+                openmebius.presentation.model.LabelConfigPresenter();
             app.BatchPresenter = ...
                 openmebius.presentation.batch.BatchPresenter();
             app.RunConfigPresenter = ...
@@ -5593,14 +5640,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: TracerConfigButton
-        function LabelConfigButtonPushed(app, event)
+        function LabelConfigButtonPushed(app, ~)
 
-            cleanupPresentation = app.beginPresentationOperation();
-            app.detachLabelConfigListeners();
-            app.LabelConfigApp = LabelConfig( ...
-                app.model.tableLabelView, ...
-                app.model.structLabelView);
-            app.attachLabelConfigListeners(app.LabelConfigApp);
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            outcome = app.LabelConfigurationLaunchController ...
+                .prepare(app.model);
+            viewModel = app.LabelConfigPresenter ...
+                .presentLaunchOutcome(outcome);
+            app.renderLabelConfigLaunchViewModel(viewModel);
         end
 
         % Button pushed function: TracerReloadButton
@@ -7069,7 +7117,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Code that executes before app deletion
         function delete(app)
 
-            app.detachLabelConfigListeners();
+            app.closeLabelConfigApp();
             app.detachTracerConfigListeners();
             app.detachComparisonViewListeners();
             app.closeRunConfigApp();

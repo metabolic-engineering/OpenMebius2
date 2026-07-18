@@ -128,18 +128,19 @@ classdef LabelConfig_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, tableLabelView, structLabelView)
+        function startupFcn(app, context)
 
-            app.initStructLabel = structLabelView;
-            app.initTableLabel = tableLabelView;
-            app.initFieldNames = fieldnames(structLabelView);
+            app.initStructLabel = context.RatioTables;
+            app.initTableLabel = context.LabelTable;
+            app.initFieldNames = fieldnames(context.RatioTables);
 
-            app.structLabel = structLabelView;
-            app.tableLabel = tableLabelView;
-            app.fieldNames = fieldnames(structLabelView);
+            app.structLabel = context.RatioTables;
+            app.tableLabel = context.LabelTable;
+            app.fieldNames = fieldnames(context.RatioTables);
 
-            app.LabelTable.Data = tableLabelView;
-            app.LabelTable.ColumnName = tableLabelView.Properties.VariableNames;
+            app.LabelTable.Data = context.LabelTable;
+            app.LabelTable.ColumnName = ...
+                context.LabelTable.Properties.VariableNames;
 
         end
 
