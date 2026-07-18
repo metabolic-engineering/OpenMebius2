@@ -16,8 +16,9 @@ classdef RunAddBatchActionTest < matlab.unittest.TestCase
 
         function addPublishesTypedSelection(testCase)
 
-            app = RunAddBatch_exported( ...
+            context = RunAddBatchActionTest.context( ...
                 ["exp-a"; "exp-b"], "inst-mfa", "batch-a");
+            app = RunAddBatch_exported(context);
             appCleanup = onCleanup( ...
                 @() RunAddBatchActionTest.deleteIfValid(app));
             recorder = helpers.BatchExperimentSelectionEventRecorder();
@@ -46,7 +47,9 @@ classdef RunAddBatchActionTest < matlab.unittest.TestCase
 
         function closePublishesEvent(testCase)
 
-            app = RunAddBatch_exported("exp-a", "parallel");
+            context = RunAddBatchActionTest.context( ...
+                "exp-a", "parallel", "");
+            app = RunAddBatch_exported(context);
             appCleanup = onCleanup( ...
                 @() RunAddBatchActionTest.deleteIfValid(app));
             recorder = helpers.BatchExperimentSelectionEventRecorder();
@@ -67,6 +70,19 @@ classdef RunAddBatchActionTest < matlab.unittest.TestCase
     end % methods (Test)
 
     methods (Static, Access = private)
+
+        function context = context(experimentNames, mode, batchId)
+
+            editor = openmebius.presentation.batch ...
+                .BatchExperimentSelectionEditorViewModel( ...
+                    IsAvailable = true, ...
+                    ExperimentNames = experimentNames(:), ...
+                    Mode = mode, ...
+                    BatchId = batchId);
+            context = openmebius.presentation.batch ...
+                .RunAddBatchContext(Editor = editor);
+
+        end
 
         function deleteIfValid(app)
 

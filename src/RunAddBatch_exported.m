@@ -19,8 +19,8 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
     properties (Access = private)
 
         ExperimentNames (:, 1) string
-        type (1, 1) string
-        batchID (1, 1) string = ""
+        Mode (1, 1) string
+        BatchId (1, 1) string = ""
 
     end % private properties
 
@@ -50,17 +50,14 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, experimentNames, type, batchID)
+        function startupFcn(app, context)
 
-            if nargin < 4
-                batchID = "";
-            end
+            editor = context.Editor;
+            app.ExperimentNames = editor.ExperimentNames;
+            app.Mode = editor.Mode;
+            app.BatchId = editor.BatchId;
 
-            app.ExperimentNames = string(experimentNames(:));
-            app.type = string(type);
-            app.batchID = string(batchID);
-
-            if app.type == "inst-mfa"
+            if app.Mode == "inst-mfa"
                 app.AddAsParallel.Visible = 'off';
             end
 
@@ -85,10 +82,10 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
 
             selection = openmebius.domain.batch ...
                 .BatchExperimentSelection( ...
-                    Mode = app.type, ...
+                    Mode = app.Mode, ...
                     Experiments = string(selectedExps), ...
                     AddAsParallel = logical(app.AddAsParallel.Value), ...
-                    BatchId = app.batchID);
+                    BatchId = app.BatchId);
             eventData = openmebius.presentation.batch ...
                 .BatchExperimentSelectionEventData(selection);
             notify(app, "Applied", eventData);

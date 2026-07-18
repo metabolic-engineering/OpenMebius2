@@ -369,10 +369,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
             end
 
             app.closeRunAddBatchApp();
-            app.RunAddBatchApp = RunAddBatch( ...
-                viewModel.ExperimentNames, ...
-                viewModel.Mode, ...
-                viewModel.BatchId);
+            context = openmebius.presentation.batch ...
+                .RunAddBatchContext(Editor = viewModel);
+            app.RunAddBatchApp = RunAddBatch(context);
             app.attachRunAddBatchListeners(app.RunAddBatchApp);
 
         end % editTimeCourse
