@@ -2946,6 +2946,48 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % closeTracerConfigApp
 
+        function attachMSViewListeners(app, msViewApp)
+
+            app.detachMSViewListeners();
+            listeners = event.listener.empty(0, 1);
+            listeners(end + 1, 1) = addlistener( ...
+                msViewApp, ...
+                "ComparisonRequested", ...
+                @(~, ~) app.openMSComparison());
+            listeners(end + 1, 1) = addlistener( ...
+                msViewApp, ...
+                "Closed", ...
+                @(source, event) app.onMSViewClosed(source, event));
+            app.MSViewListeners = listeners;
+
+        end % attachMSViewListeners
+
+        function detachMSViewListeners(app)
+
+            app.MSViewListeners = app.deleteListeners( ...
+                app.MSViewListeners);
+
+        end % detachMSViewListeners
+
+        function closeMSViewApp(app)
+
+            app.detachMSViewListeners();
+            childApp = app.MSViewApp;
+            app.MSViewApp = [];
+
+            if isempty(childApp)
+                return
+            end
+
+            try
+                if isvalid(childApp)
+                    delete(childApp);
+                end
+            catch
+            end
+
+        end % closeMSViewApp
+
         function attachComparisonViewListeners(app, comparisonViewApp)
 
             app.detachComparisonViewListeners();
@@ -3136,6 +3178,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.refreshPresentation();
 
         end % onTracerConfigurationClosed
+
+        function onMSViewClosed(app, ~, ~)
+
+            app.MSViewApp = [];
+            app.refreshPresentation();
+
+        end % onMSViewClosed
 
         function onComparisonViewClosed(app, ~, ~)
 
@@ -5628,12 +5677,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     "viewing MDV, biomass-corrected MDV or enrichment data.");
             end
 
-            app.MSViewApp = MSView( ...
-                presenter, idxRow, app.isDarkTheme());
-            app.MSViewListeners = addlistener( ...
-                app.MSViewApp, ...
-                'ComparisonRequested', ...
-                @(~, ~) app.openMSComparison());
+            app.closeMSViewApp();
+            context = openmebius.presentation.experiment ...
+                .MSViewContext( ...
+                    Presenter = presenter, ...
+                    InitialExperimentIndex = idxRow, ...
+                    IsDarkTheme = app.isDarkTheme());
+            app.MSViewApp = MSView(context);
+            app.attachMSViewListeners(app.MSViewApp);
         end
 
         % Button pushed function: TracerConfigButton
@@ -7113,6 +7164,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.closeLabelConfigApp();
             app.closeTracerConfigApp();
+            app.closeMSViewApp();
             app.detachComparisonViewListeners();
             app.closeRunConfigApp();
             app.closeRunAddBatchApp();

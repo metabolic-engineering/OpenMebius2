@@ -2,6 +2,7 @@ classdef MSView_exported < matlab.apps.AppBase
 
     events
         ComparisonRequested
+        Closed
     end
 
     % Properties that correspond to app components
@@ -96,11 +97,12 @@ classdef MSView_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, Presenter, idx, isDarkTheme)
+        function startupFcn(app, context)
 
-            app.Presenter = Presenter;
-            app.IsDarkTheme = logical(isDarkTheme);
-            app.ExpDropDown.Items = cellstr(Presenter.experimentNames());
+            app.Presenter = context.Presenter;
+            app.IsDarkTheme = context.IsDarkTheme;
+            app.ExpDropDown.Items = cellstr( ...
+                app.Presenter.experimentNames());
             app.color = Color();
 
             if app.IsDarkTheme
@@ -111,7 +113,8 @@ classdef MSView_exported < matlab.apps.AppBase
                     uistyle('BackgroundColor', '#FFAABB');
             end
 
-            expName = Presenter.experimentNameAt(idx);
+            expName = app.Presenter.experimentNameAt( ...
+                context.InitialExperimentIndex);
 
             changeMSTable(app, expName, app.TableTypeDropDown.Value);
 
@@ -184,6 +187,7 @@ classdef MSView_exported < matlab.apps.AppBase
         % Close request function: MSViewerUIFigure
         function MSViewerUIFigureCloseRequest(app, ~)
 
+            notify(app, "Closed");
             delete(app)
 
         end
