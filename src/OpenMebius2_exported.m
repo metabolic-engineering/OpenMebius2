@@ -368,8 +368,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.StartPath (1, 1) string = string(pwd)
             end
 
-            app.ensureDialogService();
-
             [folder, isOK] = app.DialogService.selectFolder( ...
                 Title = options.Title, ...
                 StartPath = options.StartPath);
@@ -388,8 +386,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.Save (1, 1) logical = false
                 options.DefaultName (1, 1) string = ""
             end
-
-            app.ensureDialogService();
 
             [files, isOK] = app.DialogService.selectFile( ...
                 Filter = options.Filter, ...
@@ -411,8 +407,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.Dims (1, 2) double = [1 50]
             end
 
-            app.ensureDialogService();
-
             [answer, isOK] = app.DialogService.inputText( ...
                 Prompt = options.Prompt, ...
                 Title = options.Title, ...
@@ -433,8 +427,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.Icon (1, 1) string = "question"
             end
 
-            app.ensureDialogService();
-
             [answer, isOK] = app.DialogService.confirm( ...
                 message, ...
                 title, ...
@@ -454,8 +446,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 options.Icon (1, 1) string = "info"
                 options.Interpreter (1, 1) string = "none"
             end
-
-            app.ensureDialogService();
 
             app.DialogService.alert( ...
                 message, ...
@@ -2660,25 +2650,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 ShowAlert = options.Alert));
 
         end % method notifyException
-
-        function ensureDialogService(app)
-
-            if isempty(app.DialogService)
-                app.DialogService = ...
-                    openmebius.presentation.dialog.AppDialogService( ...
-                    app.OpenMebius2UIFigure);
-                return
-            end
-
-            try
-                app.DialogService.setParent(app.OpenMebius2UIFigure);
-            catch
-                app.DialogService = ...
-                    openmebius.presentation.dialog.AppDialogService( ...
-                    app.OpenMebius2UIFigure);
-            end
-
-        end % method ensureDialogService
 
         function requireApplicationDependency(~, dependency, name)
 
