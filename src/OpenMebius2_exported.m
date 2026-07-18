@@ -204,6 +204,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         ResultPresenter openmebius.presentation.result.ResultPresenter
         ResultPlotPresenter openmebius.presentation.result.ResultPlotPresenter
+        ProgressBarFactory openmebius.presentation.main.ProgressBarFactory
         DialogService openmebius.presentation.dialog.AppDialogService
         ProjectOperationController openmebius.application.project.ProjectOperationController
         ProjectSession openmebius.domain.project.ProjectSession
@@ -480,6 +481,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ExperimentPresenter = dependencies.ExperimentPresenter;
             app.ResultPresenter = dependencies.ResultPresenter;
             app.ResultPlotPresenter = dependencies.ResultPlotPresenter;
+            app.ProgressBarFactory = dependencies.ProgressBarFactory;
             app.ProjectOperationController = ...
                 dependencies.ProjectOperationController;
             app.ModelOperationController = ...
@@ -556,7 +558,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             try
                 app.applyProjectSession(viewModel.Session);
-                app.ensureProjectDirectoryItem( ...
+                app.addProjectDirectoryHistoryItem( ...
                     viewModel.Session.Paths.RootDirectory);
 
                 if ~isempty(viewModel.Artifacts)
@@ -905,9 +907,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            app.ensureProgressBar();
+            progressBar = app.getProgressBar();
 
-            app.ProgressBar.setProgress( ...
+            progressBar.setProgress( ...
                 viewModel.Rate, ...
                 viewModel.Message);
 
@@ -3298,9 +3300,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method applyProjectSession
 
-        function ensureProjectDirectoryItem(app, projectDirectory)
+        function addProjectDirectoryHistoryItem(app, projectDirectory)
 
             projectDirectory = string(projectDirectory);
+
+            if projectDirectory == ""
+                return
+            end
+
             items = string(app.ProjectDirectoryDropDown.Items);
 
             if ~any(items == projectDirectory)
@@ -3308,7 +3315,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.ProjectDirectoryDropDown.Items = items;
             end
 
-        end % ensureProjectDirectoryItem
+        end % addProjectDirectoryHistoryItem
 
         function projectDirectory = resolveProjectOpenInput(app, projectInput)
 
@@ -3578,13 +3585,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method applyResultStyleRules
 
-        function ensureProgressBar(app)
+        function progressBar = getProgressBar(app)
 
             if isempty(app.ProgressBar) || ~isvalid(app.ProgressBar)
-                app.ProgressBar = CustomProgressBar(app.GridLayout2, 3, 1);
+                app.ProgressBar = app.ProgressBarFactory.create( ...
+                    app.GridLayout2, 3, 1);
             end
 
-        end % method ensureProgressBar
+            progressBar = app.ProgressBar;
+
+        end % method getProgressBar
 
         function rows = selectedTableRows(~, tableObject)
 
@@ -4107,7 +4117,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            app.ensureProgressBar();
+            app.getProgressBar();
 
             viewModel = app.BatchPresenter.presentTable(app.batch);
 
@@ -5000,10 +5010,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % Update the dropdown value
             app.ProjectDirectoryDropDown.Value = projectDirectory;
 
-            % Add the directory to the item
-            if ~any(strcmp(app.ProjectDirectoryDropDown.Items, projectDirectory))
-                app.ProjectDirectoryDropDown.Items{end + 1} = projectDirectory;
-            end
+            app.addProjectDirectoryHistoryItem(projectDirectory);
 
             % Update the status
             updateStatus(app, "model", "init");
