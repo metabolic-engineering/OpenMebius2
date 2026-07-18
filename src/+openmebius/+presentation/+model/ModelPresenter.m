@@ -164,6 +164,67 @@ classdef ModelPresenter
 
         end % presentTemplateExportOutcome
 
+        function viewModel = presentPathway(~, model, options)
+
+            arguments
+                ~
+                model
+                options.Labels = []
+                options.HighlightReactionIDs (:, 1) string = strings(0, 1)
+                options.IsDarkTheme (1, 1) logical = false
+            end
+
+            if isempty(model) || ...
+                    (isa(model, "handle") && ~isvalid(model))
+                viewModel = openmebius.presentation.model ...
+                    .PathwayPlotViewModel( ...
+                        Notification = ...
+                            openmebius.presentation.notification ...
+                            .Notification.warning( ...
+                                "Pathway data is not available."));
+                return
+            end
+
+            try
+                pathwayData = getPathwayData(model);
+            catch exception
+                viewModel = openmebius.presentation.model ...
+                    .PathwayPlotViewModel( ...
+                        Notification = ...
+                            openmebius.presentation.notification ...
+                            .Notification.error( ...
+                                string(exception.message), ...
+                                Title = "Pathway load failed"));
+                return
+            end
+
+            if isempty(pathwayData.Image)
+                viewModel = openmebius.presentation.model ...
+                    .PathwayPlotViewModel( ...
+                        Notification = ...
+                            openmebius.presentation.notification ...
+                            .Notification.warning( ...
+                                "Pathway image is not available."));
+                return
+            end
+
+            reactionIDs = pathwayData.ReactionIDs;
+            labels = openmebius.presentation.model.ModelPresenter ...
+                .pathwayLabels(options.Labels, reactionIDs);
+            highlight = ismember( ...
+                reactionIDs, options.HighlightReactionIDs);
+
+            viewModel = openmebius.presentation.model ...
+                .PathwayPlotViewModel( ...
+                    Image = pathwayData.Image, ...
+                    X = pathwayData.X, ...
+                    Y = pathwayData.Y, ...
+                    Labels = labels, ...
+                    Highlight = highlight, ...
+                    IsDarkTheme = options.IsDarkTheme);
+
+        end % presentPathway
+
     end % methods
 
     methods (Access = private)
@@ -263,5 +324,37 @@ classdef ModelPresenter
         end % presentEditOutcome
 
     end % methods (Access = private)
+
+    methods (Static, Access = private)
+
+        function labels = pathwayLabels(values, reactionIDs)
+
+            numberOfReactions = numel(reactionIDs);
+
+            if isempty(values)
+                labels = reactionIDs;
+                return
+            end
+
+            if isnumeric(values)
+                labels = string(arrayfun( ...
+                    @(value) sprintf('%.2f', value), ...
+                    values(:), ...
+                    'UniformOutput', false));
+            else
+                labels = string(values);
+                labels = labels(:);
+            end
+
+            if numel(labels) > numberOfReactions
+                labels = labels(1:numberOfReactions);
+            elseif numel(labels) < numberOfReactions
+                missingIDs = reactionIDs(numel(labels) + 1:end);
+                labels = [labels; missingIDs];
+            end
+
+        end % pathwayLabels
+
+    end % methods (Static, Access = private)
 
 end % classdef

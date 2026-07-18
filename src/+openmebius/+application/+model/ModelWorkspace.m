@@ -174,6 +174,34 @@ classdef ModelWorkspace < handle
 
         end % get.tableModelGUI
 
+        function data = getPathwayData(obj)
+
+            data = openmebius.application.model.ModelPathwayData();
+
+            if ~obj.isPathwayLoaded || isempty(obj.imagePathway)
+                return
+            end
+
+            modelTable = obj.tableModelGUI;
+
+            if isempty(modelTable) || ...
+                    ~all(ismember( ...
+                        ["x", "y"], ...
+                        string(modelTable.Properties.VariableNames))) || ...
+                    isempty(modelTable.Properties.RowNames)
+                data = openmebius.application.model.ModelPathwayData( ...
+                    Image = obj.imagePathway);
+                return
+            end
+
+            data = openmebius.application.model.ModelPathwayData( ...
+                Image = obj.imagePathway, ...
+                ReactionIDs = string(modelTable.Properties.RowNames), ...
+                X = double(modelTable.x), ...
+                Y = double(modelTable.y));
+
+        end % getPathwayData
+
         %% Public setup methods
         function setupTableInfo(obj)
 
@@ -194,156 +222,6 @@ classdef ModelWorkspace < handle
             obj.tableTypes.tableAtom = ["int8", "int8", "int8", "int8", "int8", "int8"];
 
         end % setupSheetNames
-
-        %% Public drawing methods
-        function drawPathway(obj, UIaxes, contextMenu, options)
-            % DRAWPATWAY: Draw the metabolic pathway on the given UIAxes
-            %
-            % INPUT:
-            %   UIaxes matlab.ui.control.UIAxes
-            %     The UIAxes object where the pathway image will be displayed.
-            %   contextMenu matlab.ui.container.ContextMenu
-            %     The context menu to be associated with the UIAxes.
-
-            arguments
-                obj;
-                UIaxes matlab.ui.control.UIAxes;
-                contextMenu matlab.ui.container.ContextMenu;
-                options.darkmode (1, 1) logical = false;
-            end
-
-            if ~obj.isPathwayLoaded
-                updateMsg(obj, "The pathway image could not be loaded.", "Error", obj.logLevel);
-                return;
-            end
-
-            img = obj.imagePathway;
-
-            if options.darkmode
-                img = convertImageForDarkTheme(obj, img);
-            end
-
-            hImage = image(UIaxes, img, 'HitTest', 'off');
-            imRatio = size(img, 1) / size(img, 2);
-            UIaxes.DataAspectRatio = [1, imRatio, 1];
-
-            UIaxes.Visible = 'off';
-            axis(UIaxes, 'image');
-            % Title
-            title(UIaxes, 'Metabolic Pathway');
-            % Hide XY label
-            xlabel(UIaxes, '');
-            ylabel(UIaxes, '');
-
-            % Ensure the UIAxes and image are interactive
-            UIaxes.HitTest = 'on';
-            UIaxes.PickableParts = 'all';
-
-            % Re-associate the context menu with the UIAxes and the image
-            UIaxes.ContextMenu = contextMenu;
-            hImage.ContextMenu = contextMenu;
-
-            drawFluxLabel(obj, UIaxes, [], darkmode = options.darkmode);
-
-        end % drawPathway
-
-        function drawFluxLabel(obj, UIaxes, flux, options)
-            % DRAWFLUXLABEL: Draw the flux labels on the given UIAxes
-            %
-            % INPUT:
-            %   UIaxes matlab.ui.control.UIAxes
-            %     The UIAxes object where the flux labels will be displayed.
-            %   flux cell
-            %     The cell array of flux labels to be displayed.
-            %   options struct
-            %     The options for drawing the flux labels.
-
-            arguments
-                obj;
-                UIaxes matlab.ui.control.UIAxes;
-                flux cell = [];
-                options.highlight (:, 1) logical = [];
-                options.darkmode (1, 1) logical = false;
-            end
-
-            % Clear existing flux labels
-            delete(findobj(UIaxes, 'Type', 'text'));
-
-            if isempty(options.highlight)
-                highlight = false(height(obj.tableModelGUI), 1);
-            else
-                highlight = options.highlight;
-            end
-
-            mtableModelGUI = obj.tableModelGUI;
-
-            if isempty(flux)
-                flux = mtableModelGUI.Properties.RowNames;
-            end
-
-            % Set the color based on the dark mode option
-            if options.darkmode
-                fluxColor = '#FFFFFF'; % White for dark mode
-            else
-                fluxColor = '#000000'; % Black for light mode
-            end
-
-            for i = 1:height(mtableModelGUI)
-
-                x = mtableModelGUI.x(i);
-                y = mtableModelGUI.y(i);
-                fluxLabel = flux{i};
-
-                if highlight(i)
-                    text(UIaxes, x, y, fluxLabel, ...
-                        'Color', '#009E73', 'FontSize', 14, 'FontWeight', 'bold');
-                else
-                    text(UIaxes, x, y, fluxLabel, ...
-                        'Color', fluxColor, 'FontSize', 14, 'FontWeight', 'normal');
-                end % if
-
-            end
-
-        end % drawFluxLabel
-
-        function imgOut = convertImageForDarkTheme(~, img)
-            % CONVERTIMAGEFORDARKTHEME: Convert an image to a dark theme compatible format
-            %
-            % Parameters:
-            % -----------
-            % img (2D or 3D array)
-            %     The input image to be converted. It can be a grayscale (2D) or RGB (3D) image.
-            %
-            % Returns:
-            % --------
-            % imgOut (2D or 3D array)
-            %     The output image with the dark theme compatible format.
-
-            % Normalize the image to double precision if it is uint8
-            if isa(img, 'uint8')
-                img = im2double(img);
-            end
-
-            % Switch based on the number of channels in the image
-            if size(img, 3) == 1
-                % Grayscale image to inverted grayscale
-                imgOut = 1 - img;
-
-            elseif size(img, 3) == 3
-                % Assuming RGB image
-                hsv = rgb2hsv(img);
-                % Adjust the hue and saturation
-                hsv(:, :, 3) = 0.9 - hsv(:, :, 3);
-                % Clip the value channel to ensure it is within a reasonable range
-                hsv(:, :, 3) = max(0.2, min(hsv(:, :, 3), 0.95));
-                % Reconvert to RGB
-                imgOut = hsv2rgb(hsv);
-
-            else
-                error('Unsupported image format');
-            end
-
-        end % function convertImageForDarkTheme
 
         function loadLabel(obj)
 

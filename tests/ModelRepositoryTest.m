@@ -45,6 +45,26 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
         end
 
+        function loadedModelExposesPathwayData(testCase)
+
+            repository = openmebius.infrastructure.model.ModelRepository();
+            model = repository.load( ...
+                ModelRepositoryTest.templateModelLocation());
+
+            pathway = model.getPathwayData();
+
+            testCase.verifyClass( ...
+                pathway, ...
+                "openmebius.application.model.ModelPathwayData");
+            testCase.verifyNotEmpty(pathway.Image);
+            testCase.verifyNotEmpty(pathway.ReactionIDs);
+            testCase.verifyEqual( ...
+                numel(pathway.ReactionIDs), numel(pathway.X));
+            testCase.verifyEqual( ...
+                numel(pathway.ReactionIDs), numel(pathway.Y));
+
+        end
+
         function readModelSheetReturnsValidatedTable(testCase)
 
             repository = openmebius.infrastructure.model.ModelRepository();

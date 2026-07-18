@@ -206,6 +206,61 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsPathwayData(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+            model = helpers.PathwayModelStub();
+            model.PathwayData = openmebius.application.model ...
+                .ModelPathwayData( ...
+                    Image = uint8(ones(2, 3, 3)), ...
+                    ReactionIDs = ["R1"; "R2"], ...
+                    X = [10; 20], ...
+                    Y = [30; 40]);
+
+            viewModel = presenter.presentPathway( ...
+                model, ...
+                Labels = [1.234; 2.345; 9.999], ...
+                HighlightReactionIDs = "R2", ...
+                IsDarkTheme = true);
+
+            testCase.verifyEqual(viewModel.Labels, ["1.23"; "2.35"]);
+            testCase.verifyEqual(viewModel.X, [10; 20]);
+            testCase.verifyEqual(viewModel.Y, [30; 40]);
+            testCase.verifyEqual(viewModel.Highlight, [false; true]);
+            testCase.verifyTrue(viewModel.IsDarkTheme);
+            testCase.verifyEmpty(viewModel.Notification);
+
+        end
+
+        function usesReactionIdsAsDefaultPathwayLabels(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+            model = helpers.PathwayModelStub();
+            model.PathwayData = openmebius.application.model ...
+                .ModelPathwayData( ...
+                    Image = ones(2), ...
+                    ReactionIDs = ["R1"; "R2"], ...
+                    X = [1; 2], ...
+                    Y = [3; 4]);
+
+            viewModel = presenter.presentPathway(model);
+
+            testCase.verifyEqual(viewModel.Labels, ["R1"; "R2"]);
+
+        end
+
+        function presentsMissingPathwayAsWarning(testCase)
+
+            presenter = openmebius.presentation.model.ModelPresenter();
+
+            viewModel = presenter.presentPathway( ...
+                helpers.PathwayModelStub());
+
+            testCase.verifyEmpty(viewModel.Image);
+            testCase.verifyEqual(viewModel.Notification.Level, "warning");
+
+        end
+
     end % methods (Test)
 
 end % classdef

@@ -1093,16 +1093,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.MainUIAxes.Visible = 'on';
             app.SubUIAxes.Visible = 'on';
 
-            if isfield(mainPlot, "Kind") && mainPlot.Kind == "legacy-flux-pathway"
-
-                drawFluxLabel( ...
-                    mainPlot.Model, ...
-                    app.MainUIAxes, ...
-                    mainPlot.FluxLabels, ...
-                    highlight = mainPlot.HighlightMask, ...
-                    darkmode = mainPlot.IsDarkTheme);
-
-                app.MainUIAxes.ContextMenu = app.ContextMenu;
+            if isfield(mainPlot, "Kind") && mainPlot.Kind == "pathway"
+                app.renderPathwayPlot(mainPlot.Pathway);
 
             else
                 cla(app.MainUIAxes);
@@ -1117,6 +1109,89 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % method renderOverviewResultPlot
+
+        function renderPathwayPlot(app, viewModel)
+
+            axes = app.MainUIAxes;
+            cla(axes);
+
+            if isempty(viewModel) || isempty(viewModel.Image)
+                return
+            end
+
+            pathwayImage = viewModel.Image;
+
+            if viewModel.IsDarkTheme
+                pathwayImage = app.convertPathwayImageForDarkTheme( ...
+                    pathwayImage);
+            end
+
+            pathwayGraphic = image( ...
+                axes, pathwayImage, 'HitTest', 'off');
+            imageRatio = size(pathwayImage, 1) / ...
+                size(pathwayImage, 2);
+            axes.DataAspectRatio = [1 imageRatio 1];
+            axes.Visible = 'off';
+            axis(axes, 'image');
+            title(axes, 'Metabolic Pathway');
+            xlabel(axes, '');
+            ylabel(axes, '');
+            axes.HitTest = 'on';
+            axes.PickableParts = 'all';
+            axes.ContextMenu = app.ContextMenu;
+            pathwayGraphic.ContextMenu = app.ContextMenu;
+
+            if viewModel.IsDarkTheme
+                labelColor = '#FFFFFF';
+            else
+                labelColor = '#000000';
+            end
+
+            for labelIndex = 1:numel(viewModel.Labels)
+
+                if viewModel.Highlight(labelIndex)
+                    color = '#009E73';
+                    weight = 'bold';
+                else
+                    color = labelColor;
+                    weight = 'normal';
+                end
+
+                text( ...
+                    axes, ...
+                    viewModel.X(labelIndex), ...
+                    viewModel.Y(labelIndex), ...
+                    viewModel.Labels(labelIndex), ...
+                    'Color', color, ...
+                    'FontSize', 14, ...
+                    'FontWeight', weight);
+            end
+
+        end % renderPathwayPlot
+
+        function imageOut = convertPathwayImageForDarkTheme(~, imageIn)
+
+            if isa(imageIn, 'uint8')
+                imageIn = im2double(imageIn);
+            end
+
+            if size(imageIn, 3) == 1
+                imageOut = 1 - imageIn;
+                return
+            end
+
+            if size(imageIn, 3) == 3
+                hsvImage = rgb2hsv(imageIn);
+                hsvImage(:, :, 3) = 0.9 - hsvImage(:, :, 3);
+                hsvImage(:, :, 3) = max( ...
+                    0.2, min(hsvImage(:, :, 3), 0.95));
+                imageOut = hsv2rgb(hsvImage);
+                return
+            end
+
+            imageOut = imageIn;
+
+        end % convertPathwayImageForDarkTheme
 
         function renderMonteCarloConfidenceInterval(app, plotData)
 
@@ -3641,22 +3716,20 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function loadPathway(app)
 
-            if ~app.model.isPathwayLoaded
-                msg = "Pathway not loaded";
-                LogTextDate(app, msg, "Error");
-                return
+            app.ensureModelPresenter();
+            viewModel = app.ModelPresenter.presentPathway( ...
+                app.model, ...
+                IsDarkTheme = app.isDarkTheme());
+
+            if ~isempty(viewModel.Notification)
+                app.showNotification(viewModel.Notification);
             end
 
-            isDark = isDarkTheme(app);
+            app.renderPathwayPlot(viewModel);
 
-            drawPathway( ...
-                app.model, ...
-                app.MainUIAxes, ...
-                app.ContextMenu, ...
-                darkmode = isDark ...
-            );
-
-            app.MainUIAxes.ContextMenu = app.ContextMenu;
+            if isempty(viewModel.Image)
+                return
+            end
 
             msg = openmebius.infrastructure.logging.Logger ...
                 .formatDatedMessage("Pathway loaded successfully", "Info");
@@ -4883,16 +4956,28 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             row = indices(1, 1);
 
-            highlight = false(size(app.ModelTable.Data, 1), 1);
-            highlight(row) = true;
+            if ~istable(app.ModelTable.Data) || ...
+                    row < 1 || row > height(app.ModelTable.Data)
+                return
+            end
 
-            drawFluxLabel( ...
+            reactionIDs = string(app.ModelTable.Data.Properties.RowNames);
+
+            if row > numel(reactionIDs)
+                return
+            end
+
+            app.ensureModelPresenter();
+            viewModel = app.ModelPresenter.presentPathway( ...
                 app.model, ...
-                app.MainUIAxes, ...
-                [], ...
-                highlight = highlight, ...
-                darkmode = isDarkTheme(app) ...
-            );
+                HighlightReactionIDs = reactionIDs(row), ...
+                IsDarkTheme = app.isDarkTheme());
+
+            if ~isempty(viewModel.Notification)
+                app.showNotification(viewModel.Notification);
+            end
+
+            app.renderPathwayPlot(viewModel);
         end
 
         % Menu selected function: AddLabelMenu
