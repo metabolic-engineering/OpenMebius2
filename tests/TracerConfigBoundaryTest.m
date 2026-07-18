@@ -11,6 +11,33 @@ classdef TracerConfigBoundaryTest < matlab.unittest.TestCase
             testCase.verifyFalse(contains(source, "MainApp"));
             testCase.verifyTrue(contains(source, "notify(app, ""Applied"""));
             testCase.verifyTrue(contains(source, "notify(app, ""Closed"""));
+            testCase.verifyTrue(contains( ...
+                source, "startupFcn(app, context)"));
+            testCase.verifyFalse(contains( ...
+                source, "startupFcn(app, editorTable, position)"));
+
+        end
+
+        function parentAppsUseTypedContext(testCase)
+
+            root = fileparts(fileparts(mfilename("fullpath")));
+            mainSource = string(fileread( ...
+                fullfile(root, "src", "OpenMebius2_exported.m")));
+            runConfigSource = string(fileread( ...
+                fullfile(root, "src", "RunConfig_exported.m")));
+
+            for source = [mainSource, runConfigSource]
+                testCase.verifyTrue(contains( ...
+                    source, ".TracerConfigContext("));
+                testCase.verifyTrue(contains( ...
+                    source, "TracerConfig(context)"));
+                testCase.verifyTrue(contains( ...
+                    source, "closeTracerConfigApp"));
+                testCase.verifyFalse(contains( ...
+                    source, ...
+                    "TracerConfig( ..." + newline + ...
+                    "                viewModel.EditorTable"));
+            end
 
         end
 

@@ -483,6 +483,25 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % detachTracerConfigListeners
 
+        function closeTracerConfigApp(app)
+
+            app.detachTracerConfigListeners();
+            childApp = app.TracerConfigApp;
+            app.TracerConfigApp = [];
+
+            if isempty(childApp)
+                return
+            end
+
+            try
+                if isvalid(childApp)
+                    delete(childApp);
+                end
+            catch
+            end
+
+        end % closeTracerConfigApp
+
         function openTracerConfiguration(app, position)
 
             outcome = app.Controller.loadTracerConfiguration( ...
@@ -495,9 +514,12 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 return
             end
 
-            app.detachTracerConfigListeners();
-            app.TracerConfigApp = TracerConfig( ...
-                viewModel.EditorTable, viewModel.Position);
+            app.closeTracerConfigApp();
+            context = openmebius.presentation.experiment ...
+                .TracerConfigContext( ...
+                    EditorTable = viewModel.EditorTable, ...
+                    Position = viewModel.Position);
+            app.TracerConfigApp = TracerConfig(context);
             app.attachTracerConfigListeners(app.TracerConfigApp);
 
         end % openTracerConfiguration
@@ -1771,16 +1793,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function delete(app)
 
             app.closeRunAddBatchApp();
-            app.detachTracerConfigListeners();
-
-            if ~isempty(app.TracerConfigApp)
-                try
-                    if isvalid(app.TracerConfigApp)
-                        delete(app.TracerConfigApp);
-                    end
-                catch
-                end
-            end
+            app.closeTracerConfigApp();
 
             % Delete UIFigure when app is deleted
             delete(app.BatchconfigUIFigure)

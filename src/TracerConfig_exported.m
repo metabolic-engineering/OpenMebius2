@@ -38,10 +38,10 @@ classdef TracerConfig_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, editorTable, position)
+        function startupFcn(app, context)
 
-            app.InitialTable = editorTable;
-            app.Position = position;
+            app.InitialTable = context.EditorTable;
+            app.Position = context.Position;
 
             app.reloadEditorTable();
 

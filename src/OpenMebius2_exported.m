@@ -3102,8 +3102,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             app.closeTracerConfigApp();
-            app.TracerConfigApp = TracerConfig( ...
-                viewModel.EditorTable, viewModel.Position);
+            context = openmebius.presentation.experiment ...
+                .TracerConfigContext( ...
+                    EditorTable = viewModel.EditorTable, ...
+                    Position = viewModel.Position);
+            app.TracerConfigApp = TracerConfig(context);
             app.attachTracerConfigListeners(app.TracerConfigApp);
 
         end % renderTracerConfigurationViewModel

@@ -17,7 +17,8 @@ classdef TracerConfigActionTest < matlab.unittest.TestCase
         function reloadRestoresInitialEditorTable(testCase)
 
             editorTable = TracerConfigActionTest.editorTable();
-            app = TracerConfig_exported(editorTable, [2, 3]);
+            context = TracerConfigActionTest.context(editorTable, [2, 3]);
+            app = TracerConfig_exported(context);
             cleanup = onCleanup( ...
                 @() TracerConfigActionTest.deleteIfValid(app));
             changed = editorTable;
@@ -34,7 +35,8 @@ classdef TracerConfigActionTest < matlab.unittest.TestCase
         function savePublishesValuesAndCloses(testCase)
 
             editorTable = TracerConfigActionTest.editorTable();
-            app = TracerConfig_exported(editorTable, [2, 3]);
+            context = TracerConfigActionTest.context(editorTable, [2, 3]);
+            app = TracerConfig_exported(context);
             appCleanup = onCleanup( ...
                 @() TracerConfigActionTest.deleteIfValid(app));
             recorder = helpers.TracerConfigurationEventRecorder();
@@ -70,6 +72,15 @@ classdef TracerConfigActionTest < matlab.unittest.TestCase
                 ["U-13C"; "1-13C"], ...
                 [1; 0], ...
                 VariableNames = ["Select", "Label", "Ratio"]);
+
+        end
+
+        function context = context(editorTable, position)
+
+            context = openmebius.presentation.experiment ...
+                .TracerConfigContext( ...
+                    EditorTable = editorTable, ...
+                    Position = position);
 
         end
 
