@@ -174,6 +174,123 @@ classdef ResultPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsRelativeFluxSelection(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+
+            viewModel = presenter.presentRelativeSelection( ...
+                ["R1"; "R2"], 2);
+
+            testCase.verifyEqual(viewModel.RelativeTo, "R2");
+            testCase.verifyEmpty(viewModel.Notifications);
+
+        end
+
+        function presentsMissingRelativeFluxSelection(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+
+            viewModel = presenter.presentRelativeSelection( ...
+                ["R1"; "R2"], zeros(0, 1));
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(viewModel.RelativeTo, "");
+            testCase.verifyEqual(notification.Level, "warning");
+            testCase.verifyEqual( ...
+                notification.Message, ...
+                "Please select a flux to set relative values.");
+
+        end
+
+        function rejectsUnavailableRelativeReactionName(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+
+            viewModel = presenter.presentRelativeSelection( ...
+                strings(0, 1), 1);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(viewModel.RelativeTo, "");
+            testCase.verifyEqual(notification.Level, "warning");
+            testCase.verifyThat( ...
+                notification.Message, ...
+                matlab.unittest.constraints.ContainsSubstring( ...
+                    "Reaction identifiers"));
+
+        end
+
+        function presentsPreparedRangePlot(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            upper = array2table(2, ...
+                'VariableNames', {'Batch'}, 'RowNames', {'r1'});
+            lower = array2table(0, ...
+                'VariableNames', {'Batch'}, 'RowNames', {'r1'});
+            bestFit = array2table(1, ...
+                'VariableNames', {'Batch'}, 'RowNames', {'r1'});
+            result = openmebius.application.result ...
+                .ResultRangePlotResult( ...
+                    UpperBounds = upper, ...
+                    LowerBounds = lower, ...
+                    BestFits = bestFit, ...
+                    ReactionNames = "r1 : First", ...
+                    Messages = "FVA bounds were used.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome("finished", Result = result);
+
+            viewModel = presenter.presentRangePlotOutcome(outcome);
+
+            testCase.verifyEqual(viewModel.UpperBounds, upper);
+            testCase.verifyEqual(viewModel.LowerBounds, lower);
+            testCase.verifyEqual(viewModel.BestFits, bestFit);
+            testCase.verifyEqual( ...
+                viewModel.Notifications{1}.Message, ...
+                "FVA bounds were used.");
+
+        end
+
+        function presentsRangePlotSelectionErrorAsWarning(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:ResultRangePlot:SelectionRequired", ...
+                "Please select a result.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    "error", ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentRangePlotOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEmpty(viewModel.UpperBounds);
+            testCase.verifyEqual(notification.Level, "warning");
+            testCase.verifyFalse(notification.ShowAlert);
+
+        end
+
+        function presentsUnexpectedRangePlotFailureAsAlert(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:Test:Unexpected", ...
+                "Unexpected failure.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    "error", ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentRangePlotOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyEqual(notification.Title, "Range plot failed");
+            testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
     end % methods (Test)
 
 end % classdef

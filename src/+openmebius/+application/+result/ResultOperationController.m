@@ -5,6 +5,7 @@ classdef ResultOperationController < handle
         ResultExportService
         ReportGenerationService
         ResultSuggestionService
+        ResultRangePlotService
     end
 
     methods
@@ -18,6 +19,8 @@ classdef ResultOperationController < handle
                     openmebius.application.report.ReportGenerationService()
                 options.ResultSuggestionService = ...
                     openmebius.application.result.ResultSuggestionService()
+                options.ResultRangePlotService = ...
+                    openmebius.application.result.ResultRangePlotService()
             end
 
             obj.ResultExportService = options.ResultExportService;
@@ -25,6 +28,8 @@ classdef ResultOperationController < handle
                 options.ReportGenerationService;
             obj.ResultSuggestionService = ...
                 options.ResultSuggestionService;
+            obj.ResultRangePlotService = ...
+                options.ResultRangePlotService;
 
         end % constructor
 
@@ -85,6 +90,22 @@ classdef ResultOperationController < handle
                     result, batchIDs, batchNames));
 
         end % loadSuggestion
+
+        function outcome = prepareRangePlot( ...
+                obj, result, batchIDs, batchNames)
+
+            arguments
+                obj
+                result
+                batchIDs (:, 1) string
+                batchNames (:, 1) string
+            end
+
+            outcome = obj.execute( ...
+                @() obj.ResultRangePlotService.prepare( ...
+                    result, batchIDs, batchNames));
+
+        end % prepareRangePlot
 
     end % methods
 

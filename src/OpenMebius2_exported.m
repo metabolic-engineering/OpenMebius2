@@ -146,6 +146,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ComparisonViewApp;
         RunAddBatchApp;
         ViewSuggestionApp;
+        RangePlotFigure;
         LogApp;
         ProgressBar CustomProgressBar
 
@@ -915,6 +916,79 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % renderResultOperationViewModel
 
+        function renderResultRelativeViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+            if viewModel.RelativeTo == ""
+                return
+            end
+
+            app.loadMainResultTable( ...
+                relative = true, ...
+                relativeTo = viewModel.RelativeTo);
+
+        end % renderResultRelativeViewModel
+
+        function renderResultRangePlotViewModel(app, viewModel)
+
+            if isempty(viewModel)
+                return
+            end
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+            if isempty(viewModel.UpperBounds) || ...
+                    isempty(viewModel.LowerBounds)
+                return
+            end
+
+            if app.isLoadedObject(app.RangePlotFigure)
+                delete(app.RangePlotFigure);
+            end
+
+            rangeFigure = uifigure( ...
+                'Name', 'Flux range plot', ...
+                'Position', [120 80 1100 820]);
+            app.RangePlotFigure = rangeFigure;
+            layout = uigridlayout(rangeFigure, [1 1]);
+            layout.Padding = [12 12 12 12];
+            axes = uiaxes(layout);
+            axes.Layout.Row = 1;
+            axes.Layout.Column = 1;
+
+            try
+                RangePlot( ...
+                    axes, ...
+                    viewModel.UpperBounds, ...
+                    viewModel.LowerBounds, ...
+                    Bestfit = viewModel.BestFits, ...
+                    BestfitStyle = "triangle", ...
+                    FontSize = 10, ...
+                    ReactionNames = viewModel.ReactionNames);
+                title(axes, "Flux ranges");
+                xlabel(axes, "Flux");
+            catch exception
+                delete(rangeFigure);
+                app.RangePlotFigure = [];
+                app.notifyException( ...
+                    exception, ...
+                    Title = "Range plot failed", ...
+                    Alert = true);
+            end
+
+        end % renderResultRangePlotViewModel
+
         function renderResultMainTable(app, viewModel)
 
             if isempty(viewModel)
@@ -1028,29 +1102,81 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     highlight = mainPlot.HighlightMask, ...
                     darkmode = mainPlot.IsDarkTheme);
 
+                app.MainUIAxes.ContextMenu = app.ContextMenu;
+
             else
                 cla(app.MainUIAxes);
             end
 
-            if isfield(subPlot, "Kind") && subPlot.Kind == "legacy-ci-reaction"
-
-                if isempty(subPlot.Data) || ~isfield(subPlot.Data, "CI")
-                    cla(app.SubUIAxes);
-                    return
-                end
-
-                cla(app.SubUIAxes);
-
-                drawCIReaction( ...
-                    subPlot.Result, ...
-                    app.SubUIAxes, ...
-                    subPlot.Data);
+            if isfield(subPlot, "Kind") && ...
+                    subPlot.Kind == "monte-carlo-ci"
+                app.renderMonteCarloConfidenceInterval(subPlot);
 
             else
                 cla(app.SubUIAxes);
             end
 
         end % method renderOverviewResultPlot
+
+        function renderMonteCarloConfidenceInterval(app, plotData)
+
+            lowerBounds = double(plotData.LowerBounds(:)');
+            upperBounds = double(plotData.UpperBounds(:)');
+            bestFit = double(plotData.BestFit);
+            iterationCount = numel(lowerBounds);
+
+            finiteValues = [ ...
+                lowerBounds(isfinite(lowerBounds)), ...
+                upperBounds(isfinite(upperBounds)), ...
+                bestFit(isfinite(bestFit))];
+
+            if iterationCount == 0 || isempty(finiteValues)
+                cla(app.SubUIAxes);
+                return
+            end
+
+            yMinimum = min(finiteValues);
+            yMaximum = max(finiteValues);
+            yMargin = max(0.1 * (yMaximum - yMinimum), 0.1);
+            iterations = 1:iterationCount;
+            axes = app.SubUIAxes;
+
+            cla(axes);
+            axes.Visible = 'on';
+            axes.FontSize = 16;
+            axes.FontName = 'Arial';
+            axes.XLim = [0 iterationCount + 1];
+            axes.YLim = [yMinimum - yMargin yMaximum + yMargin];
+            axes.XLabel.String = "Iteration";
+            axes.YLabel.String = "Flux";
+            axes.Title.String = plotData.Title;
+            axes.XTick = 0:100:iterationCount;
+            axes.XTickLabel = string(axes.XTick);
+            axes.XTickLabelRotation = 0;
+
+            hold(axes, 'on');
+            plot( ...
+                axes, iterations, repmat(bestFit, size(iterations)), ...
+                '-', ...
+                'Color', "#E69F00", ...
+                'LineWidth', 3, ...
+                'DisplayName', 'Best Fit');
+            plot( ...
+                axes, iterations, lowerBounds, ...
+                '-', ...
+                'Color', "#56B4E9", ...
+                'LineWidth', 3, ...
+                'DisplayName', 'Flux LB');
+            plot( ...
+                axes, iterations, upperBounds, ...
+                '-', ...
+                'Color', "#009E73", ...
+                'LineWidth', 3, ...
+                'DisplayName', 'Flux UB');
+            legend(axes, 'show', 'Location', 'best');
+            hold(axes, 'off');
+
+        end % renderMonteCarloConfidenceInterval
 
         function clearResultPlots(app)
 
@@ -3113,44 +3239,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % removeSelectedBatches
 
-        function fluxCells = toFluxLabelCell(~, values)
-
-            if isempty(values)
-                fluxCells = {};
-                return
-            end
-
-            if iscell(values)
-                fluxCells = values(:);
-                return
-            end
-
-            if isnumeric(values)
-                fluxCells = arrayfun( ...
-                    @(x) sprintf('%.2f', x), ...
-                    values(:), ...
-                    'UniformOutput', false);
-                return
-            end
-
-            if isstring(values)
-                fluxCells = cellstr(values(:));
-                return
-            end
-
-            if ischar(values)
-                fluxCells = cellstr(string(values));
-                return
-            end
-
-            try
-                fluxCells = cellstr(string(values(:)));
-            catch
-                fluxCells = {};
-            end
-
-        end % method toFluxLabelCell
-
         function context = captureResultPlotContext(app)
 
             context = struct();
@@ -3163,17 +3251,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             context.SelectedSubRows = ...
                 app.selectedTableRows(app.ResultSubTable);
 
-            context.MainTableData = app.ResultMainTable.Data;
+            context.MainTableData = app.getResultMainRawData();
             context.SubTableData = app.ResultSubTable.Data;
 
-            context.MainTableRowNames = string.empty(0, 1);
+            context.MainTableRowNames = ...
+                app.getResultReactionIds(context.MainTableData);
             context.SubTableRowNames = string.empty(0, 1);
-
-            try
-                context.MainTableRowNames = string(app.ResultMainTable.RowName);
-            catch
-                context.MainTableRowNames = string.empty(0, 1);
-            end
 
             try
                 context.SubTableRowNames = string(app.ResultSubTable.RowName);
@@ -4010,125 +4093,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function updateResultPlot(app)
 
-            type = string(app.ResultDropDown.Value);
-
-            % During the migration period, pathway plot is supported only for
-            % Overview. Details / Comparison will be handled later by
-            % ResultPlotPresenter.
-            if type == "Details" || type == "Detailed" || type == "Comparison"
-                cla(app.SubUIAxes);
-
-                % Main pathway should not be overwritten by unsupported plots.
-                % If you prefer clearing both axes, uncomment the next line.
-                % cla(app.MainUIAxes);
-
-                return
-            end
-
-            if type ~= "Overview"
-                return
-            end
-
-            selectedResultRows = app.selectedTableRows(app.ResultSubTable);
-            selectedFluxRows = app.selectedTableRows(app.ResultMainTable);
-
-            if isempty(selectedResultRows)
-                return
-            end
-
-            if isempty(app.ResultSubTable.Data) || ~istable(app.ResultSubTable.Data)
-                return
-            end
-
-            tableData = app.getResultMainRawData();
-
-            if isempty(tableData) || ~istable(tableData)
-                return
-            end
-
-            if ~any(string(tableData.Properties.VariableNames) == "Flux")
-                return
-            end
-
-            rxnIDs = app.getResultReactionIds(tableData);
-
-            if isempty(rxnIDs)
-                return
-            end
-
-            % -------------------------------------------------------------
-            % Draw metabolic pathway with flux labels.
-            % This should work even when no flux row is selected.
-            % -------------------------------------------------------------
-            fluxColumn = tableData.Flux;
-
-            if numel(fluxColumn) > 1
-                fluxColumn = fluxColumn(1:end - 1);
-            end
-
-            fluxLabels = app.toFluxLabelCell(fluxColumn);
-
-            modelTable = getModelTable(app.model);
-            highlightMask = false(height(modelTable), 1);
-
-            hasSelectedFlux = ~isempty(selectedFluxRows);
-
-            if hasSelectedFlux
-                selectedFluxRow = selectedFluxRows(1);
-
-                if selectedFluxRow <= numel(rxnIDs)
-                    rxnID = string(rxnIDs(selectedFluxRow));
-                    highlightMask = strcmp(modelTable.Properties.RowNames, rxnID);
-                else
-                    hasSelectedFlux = false;
-                end
-
-            end
-
-            app.MainUIAxes.Visible = 'on';
-            app.SubUIAxes.Visible = 'on';
-
-            drawFluxLabel( ...
+            app.ensureResultPlotPresenter();
+            context = app.captureResultPlotContext();
+            viewModel = app.ResultPlotPresenter.present( ...
                 app.model, ...
-                app.MainUIAxes, ...
-                fluxLabels, ...
-                highlight = highlightMask, ...
-                darkmode = isDarkTheme(app));
-
-            app.MainUIAxes.ContextMenu = app.ContextMenu;
-
-            % -------------------------------------------------------------
-            % CI plot requires a selected reaction.
-            % If no reaction is selected, keep pathway and clear only SubUIAxes.
-            % -------------------------------------------------------------
-            if ~hasSelectedFlux
-                cla(app.SubUIAxes);
-                return
-            end
-
-            selectedResultRow = selectedResultRows(1);
-
-            if selectedResultRow > height(app.ResultSubTable.Data)
-                cla(app.SubUIAxes);
-                return
-            end
-
-            batchID = string(app.ResultSubTable.Data.ID(selectedResultRow));
-            rxnID = string(rxnIDs(selectedFluxRows(1)));
-
-            data = getCIReaction(app.result, batchID, rxnID);
-
-            if isempty(data) || ~isfield(data, 'CI')
-                cla(app.SubUIAxes);
-                return
-            end
-
-            cla(app.SubUIAxes);
-
-            drawCIReaction( ...
                 app.result, ...
-                app.SubUIAxes, ...
-                data);
+                context, ...
+                IsDarkTheme = app.isDarkTheme());
+            app.renderResultPlot(viewModel);
 
         end % method updateResultPlot
 
@@ -5534,39 +5506,43 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: RelativetoMenu
-        function RelativetoMenuSelected(app, event)
+        function RelativetoMenuSelected(app, ~)
 
-            RowNames = app.ResultMainTable.RowName;
-            selectedFlux = app.ResultMainTable.Selection;
-
-            if isempty(selectedFlux)
-                msg = "Please select a flux to set relative values.";
-                LogTextDate(app, msg, "Warning");
-                return
-            end
-
-            if isempty(RowNames)
-                return
-            end
-
-            selectedFluxIdx = RowNames{selectedFlux(1)};
-
-            loadMainResultTable(app, relative = true, relativeTo = selectedFluxIdx);
+            app.ensureResultPresenter();
+            selectedRows = ...
+                app.selectedTableRows(app.ResultMainTable);
+            viewModel = app.ResultPresenter ...
+                .presentRelativeSelection( ...
+                    app.ResultMainTable.RowName, ...
+                    selectedRows);
+            app.renderResultRelativeViewModel(viewModel);
         end
 
         % Menu selected function: RangeplotMenu
-        function RangeplotMenuSelected(app, event)
+        function RangeplotMenuSelected(app, ~)
 
-            % Selected rows
-            selectedRows = app.ResultSubTable.Selection;
+            selectedRows = ...
+                app.selectedTableRows(app.ResultSubTable);
+            batchIDs = strings(0, 1);
+            batchNames = strings(0, 1);
+            data = app.ResultSubTable.Data;
 
-            disp(selectedRows)
-
-            if isempty(selectedRows)
-                msg = "Please select at least one flux to plot range plot.";
-                LogTextDate(app, msg, "Warning");
-                return
+            if ~isempty(selectedRows) && istable(data) && ...
+                    all(ismember(["ID", "Name"], ...
+                        string(data.Properties.VariableNames))) && ...
+                    all(selectedRows <= height(data))
+                batchIDs = string(data.ID(selectedRows));
+                batchNames = string(data.Name(selectedRows));
+                batchIDs = batchIDs(:);
+                batchNames = batchNames(:);
             end
+
+            app.ensureResultOperationController();
+            app.ensureResultPresenter();
+            outcome = app.ResultOperationController.prepareRangePlot( ...
+                app.result, batchIDs, batchNames);
+            app.renderResultRangePlotViewModel( ...
+                app.ResultPresenter.presentRangePlotOutcome(outcome));
 
         end
 
@@ -6647,6 +6623,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.detachRunConfigListeners();
             app.detachRunAddBatchListeners();
+
+            if app.isLoadedObject(app.RangePlotFigure)
+                delete(app.RangePlotFigure);
+            end
 
             % Delete UIFigure when app is deleted
             delete(app.OpenMebius2UIFigure)
