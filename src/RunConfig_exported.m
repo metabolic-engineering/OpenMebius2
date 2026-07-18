@@ -12,10 +12,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
         GeneralTab matlab.ui.container.Tab
         GridLayout5_2 matlab.ui.container.GridLayout
         GridLayout7_2 matlab.ui.container.GridLayout
-        GeneralDefaultButton matlab.ui.control.Button
+        GeneralRestoreDefaultButton matlab.ui.control.Button
         GeneralApplyButton matlab.ui.control.Button
-        GeneralApplyAllButton matlab.ui.control.Button
-        GeneralCloseButton matlab.ui.control.Button
+        GeneralCancelButton matlab.ui.control.Button
         GridLayout6_2 matlab.ui.container.GridLayout
         TabGroup2 matlab.ui.container.TabGroup
         MonteCarloTab matlab.ui.container.Tab
@@ -80,18 +79,17 @@ classdef RunConfig_exported < matlab.apps.AppBase
         GridLayout5 matlab.ui.container.GridLayout
         MSTable matlab.ui.control.Table
         GridLayout7 matlab.ui.container.GridLayout
-        MSDefaultButton matlab.ui.control.Button
-        MSApplyButton matlab.ui.control.Button
+        MSRestoreDefaultButton matlab.ui.control.Button
         MSApplyAllButton matlab.ui.control.Button
-        MSCloseButton matlab.ui.control.Button
+        MSCancelButton matlab.ui.control.Button
         EffluxperturbationTab matlab.ui.container.Tab
         GridLayout13 matlab.ui.container.GridLayout
         GridLayout22 matlab.ui.container.GridLayout
         EffluxUITable matlab.ui.control.Table
         GridLayout15 matlab.ui.container.GridLayout
+        EffluxRestoreDefaultButton matlab.ui.control.Button
         EffluxApplyButton matlab.ui.control.Button
-        EffluxApplyAllButton matlab.ui.control.Button
-        EffluxCloseButton matlab.ui.control.Button
+        EffluxCancelButton matlab.ui.control.Button
         TracersuggestionTab matlab.ui.container.Tab
         GridLayout14 matlab.ui.container.GridLayout
         GridLayout17 matlab.ui.container.GridLayout
@@ -99,8 +97,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
         LabelTable matlab.ui.control.Table
         GridLayout16 matlab.ui.container.GridLayout
         SuggestionApplyButton matlab.ui.control.Button
-        SuggestionApplyForAllButton matlab.ui.control.Button
-        SuggestionCloseButton matlab.ui.control.Button
+        SuggestionRestoreDefaultButton matlab.ui.control.Button
+        SuggestionCancelButton matlab.ui.control.Button
         INSTMFATab matlab.ui.container.Tab
         GridLayout13_2 matlab.ui.container.GridLayout
         GridLayout20 matlab.ui.container.GridLayout
@@ -108,9 +106,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
         GridLayout21 matlab.ui.container.GridLayout
         INSTMFAPoolUITable matlab.ui.control.Table
         GridLayout15_2 matlab.ui.container.GridLayout
-        INSTMFAReloadButton matlab.ui.control.Button
         INSTMFAApplyButton matlab.ui.control.Button
-        INSTMFACloseButton matlab.ui.control.Button
+        INSTMFARestoreDefaultButton matlab.ui.control.Button
+        INSTMFACancelButton matlab.ui.control.Button
         ContextMenu matlab.ui.container.ContextMenu
         AddnewpatternMenu matlab.ui.container.Menu
         AddnewpatternsMenu matlab.ui.container.Menu
@@ -418,8 +416,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
                 % Enable efflux perturbation components
                 app.EffluxUITable.Enable = 'on';
-                app.EffluxApplyButton.Enable = 'on';
-                app.EffluxApplyAllButton.Enable = 'on';
 
                 [tableEffluxPerturbation, editable] = app.MainApp.batch.getBatchEffluxSDTable(currentID);
 
@@ -438,8 +434,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
                 % Disable efflux perturbation components
                 app.EffluxUITable.Enable = 'off';
-                app.EffluxApplyButton.Enable = 'off';
-                app.EffluxApplyAllButton.Enable = 'off';
 
             end
 
@@ -512,7 +506,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 app.INSTMFATimeCourseUITable.RowName = {};
                 app.INSTMFATimeCourseUITable.ColumnEditable = timePointColumnEditable;
 
-                app.INSTMFAApplyButton.Enable = 'on';
                 app.INSTMFAPoolUITable.Enable = 'on';
                 app.INSTMFATimeCourseUITable.Enable = 'on';
 
@@ -525,7 +518,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 app.INSTMFATimeCourseUITable.RowName = {};
 
                 % Disable INST-MFA-related components
-                app.INSTMFAApplyButton.Enable = 'off';
                 app.INSTMFAPoolUITable.Enable = 'off';
                 app.INSTMFATimeCourseUITable.Enable = 'off';
             end
@@ -804,6 +796,126 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % applyINSTMFA
 
+        function wireActionButtons(app)
+
+            restoreButtons = [ ...
+                app.GeneralRestoreDefaultButton
+                app.MSRestoreDefaultButton
+                app.EffluxRestoreDefaultButton
+                app.SuggestionRestoreDefaultButton
+                app.INSTMFARestoreDefaultButton];
+            applyButtons = [ ...
+                app.GeneralApplyButton
+                app.MSApplyAllButton
+                app.EffluxApplyButton
+                app.SuggestionApplyButton
+                app.INSTMFAApplyButton];
+            cancelButtons = [ ...
+                app.GeneralCancelButton
+                app.MSCancelButton
+                app.EffluxCancelButton
+                app.SuggestionCancelButton
+                app.INSTMFACancelButton];
+
+            for buttonIndex = 1:numel(restoreButtons)
+                restoreButtons(buttonIndex).ButtonPushedFcn = ...
+                    @(~, ~) app.restoreDefaultValues();
+                applyButtons(buttonIndex).ButtonPushedFcn = ...
+                    @(~, ~) app.applyCurrentSettings();
+                cancelButtons(buttonIndex).ButtonPushedFcn = ...
+                    @(~, ~) app.cancelChanges();
+            end
+
+        end % wireActionButtons
+
+        function restoreDefaultValues(app)
+
+            effluxData = app.EffluxUITable.Data;
+            instPoolData = app.INSTMFAPoolUITable.Data;
+            instTimeCourseData = app.INSTMFATimeCourseUITable.Data;
+            selectedConfig = app.selectedConfig;
+            restoreSelection = onCleanup( ...
+                @() app.restoreSelectedConfig(selectedConfig));
+
+            app.selectedConfig = ...
+                openmebius.domain.batch.BatchConfig.defaultConfig();
+            app.fillConfigValueToUI();
+
+            msData = app.MSTable.Data;
+
+            if istable(msData) && ~isempty(msData)
+                msData{:, :} = true(height(msData), width(msData));
+                app.MSTable.Data = msData;
+            end
+
+            app.enabledisableCIUI(app.CalcCICheckBox.Value);
+            app.enabledisableSuggestion();
+
+            app.EffluxUITable.Data = effluxData;
+            app.EffluxUITable.Enable = 'off';
+            app.EffluxUITable.ColumnEditable = ...
+                app.readOnlyColumns(effluxData);
+
+            app.INSTMFAPoolUITable.Data = instPoolData;
+            app.INSTMFAPoolUITable.Enable = 'off';
+            app.INSTMFAPoolUITable.ColumnEditable = ...
+                app.readOnlyColumns(instPoolData);
+
+            app.INSTMFATimeCourseUITable.Data = instTimeCourseData;
+            app.INSTMFATimeCourseUITable.Enable = 'off';
+            app.INSTMFATimeCourseUITable.ColumnEditable = ...
+                app.readOnlyColumns(instTimeCourseData);
+
+            clear restoreSelection
+
+        end % restoreDefaultValues
+
+        function applyCurrentSettings(app)
+
+            app.applyGeneral();
+            app.applyMSFragment();
+            app.applySuggestionSettings();
+            app.MainApp.updateBatchTable();
+
+        end % applyCurrentSettings
+
+        function applySuggestionSettings(app)
+
+            data = app.LabelTable.Data;
+
+            if ~istable(data)
+                return
+            end
+
+            batch = app.MainApp.batch.getBatchForGUI();
+            batchIDs = unique(batch.ID(app.selection));
+            updateBatchConfigSuggestionTable( ...
+                app.MainApp.batch, batchIDs, data);
+
+        end % applySuggestionSettings
+
+        function cancelChanges(app)
+
+            delete(app);
+
+        end % cancelChanges
+
+        function restoreSelectedConfig(app, selectedConfig)
+
+            app.selectedConfig = selectedConfig;
+
+        end % restoreSelectedConfig
+
+        function editable = readOnlyColumns(~, data)
+
+            if istable(data)
+                editable = false(1, width(data));
+            else
+                editable = false(1, 0);
+            end
+
+        end % readOnlyColumns
+
     end % private methods
 
     % Callbacks that handle component events
@@ -824,6 +936,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.enabledisableSuggestion()
             app.enabledisableINSTMFA(app.INSTMFACheckBox.Value)
             app.loadMSFragmentTable()
+            app.wireActionButtons()
 
         end
 
@@ -834,53 +947,45 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end
 
-        % Button pushed function: GeneralDefaultButton
-        function GeneralDefaultButtonPushed(app, event)
+        % Callback function: not associated with a component
+        function GeneralApplyButtonPushed(app, ~)
+
+            app.applyCurrentSettings();
 
         end
 
         % Button pushed function: GeneralApplyButton
-        function GeneralApplyButtonPushed(app, event)
+        function GeneralApplyButtonPushed2(app, ~)
 
-            applyGeneral(app)
-            app.MainApp.updateBatchTable();
-
-        end
-
-        % Button pushed function: GeneralApplyAllButton
-        function GeneralApplyAllButtonPushed(app, event)
+            app.applyCurrentSettings();
 
         end
 
-        % Button pushed function: GeneralCloseButton
-        function GeneralCloseButtonPushed(app, event)
+        % Button pushed function: GeneralCancelButton
+        function GeneralCancelButtonPushed(app, ~)
 
-            delete(app)
-
-        end
-
-        % Button pushed function: MSDefaultButton
-        function MSDefaultButtonPushed(app, event)
+            app.cancelChanges();
 
         end
 
-        % Button pushed function: MSApplyButton
-        function MSApplyButtonPushed(app, event)
+        % Callback function: not associated with a component
+        function MSApplyButtonPushed(app, ~)
 
-            applyMSFragment(app)
-            app.MainApp.updateBatchTable();
+            app.applyCurrentSettings();
 
         end
 
         % Button pushed function: MSApplyAllButton
-        function MSApplyAllButtonPushed(app, event)
+        function MSApplyAllButtonPushed(app, ~)
+
+            app.applyCurrentSettings();
 
         end
 
-        % Button pushed function: MSCloseButton
-        function MSCloseButtonPushed(app, event)
+        % Button pushed function: MSCancelButton
+        function MSCancelButtonPushed(app, ~)
 
-            delete(app)
+            app.cancelChanges();
 
         end
 
@@ -891,55 +996,38 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end
 
-        % Button pushed function: EffluxApplyButton
-        function EffluxApplyButtonPushed(app, event)
+        % Callback function: not associated with a component
+        function EffluxApplyButtonPushed(app, ~)
 
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID;
-            applyEffluxPerturbation(app, batchID(:));
-            app.MainApp.updateBatchTable();
+            app.applyCurrentSettings();
 
         end
 
-        % Button pushed function: EffluxApplyAllButton
-        function EffluxApplyAllButtonPushed(app, event)
+        % Callback function: not associated with a component
+        function EffluxApplyAllButtonPushed(app, ~)
 
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID;
-            applyEffluxPerturbation(app, batchID(:));
-            app.MainApp.updateBatchTable();
+            app.applyCurrentSettings();
 
         end
 
-        % Button pushed function: EffluxCloseButton
-        function EffluxCloseButtonPushed(app, event)
+        % Button pushed function: EffluxCancelButton
+        function EffluxCancelButtonPushed(app, ~)
 
-            delete(app)
-
-        end
-
-        % Button pushed function: SuggestionApplyButton
-        function SuggestionApplyButtonPushed(app, event)
-
-            data = app.LabelTable.Data;
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID(app.selection);
-            batchIDUnique = unique(batchID);
-
-            updateBatchConfigSuggestionTable(app.MainApp.batch, batchIDUnique, data)
-            updateBatchTable(app.MainApp)
+            app.cancelChanges();
 
         end
 
-        % Button pushed function: SuggestionApplyForAllButton
-        function SuggestionApplyForAllButtonPushed(app, event)
+        % Callback function: not associated with a component
+        function SuggestionApplyButtonPushed(app, ~)
+
+            app.applyCurrentSettings();
 
         end
 
-        % Button pushed function: SuggestionCloseButton
-        function SuggestionCloseButtonPushed(app, event)
+        % Button pushed function: SuggestionCancelButton
+        function SuggestionCancelButtonPushed(app, ~)
 
-            delete(app)
+            app.cancelChanges();
 
         end
 
@@ -1099,25 +1187,24 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end
 
-        % Button pushed function: INSTMFAApplyButton
-        function INSTMFAApplyButtonPushed(app, event)
+        % Callback function: not associated with a component
+        function INSTMFAApplyButtonPushed(app, ~)
 
-            app.applyINSTMFA()
-            app.MainApp.updateBatchTable();
-
-        end
-
-        % Button pushed function: INSTMFAReloadButton
-        function INSTMFAReloadButtonPushed(app, event)
-
-            app.updateINSTMFATimeCourseTable();
+            app.applyCurrentSettings();
 
         end
 
-        % Button pushed function: INSTMFACloseButton
-        function INSTMFACloseButtonPushed(app, event)
+        % Callback function: not associated with a component
+        function INSTMFAReloadButtonPushed(app, ~)
 
-            delete(app)
+            app.restoreDefaultValues();
+
+        end
+
+        % Button pushed function: INSTMFACancelButton
+        function INSTMFACancelButtonPushed(app, ~)
+
+            app.cancelChanges();
 
         end
 
@@ -1221,7 +1308,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.LargeScaleCheckBox.Text = 'Large scale problem';
             app.LargeScaleCheckBox.Layout.Row = 3;
             app.LargeScaleCheckBox.Layout.Column = 1;
-            app.LargeScaleCheckBox.Value = false;
 
             % Create SuggestionCheckBox
             app.SuggestionCheckBox = uicheckbox(app.GridLayout8);
@@ -1243,7 +1329,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.CalcCICheckBox.Text = 'Calculate confidence intervals of fluxes';
             app.CalcCICheckBox.Layout.Row = 7;
             app.CalcCICheckBox.Layout.Column = 1;
-            app.CalcCICheckBox.Value = true;
 
             % Create GridLayoutAlgorithm_2
             app.GridLayoutAlgorithm_2 = uigridlayout(app.GridLayout8);
@@ -1587,33 +1672,25 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout7_2.Layout.Row = 2;
             app.GridLayout7_2.Layout.Column = 1;
 
-            % Create GeneralCloseButton
-            app.GeneralCloseButton = uibutton(app.GridLayout7_2, 'push');
-            app.GeneralCloseButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralCloseButtonPushed, true);
-            app.GeneralCloseButton.Layout.Row = 1;
-            app.GeneralCloseButton.Layout.Column = 5;
-            app.GeneralCloseButton.Text = 'Close';
-
-            % Create GeneralApplyAllButton
-            app.GeneralApplyAllButton = uibutton(app.GridLayout7_2, 'push');
-            app.GeneralApplyAllButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralApplyAllButtonPushed, true);
-            app.GeneralApplyAllButton.Layout.Row = 1;
-            app.GeneralApplyAllButton.Layout.Column = 4;
-            app.GeneralApplyAllButton.Text = 'Apply for all';
+            % Create GeneralCancelButton
+            app.GeneralCancelButton = uibutton(app.GridLayout7_2, 'push');
+            app.GeneralCancelButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralCancelButtonPushed, true);
+            app.GeneralCancelButton.Layout.Row = 1;
+            app.GeneralCancelButton.Layout.Column = 5;
+            app.GeneralCancelButton.Text = 'Cancel';
 
             % Create GeneralApplyButton
             app.GeneralApplyButton = uibutton(app.GridLayout7_2, 'push');
-            app.GeneralApplyButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralApplyButtonPushed, true);
+            app.GeneralApplyButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralApplyButtonPushed2, true);
             app.GeneralApplyButton.Layout.Row = 1;
-            app.GeneralApplyButton.Layout.Column = 3;
+            app.GeneralApplyButton.Layout.Column = 4;
             app.GeneralApplyButton.Text = 'Apply';
 
-            % Create GeneralDefaultButton
-            app.GeneralDefaultButton = uibutton(app.GridLayout7_2, 'push');
-            app.GeneralDefaultButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralDefaultButtonPushed, true);
-            app.GeneralDefaultButton.Layout.Row = 1;
-            app.GeneralDefaultButton.Layout.Column = 2;
-            app.GeneralDefaultButton.Text = 'Set as default';
+            % Create GeneralRestoreDefaultButton
+            app.GeneralRestoreDefaultButton = uibutton(app.GridLayout7_2, 'push');
+            app.GeneralRestoreDefaultButton.Layout.Row = 1;
+            app.GeneralRestoreDefaultButton.Layout.Column = 3;
+            app.GeneralRestoreDefaultButton.Text = 'Restore default';
 
             % Create MSfragmentTab
             app.MSfragmentTab = uitab(app.TabGroup);
@@ -1632,33 +1709,25 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout7.Layout.Row = 2;
             app.GridLayout7.Layout.Column = 1;
 
-            % Create MSCloseButton
-            app.MSCloseButton = uibutton(app.GridLayout7, 'push');
-            app.MSCloseButton.ButtonPushedFcn = createCallbackFcn(app, @MSCloseButtonPushed, true);
-            app.MSCloseButton.Layout.Row = 1;
-            app.MSCloseButton.Layout.Column = 5;
-            app.MSCloseButton.Text = 'Close';
+            % Create MSCancelButton
+            app.MSCancelButton = uibutton(app.GridLayout7, 'push');
+            app.MSCancelButton.ButtonPushedFcn = createCallbackFcn(app, @MSCancelButtonPushed, true);
+            app.MSCancelButton.Layout.Row = 1;
+            app.MSCancelButton.Layout.Column = 5;
+            app.MSCancelButton.Text = 'Cancel';
 
             % Create MSApplyAllButton
             app.MSApplyAllButton = uibutton(app.GridLayout7, 'push');
             app.MSApplyAllButton.ButtonPushedFcn = createCallbackFcn(app, @MSApplyAllButtonPushed, true);
             app.MSApplyAllButton.Layout.Row = 1;
             app.MSApplyAllButton.Layout.Column = 4;
-            app.MSApplyAllButton.Text = 'Apply for all';
+            app.MSApplyAllButton.Text = 'Apply';
 
-            % Create MSApplyButton
-            app.MSApplyButton = uibutton(app.GridLayout7, 'push');
-            app.MSApplyButton.ButtonPushedFcn = createCallbackFcn(app, @MSApplyButtonPushed, true);
-            app.MSApplyButton.Layout.Row = 1;
-            app.MSApplyButton.Layout.Column = 3;
-            app.MSApplyButton.Text = 'Apply';
-
-            % Create MSDefaultButton
-            app.MSDefaultButton = uibutton(app.GridLayout7, 'push');
-            app.MSDefaultButton.ButtonPushedFcn = createCallbackFcn(app, @MSDefaultButtonPushed, true);
-            app.MSDefaultButton.Layout.Row = 1;
-            app.MSDefaultButton.Layout.Column = 2;
-            app.MSDefaultButton.Text = 'Set as default';
+            % Create MSRestoreDefaultButton
+            app.MSRestoreDefaultButton = uibutton(app.GridLayout7, 'push');
+            app.MSRestoreDefaultButton.Layout.Row = 1;
+            app.MSRestoreDefaultButton.Layout.Column = 3;
+            app.MSRestoreDefaultButton.Text = 'Restore default';
 
             % Create MSTable
             app.MSTable = uitable(app.GridLayout5);
@@ -1684,26 +1753,24 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout15.Layout.Row = 2;
             app.GridLayout15.Layout.Column = 1;
 
-            % Create EffluxCloseButton
-            app.EffluxCloseButton = uibutton(app.GridLayout15, 'push');
-            app.EffluxCloseButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxCloseButtonPushed, true);
-            app.EffluxCloseButton.Layout.Row = 1;
-            app.EffluxCloseButton.Layout.Column = 5;
-            app.EffluxCloseButton.Text = 'Close';
-
-            % Create EffluxApplyAllButton
-            app.EffluxApplyAllButton = uibutton(app.GridLayout15, 'push');
-            app.EffluxApplyAllButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxApplyAllButtonPushed, true);
-            app.EffluxApplyAllButton.Layout.Row = 1;
-            app.EffluxApplyAllButton.Layout.Column = 4;
-            app.EffluxApplyAllButton.Text = 'Apply for all';
+            % Create EffluxCancelButton
+            app.EffluxCancelButton = uibutton(app.GridLayout15, 'push');
+            app.EffluxCancelButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxCancelButtonPushed, true);
+            app.EffluxCancelButton.Layout.Row = 1;
+            app.EffluxCancelButton.Layout.Column = 5;
+            app.EffluxCancelButton.Text = 'Cancel';
 
             % Create EffluxApplyButton
             app.EffluxApplyButton = uibutton(app.GridLayout15, 'push');
-            app.EffluxApplyButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxApplyButtonPushed, true);
             app.EffluxApplyButton.Layout.Row = 1;
-            app.EffluxApplyButton.Layout.Column = 3;
+            app.EffluxApplyButton.Layout.Column = 4;
             app.EffluxApplyButton.Text = 'Apply';
+
+            % Create EffluxRestoreDefaultButton
+            app.EffluxRestoreDefaultButton = uibutton(app.GridLayout15, 'push');
+            app.EffluxRestoreDefaultButton.Layout.Row = 1;
+            app.EffluxRestoreDefaultButton.Layout.Column = 3;
+            app.EffluxRestoreDefaultButton.Text = 'Restore default';
 
             % Create GridLayout22
             app.GridLayout22 = uigridlayout(app.GridLayout13);
@@ -1737,25 +1804,23 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout16.Layout.Row = 2;
             app.GridLayout16.Layout.Column = 1;
 
-            % Create SuggestionCloseButton
-            app.SuggestionCloseButton = uibutton(app.GridLayout16, 'push');
-            app.SuggestionCloseButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionCloseButtonPushed, true);
-            app.SuggestionCloseButton.Layout.Row = 1;
-            app.SuggestionCloseButton.Layout.Column = 5;
-            app.SuggestionCloseButton.Text = 'Close';
+            % Create SuggestionCancelButton
+            app.SuggestionCancelButton = uibutton(app.GridLayout16, 'push');
+            app.SuggestionCancelButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionCancelButtonPushed, true);
+            app.SuggestionCancelButton.Layout.Row = 1;
+            app.SuggestionCancelButton.Layout.Column = 5;
+            app.SuggestionCancelButton.Text = 'Cancel';
 
-            % Create SuggestionApplyForAllButton
-            app.SuggestionApplyForAllButton = uibutton(app.GridLayout16, 'push');
-            app.SuggestionApplyForAllButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionApplyForAllButtonPushed, true);
-            app.SuggestionApplyForAllButton.Layout.Row = 1;
-            app.SuggestionApplyForAllButton.Layout.Column = 4;
-            app.SuggestionApplyForAllButton.Text = 'Apply for all';
+            % Create SuggestionRestoreDefaultButton
+            app.SuggestionRestoreDefaultButton = uibutton(app.GridLayout16, 'push');
+            app.SuggestionRestoreDefaultButton.Layout.Row = 1;
+            app.SuggestionRestoreDefaultButton.Layout.Column = 3;
+            app.SuggestionRestoreDefaultButton.Text = 'Restore default';
 
             % Create SuggestionApplyButton
             app.SuggestionApplyButton = uibutton(app.GridLayout16, 'push');
-            app.SuggestionApplyButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionApplyButtonPushed, true);
             app.SuggestionApplyButton.Layout.Row = 1;
-            app.SuggestionApplyButton.Layout.Column = 3;
+            app.SuggestionApplyButton.Layout.Column = 4;
             app.SuggestionApplyButton.Text = 'Apply';
 
             % Create GridLayout17
@@ -1799,27 +1864,24 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout15_2.Layout.Row = 2;
             app.GridLayout15_2.Layout.Column = 1;
 
-            % Create INSTMFACloseButton
-            app.INSTMFACloseButton = uibutton(app.GridLayout15_2, 'push');
-            app.INSTMFACloseButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFACloseButtonPushed, true);
-            app.INSTMFACloseButton.Layout.Row = 1;
-            app.INSTMFACloseButton.Layout.Column = 5;
-            app.INSTMFACloseButton.Text = 'Close';
+            % Create INSTMFACancelButton
+            app.INSTMFACancelButton = uibutton(app.GridLayout15_2, 'push');
+            app.INSTMFACancelButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFACancelButtonPushed, true);
+            app.INSTMFACancelButton.Layout.Row = 1;
+            app.INSTMFACancelButton.Layout.Column = 5;
+            app.INSTMFACancelButton.Text = 'Cancel';
+
+            % Create INSTMFARestoreDefaultButton
+            app.INSTMFARestoreDefaultButton = uibutton(app.GridLayout15_2, 'push');
+            app.INSTMFARestoreDefaultButton.Layout.Row = 1;
+            app.INSTMFARestoreDefaultButton.Layout.Column = 3;
+            app.INSTMFARestoreDefaultButton.Text = 'Restore default';
 
             % Create INSTMFAApplyButton
             app.INSTMFAApplyButton = uibutton(app.GridLayout15_2, 'push');
-            app.INSTMFAApplyButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFAApplyButtonPushed, true);
-            app.INSTMFAApplyButton.Enable = 'off';
             app.INSTMFAApplyButton.Layout.Row = 1;
-            app.INSTMFAApplyButton.Layout.Column = 3;
+            app.INSTMFAApplyButton.Layout.Column = 4;
             app.INSTMFAApplyButton.Text = 'Apply';
-
-            % Create INSTMFAReloadButton
-            app.INSTMFAReloadButton = uibutton(app.GridLayout15_2, 'push');
-            app.INSTMFAReloadButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFAReloadButtonPushed, true);
-            app.INSTMFAReloadButton.Layout.Row = 1;
-            app.INSTMFAReloadButton.Layout.Column = 4;
-            app.INSTMFAReloadButton.Text = 'Reload';
 
             % Create GridLayout20
             app.GridLayout20 = uigridlayout(app.GridLayout13_2);
