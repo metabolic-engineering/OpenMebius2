@@ -1,5 +1,5 @@
-classdef BatchConfigurationChildOutcome
-    % BATCHCONFIGURATIONCHILDOUTCOME Result of a child-editor command.
+classdef BatchExperimentSelectionEditorOutcome
+    % BATCHEXPERIMENTSELECTIONEDITOROUTCOME Child-editor preparation result.
 
     properties (SetAccess = private)
         Status (1, 1) string
@@ -10,7 +10,8 @@ classdef BatchConfigurationChildOutcome
 
     methods
 
-        function obj = BatchConfigurationChildOutcome(status, options)
+        function obj = BatchExperimentSelectionEditorOutcome( ...
+                status, options)
 
             arguments
                 status (1, 1) string {mustBeMember( ...

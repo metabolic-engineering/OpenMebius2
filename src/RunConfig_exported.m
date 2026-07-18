@@ -126,6 +126,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
         Session openmebius.application.batch.BatchConfigurationSession
         Presenter openmebius.presentation.batch.RunConfigPresenter
         Controller openmebius.application.batch.BatchConfigurationController
+        BatchExperimentSelectionEditorController openmebius.application.batch.BatchExperimentSelectionEditorController
+        BatchExperimentSelectionEditorPresenter openmebius.presentation.batch.BatchExperimentSelectionEditorPresenter
         RunAddBatchApp
         RunAddBatchListeners event.listener = event.listener.empty(0, 1)
         TracerConfigApp
@@ -356,17 +358,17 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function editTimeCourse(app)
             % EDITTIMECOURSE Edit the time course table for INST-MFA
 
-            outcome = app.Controller ...
-                .prepareINSTMFAExperimentSelection(app.Session);
-            viewModel = app.Presenter ...
-                .presentExperimentSelectionEditorOutcome(outcome);
+            outcome = app.BatchExperimentSelectionEditorController ...
+                .prepareINSTMFA(app.Session);
+            viewModel = app.BatchExperimentSelectionEditorPresenter ...
+                .presentINSTMFAEditor(outcome);
             app.requestNotifications(viewModel.Notifications);
 
             if ~viewModel.IsAvailable
                 return;
             end
 
-            app.detachRunAddBatchListeners();
+            app.closeRunAddBatchApp();
             app.RunAddBatchApp = RunAddBatch( ...
                 viewModel.ExperimentNames, ...
                 viewModel.Mode, ...
@@ -409,6 +411,25 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.RunAddBatchApp = [];
 
         end % onRunAddBatchClosed
+
+        function closeRunAddBatchApp(app)
+
+            app.detachRunAddBatchListeners();
+            childApp = app.RunAddBatchApp;
+            app.RunAddBatchApp = [];
+
+            if isempty(childApp)
+                return
+            end
+
+            try
+                if isvalid(childApp)
+                    delete(childApp);
+                end
+            catch
+            end
+
+        end % closeRunAddBatchApp
 
         function detachRunAddBatchListeners(app)
 
@@ -681,13 +702,18 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn( ...
                 app, session, presenter, editor, controller, ...
-                experimentController, experimentPresenter)
+                experimentController, experimentPresenter, ...
+                selectionController, selectionPresenter)
 
             app.Session = session;
             app.Presenter = presenter;
             app.Controller = controller;
             app.ExperimentEditController = experimentController;
             app.ExperimentPresenter = experimentPresenter;
+            app.BatchExperimentSelectionEditorController = ...
+                selectionController;
+            app.BatchExperimentSelectionEditorPresenter = ...
+                selectionPresenter;
             app.renderRunConfigViewModel(editor.Config)
             app.MSFragmentTableMetadata = ...
                 editor.MSFragmentTable.Metadata;
@@ -1745,17 +1771,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Code that executes before app deletion
         function delete(app)
 
-            app.detachRunAddBatchListeners();
+            app.closeRunAddBatchApp();
             app.detachTracerConfigListeners();
-
-            if ~isempty(app.RunAddBatchApp)
-                try
-                    if isvalid(app.RunAddBatchApp)
-                        delete(app.RunAddBatchApp);
-                    end
-                catch
-                end
-            end
 
             if ~isempty(app.TracerConfigApp)
                 try
