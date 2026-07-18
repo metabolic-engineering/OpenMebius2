@@ -28,7 +28,8 @@ classdef ComparisonViewBoundaryTest < matlab.unittest.TestCase
                 fullfile(root, "src", "OpenMebius2_exported.m")));
 
             testCase.verifyTrue( ...
-                contains(source, "ComparisonViewPresenter(app.exp)"));
+                contains(source, ...
+                    "ComparisonViewPresenter(app.Session.Experiments)"));
             testCase.verifyTrue(contains(source, ".ComparisonViewContext("));
             testCase.verifyTrue(contains(source, "ComparisonView(context)"));
             testCase.verifyTrue(contains( ...

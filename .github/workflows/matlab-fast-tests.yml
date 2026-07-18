@@ -1,0 +1,40 @@
+name: MATLAB fast tests
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: matlab-fast-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          release: R2026a
+
+      - name: Run boundary and App source synchronization tests
+        uses: matlab-actions/run-command@v2
+        with:
+          command: addpath("tests"); runFastTests(ReportDirectory="test-results")
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: matlab-fast-test-results
+          path: test-results
+          if-no-files-found: warn
