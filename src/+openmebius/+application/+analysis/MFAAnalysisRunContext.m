@@ -1,6 +1,6 @@
 classdef MFAAnalysisRunContext < handle
     % MFAANALYSISRUNCONTEXT
-    % Owns mutable values that exist only for one FluxAnalysis run.
+    % Owns mutable values that exist only for one MFA analysis run.
 
     properties (SetAccess = private)
         InstationaryInput = []

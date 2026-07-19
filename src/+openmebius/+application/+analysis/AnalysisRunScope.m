@@ -1,6 +1,6 @@
 classdef AnalysisRunScope < handle
     % ANALYSISRUNSCOPE
-    % Owns reproducibility metadata for one FluxAnalysis run.
+    % Owns reproducibility metadata for one MFA analysis run.
 
     properties (SetAccess = private)
         Metadata (1, 1) struct = struct

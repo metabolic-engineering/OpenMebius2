@@ -54,19 +54,6 @@ classdef TestProfileCatalogTest < matlab.unittest.TestCase
 
         end
 
-        function legacyEntryPointHasNoNotificationSideEffects(testCase)
-
-            root = fileparts(fileparts(mfilename("fullpath")));
-            source = string(fileread(fullfile(root, "src", "TestAll.m")));
-
-            testCase.verifyTrue(contains(source, "runAllTests()"));
-            testCase.verifyFalse(contains(source, "SLACK_WEBHOOK"));
-            testCase.verifyFalse(contains(source, "Web("));
-            testCase.verifyFalse(contains(source, "clear"));
-            testCase.verifyFalse(contains(source, "clc"));
-
-        end
-
     end
 
     methods (Static, Access = private)

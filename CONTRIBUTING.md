@@ -45,14 +45,14 @@ matlab -batch "addpath('tests'); runTestProfile('numerical')"
 matlab -batch "addpath('tests'); runTestProfile('integration')"
 ```
 
-Run every profile with coverage and JUnit/Cobertura output through the legacy
-entry point:
+Run every profile with coverage and JUnit/Cobertura output through the common
+test entry point:
 
 ```powershell
-matlab -batch "run('src/TestAll.m')"
+matlab -batch "addpath('tests'); results = runAllTests(); assertSuccess(results)"
 ```
 
-`TestAll.m` no longer clears the MATLAB session or sends Slack notifications.
+The test entry point does not clear the MATLAB session or send external notifications.
 Test reporting is limited to runner output and files under `test-results/`.
 
 ## Continuous integration

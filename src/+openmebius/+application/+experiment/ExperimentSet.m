@@ -1,4 +1,4 @@
-classdef ExperimentWorkspace < handle
+classdef ExperimentSet < handle
 
     properties (Access = private)
 
@@ -42,7 +42,7 @@ classdef ExperimentWorkspace < handle
 
     methods
 
-        function obj = ExperimentWorkspace(experimentInput, modelInput, options)
+        function obj = ExperimentSet(experimentInput, modelInput, options)
 
             arguments
                 experimentInput
@@ -232,7 +232,7 @@ classdef ExperimentWorkspace < handle
         function loadExpData(obj, modelInput, options)
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 modelInput = []
                 options.AllowEmpty (1, 1) logical = false
             end
@@ -272,7 +272,7 @@ classdef ExperimentWorkspace < handle
                     "The experiment file does not exist.");
                 throwIfValidationFailed( ...
                     obj, ...
-                    "OpenMebius2:ExperimentWorkspace:ExperimentFileNotFound", ...
+                    "OpenMebius2:ExperimentSet:ExperimentFileNotFound", ...
                     "The experiment file does not exist.");
             end
 
@@ -291,7 +291,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % expName: (1, 1) string
             %     The name of the experiment.
@@ -302,7 +302,7 @@ classdef ExperimentWorkspace < handle
             %     Options: "Info", "Tracer", "Uptake"
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 data
                 type (1, 1) string {mustBeMember(type, ["Info", "Tracer", "Uptake"])}
             end % arguments
@@ -352,13 +352,13 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % fileDir: (1, 1) string
             %     The directory containing the experimental data files.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 fileDir (1, 1) string
                 options.type (1, 1) string {mustBeMember(options.type, ["xlsx", "csv"])} = "xlsx"
                 options.sheet (1, 1) string = "MS_raw"
@@ -650,7 +650,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % fragName: string
             %     Fragment name (Ala59, Asx302...)
@@ -661,7 +661,7 @@ classdef ExperimentWorkspace < handle
             %     The MS normalized data.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 fragName (1, 1) string
             end
 
@@ -726,7 +726,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % fragName: string
             %     Fragment name (Ala59, Asx302...)
@@ -737,7 +737,7 @@ classdef ExperimentWorkspace < handle
             %     The MS normalized data.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 fragName (1, 1) string
             end
 
@@ -767,7 +767,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % expName: (1, 1) string
             %     The name of the experiment.
@@ -803,7 +803,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             %
             % Returns:
@@ -815,7 +815,7 @@ classdef ExperimentWorkspace < handle
             %     true if there is an error, false otherwise.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
             end % arguments
 
             result = obj.ComparisonBuilder.buildEnrichment(obj.Collection);
@@ -834,7 +834,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % expName: (1, 1) string
             %     The name of the experiment.
@@ -890,7 +890,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             %
             % Returns:
@@ -901,7 +901,7 @@ classdef ExperimentWorkspace < handle
             %     The available selection table.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
             end % arguments
 
             result = obj.ComparisonBuilder.buildSelection(obj.Collection);
@@ -920,13 +920,13 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % model: openmebius.application.model.MetabolicModel
             %     The model object.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 model openmebius.application.model.MetabolicModel
             end
 
@@ -939,13 +939,13 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % tableInfo: table
             %     The table of experimental information.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 tableInfo table
             end
 
@@ -982,7 +982,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % tableSubstrate: table
             %     The table of experimental substrates.
@@ -994,7 +994,7 @@ classdef ExperimentWorkspace < handle
             %     true if the update was successful, false otherwise.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 tableSubstrate table
             end
 
@@ -1024,7 +1024,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % tableUptake: table
             %     The table of experimental substrates.
@@ -1036,7 +1036,7 @@ classdef ExperimentWorkspace < handle
             %     true if the update was successful, false otherwise.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 tableUptake table
             end
 
@@ -1062,7 +1062,7 @@ classdef ExperimentWorkspace < handle
         function input = getMDVCalculationInput(obj, expName)
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 expName (1, 1) string
             end
 
@@ -1070,7 +1070,7 @@ classdef ExperimentWorkspace < handle
 
             if numel(idx) ~= 1
                 error( ...
-                    "OpenMebius2:ExperimentWorkspace:ExperimentNotFound", ...
+                    "OpenMebius2:ExperimentSet:ExperimentNotFound", ...
                     "The experiment %s was not found.", ...
                     expName);
             end
@@ -1079,7 +1079,7 @@ classdef ExperimentWorkspace < handle
                 experimentInfo = obj.tableExpsInfo(expName, :);
             catch ME
                 error( ...
-                    "OpenMebius2:ExperimentWorkspace:ExperimentInfoNotFound", ...
+                    "OpenMebius2:ExperimentSet:ExperimentInfoNotFound", ...
                     "Experiment information for %s was not found: %s", ...
                     expName, ...
                     string(ME.message));
@@ -1103,7 +1103,7 @@ classdef ExperimentWorkspace < handle
         function applyMDVDerivedData(obj, expName, derivedData)
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 expName (1, 1) string
                 derivedData openmebius.domain.experiment ...
                     .ExperimentDerivedData
@@ -1113,7 +1113,7 @@ classdef ExperimentWorkspace < handle
 
             if numel(idx) ~= 1
                 error( ...
-                    "OpenMebius2:ExperimentWorkspace:ExperimentNotFound", ...
+                    "OpenMebius2:ExperimentSet:ExperimentNotFound", ...
                     "The experiment %s was not found.", ...
                     expName);
             end
@@ -1177,7 +1177,7 @@ classdef ExperimentWorkspace < handle
         function tableOut = getStoredTableOrEmpty(obj, fieldName, tableName)
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 fieldName (1, 1) string
                 tableName (1, 1) string
             end
@@ -1193,7 +1193,7 @@ classdef ExperimentWorkspace < handle
         function workbook = createWorkbookData(obj, fieldName)
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 fieldName (1, 1) string
             end
 
@@ -1220,7 +1220,7 @@ classdef ExperimentWorkspace < handle
         function applyWorkbookData(obj, workbook, structName, options)
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 workbook openmebius.infrastructure.experiment ...
                     .ExperimentWorkbookData
                 structName (1, 1) string
@@ -1252,7 +1252,7 @@ classdef ExperimentWorkspace < handle
         function loadStoredDerivedTables(obj, workbook, structName)
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 workbook openmebius.infrastructure.experiment ...
                     .ExperimentWorkbookData
                 structName (1, 1) string
@@ -1325,7 +1325,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % fileExp: string
             %     The file name of the experiment.
@@ -1333,7 +1333,7 @@ classdef ExperimentWorkspace < handle
             %     The field name of the experiment.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 fileExp (1, 1) string
                 fieldName (1, 1) string
             end
@@ -1371,7 +1371,7 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             %
             % Returns:
@@ -1380,7 +1380,7 @@ classdef ExperimentWorkspace < handle
             %     The template uptake table.
             %
             % Example:
-            % >> obj = ExperimentWorkspace("path/to/your/file", "fileName");
+            % >> obj = ExperimentSet("path/to/your/file", "fileName");
             % >> tableRtn = obj.createTemplateSubstrateTable()
             %     tableRtn = 3x2 table
             %                  | Uptake | Label |
@@ -1389,7 +1389,7 @@ classdef ExperimentWorkspace < handle
             %     Subs_THF     |    NaN | ""    |
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
             end
 
             varnames = obj.defaultVariableNamesListSubstrate;
@@ -1456,13 +1456,13 @@ classdef ExperimentWorkspace < handle
             %
             % Parameters:
             % -----------
-            % obj: ExperimentWorkspace
+            % obj: ExperimentSet
             %     The experiment workspace object.
             % tableInfo: table
             %     The table of experimental information.
 
             arguments
-                obj openmebius.application.experiment.ExperimentWorkspace
+                obj openmebius.application.experiment.ExperimentSet
                 tableInfo table
             end
 

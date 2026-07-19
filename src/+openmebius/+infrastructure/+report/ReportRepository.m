@@ -1,6 +1,5 @@
-classdef LegacyReportRepository < handle
-    % LEGACYREPORTREPOSITORY
-    % Creates and opens reports using the existing ReportResult class.
+classdef ReportRepository < handle
+    % REPORTREPOSITORY Creates and opens generated analysis reports.
 
     methods
 
