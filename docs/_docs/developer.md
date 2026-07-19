@@ -1,73 +1,76 @@
 ---
 title: For developers
 author: Tatsumi Imada
-date: 2025-10-03
+date: 2026-07-19
 category: Jekyll
 layout: post
 ---
 
-This page is for developers who want to improve or customize OpenMebius2.
-The source code of OpenMebius2 is available on [GitHub](https://github.com/metabolic-engineering/OpenMebius2).
+This page describes the supported development workflow for OpenMebius2. The
+source code is available on
+[GitHub](https://github.com/metabolic-engineering/OpenMebius2).
 
 # Development environment
 
-To set up a development environment, you need to have the following software installed:
+- MATLAB R2025a or later. CI currently runs with R2026a.
+- Optimization Toolbox.
+- Statistics and Machine Learning Toolbox.
+- Parallel Computing Toolbox for parallel analysis.
+- MATLAB Compiler only when creating a standalone application or installer.
 
-- MATLAB R2025a or later
-- MATLAB Optimization Toolbox
-- MATLAB Statistics and Machine Learning Toolbox
-- MATLAB Parallel Computing Toolbox (optional, for parallel processing)
-- MATLAB Compiler (optional, for creating standalone applications)
+Clone the repository and run MATLAB with the repository as the current folder.
+Source and tests are added explicitly by each command; permanent path changes
+are not required.
 
-# Data structure
+# Repository structure
 
-## Model instance
+| Path | Responsibility |
+|---|---|
+| `src/*.mlapp` | App Designer source of record |
+| `src/*_exported.m` | Reviewable App Designer code export |
+| `src/+openmebius/+presentation` | Presenter, view model, child-App context, and UI policy |
+| `src/+openmebius/+application` | Use cases, controllers, sessions, and workflow coordination |
+| `src/+openmebius/+domain` | Validated domain values and aggregates |
+| `src/+openmebius/+mfa` | UI-independent MFA and EMU numerical logic |
+| `src/+openmebius/+infrastructure` | Repository, filesystem, HDF5, JSON, logging, and notification adapters |
+| `src/+openmebius/+bootstrap` | Main application Composition Root |
+| `tests` | Unit, boundary, characterization, migration, and UI smoke tests |
+| `tools` | Development-only source synchronization utilities |
 
-The model instance is a MATLAB structure that contains the following fields:
+# Development rules
 
-| Field Name        | Type       | Description                                                                              |
-| ----------------- | ---------- | ---------------------------------------------------------------------------------------- |
-| `tableInfo`       | 5×2 table  | A table containing model information loaded from an Excel file.                          |
-| `tableModel`      | N×3 table  | A table containing reactions loaded from an Excel file (N: reaction).                    |
-| `tableMS`         | N×3 double | A table containing atom transition loaded from an Excel file (N: reaction).              |
-| `tableBiomass`    | N×2 table  | A table containing biomass demands loaded from an Excel file (N: The number of biomass). |
-| `tableXY`         | N×2 table  | A table containing positions of nodes in the metabolic pathway (N: The number of nodes). |
-| `tableAtom`       | N×M table  | A table containing the number of atoms in each element (N: reaction, M: element).        |
-| `fileTypeModel`   | string     | Model file type (e.g., `"xlsx"`).                                                        |
-| `fileTypeLabel`   | string     | File type of label pattern information (e.g., `"json"`).                                 |
-| `fileTypePathway` | string     | File type of pathway map (default: `"tiff"`).                                            |
-| `fileModel`       | string     | Filename of the model file (default: `"metabolic_network"`).                             |
-| `fileLabel`       | string     | Filename of the label pattern information (default: `"label"`).                          |
-| `filePathway`     | string     | Filename of the pathway map (default: `"metabolic_pathway"`).                            |
-| `modelRxn`        | N×4 table  | A table containing reaction information (N: reaction).                                   |
-| `modelTrans`      | N×3 table  | A table containing atom transition information (N: reaction).                            |
-| `MSRxn`           | N×3 table  | A table containing reaction information for mass spectrometry (N: reaction).             |
-| `MSTrans`         | N×3 table  | A table containing atom transition information for mass spectrometry (N: reaction).      |
+1. Preserve the dependency direction documented in
+   [Architecture](architecture.md).
+2. Pass filesystem locations through `ModelLocation`, `ExperimentLocation`,
+   `ResultLocation`, or `ProjectPaths`; do not make domain objects discover
+   directories themselves.
+3. Keep migration in repositories and migration services. Runtime classes must
+   consume the current in-memory representation.
+4. Report messages through a callback accepting
+   `openmebius.core.notification.Message`. Application and numerical code must
+   not publish App Designer events.
+5. Change `.mlapp` files in App Designer and update the corresponding exported
+   source in the same change. The synchronization utility is a repair tool and
+   overwrites the code store inside the `.mlapp` file.
+6. Add a boundary test when introducing a new architectural constraint.
 
+# Verification
 
-### Details of tables
+Run the pull-request profile first:
 
-- `modelRxn` fields:
-  - `Properties.RowNames`: Reaction IDs (string)
-  - `Reactants`: Cell array of reactant names (1xK cell, K: number of reactants)
-  - `Products`: Cell array of product names (1xL cell, L: number of products)
-  - `Reversible`: Logical value indicating if the reaction is reversible (true/false)
-  - `Independent`: Logical value indicating if the reaction is designated as independent (true/false)
+```matlab
+addpath("tests");
+runFastTests();
+```
 
-- `modelTrans` fields:
-  - `Properties.RowNames`: Reaction IDs (string)
-  - `Reactants`: Cell array of reactant atom patterns (1xK cell, K: number of reactants)
-  - `Products`: Cell array of product atom patterns (1xL cell, L: number of products)
-  - `Reversible`: Logical value indicating if the reaction is reversible (true/false)
+Run the profile covering the changed behavior:
 
-- `MSRxn` fields:
-  - `Properties.RowNames`: Fragment name (string)
-  - `Reactants`: Cell array of reactant names (1xK cell, K: number of reactants)
-  - `Products`: Cell array of product names (1xL cell, L: number of products)
-  - `Reversible`: Logical value indicating if the reaction is reversible (true/false)
+```matlab
+runTestProfile("domain");
+runTestProfile("numerical");
+runTestProfile("integration");
+```
 
-- `MSTrans` fields:
-  - `Properties.RowNames`: Fragment name (string)
-  - `Reactants`: Cell array of reactant atom patterns (1xK cell, K: number of reactants)
-  - `Products`: Cell array of product atom patterns (1xL cell, L: number of products)
-  - `Reversible`: Logical value indicating if the reaction is reversible (true/false)
+See [Build and release](build.md) for source synchronization, packaging, and
+release commands. Persisted formats and compatibility behavior are described in
+[Data format](format.md) and [Migration](migration.md).

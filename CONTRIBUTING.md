@@ -1,5 +1,12 @@
 # Contributing
 
+The developer documentation is split by responsibility:
+
+- [Architecture](docs/_docs/architecture.md) defines dependency and ownership rules.
+- [Data format](docs/_docs/format.md) defines current persisted schemas.
+- [Migration](docs/_docs/migration.md) defines backward-compatibility policy.
+- [Build and release](docs/_docs/build.md) defines verification and packaging.
+
 ## MATLAB test profiles
 
 The test catalog is split into disjoint profiles. Every `*Test.m` file is
@@ -72,3 +79,24 @@ The `.mlapp` file is the application source of record. Keep its code in sync
 with the corresponding `*_exported.m` review artifact in the same change.
 Pull-request CI rejects changes when either the exported code or one of the
 internal `.mlapp` code stores differs.
+
+Use `tools/synchronizeMlappSource.m` only to repair a `.mlapp` code store from
+an intentionally newer exported source. It overwrites code but does not recreate
+App Designer layout.
+
+## Build validation
+
+Validate build paths and required assets without MATLAB Compiler:
+
+```powershell
+matlab -batch "addpath('src'); result = BuildMyApp(ValidateOnly=true, RunFastTests=false); disp(result.Plan)"
+```
+
+Create a standalone application and installer after the required profiles pass:
+
+```powershell
+matlab -batch "addpath('src'); BuildMyApp"
+```
+
+`BuildMyApp` runs the fast profile and App source synchronization checks by
+default. See the build documentation before disabling either check.
