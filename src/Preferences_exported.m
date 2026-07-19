@@ -158,7 +158,6 @@ classdef Preferences_exported < matlab.apps.AppBase
             app.SlackNotifier = slackNotifier;
 
             app.loadSlackPreferences();
-
         end
 
         % Value changed function: SlacknotificationCheckBox
@@ -167,14 +166,12 @@ classdef Preferences_exported < matlab.apps.AppBase
             enabled = logical(app.SlacknotificationCheckBox.Value);
 
             app.SlackWebhookEditField.Enable = app.onOff(enabled);
-
         end
 
         % Button pushed function: CancelButton
         function CancelButtonPushed(app, event)
 
             delete(app);
-
         end
 
         % Button pushed function: CloseButton
@@ -198,7 +195,6 @@ classdef Preferences_exported < matlab.apps.AppBase
         function PreferencesUIFigureCloseRequest(app, event)
 
             delete(app);
-
         end
 
     end
@@ -315,13 +311,8 @@ classdef Preferences_exported < matlab.apps.AppBase
         % Code that executes before app deletion
         function delete(app)
 
-            app.notifyPreferencesClosed();
-
             % Delete UIFigure when app is deleted
-            if ~isempty(app.PreferencesUIFigure) && ...
-                    isvalid(app.PreferencesUIFigure)
-                delete(app.PreferencesUIFigure)
-            end
+            delete(app.PreferencesUIFigure)
         end
 
     end

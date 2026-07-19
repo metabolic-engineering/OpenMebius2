@@ -1,19 +1,14 @@
 classdef RunAddBatch_exported < matlab.apps.AppBase
 
-    events
-        Applied
-        Closed
-    end
-
     % Properties that correspond to app components
     properties (Access = public)
         AddbatchUIFigure matlab.ui.Figure
         GridLayout matlab.ui.container.GridLayout
-        AddAsParallel matlab.ui.control.CheckBox
-        UITable matlab.ui.control.Table
         GridLayout2 matlab.ui.container.GridLayout
-        AddButton matlab.ui.control.Button
         CloseButton matlab.ui.control.Button
+        AddButton matlab.ui.control.Button
+        UITable matlab.ui.control.Table
+        AddAsParallel matlab.ui.control.CheckBox
     end
 
     properties (Access = private)
@@ -66,14 +61,12 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             end
 
             initTable(app);
-
         end
 
         % Button pushed function: AddButton
         function AddButtonPushed(app, event)
 
             app.applySelection();
-
         end
 
         % Button pushed function: CloseButton
@@ -81,7 +74,6 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
 
             % Close the app when the Close button is pressed
             close(app.AddbatchUIFigure);
-
         end
 
         % Key press function: AddbatchUIFigure
@@ -128,26 +120,12 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             app.GridLayout.ColumnWidth = {'1x'};
             app.GridLayout.RowHeight = {'1x', 'fit', 'fit'};
 
-            % Create GridLayout2
-            app.GridLayout2 = uigridlayout(app.GridLayout);
-            app.GridLayout2.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
-            app.GridLayout2.RowHeight = {'1x'};
-            app.GridLayout2.Layout.Row = 3;
-            app.GridLayout2.Layout.Column = 1;
-
-            % Create CloseButton
-            app.CloseButton = uibutton(app.GridLayout2, 'push');
-            app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
-            app.CloseButton.Layout.Row = 1;
-            app.CloseButton.Layout.Column = 5;
-            app.CloseButton.Text = 'Close';
-
-            % Create AddButton
-            app.AddButton = uibutton(app.GridLayout2, 'push');
-            app.AddButton.ButtonPushedFcn = createCallbackFcn(app, @AddButtonPushed, true);
-            app.AddButton.Layout.Row = 1;
-            app.AddButton.Layout.Column = 4;
-            app.AddButton.Text = 'Add';
+            % Create AddAsParallel
+            app.AddAsParallel = uicheckbox(app.GridLayout);
+            app.AddAsParallel.Text = 'Add batch row as parallel labeling';
+            app.AddAsParallel.Layout.Row = 2;
+            app.AddAsParallel.Layout.Column = 1;
+            app.AddAsParallel.Value = true;
 
             % Create UITable
             app.UITable = uitable(app.GridLayout);
@@ -157,12 +135,26 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             app.UITable.Layout.Row = 1;
             app.UITable.Layout.Column = 1;
 
-            % Create AddAsParallel
-            app.AddAsParallel = uicheckbox(app.GridLayout);
-            app.AddAsParallel.Text = 'Add batch row as parallel labeling';
-            app.AddAsParallel.Layout.Row = 2;
-            app.AddAsParallel.Layout.Column = 1;
-            app.AddAsParallel.Value = true;
+            % Create GridLayout2
+            app.GridLayout2 = uigridlayout(app.GridLayout);
+            app.GridLayout2.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout2.RowHeight = {'1x'};
+            app.GridLayout2.Layout.Row = 3;
+            app.GridLayout2.Layout.Column = 1;
+
+            % Create AddButton
+            app.AddButton = uibutton(app.GridLayout2, 'push');
+            app.AddButton.ButtonPushedFcn = createCallbackFcn(app, @AddButtonPushed, true);
+            app.AddButton.Layout.Row = 1;
+            app.AddButton.Layout.Column = 4;
+            app.AddButton.Text = 'Add';
+
+            % Create CloseButton
+            app.CloseButton = uibutton(app.GridLayout2, 'push');
+            app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
+            app.CloseButton.Layout.Row = 1;
+            app.CloseButton.Layout.Column = 5;
+            app.CloseButton.Text = 'Close';
 
             % Show the figure after all components are created
             app.AddbatchUIFigure.Visible = 'on';

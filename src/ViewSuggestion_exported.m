@@ -4,15 +4,15 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
     properties (Access = public)
         RangePlotViewerUIFigure matlab.ui.Figure
         GridLayout matlab.ui.container.GridLayout
-        GridLayout5 matlab.ui.container.GridLayout
-        UITableRank matlab.ui.control.Table
-        UITableFlux matlab.ui.control.Table
-        GridLayout4 matlab.ui.container.GridLayout
-        RangeAxes matlab.ui.control.UIAxes
         GridLayout2 matlab.ui.container.GridLayout
+        UITable matlab.ui.control.Table
         GridLayout3 matlab.ui.container.GridLayout
         SaveButton matlab.ui.control.Button
-        UITable matlab.ui.control.Table
+        GridLayout4 matlab.ui.container.GridLayout
+        RangeAxes matlab.ui.control.UIAxes
+        GridLayout5 matlab.ui.container.GridLayout
+        UITableFlux matlab.ui.control.Table
+        UITableRank matlab.ui.control.Table
     end
 
     %% Public properties
@@ -603,7 +603,6 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             app.batchID = string(data.batchID);
             app.data = data;
             updateTable(app, isUpdate = false);
-
         end
 
         % Key press function: RangePlotViewerUIFigure
@@ -665,7 +664,6 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
                 "Saved to:" + newline + outDir, ...
                 "Saved", ...
                 "Icon", "success");
-
         end
 
         % Selection changed function: UITable
@@ -678,28 +676,24 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             end
 
             updateTable(app, isUpdate = true);
-
         end
 
         % Display data changed function: UITable
         function UITableDisplayDataChanged(app, event)
 
             updateTable(app, isUpdate = true);
-
         end
 
         % Cell edit callback: UITable
         function UITableCellEdit(app, event)
 
             updateTable(app, isUpdate = true);
-
         end
 
         % Cell edit callback: UITableFlux
         function UITableFluxCellEdit(app, event)
 
             updateTable(app, isUpdate = true);
-
         end
 
         % Window key press function: RangePlotViewerUIFigure
@@ -739,22 +733,47 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             app.GridLayout.ColumnWidth = {'1x', '1x', '1.5x'};
             app.GridLayout.RowHeight = {'1x'};
 
+            % Create GridLayout5
+            app.GridLayout5 = uigridlayout(app.GridLayout);
+            app.GridLayout5.ColumnWidth = {'1x'};
+            app.GridLayout5.Layout.Row = 1;
+            app.GridLayout5.Layout.Column = 2;
+
+            % Create UITableRank
+            app.UITableRank = uitable(app.GridLayout5);
+            app.UITableRank.ColumnName = '';
+            app.UITableRank.RowName = {};
+            app.UITableRank.Layout.Row = 2;
+            app.UITableRank.Layout.Column = 1;
+
+            % Create UITableFlux
+            app.UITableFlux = uitable(app.GridLayout5);
+            app.UITableFlux.ColumnName = '';
+            app.UITableFlux.RowName = {};
+            app.UITableFlux.CellEditCallback = createCallbackFcn(app, @UITableFluxCellEdit, true);
+            app.UITableFlux.Layout.Row = 1;
+            app.UITableFlux.Layout.Column = 1;
+
+            % Create GridLayout4
+            app.GridLayout4 = uigridlayout(app.GridLayout);
+            app.GridLayout4.ColumnWidth = {'1x'};
+            app.GridLayout4.RowHeight = {'1x'};
+            app.GridLayout4.Padding = [0 0 0 0];
+            app.GridLayout4.Layout.Row = 1;
+            app.GridLayout4.Layout.Column = 3;
+
+            % Create RangeAxes
+            app.RangeAxes = uiaxes(app.GridLayout4);
+            app.RangeAxes.TickLabelInterpreter = 'none';
+            app.RangeAxes.Layout.Row = 1;
+            app.RangeAxes.Layout.Column = 1;
+
             % Create GridLayout2
             app.GridLayout2 = uigridlayout(app.GridLayout);
             app.GridLayout2.ColumnWidth = {'1x'};
             app.GridLayout2.RowHeight = {'1x', 'fit'};
             app.GridLayout2.Layout.Row = 1;
             app.GridLayout2.Layout.Column = 1;
-
-            % Create UITable
-            app.UITable = uitable(app.GridLayout2);
-            app.UITable.ColumnName = '';
-            app.UITable.RowName = {};
-            app.UITable.CellEditCallback = createCallbackFcn(app, @UITableCellEdit, true);
-            app.UITable.DisplayDataChangedFcn = createCallbackFcn(app, @UITableDisplayDataChanged, true);
-            app.UITable.SelectionChangedFcn = createCallbackFcn(app, @UITableSelectionChanged, true);
-            app.UITable.Layout.Row = 1;
-            app.UITable.Layout.Column = 1;
 
             % Create GridLayout3
             app.GridLayout3 = uigridlayout(app.GridLayout2);
@@ -771,40 +790,15 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             app.SaveButton.Layout.Column = 4;
             app.SaveButton.Text = 'Save';
 
-            % Create GridLayout4
-            app.GridLayout4 = uigridlayout(app.GridLayout);
-            app.GridLayout4.ColumnWidth = {'1x'};
-            app.GridLayout4.RowHeight = {'1x'};
-            app.GridLayout4.Padding = [0 0 0 0];
-            app.GridLayout4.Layout.Row = 1;
-            app.GridLayout4.Layout.Column = 3;
-
-            % Create RangeAxes
-            app.RangeAxes = uiaxes(app.GridLayout4);
-            app.RangeAxes.TickLabelInterpreter = 'none';
-            app.RangeAxes.Layout.Row = 1;
-            app.RangeAxes.Layout.Column = 1;
-
-            % Create GridLayout5
-            app.GridLayout5 = uigridlayout(app.GridLayout);
-            app.GridLayout5.ColumnWidth = {'1x'};
-            app.GridLayout5.Layout.Row = 1;
-            app.GridLayout5.Layout.Column = 2;
-
-            % Create UITableFlux
-            app.UITableFlux = uitable(app.GridLayout5);
-            app.UITableFlux.ColumnName = '';
-            app.UITableFlux.RowName = {};
-            app.UITableFlux.CellEditCallback = createCallbackFcn(app, @UITableFluxCellEdit, true);
-            app.UITableFlux.Layout.Row = 1;
-            app.UITableFlux.Layout.Column = 1;
-
-            % Create UITableRank
-            app.UITableRank = uitable(app.GridLayout5);
-            app.UITableRank.ColumnName = '';
-            app.UITableRank.RowName = {};
-            app.UITableRank.Layout.Row = 2;
-            app.UITableRank.Layout.Column = 1;
+            % Create UITable
+            app.UITable = uitable(app.GridLayout2);
+            app.UITable.ColumnName = '';
+            app.UITable.RowName = {};
+            app.UITable.CellEditCallback = createCallbackFcn(app, @UITableCellEdit, true);
+            app.UITable.DisplayDataChangedFcn = createCallbackFcn(app, @UITableDisplayDataChanged, true);
+            app.UITable.SelectionChangedFcn = createCallbackFcn(app, @UITableSelectionChanged, true);
+            app.UITable.Layout.Row = 1;
+            app.UITable.Layout.Column = 1;
 
             % Show the figure after all components are created
             app.RangePlotViewerUIFigure.Visible = 'on';

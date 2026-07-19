@@ -1,10 +1,5 @@
 classdef TracerConfig_exported < matlab.apps.AppBase
 
-    events
-        Applied
-        Closed
-    end
-
     % Properties that correspond to app components
     properties (Access = public)
         TracerselectionconfigUIFigure matlab.ui.Figure
@@ -44,14 +39,12 @@ classdef TracerConfig_exported < matlab.apps.AppBase
             app.Position = context.Position;
 
             app.reloadEditorTable();
-
         end
 
         % Button pushed function: ReloadButton
         function ReloadButtonPushed(app, event)
 
             app.reloadEditorTable();
-
         end
 
         % Button pushed function: SaveButton
@@ -59,10 +52,9 @@ classdef TracerConfig_exported < matlab.apps.AppBase
 
             eventData = openmebius.presentation.experiment ...
                 .TracerConfigurationAppliedEventData( ...
-                    app.Position, app.UITable.Data);
+                app.Position, app.UITable.Data);
             notify(app, "Applied", eventData);
             close(app.TracerselectionconfigUIFigure);
-
         end
 
         % Close request function: TracerselectionconfigUIFigure
@@ -70,7 +62,6 @@ classdef TracerConfig_exported < matlab.apps.AppBase
 
             notify(app, "Closed");
             delete(app);
-
         end
 
         % Key press function: TracerselectionconfigUIFigure

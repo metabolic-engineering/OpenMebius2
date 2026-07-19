@@ -2327,7 +2327,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             if isa(notification, ...
-                    "openmebius.core.notification.Message")
+                "openmebius.core.notification.Message")
 
                 notification = openmebius.presentation.notification ...
                     .Notification.fromMessage(notification);
@@ -2533,7 +2533,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 "Preferences", ...
                 preferencesApp, ...
                 {"PreferencesClosed", ...
-                @(src, event) app.onPreferencesClosed(src, event)});
+                 @(src, event) app.onPreferencesClosed(src, event)});
 
         end % method attachPreferencesListeners
 
@@ -2549,13 +2549,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 "RunConfig", ...
                 runConfigApp, ...
                 {"Applied", ...
-                @(source, event) app.onRunConfigurationApplied(source, event); ...
-                "BatchExperimentSelectionApplied", ...
-                @(source, event) app.onBatchExperimentSelectionApplied(source, event); ...
-                "NotificationRequested", ...
-                @(source, event) app.onNotificationRequested(source, event); ...
-                "Closed", ...
-                @(source, event) app.onRunConfigurationClosed(source, event)});
+                 @(source, event) app.onRunConfigurationApplied(source, event); ...
+                 "BatchExperimentSelectionApplied", ...
+                 @(source, event) app.onBatchExperimentSelectionApplied(source, event); ...
+                 "NotificationRequested", ...
+                 @(source, event) app.onNotificationRequested(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onRunConfigurationClosed(source, event)});
 
         end % attachRunConfigListeners
 
@@ -2578,11 +2578,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 "LabelConfig", ...
                 labelConfigApp, ...
                 {"Applied", ...
-                @(source, event) app.onLabelConfigurationApplied(source, event); ...
-                "NotificationRequested", ...
-                @(source, event) app.onNotificationRequested(source, event); ...
-                "Closed", ...
-                @(source, event) app.onLabelConfigurationClosed(source, event)});
+                 @(source, event) app.onLabelConfigurationApplied(source, event); ...
+                 "NotificationRequested", ...
+                 @(source, event) app.onNotificationRequested(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onLabelConfigurationClosed(source, event)});
 
         end % attachLabelConfigListeners
 
@@ -2605,9 +2605,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 "TracerConfig", ...
                 tracerConfigApp, ...
                 {"Applied", ...
-                @(source, event) app.onTracerConfigurationApplied(source, event); ...
-                "Closed", ...
-                @(source, event) app.onTracerConfigurationClosed(source, event)});
+                 @(source, event) app.onTracerConfigurationApplied(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onTracerConfigurationClosed(source, event)});
 
         end % attachTracerConfigListeners
 
@@ -2630,10 +2630,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 "MSView", ...
                 msViewApp, ...
                 {"ComparisonRequested", @(~, ~) app.openMSComparison(); ...
-                "NotificationRequested", ...
-                @(source, event) app.onNotificationRequested(source, event); ...
-                "Closed", ...
-                @(source, event) app.onMSViewClosed(source, event)});
+                 "NotificationRequested", ...
+                 @(source, event) app.onNotificationRequested(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onMSViewClosed(source, event)});
 
         end % attachMSViewListeners
 
@@ -2656,9 +2656,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 "ComparisonView", ...
                 comparisonViewApp, ...
                 {"NotificationRequested", ...
-                @(source, event) app.onNotificationRequested(source, event); ...
-                "Closed", ...
-                @(source, event) app.onComparisonViewClosed(source, event)});
+                 @(source, event) app.onNotificationRequested(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onComparisonViewClosed(source, event)});
 
         end % attachComparisonViewListeners
 
@@ -2681,9 +2681,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 "RunAddBatch", ...
                 runAddBatchApp, ...
                 {"Applied", ...
-                @(source, event) app.onBatchExperimentSelectionApplied(source, event); ...
-                "Closed", ...
-                @(source, event) app.onRunAddBatchClosed(source, event)});
+                 @(source, event) app.onBatchExperimentSelectionApplied(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onRunAddBatchClosed(source, event)});
 
         end % attachRunAddBatchListeners
 
@@ -4392,6 +4392,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     app.ProjectDirectoryDropDown.Value = projectDirectory;
                     app.ProjectLoadButtonPushed();
                 end
+
             catch exception
                 app.notifyException( ...
                     exception, ...
@@ -4473,7 +4474,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     selectedValue;
                 app.LogTextDate( ...
                     message + newline + string(exception.message), ...
-                    "Error");
+                "Error");
                 return
             end
 
@@ -4515,7 +4516,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if ~isfolder(value)
                 app.LogTextDate( ...
                     "Selected directory does not exist: " + value, ...
-                    "Error");
+                "Error");
                 return
             end
 
@@ -4561,7 +4562,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             [files, isOK] = app.uiGetFileWrap( ...
                 Filter = {'*.xlsx;*.xls', ...
-                'Excel Files (*.xlsx, *.xls)'}, ...
+                      'Excel Files (*.xlsx, *.xls)'}, ...
                 Title = 'Select Experimental Data File', ...
                 MultiSelect = "on");
 
@@ -4587,6 +4588,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             selection = app.ExpTable.Selection;
 
             if isempty(selection) || size(selection, 1) ~= 1
+
                 if isempty(selection)
                     message = "Please select an experiment to view MS data.";
                 else
@@ -4606,7 +4608,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.notifyWarning( ...
                     "MDV-derived tables have not been calculated. " + ...
                     "Press Calculate MDV in the Experiment tab before " + ...
-                    "viewing MDV, biomass-corrected MDV or enrichment data.");
+                "viewing MDV, biomass-corrected MDV or enrichment data.");
             end
 
             app.closeMSViewApp();
@@ -4736,10 +4738,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function openPreferences(app)
 
             try
+
                 if ~isempty(app.PreferencesApp) && isvalid(app.PreferencesApp)
                     figure(app.PreferencesApp.PreferencesUIFigure);
                     return
                 end
+
             catch
                 app.PreferencesApp = [];
             end
@@ -5086,6 +5090,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function TemplateModelBrowseButtonPushed(app, event)
 
             app.browseTemplateModelDirectory();
+
         end
 
         % Button pushed function: TemplateModelLoadButton
@@ -5118,6 +5123,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ModelReloadButtonPushed(app, event)
 
             app.reloadModelView();
+
         end
 
         % Button pushed function: ModelEditButton
@@ -5128,6 +5134,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.beginPresentationEdit(EditTarget.Model);
 
             app.LogTextDate("Model table is now editable", "Info");
+
         end
 
         % Button pushed function: ModelSaveButton
@@ -5148,6 +5155,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ModelTableCellSelection(app, event)
 
             app.showSelectedPathwayReaction(event.Indices);
+
         end
 
         % Menu selected function: AddLabelMenu
@@ -5180,6 +5188,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function MSReloadButtonPushed(app, event)
 
             app.reloadMassSpectrometryView();
+
         end
 
         % Button pushed function: MSEditButton
@@ -5190,6 +5199,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.beginPresentationEdit(EditTarget.MassSpectrometry);
 
             app.LogTextDate("MS table is now editable", "Info");
+
         end
 
         % Button pushed function: MSSaveButton
@@ -5245,6 +5255,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ViewMStableMenuSelected(app, event)
 
             app.openSelectedMSView();
+
         end
 
         % Button pushed function: TracerConfigButton
@@ -5257,6 +5268,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             viewModel = app.LabelConfigPresenter ...
                 .presentLaunchOutcome(outcome);
             app.renderLabelConfigLaunchViewModel(viewModel);
+
         end
 
         % Button pushed function: TracerReloadButton
@@ -5268,6 +5280,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 "Tracer and uptake tables reloaded", ...
             "Info");
             app.LogText(msg);
+
         end
 
         % Button pushed function: TracerSaveButton
@@ -5281,6 +5294,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function LabelTableDoubleClicked(app, event)
 
             app.openTracerFromInteraction(event.InteractionInformation);
+
         end
 
         % Key press function: UptakeTable
@@ -5298,12 +5312,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentAutoFillOutcome( ...
                 outcome, batch));
+
         end
 
         % Button pushed function: RunConfigButton
         function RunConfigButtonPushed(app, ~)
 
             app.openRunConfiguration();
+
         end
 
         % Button pushed function: RunReloadButton
@@ -5312,6 +5328,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentReloaded( ...
                 app.ApplicationController.batch()));
+
         end
 
         % Button pushed function: RunSaveButton
@@ -5322,6 +5339,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentSaveOutcome( ...
                 outcome, batch));
+
         end
 
         % Button pushed function: RunRunButton
@@ -5335,6 +5353,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function RunAddbatchMenuSelected(app, ~)
 
             app.openParallelBatchEditor();
+
         end
 
         % Menu selected function: RemovethisbatchMenu
@@ -5363,6 +5382,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadMainResultTable(app);
             updateResultPlot(app);
+
         end
 
         % Cell selection callback: ResultSubTable
@@ -5370,6 +5390,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadMainResultTable(app);
             updateResultPlot(app);
+
         end
 
         % Cell edit callback: ResultSubTable
@@ -5381,6 +5402,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ResultMainTableCellSelection(app, event)
 
             updateResultPlot(app);
+
         end
 
         % Button pushed function: ResultReportButton
@@ -5400,6 +5422,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.handleResultAvailable([]);
             app.renderResultOperationViewModel( ...
                 app.ResultPresenter.presentReloaded());
+
         end
 
         % Button pushed function: ResultSaveButton
@@ -5413,6 +5436,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ReloadWindowMenuSelected(app, event)
 
             app.reloadMainWindow();
+
         end
 
         % Menu selected function: PreferencesMenu
@@ -5432,6 +5456,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.ResultMainTable.RowName, ...
                 selectedRows);
             app.renderResultRelativeViewModel(viewModel);
+
         end
 
         % Menu selected function: RangeplotMenu
@@ -5445,6 +5470,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ViewsuggestionMenuSelected(app, ~)
 
             app.showSuggestion();
+
         end
 
         % Menu selected function: CopythistracerforallentriesMenu
@@ -5485,6 +5511,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 msg, ...
                 Title = "About OpenMebius2", ...
                 ShowAlert = true));
+
         end
 
         % Menu selected function: ClearcacheMenu
@@ -5492,6 +5519,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             % Clear cache directory
             app.clearHistory();
+
         end
 
         % Menu selected function: ExporttemplateExcelfileMenu
@@ -5505,6 +5533,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ViewlogsMenuSelected(app, event)
 
             app.LogApp = AppLogs();
+
         end
 
         % Key press function: OpenMebius2UIFigure
