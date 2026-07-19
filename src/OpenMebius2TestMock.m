@@ -13,9 +13,48 @@ classdef OpenMebius2TestMock < OpenMebius2
                              fullfile(string(tempdir), "b.txt")
                              ]
         Test_GetFileOK (1, 1) logical = true
+
+        Test_TriggerCancelDuringRun (1, 1) logical = false
+        Test_RunInvoked (1, 1) logical = false
+        Test_CancelInvoked (1, 1) logical = false
+        Test_ReportCreated (1, 1) logical = false
+        Test_ReportViewed (1, 1) logical = false
+        Test_ReportOutput (1, 1) string = ""
+        Test_Alerts (:, 1) string = strings(0, 1)
     end
 
     methods (Access = protected)
+
+        function dependencies = createMainAppDependencies(app)
+
+            batchRunController = openmebius.application.batch ...
+                .BatchRunController( ...
+                    Runner = @(batch, directory, reporters) ...
+                        app.executeSmokeBatch( ...
+                            batch, directory, reporters), ...
+                    Canceler = @(batch) app.cancelSmokeBatch(batch));
+            reportRepository = struct( ...
+                "create", @(location, model, experiments, result) ...
+                    app.createSmokeReport( ...
+                        location, model, experiments, result), ...
+                "view", @(report) app.viewSmokeReport(report), ...
+                "outputPath", @(report, location) ...
+                    app.writeSmokeReport(report, location));
+            reportService = openmebius.application.report ...
+                .ReportGenerationService( ...
+                    ReportRepository = reportRepository);
+            resultController = openmebius.application.result ...
+                .ResultOperationController( ...
+                    ReportGenerationService = reportService);
+            dependencies = openmebius.bootstrap ...
+                .MainAppCompositionRoot.create( ...
+                    BatchRunController = batchRunController, ...
+                    ResultController = resultController);
+
+        end
+
+        function performStartupUpdateCheck(~)
+        end
 
         function [folder, isOK] = uiGetDirWrap(app, varargin)
             %#ok<*INUSD>
@@ -99,6 +138,66 @@ classdef OpenMebius2TestMock < OpenMebius2
                 end
 
             end
+
+        end
+
+        function uiAlertWrap(app, message, varargin)
+
+            app.Test_Alerts(end + 1, 1) = string(message);
+
+        end
+
+        function result = executeSmokeBatch( ...
+                app, ~, ~, ~)
+
+            app.Test_RunInvoked = true;
+
+            if app.Test_TriggerCancelDuringRun
+                callback = app.RunRunButton.ButtonPushedFcn;
+                callback(app.RunRunButton, []);
+            end
+
+            result = openmebius.application.batch ...
+                .BatchExecutionResult( ...
+                    ~app.Test_CancelInvoked, ...
+                    Canceled = app.Test_CancelInvoked);
+
+        end
+
+        function cancelSmokeBatch(app, ~)
+
+            app.Test_CancelInvoked = true;
+
+        end
+
+        function report = createSmokeReport(app, varargin)
+
+            app.Test_ReportCreated = true;
+            report = struct("Type", "UI smoke report");
+
+        end
+
+        function viewSmokeReport(app, ~)
+
+            app.Test_ReportViewed = true;
+
+        end
+
+        function path = writeSmokeReport(app, ~, location)
+
+            path = location.summaryReportFile();
+            fid = fopen(path, "w");
+
+            if fid < 0
+                error( ...
+                    "OpenMebius2:Test:ReportWriteFailed", ...
+                    "Could not create UI smoke report: %s", path);
+            end
+
+            cleanup = onCleanup(@() fclose(fid));
+            fprintf(fid, "<html><body>OpenMebius2 smoke report</body></html>");
+            clear cleanup
+            app.Test_ReportOutput = path;
 
         end
 

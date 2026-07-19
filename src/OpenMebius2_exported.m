@@ -436,6 +436,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function uiAlertWrap
 
+        function dependencies = createMainAppDependencies(~)
+
+            dependencies = openmebius.bootstrap ...
+                .MainAppCompositionRoot.create();
+
+        end % createMainAppDependencies
+
+        function performStartupUpdateCheck(app)
+
+            app.checkLatestVersionOnStartup();
+
+        end % performStartupUpdateCheck
+
     end % methods (Access = protected)
 
     methods (Access = private)
@@ -4536,8 +4549,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.setLogFile();
             app.DialogService = openmebius.presentation.dialog ...
                 .AppDialogService(app.OpenMebius2UIFigure);
-            dependencies = openmebius.bootstrap ...
-                .MainAppCompositionRoot.create();
+            dependencies = app.createMainAppDependencies();
             app.applyApplicationDependencies(dependencies);
             app.ApplicationController.setNotificationReporter( ...
                 @(notification) app.handleNotification(notification));
@@ -4552,7 +4564,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.initLog();
             app.initStatusTable();
             app.initializePresentation();
-            app.checkLatestVersionOnStartup();
+            app.performStartupUpdateCheck();
             filepath = app.normalizeStartupProjectInput(filepath);
 
             if filepath == ""
@@ -5191,6 +5203,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Code that executes after component creation
         function startupFcn(app, filepath)
+
+            if nargin < 2
+                filepath = "";
+            end
 
             app.initializeMainApp(filepath);
 

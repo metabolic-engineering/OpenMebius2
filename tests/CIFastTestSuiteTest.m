@@ -33,6 +33,8 @@ classdef CIFastTestSuiteTest < matlab.unittest.TestCase
                 testFiles, "IntegrationTest.m")));
             testCase.verifyFalse(any(contains( ...
                 testFiles, "IntegratedTest.m")));
+            testCase.verifyFalse(any(contains( ...
+                testFiles, "WorkflowSmokeTest.m")));
 
         end
 
