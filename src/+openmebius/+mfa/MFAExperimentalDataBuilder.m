@@ -5,14 +5,14 @@ classdef MFAExperimentalDataBuilder
     methods
 
         function result = build( ...
-                ~, model, experiments, experimentList, msConfig)
+                ~, model, experiments, experimentList, selection)
 
             arguments
                 ~
                 model
                 experiments
                 experimentList
-                msConfig (1, 1) struct
+                selection (1, 1) openmebius.mfa.MSFragmentSelection
             end
 
             fragmentList = string(model.getTargetMetaboliteList());
@@ -29,7 +29,7 @@ classdef MFAExperimentalDataBuilder
             [fragmentList, selectedFragmentList] = ...
                 openmebius.mfa.MFAExperimentalDataBuilder ...
                 .resolveFragmentSelection( ...
-                model, fragmentList, msConfig);
+                model, fragmentList, selection);
             massCounts = ...
                 openmebius.mfa.MFAExperimentalDataBuilder ...
                 .resolveMassCounts(model, fragmentList);
@@ -90,17 +90,9 @@ classdef MFAExperimentalDataBuilder
     methods (Static, Access = private)
 
         function [fragmentList, selectedFragmentList] = ...
-                resolveFragmentSelection(model, fragmentList, msConfig)
+                resolveFragmentSelection(model, fragmentList, selection)
 
-            if ~isfield(msConfig, 'fragment') || ...
-                    isempty(msConfig.fragment)
-                error( ...
-                    "OpenMebius2:MFAExperimentalDataBuilder:" + ...
-                    "MissingFragmentSelection", ...
-                    "MS fragment selection is required.");
-            end
-
-            if string(msConfig.fragment) == "all"
+            if selection.Mode.usesModelSelection()
                 msTable = model.getMSTable();
 
                 if ~ismember('Used', ...
@@ -119,17 +111,8 @@ classdef MFAExperimentalDataBuilder
                 return;
             end
 
-            if ~isfield(msConfig, 'fragmentList') || ...
-                    ~isfield(msConfig, 'customFragment')
-                error( ...
-                    "OpenMebius2:MFAExperimentalDataBuilder:" + ...
-                    "IncompleteCustomFragmentSelection", ...
-                    "Custom MS fragment selection requires a fragment " + ...
-                    "list and mask.");
-            end
-
-            configuredFragments = string(msConfig.fragmentList(:));
-            configuredMask = logical(msConfig.customFragment(:));
+            configuredFragments = selection.Fragments;
+            configuredMask = selection.SelectedMask;
 
             if numel(configuredFragments) ~= numel(configuredMask) || ...
                     isempty(configuredFragments) || ...

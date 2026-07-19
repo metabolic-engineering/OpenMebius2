@@ -23,12 +23,13 @@ classdef BatchRunServiceQueueStub < handle
 
         end
 
-        function status = run(obj, varargin)
+        function result = run(obj, varargin)
 
             obj.CallCount = obj.CallCount + 1;
             obj.BatchIds(end + 1, 1) = string(varargin{6});
             obj.CreateArguments = varargin;
             status = obj.Statuses(obj.CallCount);
+            result = helpers.BatchRunServiceQueueStub.toResult(status);
             provenanceIndex = obj.namedArgumentIndex( ...
                 varargin, "Provenance");
 
@@ -47,6 +48,25 @@ classdef BatchRunServiceQueueStub < handle
     end
 
     methods (Static, Access = private)
+
+        function result = toResult(status)
+
+            switch lower(strtrim(string(status)))
+                case "finished"
+                    result = openmebius.application.batch ...
+                        .BatchExecutionResult(true);
+                case "canceled"
+                    result = openmebius.application.batch ...
+                        .BatchExecutionResult(false, Canceled = true);
+                otherwise
+                    result = openmebius.application.batch ...
+                        .BatchExecutionResult( ...
+                            false, ...
+                            ErrorMessage = ...
+                                "One or more batch jobs failed.");
+            end
+
+        end
 
         function invokeCallback(arguments, name, payload)
 

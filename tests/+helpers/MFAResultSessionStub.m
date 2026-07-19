@@ -2,7 +2,8 @@ classdef MFAResultSessionStub < handle
 
     properties
         Result = struct
-        Status (1, :) double = zeros(1, 4)
+        Progress (1, 1) openmebius.application.analysis.AnalysisProgress = ...
+            openmebius.application.analysis.AnalysisProgress()
         Calls (:, 1) string = strings(0, 1)
         SummaryObjectiveValues double = []
         SummaryOrder double = []

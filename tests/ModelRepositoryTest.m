@@ -20,9 +20,65 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
             model = repository.load(modelLocation);
 
             testCase.verifyClass(model, "EMUModel");
+            testCase.verifyTrue(isa( ...
+                model, ...
+                "openmebius.application.model.ModelWorkspace"));
             testCase.verifyEqual( ...
                 model.getModelLocation().Directory, ...
                 modelLocation.Directory);
+
+        end
+
+        function loadedModelExposesEmuNetworkSnapshot(testCase)
+
+            repository = openmebius.infrastructure.model.ModelRepository();
+            model = repository.load( ...
+                ModelRepositoryTest.templateModelLocation());
+
+            snapshot = model.getEMUNetworkSnapshot();
+
+            testCase.verifyClass( ...
+                snapshot, ...
+                "openmebius.domain.model.EMUNetworkSnapshot");
+            testCase.verifyNotEmpty(snapshot.TableEMU);
+            testCase.verifyNotEmpty(snapshot.TableEMUReaction);
+
+        end
+
+        function loadedModelExposesPathwayData(testCase)
+
+            repository = openmebius.infrastructure.model.ModelRepository();
+            model = repository.load( ...
+                ModelRepositoryTest.templateModelLocation());
+
+            pathway = model.getPathwayData();
+
+            testCase.verifyClass( ...
+                pathway, ...
+                "openmebius.application.model.ModelPathwayData");
+            testCase.verifyNotEmpty(pathway.Image);
+            testCase.verifyNotEmpty(pathway.ReactionIDs);
+            testCase.verifyEqual( ...
+                numel(pathway.ReactionIDs), numel(pathway.X));
+            testCase.verifyEqual( ...
+                numel(pathway.ReactionIDs), numel(pathway.Y));
+
+            reactionID = pathway.ReactionIDs(1);
+            model.updatePathwayLabelPosition( ...
+                reactionID, [12.5 4.25]);
+            updated = model.getPathwayData();
+            updatedRow = find(updated.ReactionIDs == reactionID, 1);
+
+            testCase.verifyEqual(updated.X(updatedRow), 12.5);
+            testCase.verifyEqual(updated.Y(updatedRow), 4.25);
+
+            model.updatePathwayLabelPosition( ...
+                reactionID, [nan nan]);
+            removed = model.getPathwayData();
+            removedRow = find(removed.ReactionIDs == reactionID, 1);
+
+            testCase.verifyTrue(isnan(removed.X(removedRow)));
+            testCase.verifyTrue(isnan(removed.Y(removedRow)));
 
         end
 

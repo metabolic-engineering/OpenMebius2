@@ -13,7 +13,7 @@ classdef RawMSImportService < handle
 
             arguments
                 options.RawMSDataRepository = ...
-                    openmebius.infrastructure.legacy.LegacyRawMSDataRepository()
+                    openmebius.infrastructure.experiment.RawMSDataRepository()
                 options.ExperimentImportService = ...
                     openmebius.application.experiment.ExperimentImportService()
             end

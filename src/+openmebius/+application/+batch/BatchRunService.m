@@ -18,7 +18,7 @@ classdef BatchRunService
 
         end % constructor
 
-        function status = run( ...
+        function result = run( ...
                 obj, model, experiments, experimentNames, config, ...
                 resultInput, batchId, options)
 
@@ -49,7 +49,8 @@ classdef BatchRunService
             listeners(end + 1, 1) = addlistener( ...
                 analysis, ...
                 'GeneralMsg', ...
-                @(~, eventData) options.MessageReporter(eventData));
+                @(~, eventData) options.MessageReporter( ...
+                    eventData.Notification));
             listeners(end + 1, 1) = addlistener( ...
                 analysis, ...
                 'FluxResult', ...
@@ -60,9 +61,9 @@ classdef BatchRunService
             runCleanup = onCleanup(@() analysis.finalizeRun());
 
             analysis.calculateFluxDistribution();
-            status = obj.terminalStatus(analysis);
+            result = obj.terminalResult(analysis);
 
-            if status ~= ""
+            if ~isempty(result)
                 return
             end
 
@@ -73,9 +74,9 @@ classdef BatchRunService
                 analysis.suggestNextFluxExperiment();
             end
 
-            status = obj.terminalStatus(analysis);
+            result = obj.terminalResult(analysis);
 
-            if status ~= ""
+            if ~isempty(result)
                 return
             end
 
@@ -83,10 +84,11 @@ classdef BatchRunService
                 analysis.calculateConfidenceInterval();
             end
 
-            status = obj.terminalStatus(analysis);
+            result = obj.terminalResult(analysis);
 
-            if status == ""
-                status = "finished";
+            if isempty(result)
+                result = openmebius.application.batch ...
+                    .BatchExecutionResult(true);
             end
 
         end % run
@@ -95,17 +97,21 @@ classdef BatchRunService
 
     methods (Static, Access = private)
 
-        function status = terminalStatus(analysis)
+        function result = terminalResult(analysis)
 
             if analysis.isCanceled
-                status = "canceled";
+                result = openmebius.application.batch ...
+                    .BatchExecutionResult(false, Canceled = true);
             elseif analysis.isError
-                status = "error";
+                result = openmebius.application.batch ...
+                    .BatchExecutionResult( ...
+                        false, ...
+                        ErrorMessage = "Batch analysis failed.");
             else
-                status = "";
+                result = [];
             end
 
-        end % terminalStatus
+        end % terminalResult
 
         function deleteListeners(listeners)
 

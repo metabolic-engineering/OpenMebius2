@@ -17,7 +17,7 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
             [service, analysis] = BatchRunServiceTest.createService();
             recorder = helpers.BatchRunCallbackRecorder();
 
-            status = service.run( ...
+            result = service.run( ...
                 struct, ...
                 struct, ...
                 "experiment-a", ...
@@ -29,7 +29,7 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
                 ResultReporter = ...
                 @(eventData) recorder.recordResult(eventData));
 
-            testCase.verifyEqual(status, "finished");
+            testCase.verifyTrue(result.isSuccess());
             testCase.verifyEqual(analysis.Calls, "flux");
             testCase.verifyEqual(analysis.FinalizeCount, 1);
             testCase.verifyEqual(recorder.MessageCount, 1);
@@ -43,9 +43,9 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
             config.isCalcCI = true;
             [service, analysis] = BatchRunServiceTest.createService(config);
 
-            status = BatchRunServiceTest.runService(service, analysis.Config);
+            result = BatchRunServiceTest.runService(service, analysis.Config);
 
-            testCase.verifyEqual(status, "finished");
+            testCase.verifyTrue(result.isSuccess());
             testCase.verifyEqual(analysis.Calls, ["flux", "ci"]);
 
         end
@@ -57,9 +57,9 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
             config.isCalcCI = true;
             [service, analysis] = BatchRunServiceTest.createService(config);
 
-            status = BatchRunServiceTest.runService(service, analysis.Config);
+            result = BatchRunServiceTest.runService(service, analysis.Config);
 
-            testCase.verifyEqual(status, "finished");
+            testCase.verifyTrue(result.isSuccess());
             testCase.verifyEqual(analysis.Calls, ["flux", "suggest"]);
 
         end
@@ -71,9 +71,9 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
             [service, analysis] = BatchRunServiceTest.createService( ...
                 config, "error-suggest");
 
-            status = BatchRunServiceTest.runService(service, analysis.Config);
+            result = BatchRunServiceTest.runService(service, analysis.Config);
 
-            testCase.verifyEqual(status, "error");
+            testCase.verifyTrue(result.isFailure());
             testCase.verifyEqual(analysis.Calls, ["flux", "suggest"]);
             testCase.verifyEqual(analysis.FinalizeCount, 1);
 
@@ -84,9 +84,9 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
             [service, analysis] = BatchRunServiceTest.createService( ...
                 [], "cancel-flux");
 
-            status = BatchRunServiceTest.runService(service, analysis.Config);
+            result = BatchRunServiceTest.runService(service, analysis.Config);
 
-            testCase.verifyEqual(status, "canceled");
+            testCase.verifyTrue(result.isCanceled());
             testCase.verifyEqual(analysis.Calls, "flux");
             testCase.verifyEqual(analysis.FinalizeCount, 1);
 
@@ -136,9 +136,9 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
 
         end
 
-        function status = runService(service, config)
+        function result = runService(service, config)
 
-            status = service.run( ...
+            result = service.run( ...
                 struct, ...
                 struct, ...
                 "experiment-a", ...

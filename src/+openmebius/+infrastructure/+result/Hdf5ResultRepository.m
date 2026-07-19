@@ -4,6 +4,188 @@ classdef Hdf5ResultRepository < handle
 
     methods
 
+        function data = readResultData(obj, resultLocation, id, options)
+
+            arguments
+                obj
+                resultLocation openmebius.domain.result.ResultLocation
+                id (1, 1) string
+                options.ReadStatus (1, 4) logical = ...
+                    [true, true, true, true]
+            end
+
+            filePath = obj.requireResultFile(resultLocation, id);
+            data = struct;
+            data.ID = h5read(filePath, "/ID");
+            data.status = h5read(filePath, "/status");
+
+            enabledStatus = logical(data.status(:).') & ...
+                options.ReadStatus;
+
+            if enabledStatus(1)
+                data.model.modelID = ...
+                    h5read(filePath, "/model/modelID");
+                data.model.modelReaction = ...
+                    h5read(filePath, "/model/modelReaction");
+                data.MDVExp = h5read(filePath, "/MDVExp");
+                data.MDVExpName = h5read(filePath, "/MDVFragList");
+                data.MDVFragMask = h5read(filePath, "/MDVFragMask");
+                data.fluxVariability.fluxUBFwd = h5read( ...
+                    filePath, "/fluxVariability/fluxUBFwd");
+                data.fluxVariability.fluxLBFwd = h5read( ...
+                    filePath, "/fluxVariability/fluxLBFwd");
+                data.fluxVariability.time = h5read( ...
+                    filePath, "/fluxVariability/time");
+
+                data.initialFlux.fluxFwd = h5read( ...
+                    filePath, "/initialFlux/fluxFwd");
+                data.initialFlux.RSS = h5read( ...
+                    filePath, "/initialFlux/RSS");
+                data.initialFlux.time = h5read( ...
+                    filePath, "/initialFlux/time");
+            end
+
+            if enabledStatus(2)
+                data.RSS = h5read(filePath, "/RSS");
+                data.RSSIdx = h5read(filePath, "/RSSIndex");
+                data.threshold = h5read(filePath, "/threshold");
+
+                for i = 1:length(data.RSSIdx)
+                    iterationName = string(sprintf( ...
+                        "%04d", data.RSSIdx(i)));
+                    fieldName = "fluxResult" + iterationName;
+                    address = "/fluxResult/" + iterationName;
+                    data.(fieldName).fluxFwd = h5read( ...
+                        filePath, address + "/fluxFwd");
+                    data.(fieldName).RSS = h5read( ...
+                        filePath, address + "/RSS");
+                    data.(fieldName).MDV = h5read( ...
+                        filePath, address + "/MDV");
+                    data.(fieldName).exitflag = h5read( ...
+                        filePath, address + "/exitflag");
+                    data.(fieldName).time = h5read( ...
+                        filePath, address + "/time");
+                end
+            end
+
+            if enabledStatus(3)
+                data.fluxLB = h5read(filePath, "/fluxLB");
+                data.fluxUB = h5read(filePath, "/fluxUB");
+            end
+
+        end % readResultData
+
+        function data = readConfidenceInterval( ...
+                obj, resultLocation, id, reactionId)
+
+            arguments
+                obj
+                resultLocation openmebius.domain.result.ResultLocation
+                id (1, 1) string
+                reactionId (1, 1) string
+            end
+
+            filePath = obj.requireResultFile(resultLocation, id);
+            status = h5read(filePath, "/status");
+            data = [];
+
+            if numel(status) < 3 || ...
+                    ~(status(1) && status(2) && status(3))
+                return
+            end
+
+            data = struct;
+            data.status = status;
+            data.RxnID = reactionId;
+            data.model.modelID = h5read(filePath, "/model/modelID");
+            data.model.modelReaction = h5read( ...
+                filePath, "/model/modelReaction");
+            data.fluxVariability.fluxUBFwd = h5read( ...
+                filePath, "/fluxVariability/fluxUBFwd");
+            data.fluxVariability.fluxLBFwd = h5read( ...
+                filePath, "/fluxVariability/fluxLBFwd");
+            data.RSSIdx = h5read(filePath, "/RSSIndex");
+            iterationName = string(sprintf("%04d", data.RSSIdx(1)));
+            data.fluxFwd = h5read( ...
+                filePath, "/fluxResult/" + iterationName + "/fluxFwd");
+            data.fluxLB = h5read(filePath, "/fluxLB");
+            data.fluxUB = h5read(filePath, "/fluxUB");
+            data.CI.algorithm = string(h5read(filePath, "/CI/algorithm"));
+
+            if data.CI.algorithm == "Monte Carlo"
+                data.CI.flux = h5read(filePath, "/CI/fluxes");
+                data.CI.fluxLB = h5read(filePath, "/CI/fluxLB");
+                data.CI.fluxUB = h5read(filePath, "/CI/fluxUB");
+            end
+
+        end % readConfidenceInterval
+
+        function [isAvailable, data] = readNextLabelSuggestion( ...
+                ~, resultLocation, id)
+
+            arguments
+                ~
+                resultLocation openmebius.domain.result.ResultLocation
+                id (1, 1) string
+            end
+
+            isAvailable = resultLocation.hasResultFile(id);
+            data = struct;
+
+            if ~isAvailable
+                return
+            end
+
+            filePath = resultLocation.resultFile(id);
+
+            try
+                data.ID = h5read(filePath, "/model/modelID");
+                data.ID = [data.ID; "biomass"];
+                data.rxn = h5read(filePath, "/model/modelReaction");
+                data.rxn = [data.rxn; "biomass"];
+                data.colName = h5read( ...
+                    filePath, "/nextLabelPattern/suggestionTable/colName");
+                data.data = h5read( ...
+                    filePath, "/nextLabelPattern/suggestionTable/data");
+                data.fluxLB = h5read(filePath, "/fluxLB");
+                data.fluxUB = h5read(filePath, "/fluxUB");
+                rssIndex = h5read(filePath, "/RSSIndex");
+                iterationName = string(sprintf("%04d", rssIndex(1)));
+                data.bestfit = h5read( ...
+                    filePath, ...
+                    "/fluxResult/" + iterationName + "/fluxFwd");
+                data.FVALB = h5read( ...
+                    filePath, "/fluxVariability/fluxLBFwd");
+                data.FVAUB = h5read( ...
+                    filePath, "/fluxVariability/fluxUBFwd");
+            catch
+                isAvailable = false;
+                data = struct;
+                return
+            end
+
+            try
+                numPatterns = size(data.data, 1);
+                data.patternLabel = strings(numPatterns, 1);
+
+                for i = 1:numPatterns
+                    pattern = data.data(i, :);
+                    patternName = matlab.lang.makeValidName( ...
+                        strjoin(pattern, '_'));
+                    data.patternLabel(i) = patternName;
+                    data.(patternName).fluxLB = h5read( ...
+                        filePath, ...
+                        "/nextLabelPattern/" + patternName + "/fluxLB");
+                    data.(patternName).fluxUB = h5read( ...
+                        filePath, ...
+                        "/nextLabelPattern/" + patternName + "/fluxUB");
+                end
+            catch
+                % Per-pattern bounds are optional for legacy result files.
+            end
+
+        end % readNextLabelSuggestion
+
         function assertResultDirectory(~, resultLocation)
 
             arguments
@@ -144,5 +326,22 @@ classdef Hdf5ResultRepository < handle
         end % writeRunCompletion
 
     end % methods
+
+    methods (Access = private)
+
+        function pathFile = requireResultFile(~, resultLocation, id)
+
+            if ~resultLocation.hasResultFile(id)
+                error( ...
+                    "OpenMebius2:Hdf5ResultRepository:ResultFileNotFound", ...
+                    "Result file does not exist: %s", ...
+                    resultLocation.resultFile(id));
+            end
+
+            pathFile = resultLocation.resultFile(id);
+
+        end % requireResultFile
+
+    end % methods (Access = private)
 
 end % classdef

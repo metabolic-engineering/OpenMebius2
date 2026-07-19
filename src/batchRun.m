@@ -2,8 +2,10 @@ dirExp = "../tutorial/ecoli/experiments";
 dirModel = "../tutorial/ecoli/model";
 dirResult = "../tutorial/ecoli/results";
 
-exp = IOExps(fullfile(dirExp), fullfile(dirModel));
+exp = openmebius.application.experiment.ExperimentWorkspace( ...
+    fullfile(dirExp), ...
+    fullfile(dirModel));
 
-batchInstance = Batch(exp);
+batchInstance = openmebius.application.batch.BatchSession(exp);
 batchInstance.loadBatchFile(dirExp);
 batchInstance.runBatch(dirResult);

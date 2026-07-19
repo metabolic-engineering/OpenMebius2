@@ -25,7 +25,9 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
             result = repository.open(resultLocation);
 
-            testCase.verifyClass(result, "IOResult");
+            testCase.verifyClass( ...
+                result, ...
+                "openmebius.application.result.ResultWorkspace");
             testCase.verifyEqual( ...
                 result.getResultLocation().Directory, ...
                 resultDirectory);
@@ -63,6 +65,62 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
             testCase.verifyFalse(isprop(result, "statusMsg"));
 
             clear cleanup
+
+        end
+
+        function openedResultUsesInjectedHdf5Repository(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            cleanup = onCleanup(@() ...
+                ResultRepositoryTest.removeDirectory(resultDirectory));
+
+            reader = helpers.RecordingResultDataRepository();
+            repository = openmebius.infrastructure.result.ResultRepository( ...
+                Hdf5ResultRepository = reader);
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(resultDirectory);
+            resultId = "delegated-result";
+            fileId = fopen(resultLocation.resultFile(resultId), "w");
+            testCase.assertGreaterThan(fileId, 0);
+            fclose(fileId);
+
+            result = repository.open(resultLocation);
+            data = result.loadResultFile( ...
+                resultId, ...
+                readstatus = [true, false, false, false]);
+
+            testCase.verifyEqual(data, reader.ResultData);
+            testCase.verifyEqual(reader.ReadCount, 1);
+            testCase.verifyEqual(reader.ResultLocation, resultLocation);
+            testCase.verifyEqual(reader.ResultId, resultId);
+            testCase.verifyEqual( ...
+                reader.ReadStatus, ...
+                [true, false, false, false]);
+
+            clear cleanup
+
+        end
+
+        function loadFailureIsReportedThroughCoreMessage(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            observer = helpers.AnalysisNotificationObserverStub();
+            result = openmebius.application.result.ResultWorkspace( ...
+                resultDirectory, ...
+                NotificationReporter = ...
+                    @(message) observer.publish(message));
+            rmdir(resultDirectory, 's');
+
+            data = result.loadResultFile("missing");
+
+            testCase.verifyEmpty(data);
+            testCase.verifyEqual(observer.EventCount, 1);
+            testCase.verifyClass( ...
+                observer.LastEvent, ...
+                'openmebius.core.notification.Message');
+            testCase.verifyEqual(observer.LastEvent.Level, "error");
 
         end
 

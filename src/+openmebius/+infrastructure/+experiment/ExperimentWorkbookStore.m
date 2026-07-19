@@ -2,7 +2,7 @@ classdef ExperimentWorkbookStore < handle
     % EXPERIMENTWORKBOOKSTORE Maps experiment workbooks to persistence DTOs.
 
     properties (Access = private)
-        MessagePublisher
+        MessageReporter
     end
 
     properties (Constant, Access = private)
@@ -26,11 +26,11 @@ classdef ExperimentWorkbookStore < handle
         function obj = ExperimentWorkbookStore(options)
 
             arguments
-                options.MessagePublisher = openmebius.presentation ...
-                    .notification.GeneralMessagePublisher()
+                options.MessageReporter = openmebius.infrastructure.logging ...
+                    .MessageReporter()
             end
 
-            obj.MessagePublisher = options.MessagePublisher;
+            obj.MessageReporter = options.MessageReporter;
 
         end % constructor
 
@@ -398,7 +398,7 @@ classdef ExperimentWorkbookStore < handle
 
         function publish(obj, level, message)
 
-            obj.MessagePublisher.write(string(level), string(message));
+            obj.MessageReporter.report(string(level), string(message));
 
         end % publish
 

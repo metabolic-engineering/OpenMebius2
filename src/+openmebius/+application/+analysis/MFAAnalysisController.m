@@ -1,0 +1,273 @@
+classdef MFAAnalysisController < handle
+    % MFAANALYSISCONTROLLER Coordinates commands for one MFA analysis.
+
+    properties (SetAccess = private)
+        Model
+        Experiments
+        ExperimentList
+        RunSettings (1, 1) openmebius.application.analysis ...
+            .FluxAnalysisRunSettings
+        RunContext (1, 1) openmebius.application.analysis ...
+            .MFAAnalysisRunContext
+        ResultSession (1, 1) openmebius.application.analysis ...
+            .MFAResultSession
+        InputPreparation = []
+        IsError (1, 1) logical = false
+        IsCanceled (1, 1) logical = false
+        RunScope = []
+        Config (1, 1) struct = struct
+        ResultID (1, 1) string = ""
+        ResultLocation = []
+        ResultFilePath (1, 1) string = ""
+        IsExport (1, 1) logical = false
+        Provenance (1, 1) struct = struct
+        AnalysisRunLifecycle = []
+        Dependencies = []
+        FluxDistributionWorkflow
+        ConfidenceIntervalApplicationWorkflow
+        NextFluxExperimentWorkflow
+    end
+
+    methods
+
+        function obj = MFAAnalysisController( ...
+                model, experiments, experimentList, runSettings, ...
+                runContext, resultSession, options)
+
+            arguments
+                model
+                experiments
+                experimentList
+                runSettings (1, 1) openmebius.application.analysis ...
+                    .FluxAnalysisRunSettings
+                runContext (1, 1) openmebius.application.analysis ...
+                    .MFAAnalysisRunContext
+                resultSession (1, 1) openmebius.application.analysis ...
+                    .MFAResultSession
+                options.FluxDistributionWorkflow = ...
+                    openmebius.application.analysis ...
+                    .MFAFluxDistributionWorkflow()
+                options.ConfidenceIntervalApplicationWorkflow = ...
+                    openmebius.application.analysis ...
+                    .MFAConfidenceIntervalWorkflow()
+                options.NextFluxExperimentWorkflow = ...
+                    openmebius.application.analysis ...
+                    .NextFluxExperimentWorkflow()
+                options.Config (1, 1) struct = struct
+                options.ResultID (1, 1) string = ""
+                options.ResultLocation = []
+                options.ResultFilePath (1, 1) string = ""
+                options.IsExport (1, 1) logical = false
+                options.Provenance (1, 1) struct = struct
+                options.AnalysisRunLifecycle = []
+                options.Dependencies = []
+                options.InitialError (1, 1) logical = false
+            end
+
+            obj.Model = model;
+            obj.Experiments = experiments;
+            obj.ExperimentList = experimentList;
+            obj.RunSettings = runSettings;
+            obj.RunContext = runContext;
+            obj.ResultSession = resultSession;
+            obj.Config = options.Config;
+            obj.ResultID = options.ResultID;
+            obj.ResultLocation = options.ResultLocation;
+            obj.ResultFilePath = options.ResultFilePath;
+            obj.IsExport = options.IsExport;
+            obj.Provenance = options.Provenance;
+            obj.AnalysisRunLifecycle = ...
+                options.AnalysisRunLifecycle;
+            obj.Dependencies = options.Dependencies;
+            obj.IsError = options.InitialError;
+            obj.FluxDistributionWorkflow = ...
+                options.FluxDistributionWorkflow;
+            obj.ConfidenceIntervalApplicationWorkflow = ...
+                options.ConfidenceIntervalApplicationWorkflow;
+            obj.NextFluxExperimentWorkflow = ...
+                options.NextFluxExperimentWorkflow;
+
+        end
+
+        function result = runFluxDistribution(obj, options)
+
+            arguments
+                obj (1, 1) openmebius.application.analysis ...
+                    .MFAAnalysisController
+                options.MessageReporter (1, 1) function_handle = ...
+                    @(~, ~) []
+                options.ProgressReporter (1, 1) function_handle = ...
+                    @(~, ~) []
+            end
+
+            if ~obj.RunSettings.canRunDistribution()
+                message = obj.RunSettings.DistributionErrorMessage;
+                options.MessageReporter("error", message);
+                result = openmebius.application.analysis ...
+                    .MFAFluxDistributionResult( ...
+                    IsError = true, ...
+                    FailureStage = ...
+                        obj.RunSettings.DistributionFailureStage, ...
+                    ErrorMessage = message);
+                obj.recordResult(result);
+                return
+            end
+
+            result = obj.FluxDistributionWorkflow.run( ...
+                obj.Model, ...
+                obj.Experiments, ...
+                obj.ExperimentList, ...
+                obj.RunSettings.DistributionSettings, ...
+                obj.RunContext, ...
+                obj.ResultSession, ...
+                obj.ResultID, ...
+                MessageReporter = options.MessageReporter, ...
+                ProgressReporter = options.ProgressReporter, ...
+                CancellationRequested = ...
+                    @() obj.IsCanceled);
+            obj.InputPreparation = result.InputPreparation;
+            obj.recordResult(result);
+
+        end
+
+        function result = calculateConfidenceInterval(obj, options)
+
+            arguments
+                obj (1, 1) openmebius.application.analysis ...
+                    .MFAAnalysisController
+                options.PersistResult (1, 1) logical = true
+                options.MessageReporter (1, 1) function_handle = ...
+                    @(~, ~) []
+            end
+
+            if ~obj.RunSettings.canCalculateConfidenceInterval()
+                message = ...
+                    obj.RunSettings.ConfidenceIntervalErrorMessage;
+                options.MessageReporter("error", message);
+                result = openmebius.mfa ...
+                    .ConfidenceIntervalWorkflowResult( ...
+                    IsError = true, ...
+                    ErrorMessage = message);
+                obj.recordResult(result);
+                return
+            end
+
+            result = obj.ConfidenceIntervalApplicationWorkflow.run( ...
+                obj.Model, ...
+                obj.RunSettings.ConfidenceIntervalRunSettings, ...
+                obj.RunContext, ...
+                obj.ResultSession, ...
+                obj.InputPreparation, ...
+                PersistResult = options.PersistResult, ...
+                MessageReporter = options.MessageReporter, ...
+                CancellationRequested = ...
+                    @() obj.IsCanceled);
+            obj.recordResult(result);
+
+        end
+
+        function result = suggestNextFluxExperiment(obj, options)
+
+            arguments
+                obj (1, 1) openmebius.application.analysis ...
+                    .MFAAnalysisController
+                options.MessageReporter (1, 1) function_handle = ...
+                    @(~, ~) []
+            end
+
+            if ~obj.RunSettings.canSuggestNextExperiment()
+                message = obj.RunSettings.NextExperimentErrorMessage;
+                options.MessageReporter("error", message);
+                result = openmebius.application.analysis ...
+                    .NextFluxExperimentResult( ...
+                    IsError = true, ...
+                    ErrorMessage = message);
+                obj.recordResult(result);
+                return
+            end
+
+            result = obj.NextFluxExperimentWorkflow.run( ...
+                obj.Model, ...
+                obj.Experiments, ...
+                obj.ExperimentList, ...
+                obj.RunSettings.NextExperimentRunSettings, ...
+                obj.RunContext, ...
+                obj.ResultSession, ...
+                obj.InputPreparation, ...
+                MessageReporter = options.MessageReporter, ...
+                CancellationRequested = ...
+                    @() obj.IsCanceled);
+            obj.recordResult(result);
+
+        end
+
+        function initializeRunScope(obj, options)
+
+            arguments
+                obj (1, 1) openmebius.application.analysis ...
+                    .MFAAnalysisController
+                options.FailureReporter (1, 1) function_handle = ...
+                    @(~) []
+            end
+
+            obj.RunScope = openmebius.application.analysis ...
+                .AnalysisRunScope( ...
+                obj.AnalysisRunLifecycle, ...
+                obj.Config, ...
+                obj.ResultID, ...
+                obj.Model, ...
+                obj.ExperimentList, ...
+                obj.Provenance, ...
+                obj.ResultLocation, ...
+                obj.ResultFilePath, ...
+                IsExport = obj.IsExport, ...
+                FailureReporter = @(message) ...
+                    obj.recordLifecycleFailure( ...
+                    message, options.FailureReporter));
+
+        end
+
+        function finishRun(obj)
+
+            if ~isempty(obj.RunScope)
+                obj.RunScope.finish(obj.IsError, obj.IsCanceled);
+            end
+
+        end
+
+        function requestCancellation(obj)
+
+            obj.IsCanceled = true;
+
+        end
+
+        function recordFailure(obj)
+
+            obj.IsError = true;
+
+        end
+
+    end
+
+    methods (Access = private)
+
+        function recordResult(obj, result)
+
+            if result.IsCanceled
+                obj.IsCanceled = true;
+            elseif result.IsError
+                obj.IsError = true;
+            end
+
+        end
+
+        function recordLifecycleFailure(obj, message, reporter)
+
+            obj.recordFailure();
+            reporter(string(message));
+
+        end
+
+    end
+
+end

@@ -2,7 +2,24 @@ classdef ResultRepository < handle
     % RESULTREPOSITORY
     % Opens result objects and writes result export artifacts.
 
+    properties (Access = private)
+        Hdf5ResultRepository
+    end
+
     methods
+
+        function obj = ResultRepository(options)
+
+            arguments
+                options.Hdf5ResultRepository = ...
+                    openmebius.infrastructure.result ...
+                    .Hdf5ResultRepository()
+            end
+
+            obj.Hdf5ResultRepository = ...
+                options.Hdf5ResultRepository;
+
+        end % constructor
 
         function result = open(obj, resultLocation)
 
@@ -11,12 +28,15 @@ classdef ResultRepository < handle
                 resultLocation openmebius.domain.result.ResultLocation
             end
 
-            result = IOResult(resultLocation, ResultRepository = obj);
+            result = openmebius.application.result.ResultWorkspace( ...
+                resultLocation, ...
+                ResultRepository = obj, ...
+                Hdf5ResultRepository = obj.Hdf5ResultRepository);
 
             if isempty(result) || ~isvalid(result)
                 error( ...
                     "OpenMebius2:ResultRepository:InvalidResultObject", ...
-                    "Failed to create IOResult.");
+                    "Failed to create ResultWorkspace.");
             end
 
         end % open

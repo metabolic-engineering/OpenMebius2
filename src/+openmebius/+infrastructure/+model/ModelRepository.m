@@ -2,7 +2,33 @@ classdef ModelRepository < handle
     % MODELREPOSITORY
     % Loads model objects and model-owned files.
 
+    properties (Access = private)
+        CacheRepository
+        NetworkBuilder
+        MatrixBuilder
+        NetworkEnumerator
+    end
+
     methods
+
+        function obj = ModelRepository(options)
+
+            arguments
+                options.CacheRepository = ...
+                    openmebius.infrastructure.model ...
+                        .EMUNetworkCacheRepository()
+                options.NetworkBuilder = openmebius.mfa.EMUNetworkBuilder()
+                options.MatrixBuilder = openmebius.mfa.EMUMatrixBuilder()
+                options.NetworkEnumerator = ...
+                    openmebius.mfa.EMUNetworkEnumerator()
+            end
+
+            obj.CacheRepository = options.CacheRepository;
+            obj.NetworkBuilder = options.NetworkBuilder;
+            obj.MatrixBuilder = options.MatrixBuilder;
+            obj.NetworkEnumerator = options.NetworkEnumerator;
+
+        end % constructor
 
         function model = load(obj, modelLocation)
 
@@ -11,7 +37,13 @@ classdef ModelRepository < handle
                 modelLocation openmebius.domain.model.ModelLocation
             end
 
-            model = EMUModel(modelLocation, "ModelRepository", obj);
+            model = EMUModel( ...
+                modelLocation, ...
+                ModelRepository = obj, ...
+                CacheRepository = obj.CacheRepository, ...
+                NetworkBuilder = obj.NetworkBuilder, ...
+                MatrixBuilder = obj.MatrixBuilder, ...
+                NetworkEnumerator = obj.NetworkEnumerator);
 
             if isempty(model) || ~isvalid(model)
                 error( ...

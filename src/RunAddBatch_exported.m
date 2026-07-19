@@ -1,5 +1,10 @@
 classdef RunAddBatch_exported < matlab.apps.AppBase
 
+    events
+        Applied
+        Closed
+    end
+
     % Properties that correspond to app components
     properties (Access = public)
         AddbatchUIFigure matlab.ui.Figure
@@ -13,9 +18,9 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
 
     properties (Access = private)
 
-        MainApp % Reference to the main app
-        type % Type of experiments to add
-        batchID % Batch ID for INST-MFA
+        ExperimentNames (:, 1) string
+        Mode (1, 1) string
+        BatchId (1, 1) string = ""
 
     end % private properties
 
@@ -25,11 +30,11 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
         function initTable(app)
             % INITTABLE Initialize the UITable with default properties
 
-            expList = getExpList(app.MainApp.exp);
+            expList = app.ExperimentNames;
 
             dataTable = table( ...
                 false(length(expList), 1), ... % Add column initialized to false
-                expList', ... % Experiment names
+                expList, ... % Experiment names
                 'VariableNames', {'Add', 'Experiment'} ...
             );
 
@@ -45,14 +50,15 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, MainApp, type, batchID)
+        function startupFcn(app, context)
 
-            app.MainApp = MainApp;
-            app.type = type;
+            editor = context.Editor;
+            app.ExperimentNames = editor.ExperimentNames;
+            app.Mode = editor.Mode;
+            app.BatchId = editor.BatchId;
 
-            if strcmp(type, 'inst-mfa')
+            if app.Mode == "inst-mfa"
                 app.AddAsParallel.Visible = 'off';
-                app.batchID = batchID;
             end
 
             initTable(app);
@@ -74,66 +80,15 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
                 return;
             end
 
-            switch app.type
-
-                case 'parallel'
-
-                    isParallel = app.AddAsParallel.Value;
-
-                    if isParallel
-
-                        % Combine selected experiments into a single entry for parallel labeling
-                        combinedExpName = strjoin(selectedExps, ', ');
-
-                        % Edit config for parallel labeling
-                        config = struct();
-                        config.numExperiments = length(selectedExps);
-                        config.isParallel = true;
-
-                        app.MainApp.batch.addBatch( ...
-                            combinedExpName, ...
-                            {selectedExps'}, ...
-                            "Added parallel item", ...
-                            config ...
-                        )
-
-                    else
-
-                        for i = 1:length(selectedExps)
-
-                            app.MainApp.batch.addBatch( ...
-                                selectedExps{i}, ...
-                                {selectedExps{i}}, ...
-                                "Added item", ...
-                                struct() ...
-                            )
-
-                        end % for i = 1:length(selectedExps)
-
-                    end % if isParallel
-
-                case 'inst-mfa'
-
-                    % Combine selected experiments into a single entry for parallel labeling
-                    combinedExpName = strjoin(selectedExps, ', ');
-
-                    % Edit config for parallel labeling
-                    config = struct();
-                    config.numExperiments = length(selectedExps);
-                    config.isParallel = false;
-                    config.isINSTMFA = true;
-
-                    app.MainApp.batch.editBatch( ...
-                        app.batchID, ...
-                        combinedExpName, ...
-                        {selectedExps'}, ...
-                        "Added INST-MFA item", ...
-                        config ...
-                    )
-
-            end % switch app.type
-
-            updateBatchTable(app.MainApp);
+            selection = openmebius.domain.batch ...
+                .BatchExperimentSelection( ...
+                    Mode = app.Mode, ...
+                    Experiments = string(selectedExps), ...
+                    AddAsParallel = logical(app.AddAsParallel.Value), ...
+                    BatchId = app.BatchId);
+            eventData = openmebius.presentation.batch ...
+                .BatchExperimentSelectionEventData(selection);
+            notify(app, "Applied", eventData);
 
             % Close the app after adding the batch items
             % close(app.AddbatchUIFigure);
@@ -164,6 +119,7 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
         % Close request function: AddbatchUIFigure
         function AddbatchUIFigureCloseRequest(app, event)
             uiresume(app.AddbatchUIFigure);
+            notify(app, "Closed");
             delete(app);
         end
 

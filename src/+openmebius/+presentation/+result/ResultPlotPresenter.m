@@ -4,7 +4,22 @@ classdef ResultPlotPresenter < handle
     %
     % This class must not access UIAxes or UITable.
 
+    properties (Access = private)
+        PathwayPresenter
+    end
+
     methods
+
+        function obj = ResultPlotPresenter(options)
+
+            arguments
+                options.PathwayPresenter = ...
+                    openmebius.presentation.model.ModelPresenter()
+            end
+
+            obj.PathwayPresenter = options.PathwayPresenter;
+
+        end % constructor
 
         function viewModel = present(obj, model, result, context, options)
 
@@ -54,14 +69,13 @@ classdef ResultPlotPresenter < handle
                 options.IsDarkTheme (1, 1) logical = false
             end
 
-            if obj.isInvalidHandle(model) || obj.isInvalidHandle(result)
+            if obj.isInvalidHandle(result)
                 viewModel = ...
                     openmebius.presentation.result.ResultPlotViewModel.none();
                 return
             end
 
-            if isempty(context.SelectedMainRows) || ...
-                    isempty(context.SelectedSubRows)
+            if isempty(context.SelectedSubRows)
                 viewModel = ...
                     openmebius.presentation.result.ResultPlotViewModel.none();
                 return
@@ -81,60 +95,160 @@ classdef ResultPlotPresenter < handle
                 return
             end
 
-            if ~any(context.MainTableData.Properties.VariableNames == "Flux")
+            if ~any(string( ...
+                    context.MainTableData.Properties.VariableNames) == "Flux")
                 viewModel = ...
                     openmebius.presentation.result.ResultPlotViewModel.none();
                 return
             end
 
-            selectedFluxRow = context.SelectedMainRows(1);
             selectedResultRow = context.SelectedSubRows(1);
 
-            rxnIDs = string(context.MainTableRowNames);
-            batchIDs = string(context.SubTableData.ID);
-
-            if selectedFluxRow > numel(rxnIDs) || ...
-                    selectedResultRow > numel(batchIDs)
+            if ~any(string( ...
+                    context.SubTableData.Properties.VariableNames) == "ID")
                 viewModel = ...
                     openmebius.presentation.result.ResultPlotViewModel.none();
                 return
             end
 
-            rxnID = rxnIDs(selectedFluxRow);
-            batchID = batchIDs(selectedResultRow);
+            batchIDs = string(context.SubTableData.ID);
 
-            fluxColumn = context.MainTableData.Flux;
-
-            if numel(fluxColumn) > 1
-                fluxColumn = fluxColumn(1:end - 1);
+            if ~obj.isValidRow(selectedResultRow, numel(batchIDs))
+                viewModel = ...
+                    openmebius.presentation.result.ResultPlotViewModel.none();
+                return
             end
 
-            fluxLabels = obj.toFluxLabelCell(fluxColumn);
+            fluxColumn = context.MainTableData.Flux;
+            highlightReactionIDs = strings(0, 1);
+            subPlot = struct();
+            notification = [];
+            rxnIDs = string(context.MainTableRowNames);
+            rxnIDs = rxnIDs(:);
 
-            modelTable = getModelTable(model);
-            highlightMask = strcmp(modelTable.Properties.RowNames, rxnID);
+            if ~isempty(context.SelectedMainRows)
+                selectedFluxRow = context.SelectedMainRows(1);
 
-            ciData = getCIReaction(result, batchID, rxnID);
+                if obj.isValidRow(selectedFluxRow, numel(rxnIDs))
+                    rxnID = rxnIDs(selectedFluxRow);
+                    highlightReactionIDs = rxnID;
+                    ciData = getCIReaction( ...
+                        result, batchIDs(selectedResultRow), rxnID);
+                    [subPlot, notification] = ...
+                        obj.presentConfidenceInterval(ciData, rxnID);
+                end
+
+            end
+
+
+            pathwayViewModel = obj.PathwayPresenter.presentPathway( ...
+                model, ...
+                Labels = fluxColumn, ...
+                HighlightReactionIDs = highlightReactionIDs, ...
+                IsDarkTheme = options.IsDarkTheme);
+
+            if isempty(notification) && ...
+                    ~isempty(pathwayViewModel.Notification)
+                notification = pathwayViewModel.Notification;
+            end
 
             mainPlot = struct();
-            mainPlot.Kind = "legacy-flux-pathway";
-            mainPlot.Model = model;
-            mainPlot.FluxLabels = fluxLabels;
-            mainPlot.HighlightMask = highlightMask;
-            mainPlot.IsDarkTheme = options.IsDarkTheme;
-
-            subPlot = struct();
-            subPlot.Kind = "legacy-ci-reaction";
-            subPlot.Result = result;
-            subPlot.Data = ciData;
+            mainPlot.Kind = "pathway";
+            mainPlot.Pathway = pathwayViewModel;
 
             viewModel = ...
                 openmebius.presentation.result.ResultPlotViewModel( ...
                 Kind = openmebius.presentation.result.ResultPlotKind.OverviewFlux, ...
                 MainPlot = mainPlot, ...
-                SubPlot = subPlot);
+                SubPlot = subPlot, ...
+                Notification = notification);
 
         end
+
+        function [plotData, notification] = ...
+                presentConfidenceInterval(~, data, reactionID)
+
+            plotData = struct();
+            notification = [];
+
+            if isempty(data)
+                return
+            end
+
+            if ~isstruct(data) || ~isscalar(data) || ...
+                    ~isfield(data, "CI") || ...
+                    ~isstruct(data.CI) || ...
+                    ~isfield(data.CI, "algorithm")
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                        "Confidence interval data is invalid.");
+                return
+            end
+
+            algorithm = string(data.CI.algorithm);
+
+            if ~isscalar(algorithm) || algorithm ~= "Monte Carlo"
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                        "Unsupported confidence interval algorithm: " + ...
+                        join(algorithm, ", "));
+                return
+            end
+
+            try
+                modelIDs = string(data.model.modelID);
+                reactionIndex = find(modelIDs == reactionID, 1);
+
+                if isempty(reactionIndex)
+                    notification = openmebius.presentation.notification ...
+                        .Notification.warning( ...
+                            "Reaction ID is not available in confidence " + ...
+                            "interval data: " + reactionID);
+                    return
+                end
+
+                lowerBounds = double(data.CI.fluxLB(reactionIndex, :));
+                upperBounds = double(data.CI.fluxUB(reactionIndex, :));
+                bestFit = double(data.fluxFwd(reactionIndex));
+                reactionNames = string(data.model.modelReaction);
+                plotTitle = reactionID;
+
+                if reactionIndex <= numel(reactionNames) && ...
+                        strlength(reactionNames(reactionIndex)) > 0
+                    plotTitle = reactionNames(reactionIndex);
+                end
+            catch
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                        "Confidence interval data is incomplete.");
+                return
+            end
+
+            if isempty(lowerBounds) || ...
+                    numel(lowerBounds) ~= numel(upperBounds) || ...
+                    ~any(isfinite(lowerBounds)) || ...
+                    ~any(isfinite(upperBounds)) || ...
+                    ~isscalar(bestFit) || ~isfinite(bestFit)
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                        "Confidence interval values are unavailable.");
+                return
+            end
+
+            plotData.Kind = "monte-carlo-ci";
+            plotData.LowerBounds = lowerBounds(:)';
+            plotData.UpperBounds = upperBounds(:)';
+            plotData.BestFit = bestFit;
+            plotData.Title = plotTitle;
+
+        end % presentConfidenceInterval
+
+        function tf = isValidRow(~, row, rowCount)
+
+            tf = isscalar(row) && isfinite(row) && ...
+                row == fix(row) && row >= 1 && row <= rowCount;
+
+        end % isValidRow
 
         function tf = isInvalidHandle(~, value)
 
@@ -148,44 +262,6 @@ classdef ResultPlotPresenter < handle
                 tf = ~isvalid(value);
             catch
                 tf = false;
-            end
-
-        end
-
-        function fluxCells = toFluxLabelCell(~, values)
-
-            if isempty(values)
-                fluxCells = {};
-                return
-            end
-
-            if iscell(values)
-                fluxCells = values(:);
-                return
-            end
-
-            if isnumeric(values)
-                fluxCells = arrayfun( ...
-                    @(x) sprintf('%.2f', x), ...
-                    values(:), ...
-                    'UniformOutput', false);
-                return
-            end
-
-            if isstring(values)
-                fluxCells = cellstr(values(:));
-                return
-            end
-
-            if ischar(values)
-                fluxCells = cellstr(string(values));
-                return
-            end
-
-            try
-                fluxCells = cellstr(string(values(:)));
-            catch
-                fluxCells = {};
             end
 
         end

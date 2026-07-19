@@ -18,7 +18,7 @@ classdef ExperimentImportService < handle
                 options.ExperimentLoadRepository = ...
                     openmebius.infrastructure.experiment.ExperimentRepository()
                 options.BatchRepository = ...
-                    openmebius.infrastructure.legacy.LegacyBatchRepository()
+                    openmebius.infrastructure.batch.BatchRepository()
             end
 
             obj.ExperimentRepository = options.ExperimentRepository;

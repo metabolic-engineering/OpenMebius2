@@ -6,7 +6,7 @@ classdef EMUModel < Stoichiometry
 
     end % events
 
-    properties (Access = public)
+    properties (GetAccess = public, SetAccess = private)
 
         % EMU list
         tableEMU = table();
@@ -112,13 +112,17 @@ classdef EMUModel < Stoichiometry
 
     properties (Access = private)
 
-        charList = ['A':'Z' 'a':'z'];
+        CacheRepository
+        NetworkBuilder
+        MatrixBuilder
+        NetworkEnumerator
+        MDVCalculator
 
     end % properties (Access = private)
 
     methods
 
-        function obj = EMUModel(modelInput, varargin)
+        function obj = EMUModel(modelInput, options)
             % EMUMODEL: Constructor for the EMUModel class.
             %
             % Parameters:
@@ -126,22 +130,35 @@ classdef EMUModel < Stoichiometry
             % modelInput
             %     File directory or openmebius.domain.model.ModelLocation.
 
-            obj = obj@Stoichiometry(modelInput, varargin{:});
+            arguments
+                modelInput
+                options.ModelRepository = ...
+                    openmebius.infrastructure.model.ModelRepository()
+                options.CacheRepository = ...
+                    openmebius.infrastructure.model ...
+                        .EMUNetworkCacheRepository()
+                options.NetworkBuilder = openmebius.mfa.EMUNetworkBuilder()
+                options.MatrixBuilder = openmebius.mfa.EMUMatrixBuilder()
+                options.NetworkEnumerator = ...
+                    openmebius.mfa.EMUNetworkEnumerator()
+                options.MDVCalculator = openmebius.mfa.EMUMDVCalculator()
+            end
 
-            if ~obj.isUpdatedModel
+            obj = obj@Stoichiometry( ...
+                modelInput, ...
+                ModelRepository = options.ModelRepository);
+            obj.CacheRepository = options.CacheRepository;
+            obj.NetworkBuilder = options.NetworkBuilder;
+            obj.MatrixBuilder = options.MatrixBuilder;
+            obj.NetworkEnumerator = options.NetworkEnumerator;
+            obj.MDVCalculator = options.MDVCalculator;
 
-                isSucceeded = obj.loadEMUModelFromFile();
+            isSucceeded = obj.loadEMUModelFromFile();
 
-                if ~isSucceeded
-                    isConstructed = constructEMUNetwork(obj);
-                else
-                    isConstructed = false;
-                end % if
-
-            else
-
+            if ~isSucceeded
                 isConstructed = constructEMUNetwork(obj);
-
+            else
+                isConstructed = false;
             end % if
 
             if isConstructed
@@ -233,24 +250,20 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            initializeEMUModel(obj);
-
-            listupAllEMU(obj);
-            throwIfConstructionFailed( ...
-                obj, ...
-                "OpenMebius2:ModelRepository:" + ...
-                "EMUConstructionFailed", ...
-                "Failed to construct the EMU network.");
-            EMUSizeTable = obj.getEMUSizeInformation();
-            obj.tableEMUSizeInfo = EMUSizeTable;
-            obj.buildAnBnMatrix();
-            obj.buildCnMatrix();
-            obj.buildXnYnMatrix();
-            obj.buildMDVVector();
+            operations = createBuildOperations(obj);
+            snapshot = obj.NetworkBuilder.build(operations);
+            applyCacheSnapshot(obj, snapshot);
 
             tf = true;
 
         end % method constructEMUNetwork
+
+        function snapshot = getEMUNetworkSnapshot(obj)
+            % GETEMUNETWORKSNAPSHOT Return the constructed network state.
+
+            snapshot = createCacheSnapshot(obj);
+
+        end % getEMUNetworkSnapshot
 
         function [An, Bn] = visualizeAnBnMatrix(obj, fluxLabel)
             % VISUALIZEANBNMATRIX Visualize the An and Bn matrices for a given flux label.
@@ -548,57 +561,8 @@ classdef EMUModel < Stoichiometry
             % MDV: (n x 1) double
             %    MDV vector
 
-            MDV = zeros(obj.globalMDVSize, 1);
-
-            [An, Bn] = substituteAnBnMatrix(obj, flux);
-            [Xn, ~] = substituteXnYnMatrix(obj, EMU, An, Bn);
-
-            for iMDVList = 1:size(obj.globalMDVList, 1)
-
-                sizeIdx = obj.tableEMUSizeInfo.EMUSize == obj.globalMDVList(iMDVList, 1);
-
-                % Convolution
-                if obj.globalMDVList(iMDVList, 2) == 0
-
-                    iMDV = ...
-                        Xn( ...
-                        obj.globalMDVList(iMDVList, 3), ... % i index
-                        1:obj.globalMDVList(iMDVList, 1) + 1, ... % j index
-                        sizeIdx ... % EMU size index
-                    )';
-
-                    MDV( ...
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 1) ... % j index
-                    ) = ...
-                        iMDV(1:obj.globalMDVList(iMDVList, 1) + 1);
-
-                else
-
-                    currentMDV = ...
-                        MDV( ...
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 5) ... % j index
-                    );
-
-                    iMDV = conv( ...
-                        Xn( ...
-                        obj.globalMDVList(iMDVList, 3), ... % i index
-                        1:obj.globalMDVList(iMDVList, 1) + 1, ... % j index
-                        sizeIdx ... % EMU size index
-                    )', ...
-                        currentMDV ...
-                    );
-
-                    MDV( ...
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 5) ... % j index
-                    ) = ...
-                        iMDV(1:obj.globalMDVList(iMDVList, 5) + 1);
-
-                end % if obj.globalMDVList(iMDVList,4)==0
-
-            end % for iMDVList
+            MDV = obj.MDVCalculator.calculate( ...
+                createCacheSnapshot(obj), flux, EMU);
 
         end % method calculateMDV
 
@@ -625,72 +589,16 @@ classdef EMUModel < Stoichiometry
             %
             % Returns
             % -------
-            % MDV: (length(tspan) x s) double
+            % MDV: (s x length(tspan)) double
             %    MDV time course
 
-            [t, XnTimeCourse] = ode15s( ...
-                @(t, Xn) calculatedXdT(obj, t, Xn, flux, EMU, poolsize), ...
-                tspan, ...
-                obj.globalXn(:) ...
-            );
-
-            numTimePoint = length(t);
-            Xn = reshape(XnTimeCourse, [numTimePoint, size(obj.globalXn, 1), size(obj.globalXn, 2), size(obj.globalXn, 3)]);
-            MDV = zeros(numTimePoint, obj.globalMDVSize);
-
-            for iMDVList = 1:size(obj.globalMDVList, 1)
-
-                sizeIdx = obj.tableEMUSizeInfo.EMUSize == obj.globalMDVList(iMDVList, 1);
-
-                % Convolution
-                if obj.globalMDVList(iMDVList, 2) == 0
-
-                    iMDV = ...
-                        Xn( ...
-                        :, ... % time index
-                        obj.globalMDVList(iMDVList, 3), ... % i index
-                        1:obj.globalMDVList(iMDVList, 1) + 1, ... % j index
-                        sizeIdx ... % EMU size index
-                    );
-
-                    MDV( ...
-                        :, ... % time index
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 1) ... % j index
-                    ) = ...
-                        iMDV(:, 1:obj.globalMDVList(iMDVList, 1) + 1);
-
-                else
-
-                    currentMDV = ...
-                        MDV( ...
-                        :, ... % time index
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 5) ... % j index
-                    );
-
-                    iMDV = conv( ...
-                        Xn( ...
-                        :, ... % time index
-                        obj.globalMDVList(iMDVList, 3), ... % i index
-                        1:obj.globalMDVList(iMDVList, 1) + 1, ... % j index
-                        sizeIdx ... % EMU size index
-                    )', ...
-                        currentMDV ...
-                    );
-
-                    MDV( ...
-                        :, ... % time index
-                        obj.globalMDVList(iMDVList, 4): ...
-                        obj.globalMDVList(iMDVList, 4) + obj.globalMDVList(iMDVList, 5) ... % j index
-                    ) = ...
-                        iMDV(:, 1:obj.globalMDVList(iMDVList, 5) + 1);
-
-                end % if obj.globalMDVList(iMDVList,4)==0
-
-            end % for iMDVList
-
-            MDV = MDV';
+            ensureCnMatrixAvailable(obj);
+            MDV = obj.MDVCalculator.calculateTimeCourse( ...
+                createCacheSnapshot(obj), ...
+                flux, ...
+                EMU, ...
+                poolsize, ...
+                tspan);
 
         end % method calculateMDVTimeCourse
 
@@ -714,32 +622,13 @@ classdef EMUModel < Stoichiometry
             % tspan: (p x 1) double
             %    Time span for simulation
 
-            numEMUSizeRows = size(obj.tableEMUSizeInfo, 1);
-
-            Xn = reshape(Xn, size(obj.globalXn));
-
-            [An, Bn] = substituteAnBnMatrix(obj, flux);
-            [~, Yn] = substituteXnYnMatrix(obj, EMU, An, Bn, Xn);
-            Cn = substituteCnMatrix(obj, poolsize);
-            dXdT = zeros(size(Xn));
-
-            for iEMUSizeRow = 1:numEMUSizeRows
-
-                currentEMUSize = obj.tableEMUSizeInfo.EMUSize(iEMUSizeRow);
-                Ann = obj.tableEMUSizeInfo.An(iEMUSizeRow);
-                Bnn = obj.tableEMUSizeInfo.Bn(iEMUSizeRow);
-                iAn = An(1:Ann, 1:Ann, currentEMUSize);
-                iBn = Bn(1:Ann, 1:Bnn, currentEMUSize);
-                iCn = diag(Cn(1:Ann, currentEMUSize));
-                iXn = Xn(1:Ann, 1:currentEMUSize + 1, currentEMUSize);
-                iYn = Yn(1:Bnn, 1:currentEMUSize + 1, currentEMUSize);
-
-                dXdT(1:Ann, 1:currentEMUSize + 1, currentEMUSize) = ...
-                    iCn * (iAn * iXn - iBn * iYn);
-
-            end % for iEMUSizeRow
-
-            dXdT = dXdT(:);
+            ensureCnMatrixAvailable(obj);
+            dXdT = obj.MDVCalculator.calculateDerivative( ...
+                createCacheSnapshot(obj), ...
+                Xn, ...
+                flux, ...
+                EMU, ...
+                poolsize);
 
         end % method calculateMDVTimeCourse
 
@@ -759,42 +648,8 @@ classdef EMUModel < Stoichiometry
             % Bn: (s * n * n) double
             %    Substituted Bn matrix
 
-            An = obj.globalAn;
-            Bn = obj.globalBn;
-
-            for iAnList = 1:size(obj.globalAnList, 1)
-
-                rxnIdx = obj.globalAnList(iAnList, 2);
-                An( ...
-                    obj.globalAnList(iAnList, 3), ... % i index
-                    obj.globalAnList(iAnList, 4), ... % j index
-                    obj.globalAnList(iAnList, 1) ... % EMU size
-                ) = ...
-                    An( ...
-                    obj.globalAnList(iAnList, 3), ... % i index
-                    obj.globalAnList(iAnList, 4), ... % j index
-                    obj.globalAnList(iAnList, 1) ... % EMU size
-                ) + ...
-                    flux(rxnIdx) * obj.globalAnList(iAnList, 5); % flux * coefficient
-
-            end % for iAnList
-
-            for iBnList = 1:size(obj.globalBnList, 1)
-
-                rxnIdx = obj.globalBnList(iBnList, 2);
-                Bn( ...
-                    obj.globalBnList(iBnList, 3), ... % i index
-                    obj.globalBnList(iBnList, 4), ... % j index
-                    obj.globalBnList(iBnList, 1) ... % EMU size
-                ) = ...
-                    Bn( ...
-                    obj.globalBnList(iBnList, 3), ... % i index
-                    obj.globalBnList(iBnList, 4), ... % j index
-                    obj.globalBnList(iBnList, 1) ... % EMU size
-                ) + ...
-                    flux(rxnIdx) * obj.globalBnList(iBnList, 5); % flux * coefficient
-
-            end % for iBnList
+            [An, Bn] = obj.MDVCalculator.substituteAnBn( ...
+                createCacheSnapshot(obj), flux);
 
         end % method substituteAnBnMatrix
 
@@ -813,46 +668,8 @@ classdef EMUModel < Stoichiometry
             %    Substituted Cn matrix
 
             ensureCnMatrixAvailable(obj);
-
-            CnBool = obj.globalCn;
-            Cn = obj.globalCnDiag;
-            numEMUSizeRows = size(obj.tableEMUSizeInfo, 1);
-            poolsize = double(poolsize(:));
-            numPoolMetabolites = numel(poolsize);
-            numCnMetabolites = size(CnBool, 2);
-
-            if numPoolMetabolites ~= numCnMetabolites
-                error( ...
-                    'EMUModel:PoolSizeDimensionMismatch', ...
-                    ['The pool size vector length (%d) does not match the number of ' ...
-                     'model metabolites in the EMU Cn matrix (%d). Check the INST-MFA ' ...
-                 'pool-size table and rebuild the EMU model cache if necessary.'], ...
-                    numPoolMetabolites, ...
-                    numCnMetabolites ...
-                );
-            end % if
-
-            if any(~isfinite(poolsize)) || any(poolsize <= 0)
-                error( ...
-                    'EMUModel:InvalidPoolSize', ...
-                    'INST-MFA pool sizes must be finite positive values.' ...
-                );
-            end % if
-
-            for iEMUSizeRow = 1:numEMUSizeRows
-
-                currentEMUSize = obj.tableEMUSizeInfo.EMUSize(iEMUSizeRow);
-
-                for jMetabolite = 1:numCnMetabolites
-
-                    CnBoolIdx = ...
-                        CnBool(:, jMetabolite, currentEMUSize);
-                    Cn(CnBoolIdx, currentEMUSize) = ...
-                        1 / poolsize(jMetabolite);
-
-                end % for jMetabolite
-
-            end % for iEMUSizeRow
+            Cn = obj.MDVCalculator.substituteCn( ...
+                createCacheSnapshot(obj), poolsize);
 
         end % method substituteXCnMatrix
 
@@ -877,122 +694,15 @@ classdef EMUModel < Stoichiometry
             % n: The matrix size of An
             % i: The number of carbons in the EMU
 
+            snapshot = createCacheSnapshot(obj);
+
             if nargin < 5
-                Xn = obj.globalXn;
+                [Xn, Yn] = obj.MDVCalculator.substituteXnYn( ...
+                    snapshot, EMU, An, Bn);
+            else
+                [Xn, Yn] = obj.MDVCalculator.substituteXnYn( ...
+                    snapshot, EMU, An, Bn, Xn);
             end
-
-            Yn = obj.globalYn;
-
-            for iSelectedSize = 1:height(obj.tableEMUSizeInfo)
-
-                iSelectedYnList = obj.globalYnList( ...
-                    obj.globalYnList(:, 1) == iSelectedSize, :);
-
-                % Yn
-                for jSelectedYnList = 1:size(iSelectedYnList, 1)
-
-                    if iSelectedYnList(jSelectedYnList, 3) == 0
-
-                        % Substrate EMU
-                        if iSelectedYnList(jSelectedYnList, 4) == 1
-
-                            Yn( ...
-                                iSelectedYnList(jSelectedYnList, 2), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                iSelectedSize ... % EMU size index
-                            ) = ...
-                                EMU( ...
-                                iSelectedYnList(jSelectedYnList, 5), ... % substrate EMU index
-                                1:iSelectedSize + 1 ... % EMU size
-                            );
-
-                        else
-
-                            XnIdx = ...
-                                obj.tableEMUSizeInfo.EMUSize == ...
-                                iSelectedYnList(jSelectedYnList, 5);
-
-                            Yn( ...
-                                iSelectedYnList(jSelectedYnList, 2), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                iSelectedSize ... % EMU size index
-                            ) = ...
-                                Xn( ...
-                                iSelectedYnList(jSelectedYnList, 6), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                XnIdx ... % EMU size index
-                            );
-
-                        end % if isSelectedYnList(jSelectedYnList,4)==0
-
-                    else
-
-                        % Substrate EMU
-                        currentYn = Yn( ...
-                            iSelectedYnList(jSelectedYnList, 2), ... % i index
-                            1:iSelectedSize + 1, ... % j index
-                            iSelectedSize ... % EMU size index
-                        );
-
-                        if iSelectedYnList(jSelectedYnList, 4) == 1
-
-                            jConvolution = ...
-                                conv( ...
-                                EMU( ...
-                                iSelectedYnList(jSelectedYnList, 5), ... % substrate EMU index
-                                1:iSelectedSize + 1 ... % EMU size
-                            ), ...
-                                currentYn ...
-                            );
-
-                            Yn( ...
-                                iSelectedYnList(jSelectedYnList, 2), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                iSelectedSize ... % EMU size index
-                            ) = jConvolution(1:iSelectedSize + 1);
-
-                        else
-
-                            XnIdx = ...
-                                obj.tableEMUSizeInfo.EMUSize == ...
-                                iSelectedYnList(jSelectedYnList, 5);
-
-                            jConvolution = ...
-                                conv( ...
-                                Xn( ...
-                                iSelectedYnList(jSelectedYnList, 6), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                XnIdx ... % EMU size index
-                            ), ...
-                                currentYn ...
-                            );
-
-                            Yn( ...
-                                iSelectedYnList(jSelectedYnList, 2), ... % i index
-                                1:iSelectedSize + 1, ... % j index
-                                iSelectedSize ... % EMU size index
-                            ) = jConvolution(1:iSelectedSize + 1);
-
-                        end % if isSelectedYnList(jSelectedYnList,4)==0
-
-                    end % if iSelectedYnList(jSelectedYnList,3)==0
-
-                end % for jSelectedYnList
-
-                Ann = obj.tableEMUSizeInfo.An(iSelectedSize);
-                Bnn = obj.tableEMUSizeInfo.Bn(iSelectedSize);
-
-                % Calculate Xn
-                lambdaE = 10 ^ -8 * eye(Ann);
-
-                if nargin < 5
-                    iXn = ...
-                        (lambdaE + An(1:Ann, 1:Ann, iSelectedSize)) \ (Bn(1:Ann, 1:Bnn, iSelectedSize) * Yn(1:Bnn, 1:iSelectedSize + 1, iSelectedSize));
-
-                    Xn(1:Ann, 1:iSelectedSize + 1, iSelectedSize) = iXn;
-                end
-
-            end % for iSelectedSize = 1:height(obj.tableEMUSizeInfo)
 
         end % method substituteXnYnMatrix
 
@@ -1037,30 +747,37 @@ classdef EMUModel < Stoichiometry
 
     methods (Access = private)
 
-        %% Private initialize methods
-        function initialzeEMUModel(obj)
-            % INITIALIZEEMUTABLE Initialize EMU table
-            %
-            % Parameters
-            % ----------
-            % None
-            %
-            % Returns
-            % -------
-            % None
+        function operations = createBuildOperations(obj)
 
-            % Initialize EMU table
-            obj.tableEMU = table('Size', [0 5], ...
-                'VariableNames', {'EMU', 'Metabolite', 'Position', 'Size', 'Target'}, ...
-                'VariableTypes', {'string', 'string', 'cell', 'double', 'logical'});
-            obj.tableEMU.Properties.Description = 'EMU table';
+            operations = openmebius.mfa.EMUNetworkBuildOperations( ...
+                Initialize = @() initializeEMUModel(obj), ...
+                Enumerate = @() listupAllEMU(obj), ...
+                Validate = @() assertEMUConstructionSucceeded(obj), ...
+                ResolveSizeInfo = @() getEMUSizeInformation(obj), ...
+                AssignSizeInfo = @(value) assignEMUSizeInfo(obj, value), ...
+                BuildAnBn = @() buildAnBnMatrix(obj), ...
+                BuildCn = @() buildCnMatrix(obj), ...
+                BuildXnYn = @() buildXnYnMatrix(obj), ...
+                BuildMDV = @() buildMDVVector(obj), ...
+                CreateSnapshot = @() createCacheSnapshot(obj));
 
-            obj.tableEMUReaction = table('Size', [0 6], ...
-                'VariableNames', {'RxnID', 'Reactants', 'Products', 'Coefficient', 'Size', 'Target'}, ...
-                'VariableTypes', {'string', 'cell', 'cell', 'double', 'double', 'logical'});
-            obj.tableEMUReaction.Properties.Description = 'EMU reaction table';
+        end % createBuildOperations
 
-        end % method initialzeEMUModel
+        function assignEMUSizeInfo(obj, sizeInfo)
+
+            obj.tableEMUSizeInfo = sizeInfo;
+
+        end % assignEMUSizeInfo
+
+        function assertEMUConstructionSucceeded(obj)
+
+            throwIfConstructionFailed( ...
+                obj, ...
+                "OpenMebius2:ModelRepository:" + ...
+                "EMUConstructionFailed", ...
+                "Failed to construct the EMU network.");
+
+        end % assertEMUConstructionSucceeded
 
         function listupAllEMU(obj)
             % LISTUPALLEMU: List up all EMUs from the model.
@@ -1073,51 +790,35 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            initialzeEMUModel(obj);
+            emitMsg( ...
+                obj, ...
+                "Listing up all EMUs from the model.", ...
+                "Info", ...
+                obj.logLevel);
+            source = openmebius.mfa.EMUNetworkSource( ...
+                MSReactions = obj.getMSRxnTable(), ...
+                MSTransitions = obj.getMSTransTable(), ...
+                Reactions = obj.getModelRxnRev(), ...
+                Transitions = obj.getModelTransRev(), ...
+                Metabolites = obj.getMetaboliteTable());
+            result = obj.NetworkEnumerator.enumerate(source);
 
-            msg = 'Listing up all EMUs from the model.';
-            emitMsg(obj, msg, "Info", obj.logLevel);
+            for message = result.ErrorMessages'
+                emitMsg(obj, message, "Error", obj.logLevel);
+            end
 
-            % List up all EMUs
-            [~, isError] = listupEMUs(obj);
-
-            if isError
+            if ~result.IsValid
                 recordValidationError( ...
                     obj, ...
                     "The EMU network contains invalid MS reactions.");
                 return;
-            end % if isError
+            end
+
+            obj.tableEMU = result.TableEMU;
+            obj.tableEMUReaction = result.TableEMUReaction;
+            obj.searchedProduct = result.SearchedProducts;
 
         end % method listupAllEMU
-
-        %% Private get methods
-        function emu = getEMULabel(~, metabolite, position)
-            % GETEMULABEL: Get the EMU label.
-            %
-            % Parameters
-            % ----------
-            % metabolite: string
-            %    Metabolite name
-            % position: array
-            %    Position of the atoms in the metabolite
-            %
-            % Returns
-            % -------
-            % emu: string
-            %    EMU label
-
-            if isempty(metabolite) || isempty(position)
-                emu = "";
-                return;
-            end % if
-
-            % Replace underscores with hyphens in metabolite name
-            metName = strrep(metabolite, '_', '-');
-            posStr = strjoin(string(position), '');
-
-            emu = sprintf('%s_{%s}', metName, posStr);
-
-        end % method getEMULabel
 
         function emuInfo = getEMUSizeInformation(obj)
             % GETEMUSIZEINFORMATION: Get EMU size information.
@@ -1159,7 +860,8 @@ classdef EMUModel < Stoichiometry
                 end % if isempty(emuOfCurrentSize)
 
                 EMUReactantProducts = vertcat(emuOfCurrentSize.Reactants, emuOfCurrentSize.Products);
-                emuReactantUnique = getUniqueEMUName(obj, EMUReactantProducts);
+                emuReactantUnique = openmebius.mfa.EMUMatrixBuilder ...
+                    .uniqueEMUGroups(EMUReactantProducts);
 
                 isSubstrate = false(length(emuReactantUnique), 1);
 
@@ -1193,566 +895,6 @@ classdef EMUModel < Stoichiometry
 
         end % method getEMUSizeInformation
 
-        function enuOut = getUniqueEMUName(~, emu)
-            % GETUNIQUEEMUNAME: Get a unique EMU name by replacing underscores with hyphens.
-            %
-            % Parameters
-            % ----------
-            % emu: cell
-            %    EMU name
-            %
-            % Returns
-            % -------
-            % emu: cell
-            %    Unique EMU name
-
-            numEMU = length(emu);
-
-            enuOut = cell(0);
-
-            for i = 1:numEMU
-
-                currentEMU = emu{i};
-
-                % Get current listed EMU
-                tmpEMU = enuOut;
-                isListed = false;
-
-                for j = 1:length(tmpEMU)
-
-                    if length(currentEMU) ~= length(tmpEMU{j})
-                        continue;
-                    end % if length(currentEMU)~=length(tmpEMU{j})
-
-                    for k = 1:length(currentEMU)
-
-                        if strcmp(currentEMU{k}, tmpEMU{j}{k})
-                            isListed = true;
-                        else
-                            isListed = false;
-                            break;
-                        end % if strcmp(currentEMU{k}, tmpEMU{j}{k})
-
-                    end % for k=1:length(currentEMU)
-
-                    if isListed
-                        break;
-                    end % if isListed
-
-                end % for j=1:length(currentEMU)
-
-                if ~isListed
-                    enuOut{end + 1} = currentEMU; %#ok<AGROW>
-                end % if ~isListed
-
-            end % for i=1:numEMU
-
-        end % method getUniqueEMUName
-
-        function pos = getAtomPosition(~, reactant, product)
-            % GETATOMPOSITION: Get the atom position from the reactant to the product.
-            %
-            % Parameters
-            % ----------
-            % reactant: string
-            %    Reactant atom string example: 'ABC'
-            % product: string
-            %    Product atom string example: 'AC'
-            %
-            % Returns
-            % -------
-            % pos: array
-            %    Position of the atoms in the reactant corresponding to the product
-            %    Example:
-            %        reactant = 'ABC'
-            %        product = 'AC'
-            %        pos = [1 3]
-            %        >> getAtomPosition('ABC', 'AC')
-            %        ans =
-            %             1     3
-            %        >> getAtomPosition('ABC', 'CDE')
-            %        ans =
-            %             3
-            %        >> getAtomPosition('ABC', 'DEF')
-            %        ans =
-            %             []
-            %        >> getAtomPosition('ABCD', 'ABC')
-            %        ans =
-            %             1     2     3
-
-            pos = [];
-
-            if isempty(reactant) || isempty(product)
-                return;
-            end % if
-
-            for i = 1:strlength(product)
-                idx = strfind(reactant, product(i));
-
-                if isempty(idx)
-                    continue;
-                end % if
-
-                pos = [pos idx]; %#ok<AGROW>
-            end % for i=1:strlength(product)
-
-        end % method getAtomPosition
-
-        function idx = getSubstrateEMUPosition(~, pattern)
-            % GETSUBSTRATEEMUPOSITION: Get the position of the substrate EMU.
-            %
-            % Parameters
-            % ----------
-            % pattern: array
-            %    Label pattern
-            %    ex: [0 1 0 0 1 0]
-            %
-            % Returns
-            % -------
-            % idx: array
-            %    Position of the substrate EMU
-
-            if isempty(pattern)
-                idx = [];
-                return;
-            end % if
-
-            strPattern = num2str(pattern, '%d');
-            idx = bin2dec(strPattern);
-
-        end % method getSubstrateEMUPosition
-
-        %% Private search methods
-        function [EMUs, isError] = listupEMUs(obj)
-            % LISTUPEMUS: List up all EMUs from the model.
-            %
-            % Parameters
-            % ----------
-            % None
-            %
-            % Returns
-            % -------
-            % EMUs: table
-            %    Table containing all EMUs
-
-            EMUs = table();
-            isError = false;
-
-            MSRxn = getMSRxnTable(obj);
-
-            errorRows = false(height(MSRxn), 1);
-
-            % Check if the MSRxn table is more than 1 row
-            for i = 1:height(MSRxn)
-
-                if size(MSRxn.Products{i}, 2) > 1 || ~strcmp(MSRxn.Products{i}{1}, MSRxn.Properties.RowNames{i})
-                    errorRows(i) = true;
-                    msg = sprintf('EMUModel: More than one product or no reactant.');
-                    emitMsg(obj, msg, "Error", obj.logLevel);
-                    continue;
-                end % if
-
-            end % for i=1:height(MSRxn)
-
-            if any(errorRows)
-                isError = true;
-                return;
-            end % if any(errorRows)
-
-            listupTargetEMUs(obj);
-            listupIntermediateEMUs(obj);
-
-            % Sort
-            obj.tableEMU = ...
-                sortrows(obj.tableEMU, {'Size', 'Metabolite', 'EMU'}, {'descend', 'ascend', 'ascend'});
-            EMUs = obj.tableEMU;
-            obj.tableEMUReaction = ...
-                sortrows(obj.tableEMUReaction, {'Size', 'RxnID'}, {'descend', 'ascend'});
-
-        end % method listupEMUs
-
-        function listupTargetEMUs(obj)
-            % LISTUPTARGETEMUS: List up target EMUs from the model.
-            %
-            % Parameters
-            % ----------
-            % isIncludeAllMetabolites: bool, optional
-            %    If true, include all metabolites as target EMUs. Default is false.
-            %
-            % Returns
-            % -------
-            % None
-
-            MSRxn = getMSRxnTable(obj);
-            MSTrans = getMSTransTable(obj);
-
-            for i = 1:height(MSTrans)
-
-                % 'Ala57'
-                targetMetabolite = MSRxn.Products{i}{1};
-                % 'ABC'
-                targetAtomString = MSTrans.Products{i}{1};
-                % 3
-                targetNumAtoms = strlength(targetAtomString);
-                % [1 2 3]
-                targetPosition = 1:targetNumAtoms;
-                % 'BC' --> 'AB'
-                targetArrangedAtomString = obj.charList(1:targetNumAtoms);
-                % Ala57_{ABC}
-                targetEMU = getEMULabel(obj, targetMetabolite, targetArrangedAtomString);
-
-                products = {targetEMU};
-                reactants = {};
-
-                if strlength(targetAtomString) == 0
-                    continue;
-                end % if strlength(targetAtomString)==0
-
-                addEMUToList( ...
-                    obj, targetEMU, targetMetabolite, targetPosition, targetNumAtoms, true);
-
-                for j = 1:numel(MSTrans.Reactants{i})
-
-                    reactantMetabolite = MSRxn.Reactants{i}{j};
-                    reactantAtomString = MSTrans.Reactants{i}{j};
-                    reactantNumAtoms = strlength(reactantAtomString);
-                    reactantPosition = getAtomPosition(obj, reactantAtomString, targetAtomString);
-                    reactantArrangedAtomString = obj.charList(1:reactantNumAtoms);
-                    reactantPositionArranged = reactantArrangedAtomString(reactantPosition);
-                    reactantEMU = getEMULabel(obj, reactantMetabolite, reactantPositionArranged);
-
-                    if strlength(reactantAtomString) == 0 || isempty(reactantPosition)
-                        continue;
-                    end % if strlength(reactantAtomString)==0 || isempty(reactantPosition)
-
-                    reactants{end + 1} = reactantEMU; %#ok<AGROW>
-                    addEMUToList( ...
-                        obj, reactantEMU, reactantMetabolite, reactantPosition, numel(reactantPosition), false);
-
-                end % for j=1:numel(MSTrans.Reactants{i})
-
-                addEMUReactionToList( ...
-                    obj, MSRxn.Properties.RowNames{i}, reactants, products, 1, targetNumAtoms, true);
-
-            end % for i=1:height(MSTrans)
-
-        end % method listupTargetEMUs
-
-        function listupIntermediateEMUs(obj)
-            % LISTUPINTERMEDIATEEMUS: List up intermediate EMUs from the model.
-            %
-            % Parameters
-            % ----------
-            % None
-            %
-            % Returns
-            % -------
-            % None
-
-            % Get the EMU reactions already listed
-            existingEMUReactions = obj.tableEMUReaction;
-            obj.searchedProduct = existingEMUReactions.Products;
-
-            for iRxn = 1:height(existingEMUReactions)
-
-                for jReactant = 1:length(existingEMUReactions.Reactants{iRxn})
-
-                    if obj.isSearchedProduct( ...
-                            existingEMUReactions.Reactants{iRxn}{jReactant})
-                        continue;
-                    end % if obj.isSearchedProduct(
-
-                    iReactant = existingEMUReactions.Reactants{iRxn}{jReactant};
-                    EMUrow = obj.tableEMU( ...
-                        obj.tableEMU.EMU == iReactant, :);
-                    searchEMU(obj, iReactant, false, EMUrow);
-
-                end % for j=1:length(existingEMUReactions.Reactants{iRxn})
-
-            end % for i=1:height(existingEMUReactions)
-
-        end % method listupIntermediateEMUs
-
-        function isSearched = isSearchedProduct(obj, productEMU)
-            % ISSEARCHEDPRODUCT: Check if the product EMU has already been searched.
-            %
-            % Parameters
-            % ----------
-            % productEMU: cell
-            %    Product EMU
-            %
-            % Returns
-            % -------
-            % None
-
-            isSearched = false;
-
-            for i = 1:length(obj.searchedProduct)
-
-                iEMU = obj.searchedProduct{i};
-
-                if isequal(iEMU, productEMU)
-                    isSearched = true;
-                    break;
-                end % if isequal(iEMU, productEMU)
-
-            end % for i=1:length(obj.searchedProduct)
-
-            if ~isSearched
-                obj.searchedProduct{end + 1} = productEMU;
-            end % if ~isSearched
-
-        end % method isSearchedProduct
-
-        function searchEMU(obj, emuName, continueFlag, tableEMU)
-            % SEARCHEMU: Search for an EMU from the EMU reaction table recursively.
-            %
-            % Parameters
-            % ----------
-            % emuName: string
-            %    EMU name
-            % continueFlag: bool, optional
-            %    If true, continue searching for EMUs recursively.
-
-            % If the EMU already exists, return
-            isSearched = obj.tableEMU.EMU == emuName;
-
-            if any(isSearched) && continueFlag
-                return;
-            end % if any(obj.tableEMU.EMU == emuName)
-
-            metabolite = tableEMU.Metabolite( ...
-                tableEMU.EMU == emuName);
-            position = tableEMU.Position{tableEMU.EMU == emuName};
-
-            % Add the EMU to the list
-            obj.addEMUToList( ...
-                emuName, metabolite, position, length(position), false);
-
-            % If the metabolite is a substrate, return
-            if isSubstrateMetabolite(obj, metabolite)
-                return;
-            end % if isSubstrateMetabolite(obj, metabolite)
-
-            % Get reactions involving the metabolite as a product
-            idx = findReaction(obj, metabolite, true);
-            rxn = getModelRxnRev(obj, idx);
-            trans = getModelTransRev(obj, idx);
-
-            % Each reaction
-            for i = 1:height(rxn)
-
-                % Each product in the reaction
-                for j = 1:length(trans.Products{i})
-
-                    coefficient = 1;
-
-                    if isSymmetricMetabolite(obj, rxn.Products{i}{j})
-                        coefficient = coefficient / 2;
-                    end % if isSymmetricMetabolite(obj, rxn.Products{i}{j})
-
-                    % If the product metabolite is not the target metabolite, continue
-                    if ~strcmp(metabolite, string(rxn.Products{i}{j}))
-                        continue
-                    end % if ~strcmp(metabolite, rxn.Products{i}{j})
-
-                    productAtomString = trans.Products{i}{j};
-                    % Extract the atom position corresponding to the target EMU
-                    productAtomString = productAtomString(position);
-                    [tableEMU, ~] = parseEMUReaction( ...
-                        obj, ...
-                        emuName, ...
-                        productAtomString, ...
-                        rxn(i, :), ...
-                        trans(i, :), ...
-                        coefficient ...
-                    );
-
-                    for k = 1:height(tableEMU)
-
-                        % Recursive search for the reactant EMUs
-                        searchEMU(obj, tableEMU.EMU{k}, true, tableEMU);
-
-                    end % for k=1:height(tableEMU)
-
-                    if isSymmetricMetabolite(obj, rxn.Products{i}{j})
-
-                        % For symmetric metabolites, search for the other symmetric EMU
-                        % position = [2 3 4], numAtoms = 4 --> symPosition = [3 2 1]
-                        % position = [1 3], numAtoms = 4 --> symPosition = [4 2]
-                        % position = [1 2 3], numAtoms = 4 --> symPosition = [4 3 2]
-                        numAtoms = strlength(trans.Products{i}{j});
-                        positionLogical = false(1, numAtoms);
-                        positionLogical(position) = true;
-                        symPositionLogical = flip(positionLogical);
-                        symProductAtomString = trans.Products{i}{j}(symPositionLogical);
-                        symTableEMU = parseEMUReaction( ...
-                            obj, ...
-                            emuName, ...
-                            symProductAtomString, ...
-                            rxn(i, :), ...
-                            trans(i, :), ...
-                            coefficient ...
-                        );
-
-                        for k = 1:height(symTableEMU)
-
-                            % Recursive search for the reactant EMUs
-                            searchEMU(obj, symTableEMU.EMU{k}, true, symTableEMU);
-
-                        end % for k=1:height(symTableEMU)
-
-                    end % if isSymmetricMetabolite(obj, rxn.Products{i}{j})
-
-                end % for j=1:length(trans.Products{i})
-
-            end % for i=1:length(rxn)
-
-        end % method searchEMU
-
-        function [tableEMU, tableEMURxn] = parseEMUReaction( ...
-                obj, ...
-                EMUname, ...
-                productAtomString, ...
-                rxn, ...
-                trans, ...
-                coefficient ...
-            )
-            % PARSEEMUREACTION: Parse an EMU reaction from the model.
-            %
-            % Parameters
-            % ----------
-            % EMUname: string
-            %    EMU name
-            % rxn: table
-            %    Reaction table
-            % trans
-            %    Transformation table
-            %
-            % Returns
-            % -------
-            % None
-
-            sizeEMU = strlength(productAtomString);
-
-            tableEMU = table('Size', [0 5], ...
-                'VariableNames', {'EMU', 'Metabolite', 'Position', 'Size', 'Target'}, ...
-                'VariableTypes', {'string', 'string', 'cell', 'double', 'logical'});
-            tableEMU.Properties.Description = 'EMU table';
-            tableEMURxn = table('Size', [0 6], ...
-                'VariableNames', {'RxnID', 'Reactants', 'Products', 'Coefficient', 'Size', 'Target'}, ...
-                'VariableTypes', {'string', 'cell', 'cell', 'double', 'double', 'logical'});
-            tableEMURxn.Properties.Description = 'EMU reaction table';
-
-            numReactants = length(trans.Reactants{1});
-            reactantEMU = {};
-            reactantNumAtoms = [];
-
-            for i = 1:numReactants
-
-                iReactantAtomString = trans.Reactants{1}{i};
-                iReactantMetabolite = rxn.Reactants{1}{i};
-                iPosition = getAtomPosition(obj, iReactantAtomString, productAtomString);
-
-                if isempty(iPosition)
-                    continue;
-                end % if isempty(iPosition)
-
-                % Flip the position if the reactant metabolite is symmetric
-                if isSymmetricMetabolite(obj, iReactantMetabolite)
-                    numAtoms = strlength(iReactantAtomString);
-                    positionLogical = false(1, numAtoms);
-                    positionLogical(iPosition) = true;
-                    symPositionLogical = flip(positionLogical);
-
-                    if find(positionLogical) >= find(symPositionLogical)
-                        iPosition = find(symPositionLogical);
-                    end % if find(positionLpogical) >= find(symPositionLogical)
-
-                end % if isSymmetricMetabolite(obj, iReactantMetabolite)
-
-                iReactantLabel = obj.charList(sort(iPosition));
-                iReactantEMU = getEMULabel(obj, iReactantMetabolite, iReactantLabel);
-
-                reactantEMU = [reactantEMU, iReactantEMU]; %#ok<AGROW>
-                reactantNumAtoms = [reactantNumAtoms, numel(iPosition)]; %#ok<AGROW>
-                tableEMU = [tableEMU; ...
-                                {iReactantEMU, iReactantMetabolite, iPosition, numel(iPosition), false}]; %#ok<AGROW>
-
-            end % for i=1:numReactants
-
-            addEMUReactionToList( ...
-                obj, rxn.Properties.RowNames{1}, reactantEMU, {EMUname}, coefficient, sizeEMU, false);
-
-        end % method parseEMUReaction
-
-        function addEMUToList( ...
-                obj, EMUname, targetMet, position, numAtoms, isTarget)
-            % ADDEMUTOLIST: Add an EMU to the EMU list.
-            %
-            % Parameters
-            % ----------
-            % EMUname: string
-            %    EMU name
-            % targetMet: string
-            %    Metabolite name of the EMU
-            % position: array
-            %    Position of the atoms in the metabolite
-            % numAtoms: double
-            %    EMU size
-            % isTarget: bool
-            %    True if the EMU is a target EMU
-            %
-            % Returns
-            % -------
-            % None
-
-            newRow = {EMUname, targetMet, position, numAtoms, isTarget};
-
-            % Check if the EMU already exists
-            if any(obj.tableEMU.EMU == EMUname)
-                return;
-            end % if any(obj.tableEMU.EMU == EMUname)
-
-            % If numAtoms is zero, do not add
-            if numAtoms == 0
-                return;
-            end % if numAtoms == 0
-
-            obj.tableEMU = [obj.tableEMU; newRow];
-
-        end % method addEMUToList
-
-        function addEMUReactionToList( ...
-                obj, rxnID, reactants, products, coefficient, size, isTarget)
-            % ADDEMUREACTIONTOLIST: Add an EMU reaction to the EMU reaction list.
-            %
-            % Parameters
-            % ----------
-            % rxnID: string
-            %    Reaction ID
-            % reactants: cell
-            %    Reactant EMUs
-            % products: cell
-            %    Product EMUs
-            % coefficient: double
-            %    Stoichiometric coefficient
-            % size: double
-            %    EMU reaction size
-            % isTarget: bool
-            %    True if the EMU reaction is a target reaction
-            %
-            % Returns
-            % -------
-            % None
-
-            newRow = {rxnID, {reactants}, {products}, coefficient, size, isTarget};
-            newRowTable = cell2table(newRow, 'VariableNames', obj.tableEMUReaction.Properties.VariableNames);
-
-            % Add the new row to the table
-            obj.tableEMUReaction = [obj.tableEMUReaction; newRowTable];
-
-        end % method addEMUReactionToList
 
         %% Private matrix methods
         function buildAnBnMatrix(obj)
@@ -1766,146 +908,26 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            % Initialize
-            info = obj.tableEMUSizeInfo;
-            maxAn = max(info.An);
-            maxBn = max(info.Bn);
-            numSizes = max(info.EMUSize);
-
-            obj.globalAn = zeros(maxAn, maxAn, numSizes);
-            obj.globalBn = zeros(maxAn, maxBn, numSizes);
-            obj.globalAnEMUName = cell(maxAn, numSizes);
-            obj.globalAnEMUNameMetabolite = cell(maxAn, numSizes);
-            obj.globalBnEMUName = cell(maxBn, numSizes);
-            obj.globalBnEMUNameMetabolite = cell(maxBn, numSizes);
-            tableEMURxn = obj.tableEMUReaction(obj.tableEMUReaction.Target == false, :);
-
-            % Message
-            msg = 'List up A and B EMUs for each EMU size.';
-            emitMsg(obj, msg, "Info", obj.logLevel);
-
-            for iSizeEMU = 1:numSizes
-
-                iAnCount = 0;
-                iBnCount = 0;
-                iEMU = tableEMURxn( ...
-                    tableEMURxn.Size == iSizeEMU, :);
-
-                if isempty(iEMU)
-                    continue
-                end % if isempty(iEMU)
-
-                iEMUList = vertcat(iEMU.Reactants, iEMU.Products);
-                iEMUUnique = getUniqueEMUName(obj, iEMUList);
-
-                % An and Bn EMUs
-                for j = 1:length(iEMUUnique)
-
-                    isSubstrate = false;
-
-                    if length(iEMUUnique{j}) > 1
-                        isSubstrate = true;
-                    end % if length(iEMUUnique{j})>1
-
-                    for k = 1:length(iEMUUnique{j})
-
-                        tmpEMU = iEMUUnique{j}{k};
-                        tmpMetabolite = obj.tableEMU.Metabolite( ...
-                            obj.tableEMU.EMU == tmpEMU);
-
-                        if obj.isSubstrateMetabolite(tmpMetabolite)
-                            isSubstrate = true;
-                            break;
-                        end % if isSubstrateMetabolite(tmpMetabolite)
-
-                    end % for k=1:length(iEMUUnique{j})
-
-                    if ~isSubstrate
-                        iAnCount = iAnCount + 1;
-                        obj.globalAnEMUName{iAnCount, iSizeEMU} = iEMUUnique{j};
-                        obj.globalAnEMUNameMetabolite{iAnCount, iSizeEMU} = tmpMetabolite;
-                    else
-                        iBnCount = iBnCount + 1;
-                        obj.globalBnEMUName{iBnCount, iSizeEMU} = iEMUUnique{j};
-                        obj.globalBnEMUNameMetabolite{iBnCount, iSizeEMU} = tmpMetabolite;
-                    end % if ~isSubstrate
-
-                end % for j=1:length(iEMUUnique)
-
-            end % for iSizeEMU=1:numSizes
-
-            % EMU size loop
-            for iSizeEMU = 1:numSizes
-
-                iAnEMU = obj.globalAnEMUName(1:info.An(iSizeEMU), iSizeEMU);
-                iBnEMU = obj.globalBnEMUName(1:info.Bn(iSizeEMU), iSizeEMU);
-                iAnBnEMU = [iAnEMU; iBnEMU];
-
-                % | EMUSize | RxnIdx | i | j | coefficient |
-                tmpRxnList = nan(0, 5);
-
-                % EMU loop
-                for j = 1:(length(iAnEMU))
-
-                    jRxns = tableEMURxn( ...
-                        cellfun(@(x) any(isequal(x, iAnEMU{j})), tableEMURxn.Reactants) | ...
-                        cellfun(@(x) any(isequal(x, iAnEMU{j})), tableEMURxn.Products), :);
-
-                    % Each reaction loop
-                    for k = 1:height(jRxns)
-
-                        kRxnID = jRxns.RxnID{k};
-                        kRxnIdx = findRxnIdx(obj, kRxnID);
-
-                        if isempty(kRxnIdx)
-                            kRxnIdx = -1;
-                        end % if isempty(kRxnIdx)
-
-                        kReactants = jRxns.Reactants{k};
-                        kProducts = jRxns.Products{k};
-                        kCoefficient = jRxns.Coefficient(k);
-
-                        if isequal(kProducts, iAnBnEMU{j})
-
-                            kCurrentColIdx = find(cellfun(@(x) isequal(x, kReactants), iAnBnEMU));
-                            tmpRxnList(end + 1, :) = [ ...
-                                                          iSizeEMU, ...
-                                                          kRxnIdx, ...
-                                                          j, ...
-                                                          kCurrentColIdx, ...
-                                                          -kCoefficient ...
-                                                      ]; %#ok<AGROW>
-
-                            tmpRxnList(end + 1, :) = [ ...
-                                                          iSizeEMU, ...
-                                                          kRxnIdx, ...
-                                                          j, ...
-                                                          j, ...
-                                                          kCoefficient ...
-                                                      ]; %#ok<AGROW>
-
-                        end % if isequal(kProducts, iAnBnEMU{j})
-
-                    end % for k=1:height(jRxns)
-
-                end % for j=1:(info.An(i)+info.Bn(i))
-
-                tmpAnList = tmpRxnList(tmpRxnList(:, 4) <= info.An(iSizeEMU), :);
-                tmpAnList(:, 5) = -tmpAnList(:, 5);
-                tmpBnList = tmpRxnList(tmpRxnList(:, 4) > info.An(iSizeEMU), :);
-                tmpBnList(:, 4) = tmpBnList(:, 4) - info.An(iSizeEMU);
-                obj.globalAnList = [obj.globalAnList; tmpAnList];
-                obj.globalBnList = [obj.globalBnList; tmpBnList];
-
-            end % for iSizeEMU=1:numSizes
-
-            [uniqueAnRows, ~, icAn] = unique(obj.globalAnList(:, 1:4), 'rows');
-            sumCol = accumarray(icAn, obj.globalAnList(:, 5));
-            obj.globalAnList = [uniqueAnRows, sumCol];
-
-            [uniqueBnRows, ~, icBn] = unique(obj.globalBnList(:, 1:4), 'rows');
-            sumCol = accumarray(icBn, obj.globalBnList(:, 5));
-            obj.globalBnList = [uniqueBnRows, sumCol];
+            emitMsg( ...
+                obj, ...
+                "List up A and B EMUs for each EMU size.", ...
+                "Info", ...
+                obj.logLevel);
+            modelReactions = obj.getModelRxnRev();
+            result = obj.MatrixBuilder.buildAnBn( ...
+                obj.tableEMUSizeInfo, ...
+                obj.tableEMU, ...
+                obj.tableEMUReaction, ...
+                obj.getMetaboliteTableSubstrate(), ...
+                string(modelReactions.Properties.RowNames));
+            obj.globalAn = result.An;
+            obj.globalBn = result.Bn;
+            obj.globalAnEMUName = result.AnNames;
+            obj.globalAnEMUNameMetabolite = result.AnMetabolites;
+            obj.globalBnEMUName = result.BnNames;
+            obj.globalBnEMUNameMetabolite = result.BnMetabolites;
+            obj.globalAnList = result.AnList;
+            obj.globalBnList = result.BnList;
 
         end % method buildAnBnMatrix
 
@@ -1920,32 +942,12 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            info = obj.tableEMUSizeInfo;
-            maxEMUSize = max(info.EMUSize);
-            maxAn = max(info.An);
-            metabolite = obj.getMetaboliteTableMetabolite();
-            numMetabolite = length(metabolite);
-
-            obj.globalCn = false(maxAn, numMetabolite, maxEMUSize);
-            obj.globalCnDiag = zeros(maxAn, maxEMUSize);
-
-            % Initialize Cn matrix
-            for iSizeEMU = 1:maxEMUSize
-
-                Xi = obj.globalAnEMUNameMetabolite(:, iSizeEMU);
-                isEmptyXi = cellfun(@isempty, Xi);
-                Xi(isEmptyXi) = {""};
-                Xi = string(Xi);
-
-                for jMetabolite = 1:numMetabolite
-
-                    jMetName = metabolite(jMetabolite);
-                    isMatch = ismember(Xi, jMetName);
-                    obj.globalCn(isMatch, jMetabolite, iSizeEMU) = true;
-
-                end % for iSizeEMU=1:maxSize
-
-            end % method buildCnMatrix
+            result = obj.MatrixBuilder.buildCn( ...
+                obj.tableEMUSizeInfo, ...
+                obj.globalAnEMUNameMetabolite, ...
+                obj.getMetaboliteTableMetabolite());
+            obj.globalCn = result.Matrix;
+            obj.globalCnDiag = result.Diagonal;
 
         end % method buildCnMatrix
 
@@ -1960,124 +962,20 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            info = obj.tableEMUSizeInfo;
-            maxSize = max(info.EMUSize);
-            maxAn = max(info.An);
-            maxBn = max(info.Bn);
+            result = obj.MatrixBuilder.buildXnYn( ...
+                obj.tableEMUSizeInfo, ...
+                obj.tableEMU, ...
+                obj.globalAnEMUName, ...
+                obj.globalBnEMUName, ...
+                obj.getMetaboliteTable());
+            obj.globalXn = result.Xn;
+            obj.globalYn = result.Yn;
+            obj.globalXnList = result.XnList;
+            obj.globalYnList = result.YnList;
 
-            obj.globalXn = zeros(maxAn, maxSize + 1, maxSize);
-            obj.globalYn = zeros(maxBn, maxSize + 1, maxSize);
-            obj.globalXn(:, 1, :) = 1;
-            obj.globalYn(:, 1, :) = 1;
-
-            % Calculate the size of substrate EMUs for each EMU size
-            metabolite = obj.getMetaboliteTable();
-            substrateMetabolite = metabolite( ...
-                cellfun(@(x) obj.isSubstrateMetabolite(x), metabolite.Metabolite), :);
-            substrateEMUInfo = nan(height(substrateMetabolite), 2); % | Start | number of substrate EMUs |
-
-            if height(substrateMetabolite) == 0
-                disp('No substrate metabolites found.');
-                return;
-            end % if height(substrateMetabolite)==0
-
-            substrateEMUInfo(1, 1) = 1;
-
-            for i = 1:height(substrateMetabolite)
-
-                if i > 1
-                    substrateEMUInfo(i, 1) = substrateEMUInfo(i - 1, 1) + substrateEMUInfo(i - 1, 2);
-                end % if i>1
-
-                substrateEMUInfo(i, 2) = 2 ^ substrateMetabolite.Carbon{i} - 1;
-
-            end % for i=1:height(substrateMetabolite)
-
-            for iSizeEMU = 1:maxSize
-
-                % | EMUSize | i | convolution (bool) | substrate (bool) | A | B |
-                % If isSubstrate
-                %   A: i (In substrate EMU)
-                %   B: 0
-                % Else
-                %   A: sizeEMU (Xn)
-                %   B: i (Xn)
-                tmpYnList = zeros(0, 6);
-
-                tmpBnEMUName = obj.globalBnEMUName(1:info.Bn(iSizeEMU), iSizeEMU);
-
-                for j = 1:length(tmpBnEMUName)
-
-                    tmpEMU = tmpBnEMUName{j};
-
-                    for kEMU = 1:length(tmpEMU)
-
-                        isConvolution = false;
-                        isSubstrate = false;
-
-                        if kEMU > 1
-                            isConvolution = true;
-                        end % if kEMU>1
-
-                        kMetaboliteName = obj.tableEMU.Metabolite( ...
-                            obj.tableEMU.EMU == tmpEMU{kEMU});
-
-                        if obj.isSubstrateMetabolite(kMetaboliteName)
-                            isSubstrate = true;
-                            pattern = obj.tableEMU.Position{ ...
-                                                                obj.tableEMU.EMU == tmpEMU{kEMU}};
-                            subsSize = metabolite.Carbon{ ...
-                                                             metabolite.Metabolite == kMetaboliteName};
-                            patternLogical = false(1, subsSize);
-                            patternLogical(pattern) = true;
-                            dpos = obj.getSubstrateEMUPosition(patternLogical);
-
-                            % Find the corresponding row in substrateEMUInfo
-                            substrateRowIdx = find( ...
-                                strcmp(substrateMetabolite.Metabolite, kMetaboliteName), 1);
-                            startIdx = substrateEMUInfo(substrateRowIdx, 1);
-                            pos = startIdx + dpos - 1;
-
-                            tmpYnList(end + 1, :) = [ ...
-                                                         iSizeEMU, ...
-                                                         j, ...
-                                                         isConvolution, ...
-                                                         isSubstrate, ...
-                                                         pos, ...
-                                                         0 ...
-                                                     ]; %#ok<AGROW>
-
-                            continue;
-
-                        end % if isSubstrateMetabolite(kMetaboliteName)
-
-                        % Non-substrate EMU
-                        % Get target EMU size
-                        tmpEMUSize = obj.tableEMU.Size( ...
-                            obj.tableEMU.EMU == tmpEMU{kEMU});
-                        tmpIdxEMUName = find(info.EMUSize == tmpEMUSize, 1);
-                        tmpAnIdx = find( ...
-                            cellfun(@(x) isequal(x, tmpEMU(kEMU)), ...
-                            obj.globalAnEMUName(1:info.An(tmpIdxEMUName), tmpIdxEMUName)), 1);
-                        tmpYnList(end + 1, :) = [ ...
-                                                     iSizeEMU, ...
-                                                     j, ...
-                                                     isConvolution, ...
-                                                     isSubstrate, ...
-                                                     tmpEMUSize, ...
-                                                     tmpAnIdx ...
-                                                 ]; %#ok<AGROW>
-
-                    end % for kEMU=1:length(tmpEMU)
-
-                end % for j=1:length(tmpBnEMUName)
-
-                obj.globalYnList = [obj.globalYnList; tmpYnList];
-
-            end % for i=1:height(info)
-
-            % Sort Yn list by EMU size, i, convolution, substrate
-            obj.globalYnList = sortrows(obj.globalYnList, [1 2 3 4]);
+            if ~result.HasSubstrates
+                disp("No substrate metabolites found.");
+            end
 
         end % method buildXnYnMatrix
 
@@ -2092,74 +990,14 @@ classdef EMUModel < Stoichiometry
             % -------
             % None
 
-            targetEMU = obj.tableEMU(obj.tableEMU.Target == true, :);
-            targetEMU = sortrows(targetEMU, 'Metabolite');
-            sizeVector = targetEMU.Size;
-            numTargetEMU = height(targetEMU);
-            obj.globalMDVInfo = zeros(numTargetEMU, 2); % | size | position |
-
-            for i = 1:numTargetEMU
-
-                iSizeEMU = sizeVector(i);
-                obj.globalMDVInfo(i, 1) = iSizeEMU;
-
-                if i > 1
-                    obj.globalMDVInfo(i, 2) = obj.globalMDVInfo(i - 1, 2) + obj.globalMDVInfo(i - 1, 1) + 1;
-                else
-                    obj.globalMDVInfo(i, 2) = 1;
-                end % if i>1
-
-            end % for i=1:numTargetEMU
-
-            obj.globalMDVSize = obj.globalMDVInfo(end, 2) + obj.globalMDVInfo(end, 1);
-
-            % | EMU size | isConvolution (bool) | i | MDV index |
-            tmpMDVList = zeros(0, 5);
-
-            for i = 1:numTargetEMU
-
-                sizeEMU = obj.globalMDVInfo(i, 1);
-                startIdx = obj.globalMDVInfo(i, 2);
-
-                targetEMUReactant = obj.tableEMUReaction( ...
-                    cellfun(@(x) any(isequal(x, targetEMU.EMU(i))), obj.tableEMUReaction.Products), :);
-
-                tmpReactants = targetEMUReactant.Reactants{:};
-
-                for j = 1:length(tmpReactants)
-
-                    isConvolution = false;
-
-                    if j > 1
-                        isConvolution = true;
-                    end % if j>1
-
-                    jSizeEMU = obj.tableEMU.Size( ...
-                        obj.tableEMU.EMU == tmpReactants{j});
-
-                    jAnIdx = find( ...
-                        cellfun(@(x) isequal(x, tmpReactants(j)), ...
-                        obj.globalAnEMUName(1:obj.tableEMUSizeInfo.An( ...
-                        obj.tableEMUSizeInfo.EMUSize == jSizeEMU), ...
-                        obj.tableEMUSizeInfo.EMUSize == jSizeEMU)), 1);
-
-                    tmpMDVList(end + 1, :) = [ ...
-                                                  jSizeEMU, ...
-                                                  isConvolution, ...
-                                                  jAnIdx, ...
-                                                  startIdx, ...
-                                                  sizeEMU ... % EMU size of MDV
-                                              ]; %#ok<AGROW>
-
-                end % for j=1:length(targetEMUReactant.Reactants{i})
-
-            end % for i=1:numTargetEMU
-
-            obj.globalMDVList = ...
-                [obj.globalMDVList; tmpMDVList];
-
-            % Sort
-            obj.globalMDVList = sortrows(obj.globalMDVList, 2, "ascend");
+            result = obj.MatrixBuilder.buildMDV( ...
+                obj.tableEMU, ...
+                obj.tableEMUReaction, ...
+                obj.globalAnEMUName, ...
+                obj.tableEMUSizeInfo);
+            obj.globalMDVInfo = result.Info;
+            obj.globalMDVSize = result.Size;
+            obj.globalMDVList = result.List;
 
         end % method buildMDVVector
 
@@ -2167,105 +1005,106 @@ classdef EMUModel < Stoichiometry
         function tf = saveEMUModelToFile(obj)
             % SAVEMODEL Save the model cache and source-file hash.
             %
-            % The file locations are resolved by IOModel.pathCache and
-            % IOModel.pathModel.
+            % File locations and source-hash validation are owned by the
+            % cache repository.
 
             tf = false;
 
-            tableEMU = obj.tableEMU; %#ok<PROPLC>
-            tableEMUReaction = obj.tableEMUReaction; %#ok<PROPLC>
-            tableEMUSizeInfo = obj.tableEMUSizeInfo; %#ok<PROPLC>
-            searchedProduct = obj.searchedProduct; %#ok<PROPLC>
-            globalAn = obj.globalAn; %#ok<PROPLC>
-            globalAnEMUName = obj.globalAnEMUName; %#ok<PROPLC>
-            globalAnEMUNameMetabolite = obj.globalAnEMUNameMetabolite; %#ok<PROPLC>
-            globalAnList = obj.globalAnList; %#ok<PROPLC>
-            globalBn = obj.globalBn; %#ok<PROPLC>
-            globalBnEMUName = obj.globalBnEMUName; %#ok<PROPLC>
-            globalBnEMUNameMetabolite = obj.globalBnEMUNameMetabolite; %#ok<PROPLC>
-            globalBnList = obj.globalBnList; %#ok<PROPLC>
-            globalCn = obj.globalCn; %#ok<PROPLC>
-            globalCnDiag = obj.globalCnDiag; %#ok<PROPLC>
-            globalXn = obj.globalXn; %#ok<PROPLC>
-            globalXnList = obj.globalXnList; %#ok<PROPLC>
-            globalYn = obj.globalYn; %#ok<PROPLC>
-            globalYnList = obj.globalYnList; %#ok<PROPLC>
-            globalMDVInfo = obj.globalMDVInfo; %#ok<PROPLC>
-            globalMDVList = obj.globalMDVList; %#ok<PROPLC>
-            globalMDVSize = obj.globalMDVSize; %#ok<PROPLC>
-
-            filePath = obj.pathCache;
-
             try
-                save(filePath, ...
-                    'tableEMU', ...
-                    'tableEMUReaction', ...
-                    'tableEMUSizeInfo', ...
-                    'searchedProduct', ...
-                    'globalAn', ...
-                    'globalAnEMUName', ...
-                    'globalAnEMUNameMetabolite', ...
-                    'globalAnList', ...
-                    'globalBn', ...
-                    'globalBnEMUName', ...
-                    'globalBnEMUNameMetabolite', ...
-                    'globalBnList', ...
-                    'globalCn', ...
-                    'globalCnDiag', ...
-                    'globalXn', ...
-                    'globalXnList', ...
-                    'globalYn', ...
-                    'globalYnList', ...
-                    'globalMDVInfo', ...
-                    'globalMDVList', ...
-                    'globalMDVSize' ...
-                );
+                snapshot = createCacheSnapshot(obj);
+                obj.CacheRepository.save( ...
+                    obj.getModelLocation(), ...
+                    obj.fileModel, ...
+                    obj.fileTypeModel, ...
+                    snapshot);
                 tf = true;
             catch ME
-                msg = "Failed to save the model: " + ME.message;
+                msg = "Failed to save the EMU cache: " + ME.message;
                 emitMsg(obj, msg, "Error", obj.logLevel);
             end % try-catch
 
-            try
-                saveHashFile(obj, obj.pathModel);
-            catch ME
-                msg = "Failed to compute    hash for the model file: " + ME.message;
-                emitMsg(obj, msg, "Error", obj.logLevel);
-                return;
-            end % try-catch
-
-        end % saveModel
+        end % saveEMUModelToFile
 
         function tf = loadEMUModelFromFile(obj)
-            % LOADMODEL Load the model cache resolved by IOModel.pathCache.
-
-            tf = false;
-            filePath = obj.pathCache;
-
-            if ~isfile(filePath)
-                msg = "Model file not found: " + filePath;
-                emitMsg(obj, msg, "Warning", obj.logLevel);
-                return;
-            end % if ~isfile(filePath)
+            % LOADEMUMODELFROMFILE Restore a current EMU network snapshot.
 
             try
-                loadedData = load(filePath);
-                fields = fieldnames(loadedData);
+                [snapshot, tf] = obj.CacheRepository.load( ...
+                    obj.getModelLocation(), ...
+                    obj.fileModel, ...
+                    obj.fileTypeModel);
 
-                for i = 1:length(fields)
-                    obj.(fields{i}) = loadedData.(fields{i});
-                end % for i=1:length(fields)
-
-                ensureCnMatrixAvailable(obj);
-
-                tf = true;
+                if tf
+                    applyCacheSnapshot(obj, snapshot);
+                    ensureCnMatrixAvailable(obj);
+                end
 
             catch ME
-                msg = "Failed to load the model: " + ME.message;
+                tf = false;
+                msg = "Failed to load the EMU cache: " + ME.message;
                 emitMsg(obj, msg, "Error", obj.logLevel);
             end % try-catch
 
-        end % loadModel
+        end % loadEMUModelFromFile
+
+        function snapshot = createCacheSnapshot(obj)
+
+            payload = struct( ...
+                "tableEMU", obj.tableEMU, ...
+                "tableEMUReaction", obj.tableEMUReaction, ...
+                "tableEMUSizeInfo", obj.tableEMUSizeInfo, ...
+                "searchedProduct", {obj.searchedProduct}, ...
+                "globalAn", obj.globalAn, ...
+                "globalAnEMUName", {obj.globalAnEMUName}, ...
+                "globalAnEMUNameMetabolite", ...
+                    {obj.globalAnEMUNameMetabolite}, ...
+                "globalAnList", obj.globalAnList, ...
+                "globalBn", obj.globalBn, ...
+                "globalBnEMUName", {obj.globalBnEMUName}, ...
+                "globalBnEMUNameMetabolite", ...
+                    {obj.globalBnEMUNameMetabolite}, ...
+                "globalBnList", obj.globalBnList, ...
+                "globalCn", obj.globalCn, ...
+                "globalCnDiag", obj.globalCnDiag, ...
+                "globalXn", obj.globalXn, ...
+                "globalXnList", obj.globalXnList, ...
+                "globalYn", obj.globalYn, ...
+                "globalYnList", obj.globalYnList, ...
+                "globalMDVInfo", obj.globalMDVInfo, ...
+                "globalMDVList", obj.globalMDVList, ...
+                "globalMDVSize", obj.globalMDVSize);
+
+            snapshot = openmebius.domain.model.EMUNetworkSnapshot(payload);
+
+        end % createCacheSnapshot
+
+        function applyCacheSnapshot(obj, snapshot)
+
+            obj.tableEMU = snapshot.TableEMU;
+            obj.tableEMUReaction = snapshot.TableEMUReaction;
+            obj.tableEMUSizeInfo = snapshot.TableEMUSizeInfo;
+            obj.searchedProduct = snapshot.SearchedProduct;
+            obj.globalAn = snapshot.GlobalAn;
+            obj.globalAnEMUName = snapshot.GlobalAnEMUName;
+            obj.globalAnEMUNameMetabolite = ...
+                snapshot.GlobalAnEMUNameMetabolite;
+            obj.globalAnList = snapshot.GlobalAnList;
+            obj.globalBn = snapshot.GlobalBn;
+            obj.globalBnEMUName = snapshot.GlobalBnEMUName;
+            obj.globalBnEMUNameMetabolite = ...
+                snapshot.GlobalBnEMUNameMetabolite;
+            obj.globalBnList = snapshot.GlobalBnList;
+            obj.globalCn = snapshot.GlobalCn;
+            obj.globalCnDiag = snapshot.GlobalCnDiag;
+            obj.globalXn = snapshot.GlobalXn;
+            obj.globalXnList = snapshot.GlobalXnList;
+            obj.globalYn = snapshot.GlobalYn;
+            obj.globalYnList = snapshot.GlobalYnList;
+            obj.globalMDVInfo = snapshot.GlobalMDVInfo;
+            obj.globalMDVList = snapshot.GlobalMDVList;
+            obj.globalMDVSize = snapshot.GlobalMDVSize;
+
+        end % applyCacheSnapshot
 
         function ensureCnMatrixAvailable(obj)
             % ENSURECNMATRIXAVAILABLE Build Cn matrices when absent from an old cache.
@@ -2320,27 +1159,6 @@ classdef EMUModel < Stoichiometry
             end % try-catch
 
         end % isCnMatrixConsistent
-
-        function resetHashFile(obj)
-            % RESETHASHFILE Delete hash file
-            %
-            % resetHashFile(obj)
-            %
-            % Parameters
-            % ----------
-            % None
-            %
-            % Returns
-            % -------
-            % None
-
-            filePath = obj.pathHash;
-
-            if isfile(filePath)
-                delete(filePath);
-            end
-
-        end % resetHashFile
 
     end % methods (Access = private)
 

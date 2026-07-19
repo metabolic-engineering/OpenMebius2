@@ -20,7 +20,7 @@ classdef ExperimentImportServiceTest < matlab.unittest.TestCase
             repositoryRoot = fileparts(fileparts(mfilename('fullpath')));
             experimentDirectory = string(tempname);
             mkdir(experimentDirectory);
-            cleanup = onCleanup(@() ExperimentImportServiceTest.removeDirectory(experimentDirectory)); %#ok<NASGU>
+            cleanup = onCleanup(@() ExperimentImportServiceTest.removeDirectory(experimentDirectory));
 
             sourceFile = fullfile(repositoryRoot, 'dataset', 'WT_ecoli.xlsx');
             modelDirectory = fullfile(repositoryRoot, 'model', 'Escherichia coli');
@@ -35,8 +35,12 @@ classdef ExperimentImportServiceTest < matlab.unittest.TestCase
                 string(sourceFile), ...
                 string(modelDirectory));
 
-            testCase.verifyClass(result.Experiments, 'IOExps');
-            testCase.verifyClass(result.Batch, 'Batch');
+            testCase.verifyClass( ...
+                result.Experiments, ...
+                'openmebius.application.experiment.ExperimentWorkspace');
+            testCase.verifyClass( ...
+                result.Batch, ...
+                'openmebius.application.batch.BatchSession');
             testCase.verifyEqual(result.Experiments.numFile, 1);
             testCase.verifyTrue(isfile(fullfile(experimentDirectory, 'WT_ecoli.xlsx')));
             testCase.verifyEqual(result.ImportedFiles, "WT_ecoli.xlsx");
@@ -50,7 +54,7 @@ classdef ExperimentImportServiceTest < matlab.unittest.TestCase
             repositoryRoot = fileparts(fileparts(mfilename('fullpath')));
             experimentDirectory = string(tempname);
             mkdir(experimentDirectory);
-            cleanup = onCleanup(@() ExperimentImportServiceTest.removeDirectory(experimentDirectory)); %#ok<NASGU>
+            cleanup = onCleanup(@() ExperimentImportServiceTest.removeDirectory(experimentDirectory));
 
             sourceFile = fullfile(repositoryRoot, 'dataset', 'WT_ecoli.xlsx');
             copyfile(sourceFile, fullfile(experimentDirectory, 'WT_ecoli.xlsx'));

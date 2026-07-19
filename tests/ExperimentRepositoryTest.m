@@ -24,7 +24,9 @@ classdef ExperimentRepositoryTest < matlab.unittest.TestCase
 
             experiments = repository.load(fixture.Location, model);
 
-            testCase.verifyClass(experiments, "IOExps");
+            testCase.verifyClass( ...
+                experiments, ...
+                "openmebius.application.experiment.ExperimentWorkspace");
             testCase.verifyEqual(experiments.numFile, 1);
             testCase.verifyFalse(isprop(experiments, "isError"));
             testCase.verifyFalse(isprop(experiments, "statusMsg"));

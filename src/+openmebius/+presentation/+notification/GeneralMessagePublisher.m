@@ -3,11 +3,7 @@ classdef GeneralMessagePublisher
     % Formats logs and bridges notifications to GeneralMsg event data.
 
     properties (Access = private)
-        LogWriter (1, 1) function_handle = ...
-            @(text) openmebius.infrastructure.logging ...
-            .Logger.writeText(text)
-        Clock (1, 1) function_handle = @() datetime("now")
-        LogLevel (1, 1) string = "Info"
+        Reporter openmebius.infrastructure.logging.MessageReporter
     end
 
     methods
@@ -23,10 +19,11 @@ classdef GeneralMessagePublisher
                 options.LogLevel (1, 1) string = "Info"
             end
 
-            obj.LogWriter = options.LogWriter;
-            obj.Clock = options.Clock;
-            obj.LogLevel = openmebius.infrastructure.logging ...
-                .Logger.normalizeLevel(options.LogLevel);
+            obj.Reporter = openmebius.infrastructure.logging ...
+                .MessageReporter( ...
+                    LogWriter = options.LogWriter, ...
+                    Clock = options.Clock, ...
+                    LogLevel = options.LogLevel);
 
         end
 
@@ -57,16 +54,9 @@ classdef GeneralMessagePublisher
                 message (1, 1) string
             end
 
+            coreMessage = obj.Reporter.report(level, message);
             notification = openmebius.presentation.notification ...
-                .Notification( ...
-                message, ...
-                level, ...
-                Timestamp = obj.Clock());
-
-            if openmebius.infrastructure.logging.Logger ...
-                    .shouldLog(notification.Level, obj.LogLevel)
-                obj.LogWriter(notification.toLogText());
-            end
+                .Notification.fromMessage(coreMessage);
 
         end
 

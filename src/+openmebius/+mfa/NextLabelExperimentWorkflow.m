@@ -24,7 +24,7 @@ classdef NextLabelExperimentWorkflow
         end
 
         function result = run( ...
-                obj, model, experiments, experimentList, config, ...
+                obj, model, experiments, experimentList, settings, ...
                 bestFlux, options)
 
             arguments
@@ -32,7 +32,8 @@ classdef NextLabelExperimentWorkflow
                 model
                 experiments
                 experimentList
-                config
+                settings (1, 1) openmebius.mfa ...
+                    .NextLabelExperimentSettings
                 bestFlux (:, 1) double
                 options.ConfidenceIntervalFunction ...
                     (1, 1) function_handle
@@ -46,10 +47,6 @@ classdef NextLabelExperimentWorkflow
 
             report = options.MessageReporter;
             report("info", "Suggesting next flux experiment...");
-            suggestionTable = array2table( ...
-                config.suggestionTable, ...
-                VariableNames = config.suggestionTableVarNames, ...
-                RowNames = config.suggestionTableRowNames);
             baseEMUs = cell(numel(experimentList), 1);
 
             for i = 1:numel(experimentList)
@@ -62,12 +59,12 @@ classdef NextLabelExperimentWorkflow
             upperBounds = cell(0, 1);
             outputs = cell(0, 1);
             isCanceled = false;
-            patternCount = height(suggestionTable);
+            patternCount = settings.patternCount();
 
             for iPattern = 1:patternCount
-                pattern = suggestionTable{iPattern, :};
+                pattern = settings.patternAt(iPattern);
 
-                if any(cellfun(@isempty, pattern))
+                if ~settings.isCompletePattern(iPattern)
                     continue
                 end
 

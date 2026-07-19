@@ -85,19 +85,22 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
                 openmebius.presentation.batch.RunConfigMapper.toViewModel( ...
                 config);
 
-            testCase.verifyEqual(viewModel.Algorithm, 'IPMs');
-            testCase.verifyEqual(viewModel.CIAlgorithm, 'Grid search');
-            testCase.verifyEqual(viewModel.GridThreshold, 'Chi-squared');
+            testCase.verifyClass( ...
+                viewModel, ...
+                'openmebius.presentation.batch.RunConfigViewModel');
+            testCase.verifyEqual(viewModel.Algorithm, "IPMs");
+            testCase.verifyEqual(viewModel.CIAlgorithm, "Grid search");
+            testCase.verifyEqual(viewModel.GridThreshold, "Chi-squared");
             testCase.verifyEqual( ...
                 viewModel.MCOptimizationProcedure, ...
-                'Multiple run');
-            testCase.verifyEqual(viewModel.MCCalculationMethod, 'Discarding');
+                "Multiple run");
+            testCase.verifyEqual(viewModel.MCCalculationMethod, "Discarding");
 
-            viewModel.Algorithm = 'SQP';
-            viewModel.CIAlgorithm = 'Monte Carlo';
-            viewModel.GridThreshold = 'F-distribution';
-            viewModel.MCOptimizationProcedure = 'Single run';
-            viewModel.MCCalculationMethod = 'Mean-varianced';
+            viewModel.Algorithm = "SQP";
+            viewModel.CIAlgorithm = "Monte Carlo";
+            viewModel.GridThreshold = "F-distribution";
+            viewModel.MCOptimizationProcedure = "Single run";
+            viewModel.MCCalculationMethod = "Mean-varianced";
 
             updatedConfig = ...
                 openmebius.presentation.batch.RunConfigMapper.fromViewModel( ...
@@ -118,6 +121,83 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             openmebius.domain.batch.BatchConfig.validate(updatedConfig);
 
         end % mapsConfigToAndFromViewModel
+
+        function mapsAllEditableValuesRoundTrip(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.iteration = 47;
+            config.algorithm = 'interior-point';
+            config.largeScale = true;
+            config.suggestNextFlux = true;
+            config.perturbateEfflux = true;
+            config.efflux.selection = [true; false];
+            config.efflux.substrate = ["A"; "B"];
+            config.efflux.substrateSD = [0.1; 0.2];
+            config.isCalcCI = true;
+            config.CIConf.algorithm = 'Grid search';
+            config.CIConf.MC.iteration = 321;
+            config.CIConf.MC.fixMID = false;
+            config.CIConf.MC.MIDSD = 0.07;
+            config.CIConf.MC.optimizationProcedure = 'single';
+            config.CIConf.MC.terminationTolerance = 0.02;
+            config.CIConf.MC.proximityThreshold = 0.03;
+            config.CIConf.MC.certainThreshold = 8;
+            config.CIConf.MC.theNumberOfRuns = 19;
+            config.CIConf.MC.calculationMethod = 'mean-varianced';
+            config.CIConf.grid.isParallel = false;
+            config.CIConf.grid.points = 23;
+            config.CIConf.grid.delta = 0.5;
+            config.CIConf.grid.iteration = 71;
+            config.CIConf.grid.threshold = 'f-distribution';
+            config.deleteResultFile = false;
+            config.isINSTMFA = true;
+            config.INSTMFA.poolMetabolite = ["M1"; "M2"];
+            config.INSTMFA.poolSize = [1.5; 2.5];
+            config.INSTMFA.timePointsExpName = ["E1"; "E2"];
+            config.INSTMFA.timePoints = [0; 5];
+
+            viewModel = openmebius.presentation.batch ...
+                .RunConfigMapper.toViewModel(config);
+            actual = openmebius.presentation.batch ...
+                .RunConfigMapper.fromViewModel(viewModel, config);
+
+            testCase.verifyEqual(actual.iteration, config.iteration);
+            testCase.verifyEqual(actual.algorithm, config.algorithm);
+            testCase.verifyEqual(actual.largeScale, config.largeScale);
+            testCase.verifyEqual( ...
+                actual.suggestNextFlux, config.suggestNextFlux);
+            testCase.verifyEqual(actual.efflux, config.efflux);
+            testCase.verifyEqual(actual.isCalcCI, config.isCalcCI);
+            testCase.verifyEqual(actual.CIConf, config.CIConf);
+            testCase.verifyEqual( ...
+                actual.deleteResultFile, config.deleteResultFile);
+            testCase.verifyEqual(actual.isINSTMFA, config.isINSTMFA);
+            testCase.verifyEqual(actual.INSTMFA, config.INSTMFA);
+
+        end % mapsAllEditableValuesRoundTrip
+
+        function preservesDisabledTableSettings(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.efflux.selection = true;
+            config.efflux.substrate = "A";
+            config.efflux.substrateSD = 0.4;
+            config.INSTMFA.poolMetabolite = "M";
+            config.INSTMFA.poolSize = 2;
+            config.INSTMFA.timePointsExpName = "E";
+            config.INSTMFA.timePoints = 4;
+            viewModel = openmebius.presentation.batch ...
+                .RunConfigMapper.toViewModel(config);
+            viewModel.PerturbateEfflux = false;
+            viewModel.IsINSTMFA = false;
+
+            actual = openmebius.presentation.batch ...
+                .RunConfigMapper.fromViewModel(viewModel, config);
+
+            testCase.verifyEqual(actual.efflux, config.efflux);
+            testCase.verifyEqual(actual.INSTMFA, config.INSTMFA);
+
+        end % preservesDisabledTableSettings
 
         function rejectsUnknownValue(testCase)
 
