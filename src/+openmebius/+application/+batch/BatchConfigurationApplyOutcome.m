@@ -1,26 +1,23 @@
-classdef BatchConfigurationApplyOutcome
+classdef BatchConfigurationApplyOutcome < openmebius.application.OperationOutcome
     % BATCHCONFIGURATIONAPPLYOUTCOME Result of applying RunConfig edits.
 
     properties (SetAccess = private)
-        Status (1, 1) string
-        ErrorMessage (1, 1) string
-        Exception
     end
 
     methods
 
-        function obj = BatchConfigurationApplyOutcome(status, options)
+        function obj = BatchConfigurationApplyOutcome(succeeded, options)
 
             arguments
-                status (1, 1) string {mustBeMember( ...
-                    status, ["finished", "error"])}
+                succeeded (1, 1) logical
                 options.ErrorMessage (1, 1) string = ""
                 options.Exception = []
             end
 
-            obj.Status = status;
-            obj.ErrorMessage = options.ErrorMessage;
-            obj.Exception = options.Exception;
+            obj@openmebius.application.OperationOutcome( ...
+                succeeded, ...
+                ErrorMessage = options.ErrorMessage, ...
+                Exception = options.Exception);
 
         end % constructor
 

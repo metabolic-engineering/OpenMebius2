@@ -1,29 +1,26 @@
-classdef BatchConfigurationLaunchOutcome
+classdef BatchConfigurationLaunchOutcome < openmebius.application.OperationOutcome
     % BATCHCONFIGURATIONLAUNCHOUTCOME Session preparation result.
 
     properties (SetAccess = private)
-        Status (1, 1) string
         Session
-        ErrorMessage (1, 1) string
-        Exception
     end
 
     methods
 
-        function obj = BatchConfigurationLaunchOutcome(status, options)
+        function obj = BatchConfigurationLaunchOutcome(succeeded, options)
 
             arguments
-                status (1, 1) string {mustBeMember( ...
-                    status, ["finished", "error"])}
+                succeeded (1, 1) logical
                 options.Session = []
                 options.ErrorMessage (1, 1) string = ""
                 options.Exception = []
             end
 
-            obj.Status = status;
+            obj@openmebius.application.OperationOutcome( ...
+                succeeded, ...
+                ErrorMessage = options.ErrorMessage, ...
+                Exception = options.Exception);
             obj.Session = options.Session;
-            obj.ErrorMessage = options.ErrorMessage;
-            obj.Exception = options.Exception;
 
         end % constructor
 

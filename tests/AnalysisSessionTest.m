@@ -12,7 +12,7 @@ classdef AnalysisSessionTest < matlab.unittest.TestCase
 
     methods (Test)
 
-        function resultSessionOwnsResultAndStatus(testCase)
+        function resultSessionOwnsResultAndProgress(testCase)
 
             coordinator = openmebius.infrastructure.result ...
                 .MFAResultCoordinator(IsExport = false);
@@ -24,7 +24,13 @@ classdef AnalysisSessionTest < matlab.unittest.TestCase
                 [1; 2], [3; 4], 5, zeros(0, 2));
             session.writeSummary(5, 1, 7);
 
-            testCase.verifyEqual(session.Status, [1, 1, 0, 0]);
+            testCase.verifyTrue(session.Progress.InitialFluxCompleted);
+            testCase.verifyTrue( ...
+                session.Progress.FluxDistributionCompleted);
+            testCase.verifyFalse( ...
+                session.Progress.ConfidenceIntervalCompleted);
+            testCase.verifyEqual( ...
+                session.Progress.toStorageVector(), [1, 1, 0, 0]);
             testCase.verifyEqual(session.Result.ID, "batch-1");
             testCase.verifyEqual(session.Result.initialFlux.RSS, 5);
             testCase.verifyEqual(session.Result.threshold, 7);

@@ -1,6 +1,5 @@
-classdef LegacyBatchRepository < handle
-    % LEGACYBATCHREPOSITORY
-    % Loads the existing Batch object for an experiment set.
+classdef BatchRepository
+    % BATCHREPOSITORY Restores the application batch session.
 
     methods
 
@@ -8,7 +7,8 @@ classdef LegacyBatchRepository < handle
 
             arguments
                 ~
-                experimentLocation openmebius.domain.experiment.ExperimentLocation
+                experimentLocation openmebius.domain.experiment ...
+                    .ExperimentLocation
                 experiments
             end
 
@@ -17,21 +17,22 @@ classdef LegacyBatchRepository < handle
 
                 if loadedLocation.Directory ~= experimentLocation.Directory
                     error( ...
-                        "OpenMebius2:LegacyProject:ExperimentLocationMismatch", ...
+                        "OpenMebius2:BatchRepository:" + ...
+                        "ExperimentLocationMismatch", ...
                         "Batch and experiment locations do not match.");
                 end
             end
 
-            batch = Batch(experiments);
+            batch = openmebius.application.batch.BatchSession(experiments);
 
             if isempty(batch) || ~isvalid(batch)
                 error( ...
-                    "OpenMebius2:LegacyProject:InvalidBatchObject", ...
-                    "Failed to create Batch.");
+                    "OpenMebius2:BatchRepository:InvalidSession", ...
+                    "Failed to create the batch session.");
             end
 
-        end % load
+        end
 
-    end % methods
+    end
 
-end % classdef
+end

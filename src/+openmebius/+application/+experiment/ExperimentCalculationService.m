@@ -4,7 +4,7 @@ classdef ExperimentCalculationService < handle
 
     properties (Access = private)
         MDVCalculator
-        MessagePublisher
+        MessageReporter
     end
 
     methods
@@ -14,12 +14,12 @@ classdef ExperimentCalculationService < handle
             arguments
                 options.MDVCalculator = openmebius.domain.experiment ...
                     .ExperimentMDVCalculator()
-                options.MessagePublisher = openmebius.presentation ...
-                    .notification.GeneralMessagePublisher()
+                options.MessageReporter = openmebius.infrastructure.logging ...
+                    .MessageReporter()
             end
 
             obj.MDVCalculator = options.MDVCalculator;
-            obj.MessagePublisher = options.MessagePublisher;
+            obj.MessageReporter = options.MessageReporter;
 
         end % constructor
 
@@ -129,10 +129,10 @@ classdef ExperimentCalculationService < handle
             warnings = unique(vertcat(warningGroups{:}), "stable");
 
             for iWarning = 1:numel(warnings)
-                obj.MessagePublisher.write("warning", warnings(iWarning));
+                obj.MessageReporter.report("warning", warnings(iWarning));
             end
 
-            obj.MessagePublisher.write( ...
+            obj.MessageReporter.report( ...
                 "info", ...
                 "MDV calculation completed.");
 

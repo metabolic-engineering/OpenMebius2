@@ -83,6 +83,23 @@ classdef Notification
 
     methods (Static)
 
+        function obj = fromMessage(message, options)
+
+            arguments
+                message (1, 1) openmebius.core.notification.Message
+                options.Title (1, 1) string = ""
+                options.ShowAlert (1, 1) logical = false
+            end
+
+            obj = openmebius.presentation.notification.Notification( ...
+                message.Text, ...
+                message.Level, ...
+                Title = options.Title, ...
+                Timestamp = message.Timestamp, ...
+                ShowAlert = options.ShowAlert);
+
+        end
+
         function obj = info(message, options)
 
             arguments

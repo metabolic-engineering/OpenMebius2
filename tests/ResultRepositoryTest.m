@@ -102,6 +102,28 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
         end
 
+        function loadFailureIsReportedThroughCoreMessage(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            observer = helpers.AnalysisNotificationObserverStub();
+            result = openmebius.application.result.ResultWorkspace( ...
+                resultDirectory, ...
+                NotificationReporter = ...
+                    @(message) observer.publish(message));
+            rmdir(resultDirectory, 's');
+
+            data = result.loadResultFile("missing");
+
+            testCase.verifyEmpty(data);
+            testCase.verifyEqual(observer.EventCount, 1);
+            testCase.verifyClass( ...
+                observer.LastEvent, ...
+                'openmebius.core.notification.Message');
+            testCase.verifyEqual(observer.LastEvent.Level, "error");
+
+        end
+
         function writeExcelTableCanBeReadBack(testCase)
 
             resultDirectory = string(tempname);

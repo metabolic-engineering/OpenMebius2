@@ -12,12 +12,13 @@ classdef ResultWorkspace < handle
 
         ResultLocation openmebius.domain.result.ResultLocation
         ResultRepository
-        Hdf5ResultRepository
+        QueryService
+        TableBuilder
 
     end % properties
 
     properties (Access = private)
-        MessagePublisher
+        MessageReporter
         NotificationReporter (1, 1) function_handle = @(~) []
     end
 
@@ -34,6 +35,9 @@ classdef ResultWorkspace < handle
                     openmebius.infrastructure.result ...
                     .Hdf5ResultRepository()
                 options.NotificationReporter (1, 1) function_handle = @(~) []
+                options.QueryService = []
+                options.TableBuilder = ...
+                    openmebius.application.result.ResultTableBuilder()
             end
 
             resultLocation = ...
@@ -42,15 +46,24 @@ classdef ResultWorkspace < handle
 
             obj.ResultLocation = resultLocation;
             obj.ResultRepository = options.ResultRepository;
-            obj.Hdf5ResultRepository = ...
-                options.Hdf5ResultRepository;
-            obj.MessagePublisher = openmebius.presentation ...
-                .notification.GeneralMessagePublisher();
+            if isempty(options.QueryService)
+                obj.QueryService = openmebius.application.result ...
+                    .ResultQueryService( ...
+                        resultLocation, ...
+                        ResultRepository = obj.ResultRepository, ...
+                        Hdf5ResultRepository = ...
+                            options.Hdf5ResultRepository);
+            else
+                obj.QueryService = options.QueryService;
+            end
+            obj.TableBuilder = options.TableBuilder;
+            obj.MessageReporter = openmebius.infrastructure.logging ...
+                .MessageReporter();
             obj.NotificationReporter = options.NotificationReporter;
 
             obj.ResultRepository.assertResultDirectory(resultLocation);
 
-            obj.MessagePublisher.write( ...
+            obj.MessageReporter.report( ...
                 "info", ...
                 "The directory " + resultLocation.Directory + ...
                 " exists.");
@@ -80,278 +93,55 @@ classdef ResultWorkspace < handle
         end % getResultLocation
 
         function tableRtn = getFluxOverView(obj, id, options)
-            % GETFLUXOVERVIEW Get the flux overview from the result file.
-            %
-            % Parameters:
-            %   obj: ResultWorkspace
-            %       The result workspace object.
-            %   id: string
-            %       The batch ID to load the result files.
-            %
-            % Returns:
-            %   tableRtn: table
-            %       The flux overview table.
-            %       ID: (n, 1) string
-            %       Reaction: (n, 1) string
-            %       Flux: (n, 1) double
-            %       UB: (n, 1) double
-            %       LB: (n, 1) double
 
             arguments
                 obj (1, 1) openmebius.application.result.ResultWorkspace
                 id (1, 1) string
                 options.relative (1, 1) logical = false
                 options.relativeTo (1, 1) string = ""
-            end % arguments
-
-            % Initialize the table
-            tableRtn = table( ...
-                'Size', [0, 6], ...
-                'VariableNames', ["Reaction", "Flux", "UB", "LB", "UB (FVA)", "LB (FVA)"], ...
-                'VariableTypes', ["string", "double", "double", "double", "double", "double"] ...
-            );
-
-            % Load the result file
-            data = loadResultFile(obj, id);
-
-            if isempty(data)
-                notifyGeneralMessage(obj, "error", "Failed to load the result file.");
-                return;
             end
 
-            % Get the status
-            status = data.status;
+            data = obj.loadResultFile(id);
+            if isempty(data)
+                tableRtn = table();
+                obj.notifyGeneralMessage( ...
+                    "error", "Failed to load the result file.");
+                return
+            end
 
-            if status(1)
-                % Get the flux variability analysis data
-                fluxVariability = data.fluxVariability;
-                fluxUBFwd = fluxVariability.fluxUBFwd;
-                fluxLBFwd = fluxVariability.fluxLBFwd;
-                reactionID = data.model.modelID;
-                reactionID = [reactionID; "biomass"];
-                reactionNames = data.model.modelReaction;
-                reactionNames = [reactionNames; ""];
-
-                numFlux = size(fluxUBFwd, 1);
-
-                % Generate a empty table: nan
-                tableRtn = table( ...
-                    'Size', [numFlux, 6], ...
-                    'VariableNames', ["Reaction", "Flux", "LB", "UB", "LB (FVA)", "UB (FVA)"], ...
-                    'VariableTypes', ["string", "double", "double", "double", "double", "double"] ...
-                );
-
-                % Set as nan
-                tableRtn.Flux = nan(numFlux, 1);
-                tableRtn.LB = nan(numFlux, 1);
-                tableRtn.UB = nan(numFlux, 1);
-                tableRtn.("LB (FVA)") = nan(numFlux, 1);
-                tableRtn.("UB (FVA)") = nan(numFlux, 1);
-
-                % Get reaction names
-                tableRtn.Properties.RowNames = reactionID;
-                tableRtn.Reaction = reactionNames;
-                tableRtn.("UB (FVA)") = fluxUBFwd;
-                tableRtn.("LB (FVA)") = fluxLBFwd;
-
-            end % if status(1)
-
-            if status(2)
-
-                % Get the flux data
-                fieldNames = "fluxResult" + string(sprintf("%04d", data.RSSIdx(1)));
-                fluxResult = data.(fieldNames);
-                flux = fluxResult.fluxFwd;
-
-                tableRtn.Flux = flux;
-
-            end % if status(2)
-
-            % Get the confidence intervals
-            if status(3)
-
-                LB = data.fluxLB;
-                UB = data.fluxUB;
-
-                if ~isempty(LB) && ~isempty(UB)
-                    tableRtn.LB = LB;
-                    tableRtn.UB = UB;
-                end
-
-            end % if status(3)
-
-            % Relative flux
-            if options.relative && status(2)
-
-                % Get the relative flux
-                RxnIDs = tableRtn.Properties.RowNames;
-                RxnIdx = find(contains(RxnIDs, options.relativeTo), 1);
-
-                if isempty(RxnIdx)
-                    relativeTo = 0.01;
-                else
-                    relativeTo = tableRtn.Flux(RxnIdx) / 100;
-                end % if isempty(RxnIdx)
-
-                if isnan(relativeTo) || relativeTo == 0
-                    notifyGeneralMessage(obj, "error", "Relative flux cannot be calculated. The reference flux is zero or NaN.");
-                    return;
-                end % if isNaN(relativeTo) || relativeTo == 0
-
-                tableRtn.Flux = tableRtn.Flux ./ relativeTo;
-                tableRtn.LB = tableRtn.LB ./ relativeTo;
-                tableRtn.UB = tableRtn.UB ./ relativeTo;
-                tableRtn.("LB (FVA)") = tableRtn.("LB (FVA)") ./ relativeTo;
-                tableRtn.("UB (FVA)") = tableRtn.("UB (FVA)") ./ relativeTo;
-
-            end % if options.relative
+            [tableRtn, message] = obj.TableBuilder.fluxOverview( ...
+                data, ...
+                Relative = options.relative, ...
+                RelativeTo = options.relativeTo);
+            if message ~= ""
+                obj.notifyGeneralMessage("error", message);
+            end
 
         end % getFluxOverView
 
         function tableRtn = getFluxDetailed(obj, batchID)
-            % GETFLUXDETAILED Get the flux detailed data from the result file.
-            %
-            % Parameters:
-            %   obj: ResultWorkspace
-            %       The result workspace object.
-            %   batchID: string
-            %       The batch ID to load the result files.
 
             arguments
                 obj (1, 1) openmebius.application.result.ResultWorkspace
                 batchID (1, 1) string
-            end % arguments
-
-            % Initialize the table
-            tableRtn = table( ...
-                'Size', [0, 5], ...
-                'VariableNames', ["Fragment", "M+i", "Measured", "Estimated", "Chi^2"], ...
-                'VariableTypes', ["string", "string", "double", "double", "double"] ...
-            );
-
-            % Load the result file
-            data = loadResultFile(obj, batchID);
-
-            if isempty(data)
-                notifyGeneralMessage(obj, "error", "Failed to load the result file.");
-                return;
             end
 
-            if ~isfield(data, 'RSSIdx') || isempty(data.RSSIdx)
-                notifyGeneralMessage(obj, "error", "No flux data found in the result file.");
-                return;
-            end % if ~isfield(data,'RSSIdx') || isempty(data.RSSIdx)
+            data = obj.loadResultFile(batchID);
+            if isempty(data)
+                tableRtn = table();
+                obj.notifyGeneralMessage( ...
+                    "error", "Failed to load the result file.");
+                return
+            end
 
-            % Initialize the columns
-            RSSIdxMin = data.RSSIdx(1);
-            iterName = string(sprintf("%04d", RSSIdxMin(1)));
-            fieldName = "fluxResult" + iterName;
-            MDVExp = data.MDVExp;
-            MDVExpName = data.MDVExpName;
-            MDVFragMask = data.MDVFragMask;
-
-            MDV = data.(fieldName).MDV;
-            numLabeling = size(MDV, 2);
-
-            baseHeaderNames = ["Fragment", "M+i"];
-            baseHeaderTypes = ["string", "string"];
-            repeatNames = ["Measured", "Estimated", "Chi^2"];
-            repeatTypes = ["double", "double", "double"];
-            headerNames = [ ...
-                baseHeaderNames, ...
-                repmat(repeatNames, 1, numLabeling)];
-            headerTypes = [ ...
-                baseHeaderTypes, ...
-                repmat(repeatTypes, 1, numLabeling)];
-
-            % Empty table
-            tableString = strings(size(MDV, 1), 2);
-            tableValue = nan(size(MDV, 1), numLabeling * 3);
-
-            sizeTable = [size(MDV, 1), length(headerNames)];
-
-            tableRtn = table( ...
-                'Size', sizeTable, ...
-                'VariableNames', headerNames, ...
-                'VariableTypes', headerTypes ...
-            );
-
-            % Assign the table
-            tableRtn{:, 1:2} = tableString;
-            tableRtn{:, 3:end} = tableValue;
-
-            % Fill the table
-            FragNameRtn = cell(0, 1);
-            FragCountRtn = cell(0, 1);
-
-            for i = 1:numLabeling
-
-                % Get the MDV data
-                iMDV = MDV(:, i);
-                iMDVExp = MDVExp(:, i);
-                iMDVFragMask = MDVFragMask(:, i);
-
-                tableRtn{:, (i * 3)} = iMDVExp;
-                tableRtn{:, (i * 3) + 1} = iMDV;
-
-                isotopeCounter = 0;
-
-                for j = 1:size(iMDV, 1)
-
-                    % Get the measured and estimated data
-                    iMeasured = iMDV(j);
-                    iEstimated = iMDVExp(j);
-                    iChi2 = (iMeasured - iEstimated) / 0.01;
-                    iChi2 = iChi2 ^ 2;
-
-                    if iMDVFragMask(j)
-                        tableRtn{j, (i * 3) + 2} = iChi2;
-                    end
-
-                    % Set the fragment isotope name
-                    if j == 1
-                        FragNameRtn{j} = MDVExpName(j);
-                        FragCountRtn{j} = "M + " + string(int8(isotopeCounter));
-                        isotopeCounter = isotopeCounter + 1;
-                        continue;
-                    else
-
-                        previousName = MDVExpName{j - 1};
-
-                        if strcmp(previousName, MDVExpName(j))
-                            FragNameRtn{j} = "";
-                            FragCountRtn{j} = "M + " + string(int8(isotopeCounter));
-                            isotopeCounter = isotopeCounter + 1;
-                        else
-                            FragNameRtn{j} = MDVExpName(j);
-                            isotopeCounter = 0;
-                            FragCountRtn{j} = "M + " + string(int8(isotopeCounter));
-                            isotopeCounter = isotopeCounter + 1;
-                        end % if strcmp
-
-                    end % if j == 0
-
-                end % for j = 1:size(iMDV, 1)
-
-            end % for i = 1:numLabeling
-
-            FragNameRtn = string(FragNameRtn)';
-            FragCountRtn = string(FragCountRtn)';
-            tableRtn{:, 1} = FragNameRtn;
-            tableRtn{:, 2} = FragCountRtn;
+            [tableRtn, message] = obj.TableBuilder.fluxDetailed(data);
+            if message ~= ""
+                obj.notifyGeneralMessage("error", message);
+            end
 
         end % getFluxDetailed
 
         function tableRtn = getFluxComparison(obj, batchIDs, names, options)
-            % GETFLUXCOMPARISON Get the flux comparison data from the result file.
-            %
-            % Parameters:
-            %   obj: ResultWorkspace
-            %       The result workspace object.
-            %   batchIDs: string
-            %       The batch ID to load the result files.
-            %   names: string
-            %       The batch names to load the result files.
 
             arguments
                 obj (1, 1) openmebius.application.result.ResultWorkspace
@@ -359,114 +149,25 @@ classdef ResultWorkspace < handle
                 names (1, :) string
                 options.relative (1, 1) logical = false
                 options.relativeTo (1, 1) string = ""
-            end % arguments
-
-            tableRtn = table();
-
-            if length(batchIDs) ~= length(unique(batchIDs))
-                notifyGeneralMessage(obj, "error", "Batch IDs must be unique.");
-                return;
-            end % if
-
-            numData = length(batchIDs);
-            % numData分のstringを作成
-            variableTypes = repmat("double", 1, numData);
-            variableTypesReaction = ["string", variableTypes];
-
-            names = string(names);
-
-            if length(unique(names)) ~= length(names)
-
-                for i = 1:numData
-
-                    if sum(names == names(i)) > 1
-                        names(i) = names(i) + "_" + string(i);
-                    end % if sum(names == names(i)) > 1
-
-                end % for i = 1:numData
-
-            end % if length(unique(names)) ~= length(names)
-
-            % Initialize the table
-            tableRtn = table( ...
-                'Size', [0, numData], ...
-                'VariableNames', names, ...
-                'VariableTypes', variableTypes ...
-            );
-
-            readstatus = false(1, 4);
-            readstatus(1) = true;
-            readstatus(2) = true;
-
-            [data, tempDataMask] = loadResultFiles( ...
-                obj, ...
-                batchIDs, ...
-                readstatus = readstatus);
-
-            data = data(tempDataMask);
-
-            if numData ~= length(data)
-                notifyGeneralMessage(obj, "error", "Failed to load the result files.");
-                return;
             end
 
-            for i = 1:numData
+            if numel(batchIDs) ~= numel(unique(batchIDs))
+                tableRtn = table();
+                obj.notifyGeneralMessage("error", "Batch IDs must be unique.");
+                return
+            end
 
-                iData = data{i};
-
-                if ~isfield(iData, 'RSSIdx') || isempty(iData.RSSIdx)
-                    continue;
-                end % if ~isfield(iData,'RSSIdx') || isempty(iData.RSSIdx)
-
-                iFieldName = "fluxResult" + string(sprintf("%04d", iData.RSSIdx(1)));
-                iFluxResult = iData.(iFieldName);
-                iFlux = iFluxResult.fluxFwd;
-
-                if i == 1
-
-                    numFlux = size(iFlux, 1);
-
-                    % RxnIDs
-                    iFluxID = [iData.model.modelID; "biomass"];
-                    % Reaction names
-                    iFluxName = [iData.model.modelReaction; ""];
-
-                    % Generate a empty table: nan
-                    tableRtn = table( ...
-                        'Size', [numFlux, numData + 1], ...
-                        'VariableNames', ["Reaction", names], ...
-                        'VariableTypes', variableTypesReaction, ...
-                        'RowNames', iFluxID ...
-                    );
-
-                    tableRtn.Reaction = iFluxName;
-                    tableRtn.(names(1)) = iFlux;
-
-                else
-                    tableRtn.(names(i)) = iFlux;
-                end
-
-            end % for i
-
-            % Relative flux
-            if options.relative && numData > 1
-
-                % Get the relative flux
-                RxnIDs = tableRtn.Properties.RowNames;
-                RxnIdx = find(contains(RxnIDs, options.relativeTo), 1);
-
-                for i = 1:numData
-
-                    if isempty(RxnIdx)
-                        relativeTo = 0.01;
-                    else
-                        relativeTo = tableRtn.(names(i))(RxnIdx) / 100;
-                    end % if isempty(RxnIdx)
-
-                    tableRtn.(names(i)) = tableRtn.(names(i)) ./ relativeTo;
-                end % for i
-
-            end % if options.relative
+            [data, mask] = obj.loadResultFiles( ...
+                batchIDs, readstatus = [true, true, false, false]);
+            data = data(mask);
+            [tableRtn, message] = obj.TableBuilder.fluxComparison( ...
+                data, ...
+                string(names), ...
+                Relative = options.relative, ...
+                RelativeTo = options.relativeTo);
+            if message ~= ""
+                obj.notifyGeneralMessage("error", message);
+            end
 
         end % getFluxComparison
 
@@ -493,10 +194,8 @@ classdef ResultWorkspace < handle
                 return;
             end
 
-            data = obj.Hdf5ResultRepository.readConfidenceInterval( ...
-                obj.ResultLocation, ...
-                batchID, ...
-                RxnID);
+            data = obj.QueryService.readConfidenceInterval( ...
+                batchID, RxnID);
 
         end % getCIReaction
 
@@ -514,10 +213,8 @@ classdef ResultWorkspace < handle
                 batchID (1, 1) string
             end % arguments
 
-            [isExist, data] = obj.Hdf5ResultRepository ...
-                .readNextLabelSuggestion( ...
-                obj.ResultLocation, ...
-                batchID);
+            [isExist, data] = obj.QueryService ...
+                .readNextLabelSuggestion(batchID);
 
         end % getNextLabelSuggestion
 
@@ -591,54 +288,15 @@ classdef ResultWorkspace < handle
                 options.readstatus (1, 4) logical = [true, true, true, true]
             end % arguments
 
-            % Define the mask
-            dataMask = false(1, 0);
-            data = cell(1, 0);
-
             obj.IDs = ids;
-            obj.dataMask = dataMask;
-
-            if ~obj.ensureResultDirectory()
-                return;
+            try
+                [data, dataMask] = obj.QueryService.readMany( ...
+                    ids, ReadStatus = options.readstatus);
+            catch exception
+                notifyGeneralMessage(obj, "error", string(exception.message));
+                data = cell(1, numel(ids));
+                dataMask = false(1, numel(ids));
             end
-
-            % Get all files in the directory
-            files = obj.ResultLocation.resultFiles();
-
-            if isempty(files)
-                return;
-            end
-
-            numFile = size(files, 1);
-
-            numID = size(ids, 2);
-
-            % Define the mask
-            dataMask = false(1, numID);
-            data = cell(1, numID);
-
-            for i = 1:numFile
-
-                % Find a result file with the given ID
-                iFilename = files(i).name;
-                % Remove the extension
-                [~, iFilename] = fileparts(iFilename);
-                idx = find(contains(ids, iFilename), 1);
-
-                if isempty(idx)
-                    continue;
-                end
-
-                % Load the result file
-                dataTmp = loadResultFile(obj, ids(idx), readstatus = options.readstatus);
-
-                % Store the data
-                data{idx} = dataTmp;
-                dataMask(idx) = true;
-
-            end % for i
-
-            obj.IDs = ids;
             obj.dataMask = dataMask;
 
         end % loadResultFiles
@@ -660,18 +318,15 @@ classdef ResultWorkspace < handle
                 options.readstatus (1, 4) logical = [true, true, true, true]
             end % arguments
 
-            data = struct;
-
-            if ~obj.ensureResultDirectory()
-                return;
+            try
+                data = obj.QueryService.read( ...
+                    id, ReadStatus = options.readstatus);
+            catch exception
+                notifyGeneralMessage( ...
+                    obj, "error", string(exception.message));
+                data = [];
+                return
             end
-
-            if ~obj.ResultLocation.hasResultFile(id)
-                return;
-            end
-
-            % Load the result file
-            data = getResultData(obj, id, readstatus = options.readstatus);
 
             if isempty(data)
                 notifyGeneralMessage(obj, "error", "Failed to load the result file.");
@@ -912,16 +567,18 @@ classdef ResultWorkspace < handle
                 options.readstatus (1, 4) logical = [true, true, true, true]
             end % arguments
 
-            if ~obj.ResultLocation.hasResultFile(id)
-                notifyGeneralMessage(obj, "error", "Result file does not exist.");
+            try
+                data = obj.QueryService.read( ...
+                    id, ReadStatus = options.readstatus);
+            catch exception
+                notifyGeneralMessage( ...
+                    obj, "error", string(exception.message));
                 data = [];
-                return;
+                return
             end
-
-            data = obj.Hdf5ResultRepository.readResultData( ...
-                obj.ResultLocation, ...
-                id, ...
-                ReadStatus = options.readstatus);
+            if isempty(data)
+                notifyGeneralMessage(obj, "error", "Result file does not exist.");
+            end
 
         end % getResultData
 
@@ -938,8 +595,8 @@ classdef ResultWorkspace < handle
                 msg (1, 1) string
             end % arguments
 
-            notification = obj.MessagePublisher.write(status, msg);
-            obj.NotificationReporter(notification);
+            message = obj.MessageReporter.report(status, msg);
+            obj.NotificationReporter(message);
 
         end % notifyGeneralMessage
 
@@ -952,8 +609,7 @@ classdef ResultWorkspace < handle
             tf = true;
 
             try
-                obj.ResultRepository.assertResultDirectory( ...
-                    obj.ResultLocation);
+                obj.QueryService.assertAvailable();
             catch ME
                 tf = false;
                 notifyGeneralMessage(obj, "error", string(ME.message));

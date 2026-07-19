@@ -72,7 +72,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.model.ModelPresenter();
             result = struct("Messages", ["Folder found."; "Model loaded."]);
             outcome = openmebius.application.model ...
-                .ModelOperationOutcome("finished", Result = result);
+                .ModelOperationOutcome(true, Result = result);
 
             viewModel = presenter.presentTemplateLoadOutcome(outcome);
             messages = cellfun( ...
@@ -97,7 +97,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.model.ModelPresenter();
             outcome = openmebius.application.model ...
                 .ModelOperationOutcome( ...
-                    "error", ErrorMessage = "Load failed.");
+                    false, ErrorMessage = "Load failed.");
 
             viewModel = presenter.presentTemplateLoadOutcome(outcome);
             notification = viewModel.Notifications{1};
@@ -119,7 +119,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
             result = openmebius.application.model.ModelEditResult( ...
                 ModelReport = report);
             outcome = openmebius.application.model ...
-                .ModelOperationOutcome("finished", Result = result);
+                .ModelOperationOutcome(true, Result = result);
 
             viewModel = presenter.presentModelSaveOutcome(outcome);
 
@@ -141,7 +141,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
             result = openmebius.application.model.ModelEditResult( ...
                 ModelReport = report);
             outcome = openmebius.application.model ...
-                .ModelOperationOutcome("finished", Result = result);
+                .ModelOperationOutcome(true, Result = result);
 
             viewModel = presenter.presentModelSaveOutcome(outcome);
 
@@ -166,7 +166,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
                 MSReport = msReport, ...
                 AtomReport = atomReport);
             outcome = openmebius.application.model ...
-                .ModelOperationOutcome("finished", Result = result);
+                .ModelOperationOutcome(true, Result = result);
 
             viewModel = ...
                 presenter.presentMassSpectrometrySaveOutcome(outcome);
@@ -186,7 +186,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.model.ModelPresenter();
             outcome = openmebius.application.model ...
                 .ModelOperationOutcome( ...
-                    "error", ErrorMessage = "Save failed.");
+                    false, ErrorMessage = "Save failed.");
 
             viewModel = presenter.presentModelSaveOutcome(outcome);
             notification = viewModel.Notifications{1};
@@ -221,7 +221,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
                     OutputPath = "template.xlsx", ...
                     Messages = ["Exported."; "template.xlsx"]);
             outcome = openmebius.application.model ...
-                .ModelOperationOutcome("finished", Result = result);
+                .ModelOperationOutcome(true, Result = result);
 
             viewModel = presenter.presentTemplateExportOutcome(outcome);
             messages = cellfun( ...
@@ -238,7 +238,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.model.ModelPresenter();
             outcome = openmebius.application.model ...
                 .ModelOperationOutcome( ...
-                    "error", ErrorMessage = "Write failed.");
+                    false, ErrorMessage = "Write failed.");
 
             viewModel = presenter.presentTemplateExportOutcome(outcome);
             notification = viewModel.Notifications{1};
@@ -325,7 +325,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
                     PathwayData = pathwayData, ...
                     Messages = "Position updated.");
             outcome = openmebius.application.model ...
-                .ModelOperationOutcome("finished", Result = result);
+                .ModelOperationOutcome(true, Result = result);
 
             viewModel = presenter.presentPathwayEditOutcome( ...
                 outcome, IsDarkTheme = true);
@@ -348,7 +348,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
                 "Please select a reaction.");
             outcome = openmebius.application.model ...
                 .ModelOperationOutcome( ...
-                    "error", ...
+                    false, ...
                     ErrorMessage = string(exception.message), ...
                     Exception = exception);
 
@@ -367,7 +367,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
                 .LabelConfigurationUpdateResult( ...
                     Messages = "Applied.");
             outcome = openmebius.application.model ...
-                .ModelOperationOutcome("finished", Result = result);
+                .ModelOperationOutcome(true, Result = result);
 
             viewModel = presenter ...
                 .presentLabelConfigurationOutcome(outcome);
@@ -385,7 +385,7 @@ classdef ModelPresenterTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.model.ModelPresenter();
             outcome = openmebius.application.model ...
                 .ModelOperationOutcome( ...
-                    "error", ErrorMessage = "Apply failed.");
+                    false, ErrorMessage = "Apply failed.");
 
             viewModel = presenter ...
                 .presentLabelConfigurationOutcome(outcome);

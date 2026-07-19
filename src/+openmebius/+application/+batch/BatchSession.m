@@ -1,4 +1,4 @@
-classdef Batch < handle
+classdef BatchSession < handle
 
     events
 
@@ -20,7 +20,7 @@ classdef Batch < handle
         BatchJsonRepository
         BatchPreparationService
         BatchExecutionCoordinator
-        MessagePublisher
+        MessageReporter
         batchColumnNamesforGUI = ["ID", "Name", "Experiment", "Description"];
         batchColumnEditableforGUI = [false, true, false, true];
 
@@ -35,7 +35,7 @@ classdef Batch < handle
     methods
 
         % Constructor
-        function obj = Batch(exp, options)
+        function obj = BatchSession(exp, options)
 
             arguments
                 exp
@@ -71,8 +71,8 @@ classdef Batch < handle
                 obj.BatchExecutionCoordinator = ...
                     options.BatchExecutionCoordinator;
             end
-            obj.MessagePublisher = openmebius.presentation ...
-                .notification.GeneralMessagePublisher();
+            obj.MessageReporter = openmebius.infrastructure.logging ...
+                .MessageReporter();
 
             % Initialize table
             initTableBatch(obj);
@@ -1158,7 +1158,7 @@ classdef Batch < handle
 
         end % loadBatchFile
 
-        function status = runBatch(obj, fileDirectory, options)
+        function result = runBatch(obj, fileDirectory, options)
             % RUNBATCH Run batch
             %
             % Parameters
@@ -1178,7 +1178,11 @@ classdef Batch < handle
                 openmebius.domain.result.ResultLocation.fromInput( ...
                 fileDirectory);
             if ~obj.exp.hasCalculatedMDV()
-                status = "error";
+                result = openmebius.application.batch ...
+                    .BatchExecutionResult( ...
+                        false, ...
+                        ErrorMessage = ...
+                            "MDV data has not been calculated.");
 
                 publishGeneralMessage( ...
                     obj, ...
@@ -1200,7 +1204,7 @@ classdef Batch < handle
                 saveBatchFile(obj);
             end
 
-            [updatedTable, status] = obj.BatchExecutionCoordinator.run( ...
+            [updatedTable, result] = obj.BatchExecutionCoordinator.run( ...
                 obj.tableBatch, ...
                 obj.model, ...
                 obj.exp, ...
@@ -1276,8 +1280,8 @@ classdef Batch < handle
                 reporter = @(~) [];
             end
 
-            notification = obj.MessagePublisher.write(level, message);
-            reporter(notification);
+            coreMessage = obj.MessageReporter.report(level, message);
+            reporter(coreMessage);
 
         end % method publishGeneralMessage
 

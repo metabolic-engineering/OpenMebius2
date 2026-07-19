@@ -25,7 +25,7 @@ classdef BatchConfigurationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.apply(session, @() request);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(batch.Config.iteration, 52);
             testCase.verifyEqual(batch.FragmentUpdateCount, 1);
 
@@ -42,7 +42,7 @@ classdef BatchConfigurationControllerTest < matlab.unittest.TestCase
                 session, ...
                 @BatchConfigurationControllerTest.failRequestFactory);
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 string(outcome.Exception.identifier), ...
                 "OpenMebius2:Test:RequestFailed");
@@ -63,7 +63,7 @@ classdef BatchConfigurationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.apply(session, @() request);
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual(batch.Config.iteration, originalIteration);
             testCase.verifyEqual(batch.ConfigUpdateCount, 2);
 

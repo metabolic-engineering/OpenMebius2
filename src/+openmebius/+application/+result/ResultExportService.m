@@ -10,7 +10,7 @@ classdef ResultExportService < handle
 
             arguments
                 options.ResultExporter = ...
-                    openmebius.infrastructure.legacy.LegacyResultExportRepository()
+                    openmebius.infrastructure.result.ResultExportRepository()
             end
 
             obj.ResultExporter = options.ResultExporter;

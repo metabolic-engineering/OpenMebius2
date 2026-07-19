@@ -14,34 +14,39 @@ classdef BatchRunControllerTest < matlab.unittest.TestCase
 
     methods (Test)
 
-        function returnsNormalizedFinishedOutcome(testCase)
+        function returnsSuccessfulOutcome(testCase)
 
             command = helpers.BatchRunCommandStub();
-            command.RunStatus = " FINISHED ";
+            command.RunResult = openmebius.application.batch ...
+                .BatchExecutionResult(true);
             controller = BatchRunControllerTest.createController(command);
 
             outcome = controller.run(struct(), "result");
 
             testCase.verifyTrue(command.RunCalled);
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(outcome.ElapsedTime, seconds(0));
             testCase.verifyEmpty(outcome.Exception);
 
         end
 
-        function preservesCanceledAndReturnedErrorStatuses(testCase)
+        function preservesCanceledAndReturnedFailureOutcomes(testCase)
 
             command = helpers.BatchRunCommandStub();
             controller = BatchRunControllerTest.createController(command);
-            command.RunStatus = "canceled";
+            command.RunResult = openmebius.application.batch ...
+                .BatchExecutionResult(false, Canceled = true);
 
             canceled = controller.run(struct(), "result");
 
-            command.RunStatus = "error";
+            command.RunResult = openmebius.application.batch ...
+                .BatchExecutionResult( ...
+                    false, ...
+                    ErrorMessage = "One or more batch jobs failed.");
             failed = controller.run(struct(), "result");
 
-            testCase.verifyEqual(canceled.Status, "canceled");
-            testCase.verifyEqual(failed.Status, "error");
+            testCase.verifyTrue(canceled.isCanceled());
+            testCase.verifyTrue(failed.isFailure());
             testCase.verifyEqual( ...
                 failed.ErrorMessage, "One or more batch jobs failed.");
             testCase.verifyEmpty(failed.Exception);
@@ -57,7 +62,7 @@ classdef BatchRunControllerTest < matlab.unittest.TestCase
 
             outcome = controller.run(struct(), "result");
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual(outcome.ErrorMessage, "Run failed.");
             testCase.verifyError( ...
                 @() outcome.rethrowFailure(), ...
@@ -94,16 +99,17 @@ classdef BatchRunControllerTest < matlab.unittest.TestCase
                 ResultReporter = ...
                     @(value) recorder.recordResult(value));
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(recorder.Progress{1}, "progress");
             testCase.verifyEqual(recorder.MessageCount, 1);
             testCase.verifyEqual(recorder.ResultCount, 1);
 
-            function status = runWithReporters(~, ~, reporters)
+            function result = runWithReporters(~, ~, reporters)
                 reporters.Progress("progress");
                 reporters.Notification("notification");
                 reporters.Result("result");
-                status = "finished";
+                result = openmebius.application.batch ...
+                    .BatchExecutionResult(true);
             end
 
         end

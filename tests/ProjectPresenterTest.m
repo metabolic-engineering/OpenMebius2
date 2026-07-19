@@ -29,7 +29,7 @@ classdef ProjectPresenterTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.project.ProjectPresenter();
             result = ProjectPresenterTest.operationResult();
             outcome = openmebius.application.project ...
-                .ProjectOperationOutcome("finished", Result = result);
+                .ProjectOperationOutcome(true, Result = result);
 
             viewModel = presenter.presentOpenOutcome(outcome);
             messages = cellfun( ...
@@ -48,7 +48,7 @@ classdef ProjectPresenterTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.project.ProjectPresenter();
             outcome = openmebius.application.project ...
                 .ProjectOperationOutcome( ...
-                    "error", ErrorMessage = "Create failed.");
+                    false, ErrorMessage = "Create failed.");
 
             viewModel = presenter.presentCreateOutcome(outcome);
             notification = viewModel.Notifications{1};
@@ -65,7 +65,7 @@ classdef ProjectPresenterTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.project.ProjectPresenter();
             result = ProjectPresenterTest.operationResult(Artifacts = []);
             outcome = openmebius.application.project ...
-                .ProjectOperationOutcome("finished", Result = result);
+                .ProjectOperationOutcome(true, Result = result);
 
             viewModel = presenter.presentSaveOutcome(outcome);
 

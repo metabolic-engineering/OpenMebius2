@@ -65,36 +65,36 @@ classdef BatchPresenter < handle
                 outcome (1, 1) openmebius.application.batch.BatchRunOutcome
             end
 
-            switch outcome.Status
-                case "finished"
-                    sectionStatus = "finished";
-                    message = "All batch jobs are completed.";
-                    notification = openmebius.presentation.notification ...
-                        .Notification.info(message);
+            if outcome.isSuccess()
+                sectionStatus = "finished";
+                completionStatus = "finished";
+                message = "All batch jobs are completed.";
+                notification = openmebius.presentation.notification ...
+                    .Notification.info(message);
+            elseif outcome.isCanceled()
+                sectionStatus = "finished";
+                completionStatus = "canceled";
+                message = "Batch jobs are canceled.";
+                notification = openmebius.presentation.notification ...
+                    .Notification.info(message);
+            else
+                sectionStatus = "error";
+                completionStatus = "error";
+                message = outcome.ErrorMessage;
 
-                case "canceled"
-                    sectionStatus = "finished";
-                    message = "Batch jobs are canceled.";
-                    notification = openmebius.presentation.notification ...
-                        .Notification.info(message);
+                if message == ""
+                    message = "Batch jobs failed.";
+                end
 
-                case "error"
-                    sectionStatus = "error";
-                    message = outcome.ErrorMessage;
-
-                    if message == ""
-                        message = "Batch jobs failed.";
-                    end
-
-                    notification = openmebius.presentation.notification ...
-                        .Notification.error(message);
+                notification = openmebius.presentation.notification ...
+                    .Notification.error(message);
             end
 
             viewModel = ...
                 openmebius.presentation.batch.BatchRunViewModel( ...
                     SectionStatus = sectionStatus, ...
                     Notification = notification, ...
-                    CompletionStatus = outcome.Status, ...
+                    CompletionStatus = completionStatus, ...
                     ElapsedTime = outcome.ElapsedTime, ...
                     ErrorMessage = outcome.ErrorMessage);
 
@@ -237,7 +237,7 @@ classdef BatchPresenter < handle
                 errorTitle (1, 1) string
             end
 
-            if outcome.Status == "finished"
+            if outcome.isSuccess()
                 notification = openmebius.presentation.notification ...
                     .Notification.info(successMessage);
                 viewModel = openmebius.presentation.batch ...

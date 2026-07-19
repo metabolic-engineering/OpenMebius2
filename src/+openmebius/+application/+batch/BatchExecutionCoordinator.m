@@ -23,7 +23,7 @@ classdef BatchExecutionCoordinator
 
         end % constructor
 
-        function [batchTable, status] = run( ...
+        function [batchTable, result] = run( ...
                 obj, batchTable, model, experiments, resultLocation, ...
                 provenances, options)
 
@@ -43,7 +43,7 @@ classdef BatchExecutionCoordinator
                 options.ResultReporter (1, 1) function_handle = @(~) []
             end
 
-            status = "finished";
+            result = openmebius.application.batch.BatchExecutionResult(true);
             numberOfBatches = height(batchTable);
 
             if numel(provenances) ~= numberOfBatches
@@ -86,7 +86,7 @@ classdef BatchExecutionCoordinator
                         batchTable.id(i));
                 end
 
-                analysisStatus = obj.RunService.run( ...
+                analysisResult = obj.RunService.run( ...
                     model, ...
                     experiments, ...
                     batchTable.exp(i), ...
@@ -98,14 +98,14 @@ classdef BatchExecutionCoordinator
                     MessageReporter = options.MessageReporter, ...
                     ResultReporter = options.ResultReporter);
 
-                if analysisStatus == "canceled"
-                    status = "canceled";
+                if analysisResult.isCanceled()
+                    result = analysisResult;
                     break
                 end
 
-                if analysisStatus == "error"
+                if analysisResult.isFailure()
                     progress.status = "error";
-                    status = "error";
+                    result = analysisResult;
                     batchTable.config(i).status = "error";
                     options.ProgressReporter(progress);
                     options.CheckpointWriter(batchTable);

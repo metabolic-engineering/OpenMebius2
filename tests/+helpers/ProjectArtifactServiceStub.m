@@ -11,21 +11,23 @@ classdef ProjectArtifactServiceStub < handle
 
     methods
 
-        function result = load(obj, session)
+        function result = load(obj, session, options)
 
-            obj.LoadCalled = true;
+            arguments
+                obj
+                session
+                options.AllowEmptyExperiments (1, 1) logical = false
+            end
+
             obj.Session = session;
             obj.throwIfNeeded();
-            result = obj.LoadResult;
-
-        end
-
-        function result = initialize(obj, session)
-
-            obj.InitializeCalled = true;
-            obj.Session = session;
-            obj.throwIfNeeded();
-            result = obj.InitializeResult;
+            if options.AllowEmptyExperiments
+                obj.InitializeCalled = true;
+                result = obj.InitializeResult;
+            else
+                obj.LoadCalled = true;
+                result = obj.LoadResult;
+            end
 
         end
 

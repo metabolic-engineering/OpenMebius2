@@ -1,10 +1,5 @@
-classdef LegacyProjectInitializer < handle
-    % LEGACYPROJECTINITIALIZER
-    % Creates legacy runtime objects for a newly created project.
-    %
-    % New projects may not contain experiment workbooks yet. Unlike
-    % LegacyProjectLoader, this initializer only requires the model and
-    % result locations to be usable.
+classdef ProjectArtifactRepository
+    % PROJECTARTIFACTREPOSITORY Restores runtime artifacts from repositories.
 
     properties (Access = private)
         ModelRepository
@@ -15,7 +10,7 @@ classdef LegacyProjectInitializer < handle
 
     methods
 
-        function obj = LegacyProjectInitializer(options)
+        function obj = ProjectArtifactRepository(options)
 
             arguments
                 options.ModelRepository = ...
@@ -23,7 +18,7 @@ classdef LegacyProjectInitializer < handle
                 options.ExperimentRepository = ...
                     openmebius.infrastructure.experiment.ExperimentRepository()
                 options.BatchRepository = ...
-                    openmebius.infrastructure.legacy.LegacyBatchRepository()
+                    openmebius.infrastructure.batch.BatchRepository()
                 options.ResultRepository = ...
                     openmebius.infrastructure.result.ResultRepository()
             end
@@ -35,34 +30,34 @@ classdef LegacyProjectInitializer < handle
 
         end
 
-        function artifacts = initialize(obj, session)
+        function artifacts = load(obj, session, options)
 
             arguments
                 obj
-                session openmebius.domain.project.ProjectSession
+                session (1, 1) openmebius.domain.project.ProjectSession
+                options.AllowEmptyExperiments (1, 1) logical = false
             end
 
             paths = session.Paths;
-            messages = strings(0, 1);
-
             model = obj.ModelRepository.load(paths.modelLocation());
-            messages(end + 1, 1) = "Model loaded successfully.";
 
-            experiments = obj.ExperimentRepository.initialize( ...
-                paths.experimentLocation(), ...
-                model);
-            messages(end + 1, 1) = "Experiment object created successfully.";
+            if options.AllowEmptyExperiments
+                experiments = obj.ExperimentRepository.initialize( ...
+                    paths.experimentLocation(), model);
+            else
+                experiments = obj.ExperimentRepository.load( ...
+                    paths.experimentLocation(), model);
+            end
 
             batch = obj.BatchRepository.load( ...
-                paths.experimentLocation(), ...
-                experiments);
-            messages(end + 1, 1) = "Batch object created successfully.";
-
+                paths.experimentLocation(), experiments);
             result = obj.ResultRepository.open(paths.resultLocation());
-            messages(end + 1, 1) = "Result object created successfully.";
-
-            artifacts = ...
-                openmebius.infrastructure.legacy.LegacyProjectArtifacts( ...
+            messages = [ ...
+                "Model loaded successfully."
+                "Experiment data loaded successfully."
+                "Batch session created successfully."
+                "Result session created successfully."];
+            artifacts = openmebius.application.project.ProjectArtifacts( ...
                 Model = model, ...
                 Experiments = experiments, ...
                 Batch = batch, ...

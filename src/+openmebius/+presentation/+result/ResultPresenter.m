@@ -107,7 +107,7 @@ classdef ResultPresenter < handle
 
             report = [];
 
-            if outcome.Status == "finished"
+            if outcome.isSuccess()
                 report = outcome.Result.Report;
                 notifications = obj.operationNotifications( ...
                     outcome.Result, "Report generated successfully.");
@@ -160,7 +160,7 @@ classdef ResultPresenter < handle
                     .ResultOperationOutcome
             end
 
-            if outcome.Status == "finished"
+            if outcome.isSuccess()
                 notifications = obj.operationNotifications( ...
                     outcome.Result, ...
                     "Result export completed successfully.");
@@ -220,7 +220,7 @@ classdef ResultPresenter < handle
                     .ResultOperationOutcome
             end
 
-            if outcome.Status == "finished"
+            if outcome.isSuccess()
                 viewModel = openmebius.presentation.result ...
                     .ResultOperationViewModel( ...
                         Suggestion = outcome.Result.Suggestion);
@@ -305,7 +305,7 @@ classdef ResultPresenter < handle
                     .ResultOperationOutcome
             end
 
-            if outcome.Status == "finished"
+            if outcome.isSuccess()
                 result = outcome.Result;
                 messages = string(result.Messages);
                 messages = messages(:);

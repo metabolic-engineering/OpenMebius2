@@ -57,7 +57,9 @@ classdef ModelWorkspace < handle
         MSMetaboliteProduct table;
         ModelLocation openmebius.domain.model.ModelLocation
         ModelRepository
-        MessagePublisher
+        ReactionParser
+        Validator
+        MessageReporter
         ValidationErrors (:, 1) string = strings(0, 1)
         ValidationWarnings (:, 1) string = strings(0, 1)
 
@@ -92,6 +94,10 @@ classdef ModelWorkspace < handle
                 modelInput
                 options.ModelRepository = ...
                     openmebius.infrastructure.model.ModelRepository()
+                options.ReactionParser = openmebius.application.model ...
+                    .ModelReactionParser()
+                options.Validator = openmebius.application.model ...
+                    .ModelWorkspaceValidator()
             end
 
             modelLocation = ...
@@ -101,8 +107,10 @@ classdef ModelWorkspace < handle
             obj.ModelLocation = modelLocation;
 
             obj.ModelRepository = options.ModelRepository;
-            obj.MessagePublisher = openmebius.presentation ...
-                .notification.GeneralMessagePublisher( ...
+            obj.ReactionParser = options.ReactionParser;
+            obj.Validator = options.Validator;
+            obj.MessageReporter = openmebius.infrastructure.logging ...
+                .MessageReporter( ...
                 LogLevel = obj.logLevel);
 
             obj.ModelRepository.assertModelDirectory(modelLocation);
@@ -201,6 +209,21 @@ classdef ModelWorkspace < handle
                 Y = double(modelTable.y));
 
         end % getPathwayData
+
+        function aggregate = snapshot(obj)
+            aggregate = openmebius.domain.model.ModelAggregate( ...
+                ModelTable = obj.getModelTableGUI(), ...
+                MassSpectrometryTable = obj.getMSTable(), ...
+                AtomTable = obj.getAtomTable(), ...
+                BiomassTable = obj.getBiomassTable(), ...
+                LabelTable = obj.getTableLabelView(), ...
+                LabelConfiguration = obj.getLabelStructView(), ...
+                Pathway = obj.getPathwayData(), ...
+                InvalidModelRows = obj.getInvalidModelRowIdx(), ...
+                InvalidMassSpectrometryRows = ...
+                    obj.getInvalidMSRowIdx(), ...
+                InvalidAtomRows = obj.getInvalidAtomRowIdx());
+        end
 
         function updatePathwayLabelPosition( ...
                 obj, reactionID, position)
@@ -842,40 +865,8 @@ classdef ModelWorkspace < handle
 
         end % convertLabelViewToStruct
 
-        function validateLabelConfiguration(~, labelTable, ratioTables)
-
-            requiredLabelColumns = ["Name", "Num"];
-
-            if ~all(ismember( ...
-                    requiredLabelColumns, ...
-                    string(labelTable.Properties.VariableNames)))
-                error( ...
-                    "OpenMebius2:LabelConfiguration:InvalidLabelTable", ...
-                    "Label settings must contain Name and Num columns.");
-            end
-
-            ratioFields = fieldnames(ratioTables);
-
-            if numel(ratioFields) ~= height(labelTable)
-                error( ...
-                    "OpenMebius2:LabelConfiguration:RatioCountMismatch", ...
-                    "A ratio table is required for each label " + ...
-                    "configuration row.");
-            end
-
-            for fieldIndex = 1:numel(ratioFields)
-                ratioTable = ratioTables.(ratioFields{fieldIndex});
-
-                if ~istable(ratioTable) || ...
-                        ~all(ismember( ...
-                            ["Label", "Ratio"], ...
-                            string(ratioTable.Properties.VariableNames)))
-                    error( ...
-                        "OpenMebius2:LabelConfiguration:InvalidRatioTable", ...
-                        "Each ratio setting must contain Label and Ratio columns.");
-                end
-            end
-
+        function validateLabelConfiguration(obj, labelTable, ratioTables)
+            obj.Validator.validateLabelConfiguration(labelTable, ratioTables);
         end % validateLabelConfiguration
 
         function label = makeStructLabel(~, input)
@@ -885,49 +876,8 @@ classdef ModelWorkspace < handle
 
         end % makeStructLabel
 
-        function [tf, errcols] = isValidAtomTable(~, tableAtom)
-
-            numMolecule = height(tableAtom);
-            numElement = width(tableAtom);
-            err = false(numMolecule, numElement);
-            tf = true;
-
-            for i = 1:numMolecule
-
-                for j = 1:numElement
-
-                    isNumeric = isnumeric(tableAtom{i, j});
-
-                    if ~isNumeric
-                        err(i, j) = true;
-                        continue
-                    end
-
-                    isInteger = isinteger(tableAtom{i, j});
-
-                    if ~isInteger
-                        err(i, j) = true;
-                        continue
-                    end
-
-                    isPositive = tableAtom{i, j} >= 0;
-
-                    if ~isPositive
-                        err(i, j) = true;
-                        continue
-                    end
-
-                end
-
-            end
-
-            errcols = any(err, 2);
-            errcols = find(errcols);
-
-            if any(err, 'all')
-                tf = false;
-            end
-
+        function [tf, errcols] = isValidAtomTable(obj, tableAtom)
+            [tf, errcols] = obj.Validator.validateAtomTable(tableAtom);
         end % isValidAtomTable
 
         % TODO: Implement the function
@@ -1020,70 +970,19 @@ classdef ModelWorkspace < handle
                 rxnCol cell;
             end
 
-            % Parse the reaction
-            numRxn = size(rxnCol, 1);
-            react = cell(numRxn, 1);
-            product = cell(numRxn, 1);
-            rev = false(numRxn, 1);
-            err = [];
+            result = obj.ReactionParser.parse(rxnCol);
+            react = result.Reactants;
+            product = result.Products;
+            rev = result.Reversible;
+            err = result.ErrorRows;
 
-            % Split reaction into reactants and products with delimiters <=> and -->
-            for iRxn = 1:numRxn
-
-                if isempty(rxnCol(iRxn))
-                    continue
-                end
-
-                if sum(ismissing(rxnCol(iRxn))) > 0
-                    continue
-                end
-
-                iSplitFwd = strsplit(rxnCol{iRxn}, '-->');
-
-                if numel(iSplitFwd) == 2
-                    react{iRxn} = strsplit(iSplitFwd{1}, '+');
-                    product{iRxn} = strsplit(iSplitFwd{2}, '+');
-                    continue
-                end
-
-                iSplitRev = strsplit(rxnCol{iRxn}, '<=>');
-
-                if numel(iSplitRev) == 2
-                    react{iRxn} = strsplit(iSplitRev{1}, '+');
-                    product{iRxn} = strsplit(iSplitRev{2}, '+');
-                    rev(iRxn) = true;
-                    continue
-                end
-
-                if isscalar(iSplitFwd) && isscalar(iSplitRev)
-                    recordValidationError( ...
-                        obj, ...
-                        "The reaction " + rxnCol{iRxn} + ...
-                        " does not contain an arrow.");
-                    err = [err, iRxn]; %#ok<AGROW>
-                    continue
-                end
-
-                if numel(iSplitFwd) > 2 || numel(iSplitRev) > 2
-                    recordValidationError( ...
-                        obj, ...
-                        "The reaction " + rxnCol{iRxn} + ...
-                        " contains more than one arrow.");
-                    err = [err, iRxn]; %#ok<AGROW>
-                    continue
-                end
-
+            for message = result.Errors.'
+                recordValidationError(obj, message);
             end
 
-            if hasValidationErrors(obj)
-                react = cell(numRxn, 1);
-                product = cell(numRxn, 1);
-                rev = false(numRxn, 1);
-                return;
+            if ~isempty(result.Errors)
+                return
             end
-
-            react = strtrim(react);
-            product = strtrim(product);
 
             updateMsg(obj, "The reactions have been parsed successfully.", "Debug", obj.logLevel);
 
@@ -1315,7 +1214,7 @@ classdef ModelWorkspace < handle
 
         function updateMsg(obj, text, level, ~)
 
-            obj.MessagePublisher.write(lower(string(level)), string(text));
+            obj.MessageReporter.report(lower(string(level)), string(text));
 
         end % updateMsg
 

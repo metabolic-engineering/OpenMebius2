@@ -63,7 +63,7 @@ classdef ProjectPresenter
                 changesModel (1, 1) logical
             end
 
-            if outcome.Status == "finished"
+            if outcome.isSuccess()
                 result = outcome.Result;
                 notifications = obj.successNotifications(result.Messages);
                 modelStatus = "";

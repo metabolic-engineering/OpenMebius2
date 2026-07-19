@@ -6,6 +6,6 @@ exp = openmebius.application.experiment.ExperimentWorkspace( ...
     fullfile(dirExp), ...
     fullfile(dirModel));
 
-batchInstance = Batch(exp);
+batchInstance = openmebius.application.batch.BatchSession(exp);
 batchInstance.loadBatchFile(dirExp);
 batchInstance.runBatch(dirResult);

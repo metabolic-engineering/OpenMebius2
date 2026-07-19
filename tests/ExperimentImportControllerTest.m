@@ -29,7 +29,7 @@ classdef ExperimentImportControllerTest < matlab.unittest.TestCase
             outcome = controller.importFiles( ...
                 location, files, "model");
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(outcome.Result, importService.ImportResult);
             testCase.verifyEqual(importService.LastOperation, "importFiles");
             testCase.verifyEqual(importService.Inputs{2}, files);
@@ -52,7 +52,7 @@ classdef ExperimentImportControllerTest < matlab.unittest.TestCase
 
             outcome = controller.reload(location, []);
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual(outcome.ErrorMessage, "Reload failed.");
             testCase.verifyEqual( ...
                 string(outcome.Exception.identifier), ...
@@ -75,7 +75,7 @@ classdef ExperimentImportControllerTest < matlab.unittest.TestCase
             outcome = controller.importShimadzuASCII( ...
                 "raw", location, "model");
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(rawService.Called);
             testCase.verifyEqual(rawService.Inputs{1}, "raw");
             testCase.verifyEqual(outcome.Result, rawService.Result);

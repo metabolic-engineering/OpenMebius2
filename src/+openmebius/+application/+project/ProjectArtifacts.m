@@ -1,24 +1,17 @@
-classdef LegacyProjectArtifacts
-    % LEGACYPROJECTARTIFACTS
-    % Container for existing OpenMebius2 legacy objects.
-    %
-    % This object intentionally wraps legacy classes:
-    %   EMUModel
-    %   openmebius.application.experiment.ExperimentWorkspace
-    %   Batch
-    %   openmebius.application.result.ResultWorkspace
+classdef ProjectArtifacts
+    % PROJECTARTIFACTS Runtime objects restored for one project session.
 
     properties (SetAccess = private)
         Model
         Experiments
         Batch
         Result
-        Messages string
+        Messages (:, 1) string
     end
 
     methods
 
-        function obj = LegacyProjectArtifacts(options)
+        function obj = ProjectArtifacts(options)
 
             arguments
                 options.Model

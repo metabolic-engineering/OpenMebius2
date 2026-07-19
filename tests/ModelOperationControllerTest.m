@@ -26,7 +26,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.loadTemplate(location);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(outcome.Result, service.Result);
             testCase.verifyTrue(service.Called);
             testCase.verifyEqual(service.ModelLocation, location);
@@ -48,7 +48,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.loadTemplate(location);
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 outcome.ErrorMessage, "Template load failed.");
             testCase.verifyEqual( ...
@@ -71,7 +71,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.saveModelTable(model, modelTable);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(model.ModelCalled);
             testCase.verifyEqual(model.ModelTable, modelTable);
             testCase.verifyEqual( ...
@@ -98,7 +98,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.saveMassSpectrometry( ...
                 model, msTable, atomTable);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(model.MSCalled);
             testCase.verifyTrue(model.AtomCalled);
             testCase.verifyEqual(outcome.Result.MSReport, model.MSReport);
@@ -120,7 +120,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.saveModelTable(model, table());
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 outcome.ErrorMessage, "Model edit failed.");
             testCase.verifyEqual( ...
@@ -145,7 +145,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.exportMassSpectrometryTemplate( ...
                 model, "template.xlsx");
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(service.Called);
             testCase.verifyEqual(service.Model, model);
             testCase.verifyEqual(service.OutputPath, "template.xlsx");
@@ -169,7 +169,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
                 helpers.MassSpectrometryTemplateModelStub(), ...
                 "template.xlsx");
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 outcome.ErrorMessage, "Template export failed.");
 
@@ -187,7 +187,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.setPathwayLabelPosition( ...
                 model, "R1", [2.5 4.5]);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(service.SetCalled);
             testCase.verifyEqual(service.Model, model);
             testCase.verifyEqual(service.ReactionID, "R1");
@@ -207,7 +207,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.removePathwayLabelPosition( ...
                 helpers.PathwayLabelModelStub(), "R1");
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(service.RemoveCalled);
             testCase.verifyEqual(outcome.Result, "removed");
 
@@ -226,7 +226,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.setPathwayLabelPosition( ...
                 [], "", [1 2]);
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 string(outcome.Exception.identifier), ...
                 "OpenMebius2:PathwayLabel:ReactionRequired");
@@ -254,7 +254,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
                 model, experiments, batch, ...
                 labelTable, ratioTables);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(service.Called);
             testCase.verifyEqual(service.Model, model);
             testCase.verifyEqual(service.Experiments, experiments);
@@ -278,7 +278,7 @@ classdef ModelOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.applyLabelConfiguration( ...
                 [], [], [], table(), struct());
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 outcome.ErrorMessage, ...
                 "Label configuration failed.");

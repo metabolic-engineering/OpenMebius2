@@ -22,7 +22,7 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.autoFill(batch);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(batch.AutoFillCalled);
             testCase.verifyEmpty(outcome.Exception);
 
@@ -38,7 +38,7 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.save(batch, tableData);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(batch.SaveCalled);
             testCase.verifyEqual(batch.SavedTable, tableData);
 
@@ -53,7 +53,7 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.remove( ...
                 batch, ["batch-a"; "batch-b"]);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual( ...
                 batch.RemovedIds, ["batch-a"; "batch-b"]);
 
@@ -70,7 +70,7 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.autoFill(batch);
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 outcome.ErrorMessage, "Batch operation failed.");
             testCase.verifyEqual( ...
@@ -93,7 +93,7 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.applyExperimentSelection( ...
                 batch, selection);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(batch.AddedNames, "exp-a, exp-b");
             testCase.verifyEqual( ...
                 batch.AddedExperiments{1}, {selection.Experiments'});
@@ -117,7 +117,7 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.applyExperimentSelection( ...
                 batch, selection);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual( ...
                 batch.AddedNames, ["exp-a"; "exp-b"]);
             testCase.verifyEqual(numel(batch.AddedConfigs), 2);
@@ -138,7 +138,7 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.applyExperimentSelection( ...
                 batch, selection);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(batch.EditedId, "batch-a");
             testCase.verifyEqual(batch.EditedName, "exp-a, exp-b");
             testCase.verifyTrue(batch.EditedConfig.isINSTMFA);

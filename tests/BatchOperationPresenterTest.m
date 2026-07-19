@@ -19,7 +19,7 @@ classdef BatchOperationPresenterTest < matlab.unittest.TestCase
             batch = helpers.BatchOperationStub();
             presenter = openmebius.presentation.batch.BatchPresenter();
             outcome = openmebius.application.batch ...
-                .BatchOperationOutcome("finished");
+                .BatchOperationOutcome(true);
 
             autoFill = presenter.presentAutoFillOutcome(outcome, batch);
             saved = presenter.presentSaveOutcome(outcome, batch);
@@ -54,7 +54,7 @@ classdef BatchOperationPresenterTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.batch.BatchPresenter();
             outcome = openmebius.application.batch ...
                 .BatchOperationOutcome( ...
-                    "error", ErrorMessage = "Save failed.");
+                    false, ErrorMessage = "Save failed.");
 
             viewModel = presenter.presentSaveOutcome(outcome, batch);
             notification = viewModel.Notifications{1};

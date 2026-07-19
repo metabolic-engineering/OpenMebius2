@@ -1,7 +1,7 @@
 classdef BatchRunCommandStub < handle
 
     properties
-        RunStatus (1, 1) string = "finished"
+        RunResult = openmebius.application.batch.BatchExecutionResult(true)
         RunException = []
         RunCalled (1, 1) logical = false
         CancelCalled (1, 1) logical = false
@@ -9,7 +9,7 @@ classdef BatchRunCommandStub < handle
 
     methods
 
-        function status = run(obj, ~, ~)
+        function result = run(obj, ~, ~)
 
             obj.RunCalled = true;
 
@@ -17,7 +17,7 @@ classdef BatchRunCommandStub < handle
                 throw(obj.RunException);
             end
 
-            status = obj.RunStatus;
+            result = obj.RunResult;
 
         end
 

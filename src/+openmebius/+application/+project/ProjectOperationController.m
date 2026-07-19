@@ -5,8 +5,8 @@ classdef ProjectOperationController < handle
         Repository
         OpenProjectUseCase
         CreateProjectUseCase
-        LegacyProjectLoader
-        LegacyProjectInitializer
+        ArtifactRepository
+        MigrationService
     end
 
     methods
@@ -17,8 +17,8 @@ classdef ProjectOperationController < handle
                 options.Repository = []
                 options.OpenProjectUseCase = []
                 options.CreateProjectUseCase = []
-                options.LegacyProjectLoader = []
-                options.LegacyProjectInitializer = []
+                options.ArtifactRepository = []
+                options.MigrationService = []
             end
 
             repository = options.Repository;
@@ -42,25 +42,25 @@ classdef ProjectOperationController < handle
                     .CreateProjectUseCase(repository);
             end
 
-            legacyProjectLoader = options.LegacyProjectLoader;
+            artifactRepository = options.ArtifactRepository;
 
-            if isempty(legacyProjectLoader)
-                legacyProjectLoader = openmebius.infrastructure.legacy ...
-                    .LegacyProjectLoader();
+            if isempty(artifactRepository)
+                artifactRepository = openmebius.infrastructure.project ...
+                    .ProjectArtifactRepository();
             end
 
-            legacyProjectInitializer = options.LegacyProjectInitializer;
+            migrationService = options.MigrationService;
 
-            if isempty(legacyProjectInitializer)
-                legacyProjectInitializer = openmebius.infrastructure.legacy ...
-                    .LegacyProjectInitializer();
+            if isempty(migrationService)
+                migrationService = openmebius.application.project ...
+                    .ProjectMigrationService(repository);
             end
 
             obj.Repository = repository;
             obj.OpenProjectUseCase = openProjectUseCase;
             obj.CreateProjectUseCase = createProjectUseCase;
-            obj.LegacyProjectLoader = legacyProjectLoader;
-            obj.LegacyProjectInitializer = legacyProjectInitializer;
+            obj.ArtifactRepository = artifactRepository;
+            obj.MigrationService = migrationService;
 
         end % constructor
 
@@ -76,7 +76,8 @@ classdef ProjectOperationController < handle
             function result = openProject()
 
                 session = obj.OpenProjectUseCase.execute(projectInput);
-                artifacts = obj.LegacyProjectLoader.load(session);
+                session = obj.MigrationService.migrate(session);
+                artifacts = obj.ArtifactRepository.load(session);
                 result = openmebius.application.project ...
                     .ProjectOperationResult( ...
                         Session = session, ...
@@ -144,8 +145,8 @@ classdef ProjectOperationController < handle
                     ProjectDirectoryName = options.ProjectDirectoryName, ...
                     TemplateModelDirectory = options.TemplateModelDirectory, ...
                     Metadata = options.Metadata);
-                artifacts = obj.LegacyProjectInitializer.initialize( ...
-                    createResult.Session);
+                artifacts = obj.ArtifactRepository.load( ...
+                    createResult.Session, AllowEmptyExperiments = true);
                 result = openmebius.application.project ...
                     .ProjectOperationResult( ...
                         Session = createResult.Session, ...
@@ -168,11 +169,11 @@ classdef ProjectOperationController < handle
                 result = command();
                 outcome = openmebius.application.project ...
                     .ProjectOperationOutcome( ...
-                        "finished", Result = result);
+                        true, Result = result);
             catch exception
                 outcome = openmebius.application.project ...
                     .ProjectOperationOutcome( ...
-                        "error", ...
+                        false, ...
                         ErrorMessage = string(exception.message), ...
                         Exception = exception);
             end

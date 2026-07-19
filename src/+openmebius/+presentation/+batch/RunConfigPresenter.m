@@ -22,7 +22,7 @@ classdef RunConfigPresenter < handle
                     .BatchConfigurationLaunchOutcome
             end
 
-            if outcome.Status == "error"
+            if outcome.isFailure()
                 viewModel = obj.launchErrorViewModel( ...
                     outcome.ErrorMessage, outcome.Exception);
                 return
@@ -117,7 +117,7 @@ classdef RunConfigPresenter < handle
                     .BatchConfigurationApplyOutcome
             end
 
-            if outcome.Status == "finished"
+            if outcome.isSuccess()
                 viewModel = openmebius.presentation.batch ...
                     .RunConfigApplyViewModel(IsSuccessful = true);
                 return

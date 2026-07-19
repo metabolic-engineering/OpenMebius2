@@ -1,0 +1,227 @@
+classdef ResultTableBuilder
+    % RESULTTABLEBUILDER Converts persisted result data into display tables.
+
+    methods
+
+        function [value, message] = fluxOverview(~, data, options)
+            arguments
+                ~
+                data struct
+                options.Relative (1, 1) logical = false
+                options.RelativeTo (1, 1) string = ""
+            end
+
+            value = table( ...
+                'Size', [0, 6], ...
+                'VariableNames', [ ...
+                    "Reaction", "Flux", "UB", "LB", ...
+                    "UB (FVA)", "LB (FVA)"], ...
+                'VariableTypes', [ ...
+                    "string", "double", "double", "double", ...
+                    "double", "double"]);
+            message = "";
+            status = data.status;
+
+            if status(1)
+                fluxVariability = data.fluxVariability;
+                reactionIDs = [data.model.modelID; "biomass"];
+                reactionNames = [data.model.modelReaction; ""];
+                numberOfFluxes = size(fluxVariability.fluxUBFwd, 1);
+                value = table( ...
+                    'Size', [numberOfFluxes, 6], ...
+                    'VariableNames', [ ...
+                        "Reaction", "Flux", "LB", "UB", ...
+                        "LB (FVA)", "UB (FVA)"], ...
+                    'VariableTypes', [ ...
+                        "string", "double", "double", "double", ...
+                        "double", "double"]);
+                value{:, 2:end} = nan(numberOfFluxes, 5);
+                value.Properties.RowNames = reactionIDs;
+                value.Reaction = reactionNames;
+                value.("UB (FVA)") = fluxVariability.fluxUBFwd;
+                value.("LB (FVA)") = fluxVariability.fluxLBFwd;
+            end
+
+            if status(2)
+                fieldName = "fluxResult" + ...
+                    string(sprintf("%04d", data.RSSIdx(1)));
+                value.Flux = data.(fieldName).fluxFwd;
+            end
+
+            if status(3) && ~isempty(data.fluxLB) && ~isempty(data.fluxUB)
+                value.LB = data.fluxLB;
+                value.UB = data.fluxUB;
+            end
+
+            if ~options.Relative || ~status(2)
+                return
+            end
+
+            reactionIndex = find(contains( ...
+                value.Properties.RowNames, options.RelativeTo), 1);
+            if isempty(reactionIndex)
+                reference = 0.01;
+            else
+                reference = value.Flux(reactionIndex) / 100;
+            end
+
+            if isnan(reference) || reference == 0
+                message = "Relative flux cannot be calculated. " + ...
+                    "The reference flux is zero or NaN.";
+                return
+            end
+
+            variables = ["Flux", "LB", "UB", "LB (FVA)", "UB (FVA)"];
+            for variable = variables
+                value.(variable) = value.(variable) ./ reference;
+            end
+        end
+
+        function [value, message] = fluxDetailed(~, data)
+            value = table( ...
+                'Size', [0, 5], ...
+                'VariableNames', [ ...
+                    "Fragment", "M+i", "Measured", ...
+                    "Estimated", "Chi^2"], ...
+                'VariableTypes', [ ...
+                    "string", "string", "double", "double", "double"]);
+            message = "";
+
+            if ~isfield(data, 'RSSIdx') || isempty(data.RSSIdx)
+                message = "No flux data found in the result file.";
+                return
+            end
+
+            fieldName = "fluxResult" + ...
+                string(sprintf("%04d", data.RSSIdx(1)));
+            mdv = data.(fieldName).MDV;
+            numberOfLabelings = size(mdv, 2);
+            variableNames = [ ...
+                "Fragment", "M+i", ...
+                repmat(["Measured", "Estimated", "Chi^2"], ...
+                    1, numberOfLabelings)];
+            variableTypes = [ ...
+                "string", "string", ...
+                repmat(["double", "double", "double"], ...
+                    1, numberOfLabelings)];
+            value = table( ...
+                'Size', [size(mdv, 1), numel(variableNames)], ...
+                'VariableNames', variableNames, ...
+                'VariableTypes', variableTypes);
+            value{:, 1:2} = strings(size(mdv, 1), 2);
+            value{:, 3:end} = nan(size(mdv, 1), numberOfLabelings * 3);
+
+            fragmentNames = strings(size(mdv, 1), 1);
+            isotopeNames = strings(size(mdv, 1), 1);
+            measured = data.MDVExp;
+            measuredNames = string(data.MDVExpName);
+            fragmentMask = data.MDVFragMask;
+
+            for labelingIndex = 1:numberOfLabelings
+                estimatedColumn = labelingIndex * 3 + 1;
+                measuredColumn = labelingIndex * 3;
+                chiSquareColumn = labelingIndex * 3 + 2;
+                value{:, measuredColumn} = measured(:, labelingIndex);
+                value{:, estimatedColumn} = mdv(:, labelingIndex);
+                difference = ...
+                    (mdv(:, labelingIndex) - measured(:, labelingIndex)) ...
+                    ./ 0.01;
+                chiSquare = difference .^ 2;
+                mask = fragmentMask(:, labelingIndex);
+                value{mask, chiSquareColumn} = chiSquare(mask);
+            end
+
+            isotopeCounter = 0;
+            for rowIndex = 1:size(mdv, 1)
+                isNewFragment = rowIndex == 1 || ...
+                    measuredNames(rowIndex - 1) ~= measuredNames(rowIndex);
+                if isNewFragment
+                    fragmentNames(rowIndex) = measuredNames(rowIndex);
+                    isotopeCounter = 0;
+                end
+                isotopeNames(rowIndex) = "M + " + string(isotopeCounter);
+                isotopeCounter = isotopeCounter + 1;
+            end
+            value{:, 1} = fragmentNames;
+            value{:, 2} = isotopeNames;
+        end
+
+        function [value, message] = fluxComparison(~, data, names, options)
+            arguments
+                ~
+                data cell
+                names (1, :) string
+                options.Relative (1, 1) logical = false
+                options.RelativeTo (1, 1) string = ""
+            end
+
+            message = "";
+            numberOfResults = numel(names);
+            if numberOfResults ~= numel(data)
+                value = table();
+                message = "Failed to load the result files.";
+                return
+            end
+
+            names = openmebius.application.result ...
+                .ResultTableBuilder.uniqueNames(names);
+            value = table( ...
+                'Size', [0, numberOfResults], ...
+                'VariableNames', names, ...
+                'VariableTypes', repmat("double", 1, numberOfResults));
+
+            for resultIndex = 1:numberOfResults
+                item = data{resultIndex};
+                if ~isfield(item, 'RSSIdx') || isempty(item.RSSIdx)
+                    continue
+                end
+                fieldName = "fluxResult" + ...
+                    string(sprintf("%04d", item.RSSIdx(1)));
+                flux = item.(fieldName).fluxFwd;
+                if resultIndex == 1
+                    value = table( ...
+                        'Size', [numel(flux), numberOfResults + 1], ...
+                        'VariableNames', ["Reaction", names], ...
+                        'VariableTypes', [ ...
+                            "string", repmat("double", 1, numberOfResults)], ...
+                        'RowNames', [item.model.modelID; "biomass"]);
+                    value.Reaction = [item.model.modelReaction; ""];
+                end
+                value.(names(resultIndex)) = flux;
+            end
+
+            if ~options.Relative || numberOfResults <= 1 || isempty(value)
+                return
+            end
+
+            reactionIndex = find(contains( ...
+                value.Properties.RowNames, options.RelativeTo), 1);
+            for resultIndex = 1:numberOfResults
+                if isempty(reactionIndex)
+                    reference = 0.01;
+                else
+                    reference = ...
+                        value.(names(resultIndex))(reactionIndex) / 100;
+                end
+                value.(names(resultIndex)) = ...
+                    value.(names(resultIndex)) ./ reference;
+            end
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function values = uniqueNames(values)
+            original = values;
+            for valueIndex = 1:numel(values)
+                if sum(original == original(valueIndex)) > 1
+                    values(valueIndex) = ...
+                        original(valueIndex) + "_" + string(valueIndex);
+                end
+            end
+        end
+
+    end
+
+end

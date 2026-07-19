@@ -7,8 +7,9 @@ classdef ExperimentWorkspace < handle
         EditMapper
         EditValidator
         ExperimentRepository
+        ModelResolver
         TableAssembler
-        MessagePublisher
+        MessageReporter
         ValidationErrors (:, 1) string = strings(0, 1)
         ValidationWarnings (:, 1) string = strings(0, 1)
 
@@ -56,6 +57,8 @@ classdef ExperimentWorkspace < handle
                     .ExperimentEditValidator()
                 options.TableAssembler = openmebius.domain.experiment ...
                     .ExperimentTableAssembler()
+                options.ModelResolver = openmebius.application.experiment ...
+                    .ExperimentModelResolver()
                 options.AllowEmpty (1, 1) logical = false
             end
 
@@ -69,9 +72,10 @@ classdef ExperimentWorkspace < handle
             obj.EditMapper = options.EditMapper;
             obj.EditValidator = options.EditValidator;
             obj.ExperimentRepository = options.ExperimentRepository;
+            obj.ModelResolver = options.ModelResolver;
             obj.TableAssembler = options.TableAssembler;
-            obj.MessagePublisher = openmebius.presentation ...
-                .notification.GeneralMessagePublisher( ...
+            obj.MessageReporter = openmebius.infrastructure.logging ...
+                .MessageReporter( ...
                 LogLevel = obj.logLevel);
 
             obj.ExperimentRepository.assertExperimentDirectory( ...
@@ -1164,34 +1168,9 @@ classdef ExperimentWorkspace < handle
 
     methods (Access = private)
 
-        function [model, pathModel] = resolveModelInput(~, modelInput)
+        function [model, pathModel] = resolveModelInput(obj, modelInput)
 
-            if isa(modelInput, 'EMUModel')
-
-                model = modelInput;
-
-                if ~isvalid(model)
-                    error( ...
-                        "OpenMebius2:ExperimentWorkspace:InvalidModel", ...
-                        "The model object is invalid.");
-                end
-
-                modelLocation = model.getModelLocation();
-                pathModel = modelLocation.Directory;
-                return
-            end
-
-            modelLocation = ...
-                openmebius.domain.model.ModelLocation.fromInput(modelInput);
-            pathModel = modelLocation.Directory;
-
-            if pathModel == ""
-                error( ...
-                    "OpenMebius2:ExperimentWorkspace:EmptyModelDirectory", ...
-                    "The model directory is empty.");
-            end
-
-            model = EMUModel(modelLocation);
+            [model, pathModel] = obj.ModelResolver.resolve(modelInput);
 
         end % resolveModelInput
 
@@ -1533,7 +1512,7 @@ classdef ExperimentWorkspace < handle
                     obj.ValidationWarnings(end + 1, 1) = message;
             end
 
-            obj.MessagePublisher.write( ...
+            obj.MessageReporter.report( ...
                 lower(normalizedLevel), ...
                 message);
 

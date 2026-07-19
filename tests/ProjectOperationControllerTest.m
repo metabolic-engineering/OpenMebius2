@@ -23,7 +23,7 @@ classdef ProjectOperationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.open("project");
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(outcome.Result.Session, fixture.Session);
             testCase.verifyEqual(outcome.Result.Artifacts, fixture.Artifacts);
             testCase.verifyTrue(fixture.OpenUseCase.Called);
@@ -42,7 +42,7 @@ classdef ProjectOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.save( ...
                 fixture.Session, "unused", metadata);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(fixture.Repository.SaveCalled);
             testCase.verifyFalse(fixture.OpenUseCase.Called);
             testCase.verifyEqual( ...
@@ -61,7 +61,7 @@ classdef ProjectOperationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.save([], "project", metadata);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(fixture.OpenUseCase.Called);
             testCase.verifyTrue(fixture.Repository.SaveCalled);
 
@@ -84,7 +84,7 @@ classdef ProjectOperationControllerTest < matlab.unittest.TestCase
                 TemplateModelDirectory = "template", ...
                 Metadata = metadata);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(fixture.CreateUseCase.Called);
             testCase.verifyTrue(fixture.ArtifactService.InitializeCalled);
             testCase.verifyEqual( ...
@@ -103,7 +103,7 @@ classdef ProjectOperationControllerTest < matlab.unittest.TestCase
 
             outcome = controller.open("project");
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 outcome.ErrorMessage, "Project open failed.");
             testCase.verifyEqual( ...
@@ -140,8 +140,7 @@ classdef ProjectOperationControllerTest < matlab.unittest.TestCase
                     Repository = fixture.Repository, ...
                     OpenProjectUseCase = fixture.OpenUseCase, ...
                     CreateProjectUseCase = fixture.CreateUseCase, ...
-                    LegacyProjectLoader = fixture.ArtifactService, ...
-                    LegacyProjectInitializer = fixture.ArtifactService);
+                    ArtifactRepository = fixture.ArtifactService);
 
         end
 

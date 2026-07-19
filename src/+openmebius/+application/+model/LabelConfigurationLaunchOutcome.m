@@ -1,29 +1,26 @@
-classdef LabelConfigurationLaunchOutcome
+classdef LabelConfigurationLaunchOutcome < openmebius.application.OperationOutcome
     % LABELCONFIGURATIONLAUNCHOUTCOME LabelConfig preparation result.
 
     properties (SetAccess = private)
-        Status (1, 1) string
         State
-        ErrorMessage (1, 1) string
-        Exception
     end
 
     methods
 
-        function obj = LabelConfigurationLaunchOutcome(status, options)
+        function obj = LabelConfigurationLaunchOutcome(succeeded, options)
 
             arguments
-                status (1, 1) string {mustBeMember( ...
-                    status, ["finished", "error"])}
+                succeeded (1, 1) logical
                 options.State = []
                 options.ErrorMessage (1, 1) string = ""
                 options.Exception = []
             end
 
-            obj.Status = status;
+            obj@openmebius.application.OperationOutcome( ...
+                succeeded, ...
+                ErrorMessage = options.ErrorMessage, ...
+                Exception = options.Exception);
             obj.State = options.State;
-            obj.ErrorMessage = options.ErrorMessage;
-            obj.Exception = options.Exception;
 
         end % constructor
 

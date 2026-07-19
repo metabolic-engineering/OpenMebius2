@@ -25,7 +25,7 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
             outcome = controller.saveInfo( ...
                 "model", "experiments", "batch", infoTable);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(outcome.Result, service.Result);
             testCase.verifyEqual(service.LastOperation, "saveInfo");
             testCase.verifyEqual(service.Inputs{4}, infoTable);
@@ -45,7 +45,7 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
             outcome = controller.saveTracer( ...
                 [], [], [], uptakeTable, tracerTable);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(service.LastOperation, "saveTracer");
             testCase.verifyEqual(service.Inputs{4}, uptakeTable);
             testCase.verifyEqual(service.Inputs{5}, tracerTable);
@@ -65,7 +65,7 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
             outcome = controller.copyTracerToAllEntries( ...
                 [], [], [], tracerTable, [1, 1]);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual( ...
                 service.LastOperation, "copyTracerToAllEntries");
             testCase.verifyEqual(service.Inputs{4}, tracerTable);
@@ -84,7 +84,7 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
 
             outcome = controller.saveInfo([], [], [], table());
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual(outcome.ErrorMessage, "Editing failed.");
             testCase.verifyEqual( ...
                 string(outcome.Exception.identifier), ...
@@ -110,7 +110,7 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
             outcome = controller.loadTracerConfiguration( ...
                 experiments, [2, 3]);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(service.LastOperation, "load");
             testCase.verifyEqual(service.Experiments, experiments);
             testCase.verifyEqual(service.Position, [2, 3]);
@@ -136,7 +136,7 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
             outcome = controller.prepareTracerConfiguration( ...
                 experiments, tracerTable, [2, 3]);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(service.LastOperation, "prepare");
             testCase.verifyEqual(service.Experiments, experiments);
             testCase.verifyEqual( ...
@@ -162,7 +162,7 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
             outcome = controller.applyTracerConfiguration( ...
                 [1, 2], editorTable);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(service.LastOperation, "apply");
             testCase.verifyEqual(service.Position, [1, 2]);
             testCase.verifyEqual(service.EditorTable, editorTable);
@@ -182,7 +182,7 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
             outcome = controller.applyTracerConfiguration( ...
                 [1, 1], table());
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 outcome.ErrorMessage, "Tracer configuration failed.");
 

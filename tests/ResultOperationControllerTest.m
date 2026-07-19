@@ -30,7 +30,7 @@ classdef ResultOperationControllerTest < matlab.unittest.TestCase
                 location, "model", "experiments", "result", ...
                 IsDeployed = false);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(outcome.Result, reportService.Result);
             testCase.verifyTrue(reportService.Called);
             testCase.verifyEqual(reportService.Inputs{1}, location);
@@ -54,7 +54,7 @@ classdef ResultOperationControllerTest < matlab.unittest.TestCase
                 "result", ["batch-1"; "batch-2"], ...
                 ["First"; "Second"], location);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(exportService.Called);
             testCase.verifyEqual( ...
                 exportService.Inputs{2}, ["batch-1"; "batch-2"]);
@@ -80,7 +80,7 @@ classdef ResultOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.exportResults( ...
                 [], "batch-1", "First", location);
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 outcome.ErrorMessage, ...
                 "Result data is not available.");
@@ -110,7 +110,7 @@ classdef ResultOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.loadSuggestion( ...
                 resultData, "batch-1", "First");
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(suggestionService.Called);
             testCase.verifyEqual( ...
                 suggestionService.ResultData, resultData);
@@ -138,7 +138,7 @@ classdef ResultOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.loadSuggestion( ...
                 "result", "batch-1", "First");
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 outcome.ErrorMessage, "No suggestion is available.");
 
@@ -160,7 +160,7 @@ classdef ResultOperationControllerTest < matlab.unittest.TestCase
                 "result", ["batch-1"; "batch-2"], ...
                 ["First"; "Second"]);
 
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyTrue(rangeService.Called);
             testCase.verifyEqual( ...
                 rangeService.BatchIDs, ["batch-1"; "batch-2"]);
@@ -185,7 +185,7 @@ classdef ResultOperationControllerTest < matlab.unittest.TestCase
             outcome = controller.prepareRangePlot( ...
                 "result", strings(0, 1), strings(0, 1));
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 string(outcome.Exception.identifier), ...
                 "OpenMebius2:ResultRangePlot:SelectionRequired");

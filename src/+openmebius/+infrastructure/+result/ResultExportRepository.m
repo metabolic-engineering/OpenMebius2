@@ -1,5 +1,5 @@
-classdef LegacyResultExportRepository < handle
-    % Adapter for the legacy result workspace export API.
+classdef ResultExportRepository < handle
+    % RESULTEXPORTREPOSITORY Persists result export plans.
 
     methods
 
@@ -18,7 +18,7 @@ classdef LegacyResultExportRepository < handle
 
                 exportItem = exportPlan.exportItem(iBatch);
 
-                openmebius.infrastructure.legacy.LegacyResultExportRepository ...
+                openmebius.infrastructure.result.ResultExportRepository ...
                     .createExportDirectory(exportItem.ExportLocation);
 
                 result.saveResultData( ...

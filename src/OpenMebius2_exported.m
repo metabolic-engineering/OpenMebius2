@@ -533,7 +533,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 switch viewModel.ArtifactMode
                     case "open"
-                        app.renderLegacyProjectArtifacts();
+                        app.renderProjectArtifacts();
                         app.refreshPresentation();
 
                     case "create"
@@ -694,7 +694,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % applyModelValidationStyles
 
-        function renderLegacyProjectArtifacts(app)
+        function renderProjectArtifacts(app)
 
             % -------------------------------------------------------------
             % Model UI
@@ -744,7 +744,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.notifyInfo("Result files loaded successfully.");
             end
 
-        end % method renderLegacyProjectArtifacts
+        end % method renderProjectArtifacts
 
         function renderCreatedProjectArtifacts(app)
 
@@ -2380,7 +2380,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            if ~isa(notification, ...
+            if isa(notification, ...
+                    "openmebius.core.notification.Message")
+
+                notification = openmebius.presentation.notification ...
+                    .Notification.fromMessage(notification);
+
+            elseif ~isa(notification, ...
                 "openmebius.presentation.notification.Notification")
 
                 notification = ...
@@ -4646,8 +4652,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             arguments
                 app
-                notification (1, 1) openmebius.presentation ...
-                    .notification.Notification
+                notification (1, 1)
             end
 
             app.showNotification(notification);

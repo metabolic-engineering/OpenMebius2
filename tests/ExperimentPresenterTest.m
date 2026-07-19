@@ -68,7 +68,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
             result = struct("Messages", ["Tables updated."; "MDV updated."]);
             outcome = openmebius.application.experiment ...
                 .ExperimentCalculationOutcome( ...
-                    "finished", Result = result);
+                    true, Result = result);
 
             viewModel = presenter.presentCalculationOutcome(outcome);
 
@@ -87,7 +87,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
                 .ExperimentPresenter();
             outcome = openmebius.application.experiment ...
                 .ExperimentCalculationOutcome( ...
-                    "error", ErrorMessage = "Calculation failed.");
+                    false, ErrorMessage = "Calculation failed.");
 
             viewModel = presenter.presentCalculationOutcome(outcome);
             notification = viewModel.Notifications{1};
@@ -134,7 +134,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
             result = struct("Messages", ["Copied."; "Reloaded."]);
             outcome = openmebius.application.experiment ...
                 .ExperimentImportOutcome( ...
-                    "finished", Result = result);
+                    true, Result = result);
 
             viewModel = presenter.presentFileImportOutcome(outcome);
             messages = cellfun( ...
@@ -156,7 +156,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
                 .ExperimentPresenter();
             outcome = openmebius.application.experiment ...
                 .ExperimentImportOutcome( ...
-                    "error", ErrorMessage = "Raw import failed.");
+                    false, ErrorMessage = "Raw import failed.");
 
             viewModel = presenter.presentRawMSImportOutcome(outcome);
             notification = viewModel.Notifications{1};
@@ -190,7 +190,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
             result = struct("Messages", ["Updated."; "Saved."]);
             outcome = openmebius.application.experiment ...
                 .ExperimentEditOutcome( ...
-                    "finished", Result = result);
+                    true, Result = result);
 
             viewModel = presenter.presentInfoSaveOutcome(outcome);
             messages = cellfun( ...
@@ -213,7 +213,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
                 "UpdatedTable", updatedTable);
             outcome = openmebius.application.experiment ...
                 .ExperimentEditOutcome( ...
-                    "finished", Result = result);
+                    true, Result = result);
 
             viewModel = presenter.presentTracerCopyOutcome(outcome);
 
@@ -232,7 +232,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
                 .ExperimentPresenter();
             outcome = openmebius.application.experiment ...
                 .ExperimentEditOutcome( ...
-                    "error", ErrorMessage = "Save failed.");
+                    false, ErrorMessage = "Save failed.");
 
             viewModel = presenter.presentTracerSaveOutcome(outcome);
             notification = viewModel.Notifications{1};
@@ -256,7 +256,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
                     Position = [2, 3], ...
                     EditorTable = editorTable);
             outcome = openmebius.application.experiment ...
-                .ExperimentEditOutcome("finished", Result = result);
+                .ExperimentEditOutcome(true, Result = result);
 
             viewModel = presenter ...
                 .presentTracerConfigurationLoadOutcome(outcome);
@@ -281,7 +281,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
                     EditorTable = editorTable);
             outcome = openmebius.application.experiment ...
                 .ExperimentEditOutcome( ...
-                    "finished", Result = decision);
+                    true, Result = decision);
 
             viewModel = presenter ...
                 .presentTracerConfigurationPreparationOutcome(outcome);
@@ -302,7 +302,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
                     Message = "Save the table first.");
             outcome = openmebius.application.experiment ...
                 .ExperimentEditOutcome( ...
-                    "finished", Result = decision);
+                    true, Result = decision);
 
             viewModel = presenter ...
                 .presentTracerConfigurationPreparationOutcome(outcome);
@@ -327,7 +327,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
                 .TracerConfigurationResult( ...
                     Position = [1, 2], Pattern = "U-13C~1");
             outcome = openmebius.application.experiment ...
-                .ExperimentEditOutcome("finished", Result = result);
+                .ExperimentEditOutcome(true, Result = result);
 
             viewModel = presenter ...
                 .presentTracerConfigurationApplyOutcome(outcome);
@@ -343,7 +343,7 @@ classdef ExperimentPresenterTest < matlab.unittest.TestCase
                 .ExperimentPresenter();
             outcome = openmebius.application.experiment ...
                 .ExperimentEditOutcome( ...
-                    "error", ErrorMessage = "Load failed.");
+                    false, ErrorMessage = "Load failed.");
 
             viewModel = presenter ...
                 .presentTracerConfigurationLoadOutcome(outcome);

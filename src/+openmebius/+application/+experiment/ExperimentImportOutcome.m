@@ -1,41 +1,28 @@
-classdef ExperimentImportOutcome
+classdef ExperimentImportOutcome < openmebius.application.OperationOutcome
     % EXPERIMENTIMPORTOUTCOME Result of an experiment import command.
 
     properties (SetAccess = private)
-        Status (1, 1) string
         Result
-        ErrorMessage (1, 1) string
-        Exception
     end
 
     methods
 
-        function obj = ExperimentImportOutcome(status, options)
+        function obj = ExperimentImportOutcome(succeeded, options)
 
             arguments
-                status (1, 1) string {mustBeMember( ...
-                    status, ["finished", "error"])}
+                succeeded (1, 1) logical
                 options.Result = []
                 options.ErrorMessage (1, 1) string = ""
                 options.Exception = []
             end
 
-            obj.Status = status;
+            obj@openmebius.application.OperationOutcome( ...
+                succeeded, ...
+                ErrorMessage = options.ErrorMessage, ...
+                Exception = options.Exception);
             obj.Result = options.Result;
-            obj.ErrorMessage = options.ErrorMessage;
-            obj.Exception = options.Exception;
 
         end % constructor
-
-        function rethrowFailure(obj)
-
-            if obj.Status ~= "error" || isempty(obj.Exception)
-                return
-            end
-
-            rethrow(obj.Exception);
-
-        end % rethrowFailure
 
     end % methods
 

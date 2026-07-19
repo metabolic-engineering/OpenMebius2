@@ -30,7 +30,7 @@ classdef BatchExperimentSelectionEditorPresenter < handle
                 errorTitle (1, 1) string
             end
 
-            if outcome.Status == "finished"
+            if outcome.isSuccess()
                 request = outcome.Result;
                 viewModel = openmebius.presentation.batch ...
                     .BatchExperimentSelectionEditorViewModel( ...

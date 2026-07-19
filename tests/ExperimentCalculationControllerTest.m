@@ -27,7 +27,7 @@ classdef ExperimentCalculationControllerTest < matlab.unittest.TestCase
                 tables{1}, tables{2}, tables{3});
 
             testCase.verifyTrue(service.Called);
-            testCase.verifyEqual(outcome.Status, "finished");
+            testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual(outcome.Result, service.Result);
             testCase.verifyEmpty(outcome.Exception);
             testCase.verifyEqual(service.Inputs{1}, "model");
@@ -47,7 +47,7 @@ classdef ExperimentCalculationControllerTest < matlab.unittest.TestCase
             outcome = controller.calculate( ...
                 [], [], [], tables{1}, tables{2}, tables{3});
 
-            testCase.verifyEqual(outcome.Status, "error");
+            testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 outcome.ErrorMessage, "Calculation failed.");
             testCase.verifyEqual( ...

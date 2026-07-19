@@ -36,11 +36,12 @@ classdef MFAResultCoordinator
 
         end % constructor
 
-        function [result, status, isSuccess, message] = writeGeneral( ...
-                obj, result, status, resultID, experimentalMDV, ...
+        function [result, progress, isSuccess, message] = writeGeneral( ...
+                obj, result, progress, resultID, experimentalMDV, ...
                 fragmentList, fragmentMask)
 
             result = obj.normalizeResult(result);
+            status = progress.toStorageVector();
             checkpoint = obj.InputSnapshotWriter ...
                 .createGeneralCheckpoint( ...
                 status, resultID, experimentalMDV, ...
@@ -60,8 +61,8 @@ classdef MFAResultCoordinator
 
         end % writeGeneral
 
-        function [result, status, isSuccess, message] = writeModel( ...
-                obj, result, status, modelTable, reversibleModelTable)
+        function [result, progress, isSuccess, message] = writeModel( ...
+                obj, result, progress, modelTable, reversibleModelTable)
 
             result = obj.normalizeResult(result);
             [isSuccess, message] = obj.noWriteResult();
@@ -78,12 +79,13 @@ classdef MFAResultCoordinator
 
         end % writeModel
 
-        function [result, status, isSuccess, message] = ...
+        function [result, progress, isSuccess, message] = ...
                 writeFluxVariability( ...
-                obj, result, status, lowerBounds, upperBounds, ...
+                obj, result, progress, lowerBounds, upperBounds, ...
                 reversibleReactionIndices)
 
             result = obj.normalizeResult(result);
+            status = progress.toStorageVector();
             checkpoint = obj.ResultCheckpointWriter ...
                 .createFluxVariabilityCheckpoint( ...
                 lowerBounds, upperBounds, reversibleReactionIndices);
@@ -99,9 +101,9 @@ classdef MFAResultCoordinator
 
         end % writeFluxVariability
 
-        function [result, status, isSuccess, message] = ...
+        function [result, progress, isSuccess, message] = ...
                 writeInitialFlux( ...
-                obj, result, status, flux, rightHandSide, ...
+                obj, result, progress, flux, rightHandSide, ...
                 objectiveValues, reversibleReactionIndices)
 
             result = obj.normalizeResult(result);
@@ -110,7 +112,8 @@ classdef MFAResultCoordinator
                 flux, rightHandSide, objectiveValues, ...
                 reversibleReactionIndices);
             result.initialFlux = checkpoint.Value;
-            status(1) = 1;
+            progress.markInitialFluxCompleted();
+            status = progress.toStorageVector();
             result.status = status;
             [isSuccess, message] = obj.noWriteResult();
 
@@ -122,11 +125,12 @@ classdef MFAResultCoordinator
 
         end % writeInitialFlux
 
-        function [result, status, isSuccess, message] = writeSummary( ...
-                obj, result, status, objectiveValues, order, threshold)
+        function [result, progress, isSuccess, message] = writeSummary( ...
+                obj, result, progress, objectiveValues, order, threshold)
 
             result = obj.normalizeResult(result);
-            status(2) = 1;
+            progress.markFluxDistributionCompleted();
+            status = progress.toStorageVector();
             result.RSS = objectiveValues;
             result.RSSIdx = order;
             result.status = status;
@@ -142,16 +146,17 @@ classdef MFAResultCoordinator
 
         end % writeSummary
 
-        function [result, status, isSuccess, message] = ...
+        function [result, progress, isSuccess, message] = ...
                 writeMonteCarloConfidenceInterval( ...
-                obj, result, status, lowerBounds, upperBounds, ...
+                obj, result, progress, lowerBounds, upperBounds, ...
                 confidenceIntervalConfig, output)
 
             arguments
                 obj (1, 1) openmebius.infrastructure.result ...
                     .MFAResultCoordinator
                 result
-                status double
+                progress (1, 1) openmebius.application.analysis ...
+                    .AnalysisProgress
                 lowerBounds double
                 upperBounds double
                 confidenceIntervalConfig (1, 1) openmebius.mfa ...
@@ -161,6 +166,8 @@ classdef MFAResultCoordinator
 
             result = obj.normalizeResult(result);
             [isSuccess, message] = obj.noWriteResult();
+            progress.markConfidenceIntervalCompleted();
+            status = progress.toStorageVector();
 
             if ~obj.IsExport
                 return;
@@ -169,7 +176,6 @@ classdef MFAResultCoordinator
             checkpoint = obj.ResultCheckpointWriter ...
                 .createMonteCarloConfidenceIntervalCheckpoint( ...
                 lowerBounds, upperBounds, confidenceIntervalConfig, output);
-            status(3) = 1;
             result.status = status;
             result.CI = checkpoint.Value;
             result.fluxLB = checkpoint.FinalFluxLB;
@@ -185,11 +191,12 @@ classdef MFAResultCoordinator
 
         end % writeMonteCarloConfidenceInterval
 
-        function [result, status, isSuccess, message] = writeIteration( ...
-                obj, result, status, iteration, iterationResult, ...
+        function [result, progress, isSuccess, message] = writeIteration( ...
+                obj, result, progress, iteration, iterationResult, ...
                 reversibleReactionIndices)
 
             result = obj.normalizeResult(result);
+            status = progress.toStorageVector();
             checkpoint = obj.ResultCheckpointWriter ...
                 .createIterationCheckpoint( ...
                 iteration, iterationResult, reversibleReactionIndices);
@@ -228,12 +235,13 @@ classdef MFAResultCoordinator
 
         end % writeSuggestionTable
 
-        function [result, status, isSuccess, message] = ...
+        function [result, progress, isSuccess, message] = ...
                 writeNextLabelInitialFlux( ...
-                obj, result, status, pattern, flux, rightHandSide, ...
+                obj, result, progress, pattern, flux, rightHandSide, ...
                 objectiveValues, reversibleReactionIndices)
 
             result = obj.normalizeResult(result);
+            status = progress.toStorageVector();
             [isSuccess, message] = obj.noWriteResult();
 
             if ~obj.IsExport
@@ -251,11 +259,12 @@ classdef MFAResultCoordinator
 
         end % writeNextLabelInitialFlux
 
-        function [result, status, isSuccess, message] = ...
+        function [result, progress, isSuccess, message] = ...
                 writeNextLabelConfidenceInterval( ...
-                obj, result, status, pattern, lowerBounds, upperBounds)
+                obj, result, progress, pattern, lowerBounds, upperBounds)
 
             result = obj.normalizeResult(result);
+            status = progress.toStorageVector();
             [isSuccess, message] = obj.noWriteResult();
 
             if ~obj.IsExport

@@ -12,7 +12,7 @@ classdef BatchLoadService < handle
 
             arguments
                 options.BatchRepository = ...
-                    openmebius.infrastructure.legacy.LegacyBatchRepository()
+                    openmebius.infrastructure.batch.BatchRepository()
             end
 
             obj.BatchRepository = options.BatchRepository;
