@@ -5,6 +5,7 @@ classdef MSViewContext
         Presenter openmebius.presentation.experiment.MSViewPresenter
         InitialExperimentIndex (1, 1) double
         IsDarkTheme (1, 1) logical
+        Action openmebius.presentation.experiment.MSViewAction
     end
 
     methods
@@ -17,12 +18,16 @@ classdef MSViewContext
                 options.InitialExperimentIndex (1, 1) double { ...
                     mustBeInteger, mustBePositive}
                 options.IsDarkTheme (1, 1) logical = false
+                options.Action (1, 1) openmebius.presentation ...
+                    .experiment.MSViewAction = ...
+                    openmebius.presentation.experiment.MSViewAction()
             end
 
             obj.Presenter = options.Presenter;
             obj.InitialExperimentIndex = ...
                 options.InitialExperimentIndex;
             obj.IsDarkTheme = options.IsDarkTheme;
+            obj.Action = options.Action;
 
         end % constructor
 

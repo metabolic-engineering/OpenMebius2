@@ -4,6 +4,7 @@ classdef RunAddBatchContext
     properties (SetAccess = private)
         Editor openmebius.presentation.batch ...
             .BatchExperimentSelectionEditorViewModel
+        Action openmebius.presentation.batch.RunAddBatchAction
     end
 
     methods
@@ -13,6 +14,7 @@ classdef RunAddBatchContext
             arguments
                 options.Editor (1, 1) openmebius.presentation.batch ...
                     .BatchExperimentSelectionEditorViewModel
+                options.Action = []
             end
 
             if ~options.Editor.IsAvailable
@@ -22,6 +24,13 @@ classdef RunAddBatchContext
             end
 
             obj.Editor = options.Editor;
+
+            if isempty(options.Action)
+                obj.Action = openmebius.presentation.batch ...
+                    .RunAddBatchAction(options.Editor);
+            else
+                obj.Action = options.Action;
+            end
 
         end % constructor
 

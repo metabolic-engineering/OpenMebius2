@@ -203,6 +203,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ResultPresenter openmebius.presentation.result.ResultPresenter
         ResultPlotPresenter openmebius.presentation.result.ResultPlotPresenter
         ProgressBarFactory openmebius.presentation.main.ProgressBarFactory
+        ChildAppHost openmebius.presentation.lifecycle.ChildAppHost
         DialogService openmebius.presentation.dialog.AppDialogService
         BatchConfigurationController openmebius.application.batch.BatchConfigurationController
         BatchExperimentSelectionEditorController openmebius.application.batch.BatchExperimentSelectionEditorController
@@ -211,13 +212,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
 
         PreferencesApp
-        PreferencesListeners event.listener = event.listener.empty(0, 1)
-        LabelConfigListeners event.listener = event.listener.empty(0, 1)
-        TracerConfigListeners event.listener = event.listener.empty(0, 1)
-        MSViewListeners event.listener = event.listener.empty(0, 1)
-        ComparisonViewListeners event.listener = event.listener.empty(0, 1)
-        RunConfigListeners event.listener = event.listener.empty(0, 1)
-        RunAddBatchListeners event.listener = event.listener.empty(0, 1)
 
         MainInteractionSnapshot cell = {}
 
@@ -469,6 +463,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ResultPresenter = dependencies.ResultPresenter;
             app.ResultPlotPresenter = dependencies.ResultPlotPresenter;
             app.ProgressBarFactory = dependencies.ProgressBarFactory;
+            app.ChildAppHost = dependencies.ChildAppHost;
             app.BatchConfigurationController = ...
                 dependencies.BatchConfigurationController;
             app.BatchExperimentSelectionEditorController = ...
@@ -2579,329 +2574,173 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function attachPreferencesListeners(app, preferencesApp)
 
-            app.detachPreferencesListeners();
-
             if isempty(preferencesApp) || ~isvalid(preferencesApp)
                 return
             end
 
-            app.PreferencesListeners(1, 1) = addlistener( ...
+            app.ChildAppHost.attach( ...
+                "Preferences", ...
                 preferencesApp, ...
-                "PreferencesClosed", ...
-                @(src, event) app.onPreferencesClosed(src, event));
+                {"PreferencesClosed", ...
+                @(src, event) app.onPreferencesClosed(src, event)});
 
         end % method attachPreferencesListeners
 
         function detachPreferencesListeners(app)
 
-            if isempty(app.PreferencesListeners)
-                return
-            end
-
-            for i = 1:numel(app.PreferencesListeners)
-
-                try
-
-                    if isvalid(app.PreferencesListeners(i))
-                        delete(app.PreferencesListeners(i));
-                    end
-
-                catch
-                end
-
-            end
-
-            app.PreferencesListeners = event.listener.empty(0, 1);
+            app.ChildAppHost.detach("Preferences");
 
         end % method detachPreferencesListeners
 
         function attachRunConfigListeners(app, runConfigApp)
 
-            app.detachRunConfigListeners();
-            listeners = event.listener.empty(0, 1);
-            listeners(end + 1, 1) = addlistener( ...
+            app.ChildAppHost.attach( ...
+                "RunConfig", ...
                 runConfigApp, ...
-                "Applied", ...
-                @(source, event) ...
-                app.onRunConfigurationApplied(source, event));
-            listeners(end + 1, 1) = addlistener( ...
-                runConfigApp, ...
+                {"Applied", ...
+                @(source, event) app.onRunConfigurationApplied(source, event); ...
                 "BatchExperimentSelectionApplied", ...
-                @(source, event) ...
-                app.onBatchExperimentSelectionApplied(source, event));
-            listeners(end + 1, 1) = addlistener( ...
-                runConfigApp, ...
+                @(source, event) app.onBatchExperimentSelectionApplied(source, event); ...
                 "NotificationRequested", ...
-                @(source, event) ...
-                app.onNotificationRequested(source, event));
-            listeners(end + 1, 1) = addlistener( ...
-                runConfigApp, ...
+                @(source, event) app.onNotificationRequested(source, event); ...
                 "Closed", ...
-                @(source, event) ...
-                app.onRunConfigurationClosed(source, event));
-            app.RunConfigListeners = listeners;
+                @(source, event) app.onRunConfigurationClosed(source, event)});
 
         end % attachRunConfigListeners
 
         function detachRunConfigListeners(app)
 
-            app.RunConfigListeners = app.deleteListeners( ...
-                app.RunConfigListeners);
+            app.ChildAppHost.detach("RunConfig");
 
         end % detachRunConfigListeners
 
         function closeRunConfigApp(app)
 
-            app.detachRunConfigListeners();
-            childApp = app.RunConfigApp;
+            app.ChildAppHost.close("RunConfig");
             app.RunConfigApp = [];
-
-            if isempty(childApp)
-                return
-            end
-
-            try
-
-                if isvalid(childApp)
-                    delete(childApp);
-                end
-
-            catch
-            end
 
         end % closeRunConfigApp
 
         function attachLabelConfigListeners(app, labelConfigApp)
 
-            app.detachLabelConfigListeners();
-            listeners = event.listener.empty(0, 1);
-            listeners(end + 1, 1) = addlistener( ...
+            app.ChildAppHost.attach( ...
+                "LabelConfig", ...
                 labelConfigApp, ...
-                "Applied", ...
-                @(source, event) ...
-                app.onLabelConfigurationApplied(source, event));
-            listeners(end + 1, 1) = addlistener( ...
-                labelConfigApp, ...
+                {"Applied", ...
+                @(source, event) app.onLabelConfigurationApplied(source, event); ...
                 "NotificationRequested", ...
-                @(source, event) ...
-                app.onNotificationRequested( ...
-                source, event));
-            listeners(end + 1, 1) = addlistener( ...
-                labelConfigApp, ...
+                @(source, event) app.onNotificationRequested(source, event); ...
                 "Closed", ...
-                @(source, event) ...
-                app.onLabelConfigurationClosed(source, event));
-            app.LabelConfigListeners = listeners;
+                @(source, event) app.onLabelConfigurationClosed(source, event)});
 
         end % attachLabelConfigListeners
 
         function detachLabelConfigListeners(app)
 
-            app.LabelConfigListeners = app.deleteListeners( ...
-                app.LabelConfigListeners);
+            app.ChildAppHost.detach("LabelConfig");
 
         end % detachLabelConfigListeners
 
         function closeLabelConfigApp(app)
 
-            app.detachLabelConfigListeners();
-            childApp = app.LabelConfigApp;
+            app.ChildAppHost.close("LabelConfig");
             app.LabelConfigApp = [];
-
-            if isempty(childApp)
-                return
-            end
-
-            try
-
-                if isvalid(childApp)
-                    delete(childApp);
-                end
-
-            catch
-            end
 
         end % closeLabelConfigApp
 
         function attachTracerConfigListeners(app, tracerConfigApp)
 
-            app.detachTracerConfigListeners();
-            listeners = event.listener.empty(0, 1);
-            listeners(end + 1, 1) = addlistener( ...
+            app.ChildAppHost.attach( ...
+                "TracerConfig", ...
                 tracerConfigApp, ...
-                "Applied", ...
-                @(source, event) ...
-                app.onTracerConfigurationApplied(source, event));
-            listeners(end + 1, 1) = addlistener( ...
-                tracerConfigApp, ...
+                {"Applied", ...
+                @(source, event) app.onTracerConfigurationApplied(source, event); ...
                 "Closed", ...
-                @(source, event) ...
-                app.onTracerConfigurationClosed(source, event));
-            app.TracerConfigListeners = listeners;
+                @(source, event) app.onTracerConfigurationClosed(source, event)});
 
         end % attachTracerConfigListeners
 
         function detachTracerConfigListeners(app)
 
-            app.TracerConfigListeners = app.deleteListeners( ...
-                app.TracerConfigListeners);
+            app.ChildAppHost.detach("TracerConfig");
 
         end % detachTracerConfigListeners
 
         function closeTracerConfigApp(app)
 
-            app.detachTracerConfigListeners();
-            childApp = app.TracerConfigApp;
+            app.ChildAppHost.close("TracerConfig");
             app.TracerConfigApp = [];
-
-            if isempty(childApp)
-                return
-            end
-
-            try
-
-                if isvalid(childApp)
-                    delete(childApp);
-                end
-
-            catch
-            end
 
         end % closeTracerConfigApp
 
         function attachMSViewListeners(app, msViewApp)
 
-            app.detachMSViewListeners();
-            listeners = event.listener.empty(0, 1);
-            listeners(end + 1, 1) = addlistener( ...
+            app.ChildAppHost.attach( ...
+                "MSView", ...
                 msViewApp, ...
-                "ComparisonRequested", ...
-                @(~, ~) app.openMSComparison());
-            listeners(end + 1, 1) = addlistener( ...
-                msViewApp, ...
+                {"ComparisonRequested", @(~, ~) app.openMSComparison(); ...
+                "NotificationRequested", ...
+                @(source, event) app.onNotificationRequested(source, event); ...
                 "Closed", ...
-                @(source, event) app.onMSViewClosed(source, event));
-            app.MSViewListeners = listeners;
+                @(source, event) app.onMSViewClosed(source, event)});
 
         end % attachMSViewListeners
 
         function detachMSViewListeners(app)
 
-            app.MSViewListeners = app.deleteListeners( ...
-                app.MSViewListeners);
+            app.ChildAppHost.detach("MSView");
 
         end % detachMSViewListeners
 
         function closeMSViewApp(app)
 
-            app.detachMSViewListeners();
-            childApp = app.MSViewApp;
+            app.ChildAppHost.close("MSView");
             app.MSViewApp = [];
-
-            if isempty(childApp)
-                return
-            end
-
-            try
-
-                if isvalid(childApp)
-                    delete(childApp);
-                end
-
-            catch
-            end
 
         end % closeMSViewApp
 
         function attachComparisonViewListeners(app, comparisonViewApp)
 
-            app.detachComparisonViewListeners();
-            listeners = event.listener.empty(0, 1);
-            listeners(end + 1, 1) = addlistener( ...
+            app.ChildAppHost.attach( ...
+                "ComparisonView", ...
                 comparisonViewApp, ...
-                "NotificationRequested", ...
-                @(source, event) ...
-                app.onNotificationRequested(source, event));
-            listeners(end + 1, 1) = addlistener( ...
-                comparisonViewApp, ...
+                {"NotificationRequested", ...
+                @(source, event) app.onNotificationRequested(source, event); ...
                 "Closed", ...
-                @(source, event) ...
-                app.onComparisonViewClosed(source, event));
-            app.ComparisonViewListeners = listeners;
+                @(source, event) app.onComparisonViewClosed(source, event)});
 
         end % attachComparisonViewListeners
 
         function detachComparisonViewListeners(app)
 
-            app.ComparisonViewListeners = app.deleteListeners( ...
-                app.ComparisonViewListeners);
+            app.ChildAppHost.detach("ComparisonView");
 
         end % detachComparisonViewListeners
 
         function closeComparisonViewApp(app)
 
-            app.detachComparisonViewListeners();
-            childApp = app.ComparisonViewApp;
+            app.ChildAppHost.close("ComparisonView");
             app.ComparisonViewApp = [];
-
-            if isempty(childApp)
-                return
-            end
-
-            try
-
-                if isvalid(childApp)
-                    delete(childApp);
-                end
-
-            catch
-            end
 
         end % closeComparisonViewApp
 
         function attachRunAddBatchListeners(app, runAddBatchApp)
 
-            app.detachRunAddBatchListeners();
-            listeners = event.listener.empty(0, 1);
-            listeners(end + 1, 1) = addlistener( ...
+            app.ChildAppHost.attach( ...
+                "RunAddBatch", ...
                 runAddBatchApp, ...
-                "Applied", ...
-                @(source, event) ...
-                app.onBatchExperimentSelectionApplied(source, event));
-            listeners(end + 1, 1) = addlistener( ...
-                runAddBatchApp, ...
+                {"Applied", ...
+                @(source, event) app.onBatchExperimentSelectionApplied(source, event); ...
                 "Closed", ...
-                @(source, event) ...
-                app.onRunAddBatchClosed(source, event));
-            app.RunAddBatchListeners = listeners;
+                @(source, event) app.onRunAddBatchClosed(source, event)});
 
         end % attachRunAddBatchListeners
 
         function detachRunAddBatchListeners(app)
 
-            app.RunAddBatchListeners = app.deleteListeners( ...
-                app.RunAddBatchListeners);
+            app.ChildAppHost.detach("RunAddBatch");
 
         end % detachRunAddBatchListeners
-
-        function listeners = deleteListeners(~, listeners)
-
-            for listenerIndex = 1:numel(listeners)
-
-                try
-
-                    if isvalid(listeners(listenerIndex))
-                        delete(listeners(listenerIndex));
-                    end
-
-                catch
-                end
-
-            end
-
-            listeners = event.listener.empty(0, 1);
-
-        end % deleteListeners
 
         function onBatchExperimentSelectionApplied(app, ~, event)
 
@@ -2916,28 +2755,15 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function onRunAddBatchClosed(app, ~, ~)
 
+            app.detachRunAddBatchListeners();
             app.RunAddBatchApp = [];
 
         end % onRunAddBatchClosed
 
         function closeRunAddBatchApp(app)
 
-            app.detachRunAddBatchListeners();
-            childApp = app.RunAddBatchApp;
+            app.ChildAppHost.close("RunAddBatch");
             app.RunAddBatchApp = [];
-
-            if isempty(childApp)
-                return
-            end
-
-            try
-
-                if isvalid(childApp)
-                    delete(childApp);
-                end
-
-            catch
-            end
 
         end % closeRunAddBatchApp
 
@@ -2949,6 +2775,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function onRunConfigurationClosed(app, ~, ~)
 
+            app.detachRunConfigListeners();
             app.RunConfigApp = [];
             app.refreshPresentation();
 
@@ -2973,6 +2800,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function onLabelConfigurationClosed(app, ~, ~)
 
+            app.detachLabelConfigListeners();
             app.LabelConfigApp = [];
             app.refreshPresentation();
 
@@ -3015,6 +2843,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function onTracerConfigurationClosed(app, ~, ~)
 
+            app.detachTracerConfigListeners();
             app.TracerConfigApp = [];
             app.refreshPresentation();
 
@@ -3022,6 +2851,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function onMSViewClosed(app, ~, ~)
 
+            app.detachMSViewListeners();
             app.MSViewApp = [];
             app.refreshPresentation();
 
@@ -3029,6 +2859,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function onComparisonViewClosed(app, ~, ~)
 
+            app.detachComparisonViewListeners();
             app.ComparisonViewApp = [];
             app.refreshPresentation();
 
@@ -4698,6 +4529,650 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
     end % methods (Access = private)
 
+    methods (Access = private)
+
+        function initializeMainApp(app, filepath)
+
+            app.setLogFile();
+            app.DialogService = openmebius.presentation.dialog ...
+                .AppDialogService(app.OpenMebius2UIFigure);
+            dependencies = openmebius.bootstrap ...
+                .MainAppCompositionRoot.create();
+            app.applyApplicationDependencies(dependencies);
+            app.ApplicationController.setNotificationReporter( ...
+                @(notification) app.handleNotification(notification));
+
+            if nargin < 2
+                filepath = "";
+            else
+                filepath = string(filepath);
+            end
+
+            app.loadHistory();
+            app.initLog();
+            app.initStatusTable();
+            app.initializePresentation();
+            app.checkLatestVersionOnStartup();
+            filepath = app.normalizeStartupProjectInput(filepath);
+
+            if filepath == ""
+                return
+            end
+
+            try
+                projectDirectory = app.resolveProjectOpenInput(filepath);
+
+                if projectDirectory ~= ""
+                    app.ProjectDirectoryDropDown.Value = projectDirectory;
+                    app.ProjectLoadButtonPushed();
+                end
+            catch exception
+                app.notifyException( ...
+                    exception, ...
+                    Title = "Project open failed", ...
+                    Alert = true);
+            end
+
+        end % initializeMainApp
+
+        function browseProjectDirectory(app)
+
+            [projectDirectory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Project Directory", ...
+                StartPath = app.ProjectDirectoryDropDown.Value);
+
+            if ~isOK || strcmp( ...
+                    app.ProjectDirectoryDropDown.Value, projectDirectory)
+                return
+            end
+
+            app.ProjectDirectoryDropDown.Value = projectDirectory;
+            app.addProjectDirectoryHistoryItem(projectDirectory);
+            app.updateStatus("model", "init");
+            app.refreshPresentation();
+
+        end % browseProjectDirectory
+
+        function createProjectFromDialog(app)
+
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            [answers, isOK] = app.uiInputDlgWrap( ...
+                Prompt = "Enter the name of the new project directory:", ...
+                Title = "Create Project Directory", ...
+                Default = "NewProject");
+
+            if ~isOK || isempty(answers)
+                return
+            end
+
+            directoryName = string(answers(1));
+
+            if directoryName == ""
+                app.notifyError("Project directory name cannot be empty.");
+                return
+            end
+
+            [projectParentDirectory, isOK] = app.uiGetDirWrap( ...
+                StartPath = app.ProjectDirectoryDropDown.Value, ...
+                Title = "Select Parent Directory for New Project");
+
+            if ~isOK
+                return
+            end
+
+            app.renderProjectOperationViewModel( ...
+                app.ProjectPresenter.presentCreateStarted());
+            outcome = app.ApplicationController.createProject( ...
+                ParentDirectory = string(projectParentDirectory), ...
+                ProjectDirectoryName = directoryName, ...
+                TemplateModelDirectory = string( ...
+                app.TemplateModelDirectoryDropDown.Value), ...
+                Name = string(app.ProjectNameEditField.Value), ...
+                Author = string(app.ProjectAuthorEditField.Value), ...
+                Organism = string(app.OrganismEditField.Value));
+            app.renderProjectOperationViewModel( ...
+                app.ProjectPresenter.presentCreateOutcome(outcome));
+
+        end % createProjectFromDialog
+
+        function acceptProjectDirectoryValue(app)
+
+            selectedValue = string(app.ProjectDirectoryDropDown.Value);
+
+            try
+                value = app.resolveProjectOpenInput(selectedValue);
+            catch exception
+                message = "Selected project path does not exist: " + ...
+                    selectedValue;
+                app.LogTextDate( ...
+                    message + newline + string(exception.message), ...
+                    "Error");
+                return
+            end
+
+            app.ProjectDirectoryDropDown.Value = value;
+
+            if ~any(strcmp(app.ProjectDirectoryDropDown.Items, value))
+                app.ProjectDirectoryDropDown.Items{end + 1} = value;
+            end
+
+        end % acceptProjectDirectoryValue
+
+        function browseTemplateModelDirectory(app)
+
+            [directory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Template Model Directory", ...
+                StartPath = app.TemplateModelDirectoryDropDown.Value);
+
+            if ~isOK || strcmp( ...
+                    app.TemplateModelDirectoryDropDown.Value, directory)
+                return
+            end
+
+            app.TemplateModelDirectoryDropDown.Value = directory;
+
+            if ~any(strcmp( ...
+                    app.TemplateModelDirectoryDropDown.Items, directory))
+                app.TemplateModelDirectoryDropDown.Items{end + 1} = ...
+                    directory;
+            end
+
+            app.refreshPresentation();
+
+        end % browseTemplateModelDirectory
+
+        function acceptTemplateModelDirectoryValue(app)
+
+            value = string(app.TemplateModelDirectoryDropDown.Value);
+
+            if ~isfolder(value)
+                app.LogTextDate( ...
+                    "Selected directory does not exist: " + value, ...
+                    "Error");
+                return
+            end
+
+            if ~any(strcmp(app.TemplateModelDirectoryDropDown.Items, value))
+                app.TemplateModelDirectoryDropDown.Items{end + 1} = value;
+            end
+
+        end % acceptTemplateModelDirectoryValue
+
+        function showSelectedPathwayReaction(app, indices)
+
+            if isempty(indices)
+                return
+            end
+
+            row = indices(1, 1);
+            data = app.ModelTable.Data;
+
+            if ~istable(data) || row < 1 || row > height(data)
+                return
+            end
+
+            reactionIDs = string(data.Properties.RowNames);
+
+            if row > numel(reactionIDs)
+                return
+            end
+
+            viewModel = app.ModelPresenter.presentPathway( ...
+                app.ApplicationController.model(), ...
+                HighlightReactionIDs = reactionIDs(row), ...
+                IsDarkTheme = app.isDarkTheme());
+
+            if ~isempty(viewModel.Notification)
+                app.showNotification(viewModel.Notification);
+            end
+
+            app.renderPathwayPlot(viewModel);
+
+        end % showSelectedPathwayReaction
+
+        function importExperimentFilesFromDialog(app)
+
+            [files, isOK] = app.uiGetFileWrap( ...
+                Filter = {'*.xlsx;*.xls', ...
+                'Excel Files (*.xlsx, *.xls)'}, ...
+                Title = 'Select Experimental Data File', ...
+                MultiSelect = "on");
+
+            if ~isOK || isempty(files)
+                app.renderExperimentImportViewModel( ...
+                    app.ExperimentPresenter.presentFileImportCanceled());
+                return
+            end
+
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            app.renderExperimentImportViewModel( ...
+                app.ExperimentPresenter.presentImportStarted());
+            outcome = app.ApplicationController.importExperimentFiles( ...
+                app.directoryExp, string(files(:)));
+            app.renderExperimentImportViewModel( ...
+                app.ExperimentPresenter.presentFileImportOutcome(outcome));
+
+        end % importExperimentFilesFromDialog
+
+        function openSelectedMSView(app)
+
+            selection = app.ExpTable.Selection;
+
+            if isempty(selection) || size(selection, 1) ~= 1
+                if isempty(selection)
+                    message = "Please select an experiment to view MS data.";
+                else
+                    message = "Please select only one experiment to view MS data.";
+                end
+
+                app.LogTextDate(message, "Warning");
+                return
+            end
+
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            presenter = openmebius.presentation.experiment ...
+                .MSViewPresenter(app.ApplicationController.experiments());
+
+            if ~presenter.hasCalculatedMDV()
+                app.notifyWarning( ...
+                    "MDV-derived tables have not been calculated. " + ...
+                    "Press Calculate MDV in the Experiment tab before " + ...
+                    "viewing MDV, biomass-corrected MDV or enrichment data.");
+            end
+
+            app.closeMSViewApp();
+            context = openmebius.presentation.experiment.MSViewContext( ...
+                Presenter = presenter, ...
+                InitialExperimentIndex = selection(1, 1), ...
+                IsDarkTheme = app.isDarkTheme());
+            app.MSViewApp = MSView(context);
+            app.attachMSViewListeners(app.MSViewApp);
+
+        end % openSelectedMSView
+
+        function runOrCancelBatch(app)
+
+            if app.Presenter.isRunning()
+                app.requestPresentationCancelRun();
+                app.renderBatchRunViewModel( ...
+                    app.BatchPresenter.presentCancelRequested());
+                app.ApplicationController.cancelBatch();
+                return
+            end
+
+            app.beginPresentationRun();
+            cleanupPresentation = onCleanup( ...
+                @() app.finishPresentationRunSafely()); %#ok<NASGU>
+            app.renderBatchRunViewModel( ...
+                app.BatchPresenter.presentRunStarted());
+            app.updateBatchTable();
+            app.refreshPresentation();
+            outcome = app.ApplicationController.runBatch( ...
+                app.directoryResult, ...
+                ProgressReporter = ...
+                @(progress) app.handleBatchProgress(progress), ...
+                NotificationReporter = ...
+                @(notification) app.handleNotification(notification), ...
+                ResultReporter = ...
+                @(resultData) app.handleResultAvailable(resultData));
+            app.renderBatchRunViewModel( ...
+                app.BatchPresenter.presentRunOutcome(outcome));
+            outcome.rethrowFailure();
+
+        end % runOrCancelBatch
+
+        function openParallelBatchEditor(app)
+
+            outcome = app.ApplicationController.prepareParallelBatch();
+            viewModel = app.BatchExperimentSelectionEditorPresenter ...
+                .presentParallelEditor(outcome);
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                app.showNotification( ...
+                    viewModel.Notifications{notificationIndex});
+            end
+
+            if ~viewModel.IsAvailable
+                return
+            end
+
+            app.closeRunAddBatchApp();
+            context = openmebius.presentation.batch ...
+                .RunAddBatchContext(Editor = viewModel);
+            app.RunAddBatchApp = RunAddBatch(context);
+            app.attachRunAddBatchListeners(app.RunAddBatchApp);
+
+        end % openParallelBatchEditor
+
+        function [batchIDs, batchNames] = selectedResultIdentities(app)
+
+            rows = app.selectedTableRows(app.ResultSubTable);
+            data = app.ResultSubTable.Data;
+            batchIDs = strings(0, 1);
+            batchNames = strings(0, 1);
+
+            if isempty(rows) || ~istable(data) || ...
+                    ~all(ismember(["ID", "Name"], ...
+                    string(data.Properties.VariableNames))) || ...
+                    any(rows > height(data))
+                return
+            end
+
+            batchIDs = string(data.ID(rows));
+            batchNames = string(data.Name(rows));
+            batchIDs = batchIDs(:);
+            batchNames = batchNames(:);
+
+        end % selectedResultIdentities
+
+        function exportSelectedResults(app)
+
+            [folder, isOK] = app.uiGetDirWrap( ...
+                StartPath = app.directoryResult, ...
+                Title = "Select Directory to Save Result Files");
+
+            if ~isOK
+                return
+            end
+
+            [batchIDs, batchNames] = app.selectedResultIdentities();
+
+            if isempty(batchIDs)
+                app.renderResultOperationViewModel( ...
+                    app.ResultPresenter.presentExportSelectionRequired());
+                return
+            end
+
+            outcome = app.ApplicationController.exportResults( ...
+                batchIDs, batchNames, string(folder));
+            app.renderResultOperationViewModel( ...
+                app.ResultPresenter.presentExportOutcome(outcome));
+
+        end % exportSelectedResults
+
+        function reloadMainWindow(app)
+
+            app.loadHistory();
+            app.initLog();
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            app.resetAllComponents();
+
+            for section = ["model", "experiment", "batch", "result"]
+                app.updateStatus(section, "init");
+            end
+
+        end % reloadMainWindow
+
+        function openPreferences(app)
+
+            try
+                if ~isempty(app.PreferencesApp) && isvalid(app.PreferencesApp)
+                    figure(app.PreferencesApp.PreferencesUIFigure);
+                    return
+                end
+            catch
+                app.PreferencesApp = [];
+            end
+
+            try
+                app.beginPresentationPreferences();
+                app.PreferencesApp = Preferences(app.SlackNotifier);
+                app.attachPreferencesListeners(app.PreferencesApp);
+            catch exception
+                app.finishPresentationPreferences();
+                app.notifyException( ...
+                    exception, ...
+                    Title = "Preferences failed", ...
+                    Alert = true);
+            end
+
+        end % openPreferences
+
+        function showRangePlot(app)
+
+            [batchIDs, batchNames] = app.selectedResultIdentities();
+            outcome = app.ApplicationController.prepareRangePlot( ...
+                batchIDs, batchNames);
+            app.renderResultRangePlotViewModel( ...
+                app.ResultPresenter.presentRangePlotOutcome(outcome));
+
+        end % showRangePlot
+
+        function showSuggestion(app)
+
+            [batchIDs, batchNames] = app.selectedResultIdentities();
+            outcome = app.ApplicationController.loadSuggestion( ...
+                batchIDs, batchNames);
+            app.renderResultOperationViewModel( ...
+                app.ResultPresenter.presentSuggestionOutcome(outcome));
+
+        end % showSuggestion
+
+        function copySelectedTracer(app)
+
+            selected = app.LabelTable.Selection;
+
+            if isempty(selected)
+                app.renderExperimentEditViewModel( ...
+                    app.ExperimentPresenter ...
+                    .presentTracerCopySelectionRequired());
+                return
+            end
+
+            outcome = app.ApplicationController.copyTracerToAllEntries( ...
+                app.LabelTable.Data, selected);
+            app.renderExperimentEditViewModel( ...
+                app.ExperimentPresenter.presentTracerCopyOutcome(outcome));
+
+        end % copySelectedTracer
+
+        function importRawMSFromDirectory(app)
+
+            [directory, isOK] = app.uiGetDirWrap( ...
+                Title = "Select Directory Containing MS Data Text Files", ...
+                StartPath = app.directoryExp);
+
+            if ~isOK
+                return
+            end
+
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            app.renderExperimentImportViewModel( ...
+                app.ExperimentPresenter.presentImportStarted());
+            outcome = app.ApplicationController.importRawMS( ...
+                directory, app.directoryExp);
+            app.renderExperimentImportViewModel( ...
+                app.ExperimentPresenter.presentRawMSImportOutcome(outcome));
+
+        end % importRawMSFromDirectory
+
+        function exportTemplateWorkbook(app)
+
+            if ~app.ApplicationController.hasModel()
+                app.renderModelOperationViewModel( ...
+                    app.ModelPresenter.presentTemplateExportUnavailable());
+                return
+            end
+
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter.presentTemplateExportStarted());
+            [file, isOK] = app.uiGetFileWrap( ...
+                Filter = {'*.xlsx', 'Excel Files (*.xlsx)'}, ...
+                Title = 'Save Template Excel File', ...
+                MultiSelect = "off", ...
+                DefaultName = "Template_MS_Table.xlsx", ...
+                Save = true);
+
+            if ~isOK
+                return
+            end
+
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            outcome = app.ApplicationController ...
+                .exportMassSpectrometryTemplate(string(file));
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter.presentTemplateExportOutcome(outcome));
+
+        end % exportTemplateWorkbook
+
+        function saveMassSpectrometryEdits(app)
+
+            app.beginPresentationEditCommit();
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter.presentMassSpectrometrySaveStarted());
+            outcome = app.ApplicationController.saveMassSpectrometry( ...
+                app.MSTable.Data, app.AtomTable.Data);
+            app.renderModelOperationViewModel( ...
+                app.ModelPresenter ...
+                .presentMassSpectrometrySaveOutcome(outcome));
+
+        end % saveMassSpectrometryEdits
+
+        function calculateExperimentData(app)
+
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            app.renderExperimentCalculationViewModel( ...
+                app.ExperimentPresenter.presentCalculationStarted());
+            outcome = app.ApplicationController.calculateExperiment( ...
+                app.ExpTable.Data, ...
+                app.UptakeTable.Data, ...
+                app.LabelTable.Data);
+            app.renderExperimentCalculationViewModel( ...
+                app.ExperimentPresenter.presentCalculationOutcome(outcome));
+
+        end % calculateExperimentData
+
+        function saveTracerEdits(app)
+
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            app.renderExperimentEditViewModel( ...
+                app.ExperimentPresenter.presentEditStarted());
+            outcome = app.ApplicationController.saveTracer( ...
+                app.UptakeTable.Data, app.LabelTable.Data);
+            app.renderExperimentEditViewModel( ...
+                app.ExperimentPresenter.presentTracerSaveOutcome(outcome));
+
+        end % saveTracerEdits
+
+        function openRunConfiguration(app)
+
+            requestFactory = @() app.RunConfigPresenter ...
+                .createLaunchRequest( ...
+                app.RunTable.Data, app.RunTable.Selection);
+            outcome = app.ApplicationController ...
+                .prepareBatchConfiguration(requestFactory);
+            app.updateBatchTable();
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            viewModel = app.RunConfigPresenter.presentLaunchOutcome(outcome);
+            app.renderRunConfigLaunchViewModel(viewModel);
+
+        end % openRunConfiguration
+
+        function handleTableClipboardShortcut(app, component, event)
+
+            isControl = any(strcmp(event.Modifier, 'control'));
+
+            if isControl && strcmp(event.Key, 'c')
+                app.copyTableToClipboard(component);
+            elseif isControl && strcmp(event.Key, 'v')
+                app.pasteClipboardToTable(component);
+            end
+
+        end % handleTableClipboardShortcut
+
+        function openTracerFromInteraction(app, interaction)
+
+            row = interaction.DisplayRow;
+            column = interaction.DisplayColumn;
+
+            if isempty(row) || isempty(column)
+                return
+            end
+
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            position = [row, column];
+            outcome = app.ApplicationController ...
+                .prepareTracerConfiguration(app.LabelTable.Data, position);
+            viewModel = app.ExperimentPresenter ...
+                .presentTracerConfigurationPreparationOutcome(outcome);
+            app.renderTracerConfigurationViewModel(viewModel);
+
+        end % openTracerFromInteraction
+
+        function reloadSelectedTab(app, event)
+
+            if ~strcmp(event.Key, 'f5') || ~isempty(event.Modifier)
+                return
+            end
+
+            switch app.TabGroup.SelectedTab.Title
+                case "Stoichiometry"
+                    app.ModelReloadButtonPushed();
+                case "MS"
+                    app.MSReloadButtonPushed();
+                case "Experiment"
+                    app.ExpReloadButtonPushed();
+                case "Tracer"
+                    app.TracerReloadButtonPushed();
+                case "Batch"
+                    app.RunReloadButtonPushed();
+                case "Result"
+                    app.ResultReloadButtonPushed();
+            end
+
+        end % reloadSelectedTab
+
+        function reloadModelView(app)
+
+            if strcmp(app.ModelEditButton.Enable, 'off')
+                app.loadModelTable( ...
+                    ColumnEditable = true(1, width(app.ModelTable.Data)));
+            else
+                app.loadModelTable();
+            end
+
+            app.loadPathway();
+            app.LogTextDate("Model table reloaded", "Info");
+
+        end % reloadModelView
+
+        function reloadMassSpectrometryView(app)
+
+            if strcmp(app.MSEditButton.Enable, 'off')
+                app.loadMSTable(isColumnEditable = true);
+            else
+                app.loadMSTable();
+            end
+
+            app.LogTextDate("MS table reloaded", "Info");
+
+        end % reloadMassSpectrometryView
+
+        function saveExperimentInfo(app)
+
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            app.renderExperimentEditViewModel( ...
+                app.ExperimentPresenter.presentEditStarted());
+            outcome = app.ApplicationController.saveExperimentInfo( ...
+                app.ExpTable.Data);
+            app.renderExperimentEditViewModel( ...
+                app.ExperimentPresenter.presentInfoSaveOutcome(outcome));
+
+        end % saveExperimentInfo
+
+    end % methods (Access = private)
+
     %% Private callback functions
     methods (Access = private)
 
@@ -4717,54 +5192,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app, filepath)
 
-            app.setLogFile();
-
-            app.DialogService = ...
-                openmebius.presentation.dialog.AppDialogService( ...
-                app.OpenMebius2UIFigure);
-
-            dependencies = openmebius.bootstrap ...
-                .MainAppCompositionRoot.create();
-            app.applyApplicationDependencies(dependencies);
-            app.ApplicationController.setNotificationReporter( ...
-                @(notification) app.handleNotification(notification));
-
-            if nargin < 2
-                filepath = "";
-            else
-                filepath = string(filepath);
-            end
-
-            loadHistory(app)
-
-            initLog(app)
-
-            initStatusTable(app);
-
-            app.initializePresentation();
-
-            checkLatestVersionOnStartup(app);
-
-            filepath = app.normalizeStartupProjectInput(filepath);
-
-            if filepath ~= ""
-
-                try
-                    projectDirectory = app.resolveProjectOpenInput(filepath);
-
-                    if projectDirectory ~= ""
-                        app.ProjectDirectoryDropDown.Value = projectDirectory;
-                        ProjectLoadButtonPushed(app);
-                    end
-
-                catch ME
-                    app.notifyException( ...
-                        ME, ...
-                        Title = "Project open failed", ...
-                        Alert = true);
-                end
-
-            end
+            app.initializeMainApp(filepath);
 
         end
 
@@ -4779,28 +5207,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ProjectBrowseButton
         function ProjectBrowseButtonPushed(app, event)
 
-            [projectDirectory, isOK] = app.uiGetDirWrap( ...
-                Title = "Select Project Directory", ...
-                StartPath = app.ProjectDirectoryDropDown.Value);
-
-            if ~isOK
-                return
-            end
-
-            % If the directory is equal to the current directory, do nothing
-            if strcmp(app.ProjectDirectoryDropDown.Value, projectDirectory)
-                return;
-            end
-
-            % Update the dropdown value
-            app.ProjectDirectoryDropDown.Value = projectDirectory;
-
-            app.addProjectDirectoryHistoryItem(projectDirectory);
-
-            % Update the status
-            updateStatus(app, "model", "init");
-
-            app.refreshPresentation();
+            app.browseProjectDirectory();
 
         end
 
@@ -4834,108 +5241,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ProjectCreateButton
         function ProjectCreateButtonPushed(app, ~)
 
-            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
-
-            [answ, ok] = app.uiInputDlgWrap( ...
-                Prompt = "Enter the name of the new project directory:", ...
-                Title = "Create Project Directory", ...
-                Default = "NewProject" ...
-            );
-
-            if ok
-                directoryName = answ(1); % string
-            else
-                directoryName = ""; % cancel時
-            end
-
-            if isempty(directoryName)
-                return; % User canceled the dialog
-            end % if isempty(directoryName)
-
-            directoryName = directoryName{1};
-
-            if isempty(directoryName)
-                app.notifyError("Project directory name cannot be empty.");
-                return
-            end % if isempty(directoryName)
-
-            projectParentDirectory = app.uiGetDirWrap( ...
-                StartPath = app.ProjectDirectoryDropDown.Value, ...
-                Title = "Select Parent Directory for New Project" ...
-            );
-
-            if isequal(projectParentDirectory, 0) || ...
-                    (isstring(projectParentDirectory) && strlength(projectParentDirectory) == 0)
-                return;
-            end
-
-            projectParentDirectory = string(projectParentDirectory);
-            templateModelDirectory = string( ...
-                app.TemplateModelDirectoryDropDown.Value);
-
-            app.renderProjectOperationViewModel( ...
-                app.ProjectPresenter.presentCreateStarted());
-
-            outcome = app.ApplicationController.createProject( ...
-                ParentDirectory = projectParentDirectory, ...
-                ProjectDirectoryName = string(directoryName), ...
-                TemplateModelDirectory = templateModelDirectory, ...
-                Name = string(app.ProjectNameEditField.Value), ...
-                Author = string(app.ProjectAuthorEditField.Value), ...
-                Organism = string(app.OrganismEditField.Value));
-            app.renderProjectOperationViewModel( ...
-                app.ProjectPresenter.presentCreateOutcome(outcome));
+            app.createProjectFromDialog();
 
         end
 
         % Value changed function: ProjectDirectoryDropDown
         function ProjectDirectoryDropDownValueChanged(app, event)
 
-            value = string(app.ProjectDirectoryDropDown.Value);
-
-            try
-                value = app.resolveProjectOpenInput(value);
-            catch ME
-                msg = "Selected project path does not exist: " + ...
-                    string(app.ProjectDirectoryDropDown.Value);
-
-                LogTextDate(app, msg + newline + string(ME.message), "Error");
-                return
-            end
-
-            app.ProjectDirectoryDropDown.Value = value;
-
-            if ~any(strcmp(app.ProjectDirectoryDropDown.Items, value))
-                app.ProjectDirectoryDropDown.Items{end + 1} = value;
-            end
+            app.acceptProjectDirectoryValue();
 
         end
 
         % Button pushed function: TemplateModelBrowseButton
         function TemplateModelBrowseButtonPushed(app, event)
 
-            [templateModelDirectory, isOK] = app.uiGetDirWrap( ...
-                Title = "Select Template Model Directory", ...
-                StartPath = app.TemplateModelDirectoryDropDown.Value);
-
-            if ~isOK
-                return
-            end
-
-            % If the directory is equal to the current directory, do nothing
-            if strcmp(app.TemplateModelDirectoryDropDown.Value, templateModelDirectory)
-                return;
-            end
-
-            % Update the dropdown value
-            app.TemplateModelDirectoryDropDown.Value = templateModelDirectory;
-
-            % Add the directory to the item
-            if ~any(strcmp(app.TemplateModelDirectoryDropDown.Items, templateModelDirectory))
-                app.TemplateModelDirectoryDropDown.Items{end + 1} = templateModelDirectory;
-            end
-
-            app.refreshPresentation();
+            app.browseTemplateModelDirectory();
         end
 
         % Button pushed function: TemplateModelLoadButton
@@ -4960,35 +5280,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Value changed function: TemplateModelDirectoryDropDown
         function TemplateModelDirectoryDropDownValueChanged(app, event)
 
-            value = app.TemplateModelDirectoryDropDown.Value;
-
-            % Check directory exists
-            if ~isfolder(value)
-                msg = "Selected directory does not exist: " + value;
-                LogTextDate(app, msg, "Error");
-                return
-            end % if ~isfolder(value)
-
-            % Add the directory to the item
-            if ~any(strcmp(app.TemplateModelDirectoryDropDown.Items, value))
-                app.TemplateModelDirectoryDropDown.Items{end + 1} = value;
-            end % if exist
+            app.acceptTemplateModelDirectoryValue();
 
         end
 
         % Button pushed function: ModelReloadButton
         function ModelReloadButtonPushed(app, event)
 
-            if strcmp(app.ModelEditButton.Enable, 'off')
-                columnEditable = true(1, width(app.ModelTable.Data));
-                loadModelTable(app, ColumnEditable = columnEditable);
-            else
-                loadModelTable(app);
-            end
-
-            loadPathway(app);
-
-            app.LogTextDate("Model table reloaded", "Info");
+            app.reloadModelView();
         end
 
         % Button pushed function: ModelEditButton
@@ -5018,35 +5317,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Cell selection callback: ModelTable
         function ModelTableCellSelection(app, event)
 
-            indices = event.Indices;
-
-            if isempty(indices)
-                return
-            end
-
-            row = indices(1, 1);
-
-            if ~istable(app.ModelTable.Data) || ...
-                    row < 1 || row > height(app.ModelTable.Data)
-                return
-            end
-
-            reactionIDs = string(app.ModelTable.Data.Properties.RowNames);
-
-            if row > numel(reactionIDs)
-                return
-            end
-
-            viewModel = app.ModelPresenter.presentPathway( ...
-                app.ApplicationController.model(), ...
-                HighlightReactionIDs = reactionIDs(row), ...
-                IsDarkTheme = app.isDarkTheme());
-
-            if ~isempty(viewModel.Notification)
-                app.showNotification(viewModel.Notification);
-            end
-
-            app.renderPathwayPlot(viewModel);
+            app.showSelectedPathwayReaction(event.Indices);
         end
 
         % Menu selected function: AddLabelMenu
@@ -5078,16 +5349,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: MSReloadButton
         function MSReloadButtonPushed(app, event)
 
-            if strcmp(app.MSEditButton.Enable, 'off')
-                columnEditable = true;
-                loadMSTable(app, isColumnEditable = columnEditable);
-            else
-                loadMSTable(app);
-            end
-
-            msg = openmebius.infrastructure.logging.Logger ...
-                .formatDatedMessage("MS table reloaded", "Info");
-            app.LogText(msg);
+            app.reloadMassSpectrometryView();
         end
 
         % Button pushed function: MSEditButton
@@ -5103,64 +5365,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: MSSaveButton
         function MSSaveButtonPushed(app, ~)
 
-            app.beginPresentationEditCommit();
-            app.renderModelOperationViewModel( ...
-                app.ModelPresenter ...
-                .presentMassSpectrometrySaveStarted());
-
-            outcome = app.ApplicationController ...
-                .saveMassSpectrometry( ...
-                app.MSTable.Data, app.AtomTable.Data);
-            app.renderModelOperationViewModel( ...
-                app.ModelPresenter ...
-                .presentMassSpectrometrySaveOutcome(outcome));
+            app.saveMassSpectrometryEdits();
 
         end
 
         % Button pushed function: ExpCalculationButton
         function ExpCalculationButtonPushed(app, event)
 
-            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
-            app.renderExperimentCalculationViewModel( ...
-                app.ExperimentPresenter.presentCalculationStarted());
-
-            outcome = app.ApplicationController.calculateExperiment( ...
-                app.ExpTable.Data, ...
-                app.UptakeTable.Data, ...
-                app.LabelTable.Data);
-            app.renderExperimentCalculationViewModel( ...
-                app.ExperimentPresenter ...
-                .presentCalculationOutcome(outcome));
+            app.calculateExperimentData();
 
         end
 
         % Button pushed function: ExpImportButton
         function ExpImportButtonPushed(app, ~)
 
-            % Wrap
-            [files, isOK] = app.uiGetFileWrap( ...
-                Filter = {'*.xlsx;*.xls', 'Excel Files (*.xlsx, *.xls)'}, ...
-                Title = 'Select Experimental Data File', ...
-                MultiSelect = "on" ...
-            );
-
-            if ~isOK || isempty(files)
-                app.renderExperimentImportViewModel( ...
-                    app.ExperimentPresenter ...
-                    .presentFileImportCanceled());
-                return
-            end
-
-            files = string(files(:));
-            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
-            app.renderExperimentImportViewModel( ...
-                app.ExperimentPresenter.presentImportStarted());
-
-            outcome = app.ApplicationController.importExperimentFiles( ...
-                app.directoryExp, files);
-            app.renderExperimentImportViewModel( ...
-                app.ExperimentPresenter ...
-                .presentFileImportOutcome(outcome));
+            app.importExperimentFilesFromDialog();
 
         end
 
@@ -5181,80 +5400,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ExpSaveButton
         function ExpSaveButtonPushed(app, ~)
 
-            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
-            app.renderExperimentEditViewModel( ...
-                app.ExperimentPresenter.presentEditStarted());
-
-            outcome = app.ApplicationController.saveExperimentInfo( ...
-                app.ExpTable.Data);
-            app.renderExperimentEditViewModel( ...
-                app.ExperimentPresenter ...
-                .presentInfoSaveOutcome(outcome));
+            app.saveExperimentInfo();
 
         end
 
         % Key press function: ExpTable
         function ExpTableKeyPress(app, event)
 
-            key = event.Key;
-            modifier = event.Modifier;
-            isCtrlC = any(strcmp(modifier, 'control')) && strcmp(key, 'c');
-            isCtrlV = any(strcmp(modifier, 'control')) && strcmp(key, 'v');
-
-            if isCtrlC
-                app.copyTableToClipboard(app.ExpTable);
-            end
-
-            if isCtrlV
-                app.pasteClipboardToTable(app.ExpTable);
-            end
+            app.handleTableClipboardShortcut(app.ExpTable, event);
 
         end
 
         % Menu selected function: ViewMStableMenu
         function ViewMStableMenuSelected(app, event)
 
-            idx = app.ExpTable.Selection;
-
-            if isempty(idx)
-                msg = openmebius.infrastructure.logging.Logger ...
-                    .formatDatedMessage( ...
-                    "Please select an experiment to view MS data.", ...
-                "Warning");
-                app.LogText(msg);
-                return
-            end
-
-            if size(idx, 1) > 1
-                msg = openmebius.infrastructure.logging.Logger ...
-                    .formatDatedMessage( ...
-                    "Please select only one experiment to view MS data.", ...
-                "Warning");
-                app.LogText(msg);
-                return
-            end
-
-            idxRow = idx(1, 1);
-
-            cleanupPresentation = app.beginPresentationOperation();
-            presenter = openmebius.presentation.experiment ...
-                .MSViewPresenter(app.ApplicationController.experiments());
-
-            if ~presenter.hasCalculatedMDV()
-                app.notifyWarning( ...
-                    "MDV-derived tables have not been calculated. " + ...
-                    "Press Calculate MDV in the Experiment tab before " + ...
-                "viewing MDV, biomass-corrected MDV or enrichment data.");
-            end
-
-            app.closeMSViewApp();
-            context = openmebius.presentation.experiment ...
-                .MSViewContext( ...
-                Presenter = presenter, ...
-                InitialExperimentIndex = idxRow, ...
-                IsDarkTheme = app.isDarkTheme());
-            app.MSViewApp = MSView(context);
-            app.attachMSViewListeners(app.MSViewApp);
+            app.openSelectedMSView();
         end
 
         % Button pushed function: TracerConfigButton
@@ -5283,55 +5443,20 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: TracerSaveButton
         function TracerSaveButtonPushed(app, ~)
 
-            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
-            app.renderExperimentEditViewModel( ...
-                app.ExperimentPresenter.presentEditStarted());
-
-            outcome = app.ApplicationController.saveTracer( ...
-                app.UptakeTable.Data, ...
-                app.LabelTable.Data);
-            app.renderExperimentEditViewModel( ...
-                app.ExperimentPresenter ...
-                .presentTracerSaveOutcome(outcome));
+            app.saveTracerEdits();
 
         end
 
         % Double-clicked callback: LabelTable
         function LabelTableDoubleClicked(app, event)
 
-            displayRow = event.InteractionInformation.DisplayRow;
-            displayColumn = event.InteractionInformation.DisplayColumn;
-
-            if isempty(displayRow) || isempty(displayColumn)
-                return
-            end
-
-            cleanupPresentation = ...
-                app.beginPresentationOperation(); %#ok<NASGU>
-            position = [displayRow, displayColumn];
-            outcome = app.ApplicationController ...
-                .prepareTracerConfiguration(app.LabelTable.Data, position);
-            viewModel = app.ExperimentPresenter ...
-                .presentTracerConfigurationPreparationOutcome(outcome);
-            app.renderTracerConfigurationViewModel(viewModel);
+            app.openTracerFromInteraction(event.InteractionInformation);
         end
 
         % Key press function: UptakeTable
         function UptakeTableKeyPress(app, event)
 
-            key = event.Key;
-            modifier = event.Modifier;
-
-            isCtrlC = strcmp(key, 'c') && ismember('control', modifier);
-            isCtrlV = strcmp(key, 'v') && ismember('control', modifier);
-
-            if isCtrlC
-                app.copyTableToClipboard(app.UptakeTable);
-            end
-
-            if isCtrlV
-                app.pasteClipboardToTable(app.UptakeTable);
-            end
+            app.handleTableClipboardShortcut(app.UptakeTable, event);
 
         end
 
@@ -5348,17 +5473,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: RunConfigButton
         function RunConfigButtonPushed(app, ~)
 
-            requestFactory = @() app.RunConfigPresenter ...
-                .createLaunchRequest( ...
-                app.RunTable.Data, app.RunTable.Selection);
-            outcome = app.ApplicationController ...
-                .prepareBatchConfiguration(requestFactory);
-            updateBatchTable(app);
-
-            cleanupPresentation = app.beginPresentationOperation();
-            viewModel = app.RunConfigPresenter ...
-                .presentLaunchOutcome(outcome);
-            app.renderRunConfigLaunchViewModel(viewModel);
+            app.openRunConfiguration();
         end
 
         % Button pushed function: RunReloadButton
@@ -5382,64 +5497,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: RunRunButton
         function RunRunButtonPushed(app, event)
 
-            if app.Presenter.isRunning()
-
-                app.requestPresentationCancelRun();
-
-                app.renderBatchRunViewModel( ...
-                    app.BatchPresenter.presentCancelRequested());
-                app.ApplicationController.cancelBatch();
-
-                return
-            end
-
-            app.beginPresentationRun();
-            cleanupPresentation = onCleanup( ...
-                @() app.finishPresentationRunSafely());
-
-            app.renderBatchRunViewModel( ...
-                app.BatchPresenter.presentRunStarted());
-
-            updateBatchTable(app);
-
-            % updateBatchTable may reset RunTable.ColumnEditable.
-            app.refreshPresentation();
-
-            outcome = app.ApplicationController.runBatch( ...
-                app.directoryResult, ...
-                ProgressReporter = ...
-                @(progress) app.handleBatchProgress(progress), ...
-                NotificationReporter = ...
-                @(notification) app.handleNotification(notification), ...
-                ResultReporter = ...
-                @(resultData) app.handleResultAvailable(resultData));
-            app.renderBatchRunViewModel( ...
-                app.BatchPresenter.presentRunOutcome(outcome));
-            outcome.rethrowFailure();
+            app.runOrCancelBatch();
 
         end
 
         % Menu selected function: AddbatchMenu
         function RunAddbatchMenuSelected(app, ~)
 
-            outcome = app.ApplicationController.prepareParallelBatch();
-            viewModel = app.BatchExperimentSelectionEditorPresenter ...
-                .presentParallelEditor(outcome);
-
-            for notificationIndex = 1:numel(viewModel.Notifications)
-                app.showNotification( ...
-                    viewModel.Notifications{notificationIndex});
-            end
-
-            if ~viewModel.IsAvailable
-                return
-            end
-
-            app.closeRunAddBatchApp();
-            context = openmebius.presentation.batch ...
-                .RunAddBatchContext(Editor = viewModel);
-            app.RunAddBatchApp = RunAddBatch(context);
-            app.attachRunAddBatchListeners(app.RunAddBatchApp);
+            app.openParallelBatchEditor();
         end
 
         % Menu selected function: RemovethisbatchMenu
@@ -5510,84 +5575,20 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Button pushed function: ResultSaveButton
         function ResultSaveButtonPushed(app, ~)
 
-            [folder, isOK] = app.uiGetDirWrap( ...
-                StartPath = app.directoryResult, ...
-                Title = "Select Directory to Save Result Files" ...
-            );
-
-            if ~isOK
-                return
-            end
-
-            selectedRows = app.selectedTableRows(app.ResultSubTable);
-
-            if isempty(selectedRows)
-                app.renderResultOperationViewModel( ...
-                    app.ResultPresenter ...
-                    .presentExportSelectionRequired());
-                return
-            end
-
-            batchIDs = app.ResultSubTable.Data.ID;
-            selectedBatchIDs = string(batchIDs(selectedRows));
-            selectedBatchIDs = selectedBatchIDs(:);
-            batchNames = app.ResultSubTable.Data.Name;
-            selectedBatchNames = string(batchNames(selectedRows));
-            selectedBatchNames = selectedBatchNames(:);
-            outcome = app.ApplicationController.exportResults( ...
-                selectedBatchIDs, ...
-                selectedBatchNames, ...
-                string(folder));
-            app.renderResultOperationViewModel( ...
-                app.ResultPresenter.presentExportOutcome(outcome));
+            app.exportSelectedResults();
 
         end
 
         % Menu selected function: ReloadWindowMenu
         function ReloadWindowMenuSelected(app, event)
 
-            loadHistory(app)
-            initLog(app)
-            cleanupPresentation = app.beginPresentationOperation();
-
-            % Reset all components
-            resetAllComponents(app);
-
-            % Reset status
-            updateStatus(app, "model", "init");
-            updateStatus(app, "experiment", "init");
-            updateStatus(app, "batch", "init");
-            updateStatus(app, "result", "init");
+            app.reloadMainWindow();
         end
 
         % Menu selected function: PreferencesMenu
         function PreferencesMenuSelected(app, event)
 
-            try
-
-                if ~isempty(app.PreferencesApp) && isvalid(app.PreferencesApp)
-                    figure(app.PreferencesApp.PreferencesUIFigure);
-                    return
-                end
-
-            catch
-                app.PreferencesApp = [];
-            end
-
-            try
-                app.beginPresentationPreferences();
-
-                app.PreferencesApp = Preferences(app.SlackNotifier);
-
-                app.attachPreferencesListeners(app.PreferencesApp);
-
-            catch ME
-                app.finishPresentationPreferences();
-                app.notifyException( ...
-                    ME, ...
-                    Title = "Preferences failed", ...
-                    Alert = true);
-            end
+            app.openPreferences();
 
         end
 
@@ -5606,95 +5607,27 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: RangeplotMenu
         function RangeplotMenuSelected(app, ~)
 
-            selectedRows = ...
-                app.selectedTableRows(app.ResultSubTable);
-            batchIDs = strings(0, 1);
-            batchNames = strings(0, 1);
-            data = app.ResultSubTable.Data;
-
-            if ~isempty(selectedRows) && istable(data) && ...
-                    all(ismember(["ID", "Name"], ...
-                    string(data.Properties.VariableNames))) && ...
-                    all(selectedRows <= height(data))
-                batchIDs = string(data.ID(selectedRows));
-                batchNames = string(data.Name(selectedRows));
-                batchIDs = batchIDs(:);
-                batchNames = batchNames(:);
-            end
-
-            outcome = app.ApplicationController.prepareRangePlot( ...
-                batchIDs, batchNames);
-            app.renderResultRangePlotViewModel( ...
-                app.ResultPresenter.presentRangePlotOutcome(outcome));
+            app.showRangePlot();
 
         end
 
         % Menu selected function: ViewsuggestionMenu
         function ViewsuggestionMenuSelected(app, ~)
 
-            selectedRows = ...
-                app.selectedTableRows(app.ResultSubTable);
-            batchIDs = strings(0, 1);
-            batchNames = strings(0, 1);
-
-            if ~isempty(selectedRows)
-                batchIDs = string( ...
-                    app.ResultSubTable.Data.ID(selectedRows));
-                batchNames = string( ...
-                    app.ResultSubTable.Data.Name(selectedRows));
-                batchIDs = batchIDs(:);
-                batchNames = batchNames(:);
-            end
-
-            outcome = app.ApplicationController.loadSuggestion( ...
-                batchIDs, batchNames);
-            app.renderResultOperationViewModel( ...
-                app.ResultPresenter.presentSuggestionOutcome(outcome));
+            app.showSuggestion();
         end
 
         % Menu selected function: CopythistracerforallentriesMenu
         function CopythistracerforallentriesMenuSelected(app, ~)
 
-            currentData = app.LabelTable.Data;
-            selected = app.LabelTable.Selection;
-
-            if isempty(selected)
-                app.renderExperimentEditViewModel( ...
-                    app.ExperimentPresenter ...
-                    .presentTracerCopySelectionRequired());
-                return
-            end
-
-            outcome = app.ApplicationController ...
-                .copyTracerToAllEntries( ...
-                currentData, ...
-                selected);
-            app.renderExperimentEditViewModel( ...
-                app.ExperimentPresenter ...
-                .presentTracerCopyOutcome(outcome));
+            app.copySelectedTracer();
 
         end
 
         % Menu selected function: ImportMSdatafromtextfilesMenu
         function ImportMSdatafromtextfilesMenuSelected(app, ~)
 
-            [importDirectory, isOK] = app.uiGetDirWrap( ...
-                Title = "Select Directory Containing MS Data Text Files", ...
-                StartPath = app.directoryExp);
-
-            if ~isOK
-                return
-            end
-
-            cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
-            app.renderExperimentImportViewModel( ...
-                app.ExperimentPresenter.presentImportStarted());
-
-            outcome = app.ApplicationController.importRawMS( ...
-                importDirectory, app.directoryExp);
-            app.renderExperimentImportViewModel( ...
-                app.ExperimentPresenter ...
-                .presentRawMSImportOutcome(outcome));
+            app.importRawMSFromDirectory();
 
         end
 
@@ -5734,35 +5667,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: ExporttemplateExcelfileMenu
         function ExporttemplateExcelfileMenuSelected(app, ~)
 
-            if ~app.ApplicationController.hasModel()
-                app.renderModelOperationViewModel( ...
-                    app.ModelPresenter ...
-                    .presentTemplateExportUnavailable());
-                return
-            end
-
-            app.renderModelOperationViewModel( ...
-                app.ModelPresenter.presentTemplateExportStarted());
-
-            [file, isOK] = app.uiGetFileWrap( ...
-                Filter = {'*.xlsx', 'Excel Files (*.xlsx)'}, ...
-                Title = 'Save Template Excel File', ...
-                MultiSelect = "off", ...
-                DefaultName = "Template_MS_Table.xlsx", ...
-                Save = true ...
-            );
-
-            if ~isOK
-                return
-            end
-
-            cleanupPresentation = ...
-                app.beginPresentationOperation(); %#ok<NASGU>
-            outcome = app.ApplicationController ...
-                .exportMassSpectrometryTemplate(string(file));
-            app.renderModelOperationViewModel( ...
-                app.ModelPresenter ...
-                .presentTemplateExportOutcome(outcome));
+            app.exportTemplateWorkbook();
 
         end
 
@@ -5775,33 +5680,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Key press function: OpenMebius2UIFigure
         function OpenMebius2UIFigureKeyPress(app, event)
 
-            modifier = event.Modifier;
-            key = event.Key;
-
-            % F5
-            isF5 = strcmp(key, 'f5') && isempty(modifier);
-
-            if isF5
-
-                % TabGroup
-                currentTab = app.TabGroup.SelectedTab.Title;
-
-                switch currentTab
-                    case "Stoichiometry"
-                        app.ModelReloadButtonPushed();
-                    case "MS"
-                        app.MSReloadButtonPushed();
-                    case "Experiment"
-                        app.ExpReloadButtonPushed();
-                    case "Tracer"
-                        app.TracerReloadButtonPushed();
-                    case "Batch"
-                        app.RunReloadButtonPushed();
-                    case "Result"
-                        app.ResultReloadButtonPushed();
-                end % switch
-
-            end % if isF5
+            app.reloadSelectedTab(event);
 
         end
 
@@ -6685,12 +6564,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Code that executes before app deletion
         function delete(app)
 
-            app.closeLabelConfigApp();
-            app.closeTracerConfigApp();
-            app.closeMSViewApp();
-            app.closeComparisonViewApp();
-            app.closeRunConfigApp();
-            app.closeRunAddBatchApp();
+            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
+                app.ChildAppHost.closeAll();
+            end
 
             if app.isLoadedObject(app.RangePlotFigure)
                 delete(app.RangePlotFigure);
