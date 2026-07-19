@@ -12,17 +12,16 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
     methods (Test)
 
-        function loadCreatesEmuModel(testCase)
+        function loadCreatesMetabolicModel(testCase)
 
             repository = openmebius.infrastructure.model.ModelRepository();
             modelLocation = ModelRepositoryTest.templateModelLocation();
 
             model = repository.load(modelLocation);
 
-            testCase.verifyClass(model, "EMUModel");
-            testCase.verifyTrue(isa( ...
+            testCase.verifyClass( ...
                 model, ...
-                "openmebius.application.model.ModelWorkspace"));
+                "openmebius.application.model.MetabolicModel");
             testCase.verifyEqual( ...
                 model.getModelLocation().Directory, ...
                 modelLocation.Directory);

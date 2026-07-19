@@ -67,7 +67,7 @@ classdef EMUNetworkEnumerator < handle
 
                 if isInvalid
                     errorMessages(end + 1, 1) = ...
-                        "EMUModel: More than one product or no reactant."; %#ok<AGROW>
+                        "EMU network: More than one product or no reactant."; %#ok<AGROW>
                 end
             end
 

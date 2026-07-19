@@ -18,7 +18,7 @@ classdef MsgEventData < event.EventData
             end
 
             if nargin < 3
-                caller = "EMUModel";
+                caller = "MetabolicModel";
             end
 
             obj.Message = string(message);

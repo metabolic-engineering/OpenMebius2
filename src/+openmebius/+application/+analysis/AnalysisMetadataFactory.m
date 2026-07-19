@@ -55,8 +55,8 @@ classdef AnalysisMetadataFactory
                 "");
 
             if strlength(string(modelFileName)) == 0 && ...
-                    isobject(model) && isprop(model, 'pathModel')
-                modelPath = string(model.pathModel);
+                    isobject(model) && ismethod(model, 'getModelFilePath')
+                modelPath = string(model.getModelFilePath());
                 [~, modelName, modelExtension] = fileparts(modelPath);
                 modelFileName = string(modelName) + string(modelExtension);
                 modelHash = ...

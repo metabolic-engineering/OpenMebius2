@@ -1,6 +1,6 @@
 classdef EMUNetworkBuildOperations
     % EMUNETWORKBUILDOPERATIONS
-    % Typed port used while legacy EMUModel build steps are extracted.
+    % Typed port for the EMU network build sequence.
 
     properties (Access = private)
         InitializeCallback

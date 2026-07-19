@@ -110,14 +110,14 @@ classdef AnalysisProvenanceBuilder
                 return
             end
 
-            if isobject(model) && isprop(model, 'pathModel')
-                path = string(model.pathModel);
+            if isobject(model) && ismethod(model, 'getModelFilePath')
+                path = string(model.getModelFilePath());
                 return
             end
 
             error( ...
                 "OpenMebius2:AnalysisProvenanceBuilder:MissingModelPath", ...
-                "The model does not expose pathModel.");
+                "The model does not expose its source-file path.");
 
         end % modelPath
 
