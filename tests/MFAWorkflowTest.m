@@ -68,6 +68,40 @@ classdef MFAWorkflowTest < matlab.unittest.TestCase
 
         end
 
+        function limitsOptimizationsToRequestedIterationCount(testCase)
+
+            observer = helpers.MFAWorkflowObserverStub();
+            workflow = openmebius.mfa.MFAWorkflow();
+
+            result = workflow.run( ...
+                [3, 1, 2; 30, 10, 20], ...
+                @(rhs) MFAWorkflowTest.createIterationResult(rhs), ...
+                IterationCount = 2, ...
+                ProgressReporter = ...
+                    @(index, total) ...
+                    observer.reportProgress(index, total));
+
+            testCase.verifyEqual(result.CompletedCount, 2);
+            testCase.verifyEqual(observer.ProgressIndices, [1, 2]);
+            testCase.verifyEqual(observer.ProgressTotals, [2, 2]);
+            testCase.verifyEqual(result.ObjectiveValues, [1, 3]);
+            testCase.verifyEqual(result.Fluxes, [1, 3; 10, 30]);
+
+        end
+
+        function rejectsIterationCountAboveAvailableInitialValues(testCase)
+
+            workflow = openmebius.mfa.MFAWorkflow();
+
+            testCase.verifyError( ...
+                @() workflow.run( ...
+                    zeros(2, 2), ...
+                    @(rhs) MFAWorkflowTest.createIterationResult(rhs), ...
+                    IterationCount = 3), ...
+                "OpenMebius2:MFAWorkflow:InsufficientInitialValues");
+
+        end
+
         function rejectsInvalidIterationResult(testCase)
 
             workflow = openmebius.mfa.MFAWorkflow();

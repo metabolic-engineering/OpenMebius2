@@ -18,14 +18,32 @@ classdef MFAWorkflow
                 options.CancellationRequested (1, 1) function_handle = ...
                     @() false
                 options.MDVMapper (1, 1) function_handle = @(mdv) mdv
+                options.IterationCount (1, 1) double = NaN
             end
 
-            iterationCount = size(rightHandSides, 2);
+            availableCount = size(rightHandSides, 2);
+            iterationCount = options.IterationCount;
+
+            if isnan(iterationCount)
+                iterationCount = availableCount;
+            elseif ~isfinite(iterationCount) || iterationCount <= 0 || ...
+                    fix(iterationCount) ~= iterationCount
+                error( ...
+                    "OpenMebius2:MFAWorkflow:InvalidIterationCount", ...
+                    "The MFA iteration count must be a positive integer.");
+            end
 
             if iterationCount == 0
                 error( ...
                     "OpenMebius2:MFAWorkflow:MissingIterations", ...
                     "At least one MFA iteration is required.");
+            end
+
+            if availableCount < iterationCount
+                error( ...
+                    "OpenMebius2:MFAWorkflow:InsufficientInitialValues", ...
+                    "The requested MFA iteration count exceeds the " + ...
+                    "number of available initial values.");
             end
 
             iterationResults = cell(1, iterationCount);
