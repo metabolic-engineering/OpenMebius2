@@ -501,7 +501,7 @@ classdef ExperimentWorkspace < handle
             numCarbon = tableSubstrate.Carbon{:};
 
             % Get the tableLabelView from the model class
-            tableLabelView = obj.objModel.tableLabelView;
+            tableLabelView = obj.objModel.getTableLabelView();
 
             tableLabelViewFiltered = tableLabelView(cell2mat(tableLabelView.Num) == numCarbon, :);
 
@@ -537,7 +537,7 @@ classdef ExperimentWorkspace < handle
             %
             % Returns:
             % --------
-            % model: openmebius.application.model.ModelWorkspace
+            % model: openmebius.application.model.MetabolicModel
             %     The model object.
             model = obj.objModel;
 
@@ -922,12 +922,12 @@ classdef ExperimentWorkspace < handle
             % -----------
             % obj: ExperimentWorkspace
             %     The experiment workspace object.
-            % model: openmebius.application.model.ModelWorkspace
+            % model: openmebius.application.model.MetabolicModel
             %     The model object.
 
             arguments
                 obj openmebius.application.experiment.ExperimentWorkspace
-                model openmebius.application.model.ModelWorkspace
+                model openmebius.application.model.MetabolicModel
             end
 
             obj.Collection.replaceModel(model);

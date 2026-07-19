@@ -2,6 +2,7 @@ classdef MSView_exported < matlab.apps.AppBase
 
     events
         ComparisonRequested
+        NotificationRequested
         Closed
     end
 
@@ -21,12 +22,58 @@ classdef MSView_exported < matlab.apps.AppBase
 
     properties (Access = private)
         Presenter openmebius.presentation.experiment.MSViewPresenter
+        Action openmebius.presentation.experiment.MSViewAction
         IsDarkTheme (1, 1) logical = false
         ErrorStyle
         color
     end
 
     methods (Access = private)
+
+        function initializeView(app, context)
+
+            app.Presenter = context.Presenter;
+            app.Action = context.Action;
+            app.IsDarkTheme = context.IsDarkTheme;
+            app.ExpDropDown.Items = cellstr( ...
+                app.Presenter.experimentNames());
+            app.color = Color();
+
+            if app.IsDarkTheme
+                app.ErrorStyle = ...
+                    uistyle('BackgroundColor', '#332225');
+            else
+                app.ErrorStyle = ...
+                    uistyle('BackgroundColor', '#FFAABB');
+            end
+
+            experimentName = app.Presenter.experimentNameAt( ...
+                context.InitialExperimentIndex);
+            app.changeMSTable( ...
+                experimentName, app.TableTypeDropDown.Value);
+            app.ExpDropDown.Value = experimentName;
+
+        end % initializeView
+
+        function saveTable(app)
+
+            [file, path] = uiputfile( ...
+                'MS_data.csv', 'Save MS data as');
+
+            if isequal(file, 0) || isequal(path, 0)
+                return
+            end
+
+            notification = app.Action.exportTable( ...
+                app.MSTable.Data, ...
+                app.MSTable.ColumnName, ...
+                app.MSTable.RowName, ...
+                string(fullfile(path, file)));
+            eventData = openmebius.presentation.notification ...
+                .NotificationEventData(notification);
+            notify(app, "NotificationRequested", eventData);
+
+        end % saveTable
 
         function changeMSTable(app, expName, Type)
 
@@ -99,26 +146,7 @@ classdef MSView_exported < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app, context)
 
-            app.Presenter = context.Presenter;
-            app.IsDarkTheme = context.IsDarkTheme;
-            app.ExpDropDown.Items = cellstr( ...
-                app.Presenter.experimentNames());
-            app.color = Color();
-
-            if app.IsDarkTheme
-                app.ErrorStyle = ...
-                    uistyle('BackgroundColor', '#332225');
-            else
-                app.ErrorStyle = ...
-                    uistyle('BackgroundColor', '#FFAABB');
-            end
-
-            expName = app.Presenter.experimentNameAt( ...
-                context.InitialExperimentIndex);
-
-            changeMSTable(app, expName, app.TableTypeDropDown.Value);
-
-            app.ExpDropDown.Value = expName;
+            app.initializeView(context);
 
         end
 
@@ -153,22 +181,7 @@ classdef MSView_exported < matlab.apps.AppBase
         % Button pushed function: SaveButton
         function SaveButtonPushed(app, ~)
 
-            [file, path] = uiputfile('MS_data.csv', 'Save MS data as');
-
-            if isequal(file, 0) || isequal(path, 0)
-                return;
-            end
-
-            filename = fullfile(path, file);
-            tableOut = app.MSTable.Data;
-            tableOut.Properties.VariableNames = app.MSTable.ColumnName;
-            tableOut.Properties.RowNames = app.MSTable.RowName;
-
-            try
-                writetable(tableOut, filename, 'WriteRowNames', true);
-            catch
-                uialert(app.MSViewerUIFigure, "Failed to save the file.", "File Save Error");
-            end
+            app.saveTable();
 
         end
 

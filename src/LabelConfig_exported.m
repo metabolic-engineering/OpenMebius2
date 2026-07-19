@@ -28,12 +28,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
     properties (Access = private)
 
-        initStructLabel struct
-        initTableLabel table
-        initFieldNames cell
-        structLabel struct
-        tableLabel table
-        fieldNames cell
+        Action openmebius.presentation.model.LabelConfigAction
         idxLabel double
 
     end
@@ -42,24 +37,66 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
         function initLabelTable(app)
 
-            app.LabelTable.Data = app.initTableLabel;
-            app.structLabel = app.initStructLabel;
+            app.Action.restore();
+            app.LabelTable.Data = app.Action.LabelTable;
+            app.lockRatioTable();
 
         end
+
+        function selectLabel(app, indices)
+
+            if isempty(indices)
+                app.lockRatioTable();
+                return
+            end
+
+            app.idxLabel = indices(1, 1);
+            app.RatioTable.Data = ...
+                app.Action.selectLabel(app.idxLabel);
+            app.unlockRatioTable();
+
+        end % selectLabel
+
+        function removeSelectedRatio(app)
+
+            ratioSelection = app.RatioTable.Selection;
+            labelSelection = app.LabelTable.Selection;
+
+            if isempty(ratioSelection) || isempty(labelSelection)
+                return
+            end
+
+            [app.RatioTable.Data, message] = app.Action.removeRatio( ...
+                labelSelection(1, 1), ratioSelection(1, 1));
+            app.requestInfo(message);
+
+        end % removeSelectedRatio
+
+        function removeSelectedLabels(app)
+
+            selection = app.LabelTable.Selection;
+
+            if isempty(selection)
+                return
+            end
+
+            message = app.Action.removeLabels(selection(:, 1));
+            app.LabelTable.Data = app.Action.LabelTable;
+            app.lockRatioTable();
+            app.requestInfo(message);
+
+        end % removeSelectedLabels
 
         function updateRatioTable(app)
 
             idx = app.idxLabel;
-            field = app.fieldNames(idx);
-            field = field{:};
-            ratioTable = app.normalizeRatioTable(app.RatioTable.Data);
-            app.structLabel.(field) = ratioTable;
+            app.Action.updateRatioTable(idx, app.RatioTable.Data);
 
         end
 
         function updateLabelTable(app)
 
-            app.tableLabel = app.LabelTable.Data;
+            app.Action.updateLabelTable(app.LabelTable.Data);
 
         end
 
@@ -82,13 +119,6 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
         end
 
-        function label = makeStructLabel(~, input)
-
-            label = matlab.lang.makeValidName(input);
-            label = matlab.lang.makeUniqueStrings(label);
-
-        end
-
         function requestInfo(app, message)
 
             notification = openmebius.presentation.notification ...
@@ -99,29 +129,6 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
         end % requestInfo
 
-        function ratioTable = normalizeRatioTable(~, ratioData)
-
-            if istable(ratioData)
-                ratioTable = ratioData;
-                return
-            end
-
-            if isempty(ratioData)
-                ratioData = cell(0, 2);
-            end
-
-            if ~iscell(ratioData) || size(ratioData, 2) ~= 2
-                error( ...
-                    "OpenMebius2:LabelConfig:InvalidRatioTable", ...
-                    "Ratio settings must contain Label and Ratio columns.");
-            end
-
-            ratioTable = cell2table( ...
-                ratioData, ...
-                VariableNames = ["Label", "Ratio"]);
-
-        end % normalizeRatioTable
-
     end
 
     % Callbacks that handle component events
@@ -130,84 +137,33 @@ classdef LabelConfig_exported < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app, context)
 
-            app.initStructLabel = context.RatioTables;
-            app.initTableLabel = context.LabelTable;
-            app.initFieldNames = fieldnames(context.RatioTables);
-
-            app.structLabel = context.RatioTables;
-            app.tableLabel = context.LabelTable;
-            app.fieldNames = fieldnames(context.RatioTables);
-
-            app.LabelTable.Data = context.LabelTable;
+            app.Action = context.Action;
+            app.LabelTable.Data = app.Action.LabelTable;
             app.LabelTable.ColumnName = ...
-                context.LabelTable.Properties.VariableNames;
+                app.Action.LabelTable.Properties.VariableNames;
 
         end
 
         % Cell selection callback: LabelTable
         function LabelTableCellSelection(app, event)
 
-            indices = event.Indices;
-
-            % 選択された列に対応したRatioTableを表示
-            if ~isempty(indices)
-
-                idx = indices(1, 1);
-                app.idxLabel = idx;
-
-                % 選択されたラベル名を取得
-                % ラベル名は1列目をfieldName用に変換したもの
-                fieldName = app.fieldNames{idx};
-
-                % ラベル名に対応したRatioTableを表示
-                app.RatioTable.Data = app.structLabel.(fieldName);
-
-                % unlock ratio table
-                app.unlockRatioTable();
-
-            else
-
-                % 選択された列がない場合はRatioTableをロック
-                app.lockRatioTable();
-
-            end
+            app.selectLabel(event.Indices);
 
         end
 
         % Button pushed function: AddLabelButton
         function AddLabelButtonPushed(app, event)
 
-            % Add new Label pattern to the end of the seleceted row
-            app.LabelTable.Data = [app.LabelTable.Data; {'New label', 1}];
-            app.fieldNames = [app.fieldNames; 'New label'];
-            app.fieldNames = app.makeStructLabel(app.fieldNames);
-            app.structLabel.(app.fieldNames{end}) = {};
-
-            app.requestInfo("New label added");
+            message = app.Action.addLabel();
+            app.LabelTable.Data = app.Action.LabelTable;
+            app.requestInfo(message);
 
         end
 
         % Button pushed function: RemoveLabelButton
         function RemoveLabelButtonPushed(app, event)
 
-            % 選択されている行を削除する
-            indices = app.LabelTable.Selection;
-
-            if ~isempty(indices)
-
-                idx = transpose(indices(:, 1));
-                fieldName = app.fieldNames{idx};
-                label = app.LabelTable.Data{idx, 1};
-
-                % 削除する行を取得
-                app.LabelTable.Data(idx, :) = [];
-                app.structLabel = rmfield(app.structLabel, fieldName);
-                app.fieldNames(idx) = [];
-
-                text = "Label pattern [" + label + "] removed from the list";
-                app.requestInfo(text);
-
-            end
+            app.removeSelectedLabels();
 
         end
 
@@ -217,41 +173,15 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             % Add new ratio pattern to the end of the seleceted row
             indices = app.LabelTable.Selection;
             idx = indices(1, 1);
-            fieldName = app.fieldNames{idx};
-            label = app.LabelTable.Data{idx, 1};
-            numC = app.LabelTable.Data{idx, 2};
-
-            app.RatioTable.Data = [app.RatioTable.Data; {'pattern', 1}];
-
-            app.structLabel.(fieldName) = app.RatioTable.Data;
-
-            app.requestInfo("New ratio added to [" + label + "]");
+            [app.RatioTable.Data, message] = app.Action.addRatio(idx);
+            app.requestInfo(message);
 
         end
 
         % Button pushed function: RemoveRatioButton
         function RemoveRatioButtonPushed(app, event)
 
-            % 選択されている行を削除する
-            indicesRatio = app.RatioTable.Selection;
-            indicesLabel = app.LabelTable.Selection;
-
-            if ~isempty(indicesRatio)
-
-                idxRatio = indicesRatio(1, 1);
-                idxLabel = indicesLabel(1, 1);
-
-                fieldName = app.fieldNames{idxLabel};
-                label = app.LabelTable.Data{idxLabel, 1};
-
-                % 削除する行を取得
-                app.RatioTable.Data(idxRatio, :) = [];
-                app.structLabel.(fieldName) = app.RatioTable.Data;
-
-                text = "Ratio pattern removed from [" + label + "]";
-                app.requestInfo(text);
-
-            end
+            app.removeSelectedRatio();
 
         end
 
@@ -260,11 +190,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
             lockRatioTable(app);
 
-            % Reload the label pattern
-            app.LabelTable.Data = app.initTableLabel;
-            app.structLabel = app.initStructLabel;
-            app.tableLabel = app.initTableLabel;
-            app.fieldNames = app.initFieldNames;
+            app.initLabelTable();
 
         end
 
@@ -274,7 +200,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             app.updateLabelTable();
             eventData = openmebius.presentation.model ...
                 .LabelConfigurationAppliedEventData( ...
-                    app.tableLabel, app.structLabel);
+                    app.Action.LabelTable, app.Action.RatioTables);
             notify(app, "Applied", eventData);
             close(app.LabelconfigUIFigure);
 

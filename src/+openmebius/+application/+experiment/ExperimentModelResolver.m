@@ -16,7 +16,9 @@ classdef ExperimentModelResolver
         end
 
         function [model, directory] = resolve(obj, modelInput)
-            if isa(modelInput, 'EMUModel')
+            if isa( ...
+                    modelInput, ...
+                    'openmebius.application.model.MetabolicModel')
                 model = modelInput;
                 if ~isvalid(model)
                     error( ...

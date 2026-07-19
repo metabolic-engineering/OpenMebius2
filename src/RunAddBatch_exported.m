@@ -18,9 +18,7 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
 
     properties (Access = private)
 
-        ExperimentNames (:, 1) string
-        Mode (1, 1) string
-        BatchId (1, 1) string = ""
+        Action openmebius.presentation.batch.RunAddBatchAction
 
     end % private properties
 
@@ -30,19 +28,27 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
         function initTable(app)
             % INITTABLE Initialize the UITable with default properties
 
-            expList = app.ExperimentNames;
-
-            dataTable = table( ...
-                false(length(expList), 1), ... % Add column initialized to false
-                expList, ... % Experiment names
-                'VariableNames', {'Add', 'Experiment'} ...
-            );
-
-            app.UITable.Data = dataTable;
+            app.UITable.Data = app.Action.initialTable();
             app.UITable.ColumnWidth = {50, '1x'};
             app.UITable.ColumnEditable = [true, false]; % Make only the Add column editable
 
         end % method initTable
+
+        function applySelection(app)
+
+            selection = app.Action.createSelection( ...
+                app.UITable.Data, ...
+                logical(app.AddAsParallel.Value));
+
+            if isempty(selection)
+                return
+            end
+
+            eventData = openmebius.presentation.batch ...
+                .BatchExperimentSelectionEventData(selection);
+            notify(app, "Applied", eventData);
+
+        end % applySelection
 
     end % private methods
 
@@ -53,11 +59,9 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
         function startupFcn(app, context)
 
             editor = context.Editor;
-            app.ExperimentNames = editor.ExperimentNames;
-            app.Mode = editor.Mode;
-            app.BatchId = editor.BatchId;
+            app.Action = context.Action;
 
-            if app.Mode == "inst-mfa"
+            if editor.Mode == "inst-mfa"
                 app.AddAsParallel.Visible = 'off';
             end
 
@@ -68,30 +72,7 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
         % Button pushed function: AddButton
         function AddButtonPushed(app, event)
 
-            data = app.UITable.Data;
-            % Get Add column
-            addColumn = data{:, 1};
-            expList = data{:, 2};
-
-            % Get selected experiments
-            selectedExps = expList(addColumn);
-
-            if isempty(selectedExps)
-                return;
-            end
-
-            selection = openmebius.domain.batch ...
-                .BatchExperimentSelection( ...
-                    Mode = app.Mode, ...
-                    Experiments = string(selectedExps), ...
-                    AddAsParallel = logical(app.AddAsParallel.Value), ...
-                    BatchId = app.BatchId);
-            eventData = openmebius.presentation.batch ...
-                .BatchExperimentSelectionEventData(selection);
-            notify(app, "Applied", eventData);
-
-            % Close the app after adding the batch items
-            % close(app.AddbatchUIFigure);
+            app.applySelection();
 
         end
 

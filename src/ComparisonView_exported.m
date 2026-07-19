@@ -22,6 +22,7 @@ classdef ComparisonView_exported < matlab.apps.AppBase
 
     properties (Access = private)
         Presenter openmebius.presentation.experiment.ComparisonViewPresenter
+        Action openmebius.presentation.experiment.ComparisonViewAction
         Mode (1, 1) string
     end
 
@@ -153,16 +154,8 @@ classdef ComparisonView_exported < matlab.apps.AppBase
                 return; % User canceled the save dialog
             end
 
-            % Full file path
-            fullFilePath = fullfile(path, file);
-
-            % Export the GridAxes content to the selected file
-            exportgraphics(app.GridAxes, fullFilePath, 'Resolution', 300);
-
-            notification = openmebius.presentation.notification ...
-                .Notification.success( ...
-                    "Comparison image saved to " + ...
-                    string(fullFilePath) + ".");
+            notification = app.Action.exportFigure( ...
+                app.GridAxes, string(fullfile(path, file)));
             eventData = openmebius.presentation.notification ...
                 .NotificationEventData(notification);
             notify(app, "NotificationRequested", eventData);
@@ -214,6 +207,7 @@ classdef ComparisonView_exported < matlab.apps.AppBase
         function startupFcn(app, context)
 
             app.Presenter = context.Presenter;
+            app.Action = context.Action;
             app.Mode = context.Mode;
             app.applyCatalog(context.InitialCatalog);
 

@@ -1,4 +1,4 @@
-classdef EMUModel < Stoichiometry
+classdef MetabolicModel < handle
 
     events
 
@@ -112,66 +112,44 @@ classdef EMUModel < Stoichiometry
 
     properties (Access = private)
 
-        CacheRepository
+        Workspace
+        StoichiometricNetwork
+        StoichiometricNetworkFactory
         NetworkBuilder
         MatrixBuilder
         NetworkEnumerator
         MDVCalculator
+        EMUValidationErrors (:, 1) string = strings(0, 1)
 
     end % properties (Access = private)
 
     methods
 
-        function obj = EMUModel(modelInput, options)
-            % EMUMODEL: Constructor for the EMUModel class.
-            %
-            % Parameters:
-            % -----------
-            % modelInput
-            %     File directory or openmebius.domain.model.ModelLocation.
+        function obj = MetabolicModel(workspace, stoichiometricNetwork, options)
+            % METABOLICMODEL Compose loaded model data and numerical state.
 
             arguments
-                modelInput
-                options.ModelRepository = ...
-                    openmebius.infrastructure.model.ModelRepository()
-                options.CacheRepository = ...
-                    openmebius.infrastructure.model ...
-                        .EMUNetworkCacheRepository()
+                workspace (1, 1) openmebius.application.model.ModelWorkspace
+                stoichiometricNetwork (1, 1) ...
+                    openmebius.domain.model.StoichiometricNetwork
                 options.NetworkBuilder = openmebius.mfa.EMUNetworkBuilder()
                 options.MatrixBuilder = openmebius.mfa.EMUMatrixBuilder()
                 options.NetworkEnumerator = ...
                     openmebius.mfa.EMUNetworkEnumerator()
                 options.MDVCalculator = openmebius.mfa.EMUMDVCalculator()
+                options.StoichiometricNetworkFactory = ...
+                    openmebius.application.model ...
+                        .StoichiometricNetworkFactory()
             end
 
-            obj = obj@Stoichiometry( ...
-                modelInput, ...
-                ModelRepository = options.ModelRepository);
-            obj.CacheRepository = options.CacheRepository;
+            obj.Workspace = workspace;
+            obj.StoichiometricNetwork = stoichiometricNetwork;
+            obj.StoichiometricNetworkFactory = ...
+                options.StoichiometricNetworkFactory;
             obj.NetworkBuilder = options.NetworkBuilder;
             obj.MatrixBuilder = options.MatrixBuilder;
             obj.NetworkEnumerator = options.NetworkEnumerator;
             obj.MDVCalculator = options.MDVCalculator;
-
-            isSucceeded = obj.loadEMUModelFromFile();
-
-            if ~isSucceeded
-                isConstructed = constructEMUNetwork(obj);
-            else
-                isConstructed = false;
-            end % if
-
-            if isConstructed
-                saveEMUModelToFile(obj);
-            end % if
-
-            throwIfConstructionFailed( ...
-                obj, ...
-                "OpenMebius2:ModelRepository:" + ...
-                "EMUConstructionFailed", ...
-                "Failed to construct the EMU network.");
-
-            warning('off', 'MATLAB:nearlySingularMatrix');
 
         end % constructor
 
@@ -236,6 +214,7 @@ classdef EMUModel < Stoichiometry
             obj.globalMDVInfo = [];
             obj.globalMDVSize = 0;
             obj.globalMDVList = [];
+            obj.EMUValidationErrors = strings(0, 1);
 
         end % method initializeEMUModel
 
@@ -264,6 +243,19 @@ classdef EMUModel < Stoichiometry
             snapshot = createCacheSnapshot(obj);
 
         end % getEMUNetworkSnapshot
+
+        function restoreEMUNetwork(obj, snapshot)
+            % RESTOREEMUNETWORK Restore a repository-owned cache snapshot.
+
+            arguments
+                obj
+                snapshot (1, 1) openmebius.domain.model.EMUNetworkSnapshot
+            end
+
+            applyCacheSnapshot(obj, snapshot);
+            ensureCnMatrixAvailable(obj);
+
+        end % restoreEMUNetwork
 
         function [An, Bn] = visualizeAnBnMatrix(obj, fluxLabel)
             % VISUALIZEANBNMATRIX Visualize the An and Bn matrices for a given flux label.
@@ -400,7 +392,7 @@ classdef EMUModel < Stoichiometry
             maximumCNumber = max(cell2mat(tableTracer.Num));
 
             msg = "Constructing substrate EMUs...";
-            updateMsg(obj, msg, "Info", obj.logLevel);
+            emitMsg(obj, msg, "Info");
 
             for i = 1:size(tableTracer, 1)
 
@@ -488,7 +480,7 @@ classdef EMUModel < Stoichiometry
 
             if isempty(regexp(pattern, regex, 'once'))
                 msg = "Label pattern must be in the format of '#dddddd'.";
-                updateMsg(obj, msg, "Error", obj.logLevel);
+                emitMsg(obj, msg, "Error");
                 EMU = [];
                 return
             end
@@ -743,9 +735,225 @@ classdef EMUModel < Stoichiometry
 
         end % getLabelStructEMU
 
+        %% Workspace facade
+        function value = getModelLocation(obj)
+            value = obj.Workspace.getModelLocation();
+        end
+        function [fileName, fileType] = getModelFileDescriptor(obj)
+            [fileName, fileType] = obj.Workspace.getModelFileDescriptor();
+        end
+        function path = getModelFilePath(obj)
+            path = obj.Workspace.getModelFilePath();
+        end
+        function value = getInfoTable(obj)
+            value = obj.Workspace.getInfoTable();
+        end
+        function value = getModelTable(obj)
+            value = obj.Workspace.getModelTable();
+        end
+        function value = getModelTableGUI(obj)
+            value = obj.Workspace.getModelTableGUI();
+        end
+        function value = getMSTable(obj)
+            value = obj.Workspace.getMSTable();
+        end
+        function value = getMSRxnTable(obj)
+            value = obj.Workspace.getMSRxnTable();
+        end
+        function value = getMSTransTable(obj)
+            value = obj.Workspace.getMSTransTable();
+        end
+        function value = getAtomTable(obj)
+            value = obj.Workspace.getAtomTable();
+        end
+        function value = getBiomassTable(obj)
+            value = obj.Workspace.getBiomassTable();
+        end
+        function value = getMetaboliteTable(obj)
+            value = obj.Workspace.getMetaboliteTable();
+        end
+        function value = getMetaboliteTableMetabolite(obj)
+            value = obj.Workspace.getMetaboliteTableMetabolite();
+        end
+        function value = getMetaboliteTableSubstrate(obj)
+            value = obj.Workspace.getMetaboliteTableSubstrate();
+        end
+        function value = getMSMetaboliteTable(obj)
+            value = obj.Workspace.getMSMetaboliteTable();
+        end
+        function value = getInvalidModelRowIdx(obj)
+            value = obj.Workspace.getInvalidModelRowIdx();
+        end
+        function value = getInvalidMSRowIdx(obj)
+            value = obj.Workspace.getInvalidMSRowIdx();
+        end
+        function value = getInvalidAtomRowIdx(obj)
+            value = obj.Workspace.getInvalidAtomRowIdx();
+        end
+        function value = getTableLabelView(obj)
+            value = obj.Workspace.getTableLabelView();
+        end
+        function value = getLabelStruct(obj)
+            value = obj.Workspace.getLabelStruct();
+        end
+        function value = getLabelStructView(obj)
+            value = obj.Workspace.getLabelStructView();
+        end
+        function value = getTemplateMSTable(obj)
+            value = obj.Workspace.getTemplateMSTable();
+        end
+        function value = getPathwayData(obj)
+            value = obj.Workspace.getPathwayData();
+        end
+        function value = snapshot(obj)
+            value = obj.Workspace.snapshot();
+        end
+        function updatePathwayLabelPosition(obj, reactionID, position)
+            obj.Workspace.updatePathwayLabelPosition(reactionID, position);
+        end
+        function updateLabelConfiguration(obj, labelTable, ratioTables)
+            obj.Workspace.updateLabelConfiguration(labelTable, ratioTables);
+        end
+        function setupTableInfo(obj)
+            obj.Workspace.setupTableInfo();
+        end
+        function loadLabel(obj)
+            obj.Workspace.loadLabel();
+        end
+        function exportLabel(obj)
+            obj.Workspace.exportLabel();
+        end
+        function value = isSymmetricMetabolite(obj, metaboliteName)
+            value = obj.Workspace.isSymmetricMetabolite(metaboliteName);
+        end
+        function value = getSubstrateTable(obj)
+            value = obj.Workspace.getSubstrateTable();
+        end
+        function value = getSplittedFlux(obj, netFlux)
+            value = obj.Workspace.getSplittedFlux(netFlux);
+        end
+        function updateStructLabel(obj, value)
+            obj.Workspace.updateStructLabel(value);
+        end
+
+        function report = updateModelTableGUI(obj, value)
+            report = obj.Workspace.updateModelTableGUI(value);
+            if report.IsValid
+                rebuildDerivedModels(obj);
+            end
+        end
+        function report = updateMSTable(obj, value)
+            report = obj.Workspace.updateMSTable(value);
+            if report.IsValid
+                rebuildDerivedModels(obj);
+            end
+        end
+        function report = updateAtomTable(obj, value)
+            report = obj.Workspace.updateAtomTable(value);
+            if report.IsValid
+                rebuildDerivedModels(obj);
+            end
+        end
+        function reconstructModel(obj)
+            obj.Workspace.reconstructModel();
+            rebuildDerivedModels(obj);
+        end
+
+        %% Stoichiometric network facade
+        function value = getModelTableRev(obj)
+            value = obj.StoichiometricNetwork.getModelTableRev();
+        end
+        function value = getModelRxnRev(obj, index)
+            if nargin == 2
+                value = obj.StoichiometricNetwork.getModelRxnRev(index);
+            else
+                value = obj.StoichiometricNetwork.getModelRxnRev();
+            end
+        end
+        function value = getModelRxnRevIdx(obj, reactionID)
+            value = obj.StoichiometricNetwork.getModelRxnRevIdx(reactionID);
+        end
+        function value = getModelTransRev(obj, index)
+            if nargin == 2
+                value = obj.StoichiometricNetwork.getModelTransRev(index);
+            else
+                value = obj.StoichiometricNetwork.getModelTransRev();
+            end
+        end
+        function value = getS(obj)
+            value = obj.StoichiometricNetwork.getS();
+        end
+        function value = getSBefore(obj)
+            value = obj.StoichiometricNetwork.getSBefore();
+        end
+        function value = getSType(obj)
+            value = obj.StoichiometricNetwork.getSType();
+        end
+        function value = getConstraintTypes(obj)
+            value = obj.StoichiometricNetwork.getConstraintTypes();
+        end
+        function value = getIdxRev(obj)
+            value = obj.StoichiometricNetwork.getIdxRev();
+        end
+        function value = getDOF(obj)
+            value = obj.StoichiometricNetwork.getDOF();
+        end
+        function value = getReactionIndependent(obj, reactionID)
+            value = obj.StoichiometricNetwork ...
+                .getReactionIndependent(reactionID);
+        end
+        function setReactionIndependent(obj, reactionID, independent)
+            obj.Workspace.setReactionIndependent(reactionID, independent);
+            obj.StoichiometricNetwork = ...
+                obj.StoichiometricNetworkFactory.create(obj.Workspace);
+        end
+        function value = getSubstrateNameFromRxnID(obj, reactionID)
+            value = obj.StoichiometricNetwork ...
+                .getSubstrateNameFromRxnID(reactionID);
+        end
+        function value = ...
+                findSubstrateRxnIDFromMetaboliteIrrev(obj, metabolite)
+            value = obj.StoichiometricNetwork ...
+                .findSubstrateRxnIDFromMetaboliteIrrev(metabolite);
+        end
+        function value = findCounterReaction(obj, reactionID)
+            value = obj.StoichiometricNetwork.findCounterReaction(reactionID);
+        end
+        function value = findReaction(obj, compound, productOnly)
+            if nargin < 3
+                productOnly = false;
+            end
+            value = obj.StoichiometricNetwork ...
+                .findReaction(compound, productOnly);
+        end
+        function value = isSubstrateMetabolite(obj, compound)
+            value = obj.StoichiometricNetwork ...
+                .isSubstrateMetabolite(compound);
+        end
+        function makeEffluxFree(obj, substrateNames)
+            substrateNames = reshape(string(substrateNames), 1, []);
+            for substrateName = substrateNames
+                reactionID = obj.findSubstrateRxnIDFromMetaboliteIrrev( ...
+                    substrateName);
+                if ~isempty(reactionID)
+                    obj.Workspace.setReactionIndependent(reactionID, true);
+                end
+            end
+            obj.StoichiometricNetwork = ...
+                obj.StoichiometricNetworkFactory.create(obj.Workspace);
+        end
+
     end % methods (Access = public)
 
     methods (Access = private)
+
+        function rebuildDerivedModels(obj)
+
+            obj.StoichiometricNetwork = ...
+                obj.StoichiometricNetworkFactory.create(obj.Workspace);
+            obj.constructEMUNetwork();
+
+        end % rebuildDerivedModels
 
         function operations = createBuildOperations(obj)
 
@@ -771,11 +979,14 @@ classdef EMUModel < Stoichiometry
 
         function assertEMUConstructionSucceeded(obj)
 
-            throwIfConstructionFailed( ...
-                obj, ...
-                "OpenMebius2:ModelRepository:" + ...
-                "EMUConstructionFailed", ...
-                "Failed to construct the EMU network.");
+            if isempty(obj.EMUValidationErrors)
+                return
+            end
+
+            error( ...
+                "OpenMebius2:MetabolicModel:EMUConstructionFailed", ...
+                "%s", ...
+                strjoin(obj.EMUValidationErrors, newline));
 
         end % assertEMUConstructionSucceeded
 
@@ -793,8 +1004,7 @@ classdef EMUModel < Stoichiometry
             emitMsg( ...
                 obj, ...
                 "Listing up all EMUs from the model.", ...
-                "Info", ...
-                obj.logLevel);
+                "Info");
             source = openmebius.mfa.EMUNetworkSource( ...
                 MSReactions = obj.getMSRxnTable(), ...
                 MSTransitions = obj.getMSTransTable(), ...
@@ -804,13 +1014,13 @@ classdef EMUModel < Stoichiometry
             result = obj.NetworkEnumerator.enumerate(source);
 
             for message = result.ErrorMessages'
-                emitMsg(obj, message, "Error", obj.logLevel);
+                emitMsg(obj, message, "Error");
             end
 
             if ~result.IsValid
-                recordValidationError( ...
-                    obj, ...
-                    "The EMU network contains invalid MS reactions.");
+                obj.EMUValidationErrors = [ ...
+                    obj.EMUValidationErrors; ...
+                    "The EMU network contains invalid MS reactions."];
                 return;
             end
 
@@ -911,8 +1121,7 @@ classdef EMUModel < Stoichiometry
             emitMsg( ...
                 obj, ...
                 "List up A and B EMUs for each EMU size.", ...
-                "Info", ...
-                obj.logLevel);
+                "Info");
             modelReactions = obj.getModelRxnRev();
             result = obj.MatrixBuilder.buildAnBn( ...
                 obj.tableEMUSizeInfo, ...
@@ -1001,52 +1210,6 @@ classdef EMUModel < Stoichiometry
 
         end % method buildMDVVector
 
-        %% Private utility methods
-        function tf = saveEMUModelToFile(obj)
-            % SAVEMODEL Save the model cache and source-file hash.
-            %
-            % File locations and source-hash validation are owned by the
-            % cache repository.
-
-            tf = false;
-
-            try
-                snapshot = createCacheSnapshot(obj);
-                obj.CacheRepository.save( ...
-                    obj.getModelLocation(), ...
-                    obj.fileModel, ...
-                    obj.fileTypeModel, ...
-                    snapshot);
-                tf = true;
-            catch ME
-                msg = "Failed to save the EMU cache: " + ME.message;
-                emitMsg(obj, msg, "Error", obj.logLevel);
-            end % try-catch
-
-        end % saveEMUModelToFile
-
-        function tf = loadEMUModelFromFile(obj)
-            % LOADEMUMODELFROMFILE Restore a current EMU network snapshot.
-
-            try
-                [snapshot, tf] = obj.CacheRepository.load( ...
-                    obj.getModelLocation(), ...
-                    obj.fileModel, ...
-                    obj.fileTypeModel);
-
-                if tf
-                    applyCacheSnapshot(obj, snapshot);
-                    ensureCnMatrixAvailable(obj);
-                end
-
-            catch ME
-                tf = false;
-                msg = "Failed to load the EMU cache: " + ME.message;
-                emitMsg(obj, msg, "Error", obj.logLevel);
-            end % try-catch
-
-        end % loadEMUModelFromFile
-
         function snapshot = createCacheSnapshot(obj)
 
             payload = struct( ...
@@ -1117,7 +1280,7 @@ classdef EMUModel < Stoichiometry
 
             if ~isCnMatrixConsistent(obj)
                 error( ...
-                    'EMUModel:InvalidCnMatrix', ...
+                    'OpenMebius2:MetabolicModel:InvalidCnMatrix', ...
                     'Failed to build a valid Cn matrix for INST-MFA.' ...
                 );
             end % if
@@ -1172,10 +1335,10 @@ classdef EMUModel < Stoichiometry
                 level = "Info";
             end
 
-            evt = MsgEventData(msg, level, "EMUModel");
+            evt = MsgEventData(msg, level, "MetabolicModel");
             notify(obj, 'generalMsg', evt);
         end % method updateMsg
 
     end % methods (Access = protected)
 
-end % classdef EMUModel
+end % classdef MetabolicModel

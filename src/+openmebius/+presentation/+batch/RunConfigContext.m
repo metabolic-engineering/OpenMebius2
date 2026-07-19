@@ -10,6 +10,7 @@ classdef RunConfigContext
         ExperimentPresenter
         ExperimentSelectionController
         ExperimentSelectionPresenter
+        ChildAppHost openmebius.presentation.lifecycle.ChildAppHost
     end
 
     methods
@@ -38,6 +39,9 @@ classdef RunConfigContext
                 options.ExperimentSelectionPresenter (1, 1) ...
                     openmebius.presentation.batch ...
                     .BatchExperimentSelectionEditorPresenter
+                options.ChildAppHost (1, 1) ...
+                    openmebius.presentation.lifecycle.ChildAppHost = ...
+                    openmebius.presentation.lifecycle.ChildAppHost()
             end
 
             obj.Session = options.Session;
@@ -52,6 +56,7 @@ classdef RunConfigContext
                 options.ExperimentSelectionController;
             obj.ExperimentSelectionPresenter = ...
                 options.ExperimentSelectionPresenter;
+            obj.ChildAppHost = options.ChildAppHost;
 
         end % constructor
 

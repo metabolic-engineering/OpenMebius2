@@ -7,6 +7,7 @@ classdef ModelRepository < handle
         NetworkBuilder
         MatrixBuilder
         NetworkEnumerator
+        StoichiometricNetworkFactory
     end
 
     methods
@@ -21,12 +22,17 @@ classdef ModelRepository < handle
                 options.MatrixBuilder = openmebius.mfa.EMUMatrixBuilder()
                 options.NetworkEnumerator = ...
                     openmebius.mfa.EMUNetworkEnumerator()
+                options.StoichiometricNetworkFactory = ...
+                    openmebius.application.model ...
+                        .StoichiometricNetworkFactory()
             end
 
             obj.CacheRepository = options.CacheRepository;
             obj.NetworkBuilder = options.NetworkBuilder;
             obj.MatrixBuilder = options.MatrixBuilder;
             obj.NetworkEnumerator = options.NetworkEnumerator;
+            obj.StoichiometricNetworkFactory = ...
+                options.StoichiometricNetworkFactory;
 
         end % constructor
 
@@ -37,18 +43,45 @@ classdef ModelRepository < handle
                 modelLocation openmebius.domain.model.ModelLocation
             end
 
-            model = EMUModel( ...
-                modelLocation, ...
-                ModelRepository = obj, ...
-                CacheRepository = obj.CacheRepository, ...
+            workspace = openmebius.application.model.ModelWorkspace( ...
+                modelLocation, ModelRepository = obj);
+            stoichiometricNetwork = ...
+                obj.StoichiometricNetworkFactory.create(workspace);
+            model = openmebius.application.model.MetabolicModel( ...
+                workspace, ...
+                stoichiometricNetwork, ...
                 NetworkBuilder = obj.NetworkBuilder, ...
                 MatrixBuilder = obj.MatrixBuilder, ...
-                NetworkEnumerator = obj.NetworkEnumerator);
+                NetworkEnumerator = obj.NetworkEnumerator, ...
+                StoichiometricNetworkFactory = ...
+                    obj.StoichiometricNetworkFactory);
+
+            [fileName, fileType] = workspace.getModelFileDescriptor();
+            isLoaded = false;
+            try
+                [snapshot, isLoaded] = obj.CacheRepository.load( ...
+                    modelLocation, fileName, fileType);
+            catch
+                snapshot = [];
+            end
+
+            if isLoaded
+                model.restoreEMUNetwork(snapshot);
+            else
+                model.constructEMUNetwork();
+                try
+                    obj.CacheRepository.save( ...
+                        modelLocation, fileName, fileType, ...
+                        model.getEMUNetworkSnapshot());
+                catch
+                    % A cache failure must not invalidate the loaded model.
+                end
+            end
 
             if isempty(model) || ~isvalid(model)
                 error( ...
                     "OpenMebius2:ModelRepository:InvalidModelObject", ...
-                    "Failed to create EMUModel.");
+                    "Failed to create the metabolic model.");
             end
 
         end % load

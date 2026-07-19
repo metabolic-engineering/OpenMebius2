@@ -74,7 +74,12 @@ classdef ExperimentCollection < handle
 
             obj.Model = model;
             obj.ModelPath = string(modelPath);
-            obj.AtomTable = model.tableAtom;
+
+            if isstruct(model) && isfield(model, "tableAtom")
+                obj.AtomTable = model.("tableAtom");
+            else
+                obj.AtomTable = model.getAtomTable();
+            end
 
         end % replaceModel
 

@@ -459,6 +459,31 @@ classdef ModelWorkspace < handle
 
         end % function getModelTable
 
+        function tableOut = getParsedReactionTable(obj)
+
+            tableOut = obj.modelRxn;
+
+        end % function getParsedReactionTable
+
+        function tableOut = getParsedTransitionTable(obj)
+
+            tableOut = obj.modelTrans;
+
+        end % function getParsedTransitionTable
+
+        function [fileName, fileType] = getModelFileDescriptor(obj)
+
+            fileName = obj.fileModel;
+            fileType = obj.fileTypeModel;
+
+        end % function getModelFileDescriptor
+
+        function path = getModelFilePath(obj)
+
+            path = obj.pathModel;
+
+        end % function getModelFilePath
+
         function tableOut = getModelTableGUI(obj)
 
             tableOut = obj.tableModelGUI;
@@ -653,6 +678,26 @@ classdef ModelWorkspace < handle
                 obj.errorColumnsModel);
 
         end % function updateModelTable
+
+        function setReactionIndependent(obj, reactionID, independent)
+
+            arguments
+                obj
+                reactionID (1, 1) string
+                independent (1, 1) logical
+            end
+
+            rowNames = string(obj.modelRxn.Properties.RowNames);
+            index = find(rowNames == reactionID, 1);
+
+            if isempty(index)
+                error("Reaction ID was not found: %s.", reactionID);
+            end
+
+            obj.modelRxn.Independent(index) = independent;
+            obj.tableModel.Independent(index) = independent;
+
+        end % function setReactionIndependent
 
         function report = updateMSTable(obj, tableIn)
 

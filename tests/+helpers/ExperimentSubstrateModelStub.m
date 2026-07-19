@@ -24,6 +24,12 @@ classdef ExperimentSubstrateModelStub
 
         end
 
+        function data = getAtomTable(obj)
+
+            data = obj.tableAtom;
+
+        end
+
     end
 
 end % classdef

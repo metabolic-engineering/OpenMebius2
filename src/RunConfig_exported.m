@@ -129,9 +129,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
         BatchExperimentSelectionEditorController openmebius.application.batch.BatchExperimentSelectionEditorController
         BatchExperimentSelectionEditorPresenter openmebius.presentation.batch.BatchExperimentSelectionEditorPresenter
         RunAddBatchApp
-        RunAddBatchListeners event.listener = event.listener.empty(0, 1)
         TracerConfigApp
-        TracerConfigListeners event.listener = event.listener.empty(0, 1)
+        ChildAppHost openmebius.presentation.lifecycle.ChildAppHost
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         MSFragmentTableMetadata
@@ -158,6 +157,83 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
     %% Private methods
     methods (Access = private)
+
+        function initializeView(app, context)
+
+            app.Session = context.Session;
+            app.Presenter = context.Presenter;
+            app.Controller = context.ConfigurationController;
+            app.ExperimentEditController = ...
+                context.ExperimentEditController;
+            app.ExperimentPresenter = context.ExperimentPresenter;
+            app.BatchExperimentSelectionEditorController = ...
+                context.ExperimentSelectionController;
+            app.BatchExperimentSelectionEditorPresenter = ...
+                context.ExperimentSelectionPresenter;
+            app.ChildAppHost = context.ChildAppHost;
+            editor = context.Editor;
+            app.renderRunConfigViewModel(editor.Config);
+            app.MSFragmentTableMetadata = editor.MSFragmentTable.Metadata;
+            app.renderTableViewModel(app.MSTable, editor.MSFragmentTable);
+            app.renderTableViewModel( ...
+                app.EffluxUITable, editor.EffluxTable);
+            app.renderTableViewModel( ...
+                app.LabelTable, editor.SuggestionTable);
+            app.renderTableViewModel( ...
+                app.INSTMFAPoolUITable, ...
+                editor.INSTMFATables.PoolTable);
+            app.renderTableViewModel( ...
+                app.INSTMFATimeCourseUITable, ...
+                editor.INSTMFATables.TimePointTable);
+            app.renderControlState(editor.ControlState);
+            app.wireActionButtons();
+
+        end % initializeView
+
+        function copySelectedTracerColumn(app)
+
+            selection = app.LabelTable.Selection;
+
+            if isempty(selection)
+                return
+            end
+
+            column = selection(1, 2);
+            selectedLabel = app.LabelTable.Data{selection(1, 1), column};
+            tableData = app.LabelTable.Data;
+
+            for row = 1:size(tableData, 1)
+                tableData{row, column} = selectedLabel;
+            end
+
+            app.LabelTable.Data = tableData;
+
+        end % copySelectedTracerColumn
+
+        function addPatternRows(app)
+
+            answer = inputdlg( ...
+                'Enter the number of new patterns to add:', ...
+                'Add New Patterns', [1, 50], {'1'});
+
+            if isempty(answer)
+                return
+            end
+
+            numberOfRows = str2double(answer{1});
+
+            if ~isfinite(numberOfRows) || numberOfRows <= 0 || ...
+                    numberOfRows ~= fix(numberOfRows)
+                return
+            end
+
+            tableData = app.LabelTable.Data;
+            newRows = strings(numberOfRows, width(tableData));
+            tableData = [tableData; array2table( ...
+                newRows, VariableNames = app.LabelTable.ColumnName.')];
+            app.LabelTable.Data = tableData;
+
+        end % addPatternRows
 
         function renderRunConfigViewModel(app, viewModel)
             % RENDERRUNCONFIGVIEWMODEL Render typed configuration values.
@@ -389,115 +465,58 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function attachRunAddBatchListeners(app, runAddBatchApp)
 
-            app.detachRunAddBatchListeners();
-            listeners = event.listener.empty(0, 1);
-            listeners(end + 1, 1) = addlistener( ...
+            app.ChildAppHost.attach( ...
+                "RunAddBatch", ...
                 runAddBatchApp, ...
-                "Applied", ...
-                @(source, event) ...
-                    app.forwardBatchExperimentSelection(source, event));
-            listeners(end + 1, 1) = addlistener( ...
-                runAddBatchApp, ...
+                {"Applied", ...
+                @(source, event) app.forwardBatchExperimentSelection(source, event); ...
                 "Closed", ...
-                @(source, event) ...
-                    app.onRunAddBatchClosed(source, event));
-            app.RunAddBatchListeners = listeners;
+                @(source, event) app.onRunAddBatchClosed(source, event)});
 
         end % attachRunAddBatchListeners
 
         function onRunAddBatchClosed(app, ~, ~)
 
+            app.detachRunAddBatchListeners();
             app.RunAddBatchApp = [];
 
         end % onRunAddBatchClosed
 
         function closeRunAddBatchApp(app)
 
-            app.detachRunAddBatchListeners();
-            childApp = app.RunAddBatchApp;
+            app.ChildAppHost.close("RunAddBatch");
             app.RunAddBatchApp = [];
-
-            if isempty(childApp)
-                return
-            end
-
-            try
-                if isvalid(childApp)
-                    delete(childApp);
-                end
-            catch
-            end
 
         end % closeRunAddBatchApp
 
         function detachRunAddBatchListeners(app)
 
-            if isempty(app.RunAddBatchListeners)
-                return
-            end
-
-            for listenerIndex = 1:numel(app.RunAddBatchListeners)
-                try
-                    if isvalid(app.RunAddBatchListeners(listenerIndex))
-                        delete(app.RunAddBatchListeners(listenerIndex));
-                    end
-                catch
-                end
-            end
-
-            app.RunAddBatchListeners = event.listener.empty(0, 1);
+            app.ChildAppHost.detach("RunAddBatch");
 
         end % detachRunAddBatchListeners
 
         function attachTracerConfigListeners(app, tracerConfigApp)
 
-            app.detachTracerConfigListeners();
-            listeners = event.listener.empty(0, 1);
-            listeners(end + 1, 1) = addlistener( ...
+            app.ChildAppHost.attach( ...
+                "TracerConfig", ...
                 tracerConfigApp, ...
-                "Applied", ...
-                @(source, event) ...
-                    app.onTracerConfigurationApplied(source, event));
-            listeners(end + 1, 1) = addlistener( ...
-                tracerConfigApp, ...
+                {"Applied", ...
+                @(source, event) app.onTracerConfigurationApplied(source, event); ...
                 "Closed", ...
-                @(source, event) ...
-                    app.onTracerConfigurationClosed(source, event));
-            app.TracerConfigListeners = listeners;
+                @(source, event) app.onTracerConfigurationClosed(source, event)});
 
         end % attachTracerConfigListeners
 
         function detachTracerConfigListeners(app)
 
-            for listenerIndex = 1:numel(app.TracerConfigListeners)
-                try
-                    if isvalid(app.TracerConfigListeners(listenerIndex))
-                        delete(app.TracerConfigListeners(listenerIndex));
-                    end
-                catch
-                end
-            end
-
-            app.TracerConfigListeners = event.listener.empty(0, 1);
+            app.ChildAppHost.detach("TracerConfig");
 
         end % detachTracerConfigListeners
 
         function closeTracerConfigApp(app)
 
-            app.detachTracerConfigListeners();
-            childApp = app.TracerConfigApp;
+            app.ChildAppHost.close("TracerConfig");
             app.TracerConfigApp = [];
-
-            if isempty(childApp)
-                return
-            end
-
-            try
-                if isvalid(childApp)
-                    delete(childApp);
-                end
-            catch
-            end
 
         end % closeTracerConfigApp
 
@@ -543,6 +562,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function onTracerConfigurationClosed(app, ~, ~)
 
+            app.detachTracerConfigListeners();
             app.TracerConfigApp = [];
 
         end % onTracerConfigurationClosed
@@ -723,34 +743,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app, context)
 
-            app.Session = context.Session;
-            app.Presenter = context.Presenter;
-            app.Controller = context.ConfigurationController;
-            app.ExperimentEditController = ...
-                context.ExperimentEditController;
-            app.ExperimentPresenter = context.ExperimentPresenter;
-            app.BatchExperimentSelectionEditorController = ...
-                context.ExperimentSelectionController;
-            app.BatchExperimentSelectionEditorPresenter = ...
-                context.ExperimentSelectionPresenter;
-            editor = context.Editor;
-            app.renderRunConfigViewModel(editor.Config)
-            app.MSFragmentTableMetadata = ...
-                editor.MSFragmentTable.Metadata;
-            app.renderTableViewModel( ...
-                app.MSTable, editor.MSFragmentTable);
-            app.renderTableViewModel( ...
-                app.EffluxUITable, editor.EffluxTable);
-            app.renderTableViewModel( ...
-                app.LabelTable, editor.SuggestionTable);
-            app.renderTableViewModel( ...
-                app.INSTMFAPoolUITable, ...
-                editor.INSTMFATables.PoolTable);
-            app.renderTableViewModel( ...
-                app.INSTMFATimeCourseUITable, ...
-                editor.INSTMFATables.TimePointTable);
-            app.renderControlState(editor.ControlState);
-            app.wireActionButtons()
+            app.initializeView(context);
 
         end
 
@@ -899,35 +892,25 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Value changed function: SuggestionCheckBox
         function SuggestionCheckBoxValueChanged(app, event)
 
-            isSuggestLabel = app.SuggestionCheckBox.Value;
-
-            if isSuggestLabel
-
-                app.CalcCICheckBox.Value = true;
-                enabledisableCIUI(app, app.CalcCICheckBox.Value)
-                enabledisableSuggestion(app)
-
-            else
-
-                return;
-
+            if ~app.SuggestionCheckBox.Value
+                return
             end
+
+            app.CalcCICheckBox.Value = true;
+            app.enabledisableCIUI(app.CalcCICheckBox.Value);
+            app.enabledisableSuggestion();
 
         end
 
         % Double-clicked callback: LabelTable
         function LabelTableDoubleClicked(app, event)
-
             displayRow = event.InteractionInformation.DisplayRow;
             displayColumn = event.InteractionInformation.DisplayColumn;
-
             if isempty(displayRow) || isempty(displayColumn)
                 return
             end
-
             app.openTracerConfiguration( ...
                 [displayRow, displayColumn]);
-
         end
 
         % Menu selected function: AddnewpatternMenu
@@ -946,43 +929,14 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Menu selected function: AddnewpatternsMenu
         function AddnewpatternsMenuSelected(app, event)
 
-            n = inputdlg('Enter the number of new patterns to add:', 'Add New Patterns', [1 50], {'1'});
-            nNum = str2double(n{1});
-
-            if isnan(nNum) || nNum <= 0 || mod(nNum, 1) ~= 0
-                return;
-            end
-
-            tableNow = app.LabelTable.Data;
-            numCol = size(tableNow, 2);
-            newRows = strings(nNum, numCol);
-            tableNew = array2table(newRows, 'VariableNames', app.LabelTable.ColumnName');
-
-            tableNow = [tableNow; tableNew];
-            app.LabelTable.Data = tableNow;
+            app.addPatternRows();
 
         end
 
         % Menu selected function: CopythistracerforallentriesMenu
         function CopythistracerforallentriesMenuSelected(app, event)
 
-            idxSelection = app.LabelTable.Selection;
-
-            if isempty(idxSelection)
-                return;
-            end
-
-            selectedLabel = app.LabelTable.Data{idxSelection(1, 1), idxSelection(1, 2)};
-
-            % Replace all entries in the selected column with the selected label
-            tableNow = app.LabelTable.Data;
-            numRows = size(tableNow, 1);
-
-            for i = 1:numRows
-                tableNow{i, idxSelection(1, 2)} = selectedLabel;
-            end
-
-            app.LabelTable.Data = tableNow;
+            app.copySelectedTracerColumn();
 
         end
 
@@ -1791,8 +1745,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Code that executes before app deletion
         function delete(app)
 
-            app.closeRunAddBatchApp();
-            app.closeTracerConfigApp();
+            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
+                app.ChildAppHost.closeAll();
+            end
 
             % Delete UIFigure when app is deleted
             delete(app.BatchconfigUIFigure)

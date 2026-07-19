@@ -1,0 +1,53 @@
+classdef ChildAppLifecycleBoundaryTest < matlab.unittest.TestCase
+
+    methods (Test)
+
+        function parentAppsDelegateLifecycleToHost(testCase)
+
+            root = fileparts(fileparts(mfilename("fullpath")));
+            parentFiles = ["OpenMebius2_exported.m", ...
+                "RunConfig_exported.m"];
+
+            for parentFile = parentFiles
+                source = string(fileread(fullfile( ...
+                    root, "src", parentFile)));
+                testCase.verifyTrue(contains( ...
+                    source, "ChildAppHost"), parentFile);
+                testCase.verifyTrue(contains( ...
+                    source, ".ChildAppHost.attach("), parentFile);
+                testCase.verifyTrue(contains( ...
+                    source, ".ChildAppHost.detach("), parentFile);
+                testCase.verifyTrue(contains( ...
+                    source, ".ChildAppHost.close("), parentFile);
+                testCase.verifyTrue(contains( ...
+                    source, ".ChildAppHost.closeAll()"), parentFile);
+                testCase.verifyFalse(contains( ...
+                    source, "addlistener("), parentFile);
+                testCase.verifyFalse(contains( ...
+                    source, "event.listener"), parentFile);
+                testCase.verifyFalse(contains( ...
+                    source, "deleteListeners("), parentFile);
+            end
+
+        end
+
+        function compositionRootOwnsMainHost(testCase)
+
+            root = fileparts(fileparts(mfilename("fullpath")));
+            dependencies = string(fileread(fullfile( ...
+                root, "src", "+openmebius", "+bootstrap", ...
+                "MainAppDependencies.m")));
+            compositionRoot = string(fileread(fullfile( ...
+                root, "src", "+openmebius", "+bootstrap", ...
+                "MainAppCompositionRoot.m")));
+
+            testCase.verifyTrue(contains( ...
+                dependencies, "ChildAppHost openmebius.presentation"));
+            testCase.verifyTrue(contains( ...
+                compositionRoot, "ChildAppHost = openmebius.presentation"));
+
+        end
+
+    end
+
+end
