@@ -1,6 +1,6 @@
 classdef BatchConfig
     % BATCHCONFIG
-    % Defines and normalizes the legacy batch configuration struct.
+    % Defines and normalizes the canonical batch configuration struct.
 
     methods (Static)
 

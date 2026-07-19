@@ -1,4 +1,4 @@
-classdef FluxAnalysisFactoryStub < handle
+classdef MFAAnalysisRunFactoryStub < handle
 
     properties
         Analysis
@@ -7,7 +7,7 @@ classdef FluxAnalysisFactoryStub < handle
 
     methods
 
-        function obj = FluxAnalysisFactoryStub(analysis)
+        function obj = MFAAnalysisRunFactoryStub(analysis)
 
             obj.Analysis = analysis;
 
@@ -17,6 +17,7 @@ classdef FluxAnalysisFactoryStub < handle
 
             obj.CreateArguments = varargin;
             analysis = obj.Analysis;
+            analysis.configureReporters(varargin{:});
 
         end
 

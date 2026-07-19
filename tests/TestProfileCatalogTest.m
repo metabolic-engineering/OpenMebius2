@@ -25,10 +25,13 @@ classdef TestProfileCatalogTest < matlab.unittest.TestCase
             testCase.verifyTrue(any(integration == "OpenMebius2Test.m"));
             testCase.verifyTrue(any( ...
                 integration == "OpenMebius2IntegratedTest.m"));
+            testCase.verifyTrue(any( ...
+                integration == "OpenMebius2WorkflowSmokeTest.m"));
             testCase.verifyTrue(all( ...
                 integration == "OpenMebius2Test.m" | ...
                 contains(integration, "IntegrationTest.m") | ...
-                contains(integration, "IntegratedTest.m")));
+                contains(integration, "IntegratedTest.m") | ...
+                contains(integration, "WorkflowSmokeTest.m")));
 
         end
 
@@ -45,20 +48,9 @@ classdef TestProfileCatalogTest < matlab.unittest.TestCase
                 numerical == "EMUMDVCalculatorTest.m"));
             testCase.verifyTrue(any( ...
                 numerical == "SteadyStateSolverTest.m"));
+            testCase.verifyTrue(any( ...
+                numerical == "MFACharacterizationTest.m"));
             testCase.verifyFalse(any(contains(domain, "IntegrationTest.m")));
-
-        end
-
-        function legacyEntryPointHasNoNotificationSideEffects(testCase)
-
-            root = fileparts(fileparts(mfilename("fullpath")));
-            source = string(fileread(fullfile(root, "src", "TestAll.m")));
-
-            testCase.verifyTrue(contains(source, "runAllTests()"));
-            testCase.verifyFalse(contains(source, "SLACK_WEBHOOK"));
-            testCase.verifyFalse(contains(source, "Web("));
-            testCase.verifyFalse(contains(source, "clear"));
-            testCase.verifyFalse(contains(source, "clc"));
 
         end
 

@@ -131,7 +131,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
     properties (Access = public)
 
-        calcStatus (4, 1) string {mustBeMember(calcStatus, ["init", "running", "finished", "error"])} = "init";
         typeSimulation (1, 1) string {mustBeMember(typeSimulation, ["MDV", "Flux", "Label"])} = "Flux";
         report;
 
@@ -202,6 +201,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         ResultPresenter openmebius.presentation.result.ResultPresenter
         ResultPlotPresenter openmebius.presentation.result.ResultPlotPresenter
+        StatusState openmebius.presentation.status.SectionStatusState = ...
+            openmebius.presentation.status.SectionStatusState()
         ProgressBarFactory openmebius.presentation.main.ProgressBarFactory
         ChildAppHost openmebius.presentation.lifecycle.ChildAppHost
         DialogService openmebius.presentation.dialog.AppDialogService
@@ -295,11 +296,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 status string {mustBeMember(status, ["init", "running", "finished", "error"])}
             end
 
-            [app.calcStatus, rows] = ...
-                openmebius.presentation.status.StatusPresenter.update( ...
-                app.calcStatus, ...
-                section, ...
-                status);
+            rows = app.StatusState.update(section, status);
 
             initStatusTable(app, update = true, rows = rows);
 
@@ -435,6 +432,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 Interpreter = options.Interpreter);
 
         end % function uiAlertWrap
+
+        function dependencies = createMainAppDependencies(~)
+
+            dependencies = openmebius.bootstrap ...
+                .MainAppCompositionRoot.create();
+
+        end % createMainAppDependencies
+
+        function performStartupUpdateCheck(app)
+
+            app.checkLatestVersionOnStartup();
+
+        end % performStartupUpdateCheck
 
     end % methods (Access = protected)
 
@@ -1897,7 +1907,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 context.Organism ~= "";
 
             % ---------------------------------------------------------------------
-            % Legacy domain objects
+            % Loaded application objects
             % ---------------------------------------------------------------------
             model = app.ApplicationController.model();
             experiments = app.ApplicationController.experiments();
@@ -1922,13 +1932,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             context.HasBatches = ...
                 context.HasBatchObject && ~context.HasBatchError;
 
-            % In the current GUI, the Result tab can be useful as soon as IOResult
-            % exists, even if no result rows are displayed yet.
+            % The Result tab remains useful before result rows are displayed.
             context.HasResults = ...
                 context.HasResultObject && ~context.HasResultError;
 
             % A project is considered fully loaded only when the project directories
-            % and the four major legacy objects are available.
+            % and the four major application objects are available.
             context.HasProject = ...
                 context.ProjectDirectoryExists && ...
                 context.DirectoryModelExists && ...
@@ -1947,25 +1956,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 context.HasModel;
 
             context.CanCreateProjectFromTemplate = context.IsTemplateMode;
-
-            % ---------------------------------------------------------------------
-            % Status table state
-            % ---------------------------------------------------------------------
-            calcStatus = strings(4, 1);
-            calcStatus(:) = "init";
-
-            try
-                n = min(4, numel(app.calcStatus));
-                calcStatus(1:n) = string(app.calcStatus(1:n));
-            catch
-                % Keep default "init" values.
-            end
-
-            context.Status = struct();
-            context.Status.Model = calcStatus(1);
-            context.Status.Experiment = calcStatus(2);
-            context.Status.Batch = calcStatus(3);
-            context.Status.Result = calcStatus(4);
 
             % ---------------------------------------------------------------------
             % Table contents
@@ -2089,45 +2079,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if context.TypeSimulation == ""
                 context.TypeSimulation = "Flux";
             end
-
-            % ---------------------------------------------------------------------
-            % Current enabled state, useful during migration only.
-            % Do not let MainUiPolicy depend on all of these permanently.
-            % ---------------------------------------------------------------------
-            context.LegacyUi = struct();
-
-            context.LegacyUi.ProjectLoadEnabled = ...
-                app.isEnabled(app.ProjectLoadButton);
-
-            context.LegacyUi.TemplateModelLoadEnabled = ...
-                app.isEnabled(app.TemplateModelLoadButton);
-
-            context.LegacyUi.ProjectCreateEnabled = ...
-                app.isEnabled(app.ProjectCreateButton);
-
-            context.LegacyUi.TemplateModelSaveEnabled = ...
-                app.isEnabled(app.TemplateModelSaveButton);
-
-            context.LegacyUi.ModelEditEnabled = ...
-                app.isEnabled(app.ModelEditButton);
-
-            context.LegacyUi.ModelSaveEnabled = ...
-                app.isEnabled(app.ModelSaveButton);
-
-            context.LegacyUi.MSEditEnabled = ...
-                app.isEnabled(app.MSEditButton);
-
-            context.LegacyUi.MSSaveEnabled = ...
-                app.isEnabled(app.MSSaveButton);
-
-            context.LegacyUi.RunButtonEnabled = ...
-                app.isEnabled(app.RunRunButton);
-
-            context.LegacyUi.RunButtonText = ...
-                app.safeStringScalar(app.RunRunButton.Text);
-
-            context.LegacyUi.ResultReloadEnabled = ...
-                app.isEnabled(app.ResultReloadButton);
 
         end % method capturePresentationContext
 
@@ -3551,11 +3502,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             ui.HTMLSource = htmlContent;
 
             if ~options.update
-
-                % Set the initial status
-                app.calcStatus = ...
-                    openmebius.presentation.status.StatusPresenter.initial();
-
+                app.StatusState.reset();
             end
 
         end % function initStatusTable
@@ -4016,126 +3963,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         %% Private update function
-        function [icon, text] = updateStatusModel(~, status)
-            % UPDATESTATUSMODEL Update the model status in the status table
-
-            arguments
-                ~
-                status string {mustBeMember(status, ["init", "running", "finished", "error"])}
-            end
-
-            switch status
-
-                case "init"
-                    icon = "ℹ️";
-                    text = "Model not loaded";
-
-                case "running"
-                    icon = "⏳";
-                    text = "Loading model...";
-
-                case "finished"
-                    icon = "✅";
-                    text = "Model loaded successfully";
-
-                case "error"
-                    icon = "❌";
-                    text = "Error loading model";
-
-            end % switch status
-
-        end % function updateStatusModel
-
-        function [icon, text] = updateStatusExperiment(~, status)
-            % UPDATESTATUSEXPERIMENT Update the experiment status in the status table
-
-            arguments
-                ~
-                status string {mustBeMember(status, ["init", "running", "finished", "error"])}
-            end
-
-            switch status
-
-                case "init"
-                    icon = "ℹ️";
-                    text = "Experiment data not loaded";
-
-                case "running"
-                    icon = "⏳";
-                    text = "Loading experiment data...";
-
-                case "finished"
-                    icon = "✅";
-                    text = "Experiment data loaded successfully";
-
-                case "error"
-                    icon = "❌";
-                    text = "Error loading experiment data";
-
-            end % switch status
-
-        end % function updateStatusExperiment
-
-        function [icon, text] = updateStatusBatch(~, status)
-            % UPDATESTATUSBATCH Update the batch status in the status table
-
-            arguments
-                ~
-                status string {mustBeMember(status, ["init", "running", "finished", "error"])}
-            end
-
-            switch status
-
-                case "init"
-                    icon = "ℹ️";
-                    text = "Batch not started";
-
-                case "running"
-                    icon = "⏳";
-                    text = "Running batch...";
-
-                case "finished"
-                    icon = "✅";
-                    text = "Batch run completed successfully";
-
-                case "error"
-                    icon = "❌";
-                    text = "Error in batch run";
-
-            end % switch status
-
-        end % function updateStatusBatch
-
-        function [icon, text] = updateStatusResult(~, status)
-            % UPDATESTATUSRESULT Update the result status in the status table
-
-            arguments
-                ~
-                status string {mustBeMember(status, ["init", "running", "finished", "error"])}
-            end
-
-            switch status
-
-                case "init"
-                    icon = "ℹ️";
-                    text = "Result not loaded";
-
-                case "running"
-                    icon = "⏳";
-                    text = "Loading result...";
-
-                case "finished"
-                    icon = "✅";
-                    text = "Result loaded successfully";
-
-                case "error"
-                    icon = "❌";
-                    text = "Error loading result";
-
-            end % switch status
-
-        end % function updateStatusResult
-
         function handleResultAvailable(app, ~)
 
             loadResult(app);
@@ -4536,8 +4363,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.setLogFile();
             app.DialogService = openmebius.presentation.dialog ...
                 .AppDialogService(app.OpenMebius2UIFigure);
-            dependencies = openmebius.bootstrap ...
-                .MainAppCompositionRoot.create();
+            dependencies = app.createMainAppDependencies();
             app.applyApplicationDependencies(dependencies);
             app.ApplicationController.setNotificationReporter( ...
                 @(notification) app.handleNotification(notification));
@@ -4552,7 +4378,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.initLog();
             app.initStatusTable();
             app.initializePresentation();
-            app.checkLatestVersionOnStartup();
+            app.performStartupUpdateCheck();
             filepath = app.normalizeStartupProjectInput(filepath);
 
             if filepath == ""
@@ -5191,6 +5017,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Code that executes after component creation
         function startupFcn(app, filepath)
+
+            if nargin < 2
+                filepath = "";
+            end
 
             app.initializeMainApp(filepath);
 

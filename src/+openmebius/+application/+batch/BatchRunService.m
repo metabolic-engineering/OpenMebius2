@@ -11,7 +11,7 @@ classdef BatchRunService
 
             arguments
                 options.AnalysisFactory = ...
-                    openmebius.application.analysis.FluxAnalysisFactory()
+                    openmebius.application.analysis.MFAAnalysisRunFactory()
             end
 
             obj.AnalysisFactory = options.AnalysisFactory;
@@ -44,20 +44,9 @@ classdef BatchRunService
                 resultInput, ...
                 batchId, ...
                 options.Controller, ...
-                Provenance = options.Provenance);
-            listeners = event.listener.empty(0, 1);
-            listeners(end + 1, 1) = addlistener( ...
-                analysis, ...
-                'GeneralMsg', ...
-                @(~, eventData) options.MessageReporter( ...
-                    eventData.Notification));
-            listeners(end + 1, 1) = addlistener( ...
-                analysis, ...
-                'FluxResult', ...
-                @(~, eventData) options.ResultReporter(eventData));
-            listenerCleanup = onCleanup(@() ...
-                openmebius.application.batch.BatchRunService ...
-                .deleteListeners(listeners));
+                Provenance = options.Provenance, ...
+                MessageReporter = options.MessageReporter, ...
+                ResultReporter = options.ResultReporter);
             runCleanup = onCleanup(@() analysis.finalizeRun());
 
             analysis.calculateFluxDistribution();
@@ -67,8 +56,7 @@ classdef BatchRunService
                 return
             end
 
-            analysisConfig = analysis.getConfig();
-            isSuggestNextFlux = analysisConfig.suggestNextFlux;
+            isSuggestNextFlux = logical(config.suggestNextFlux);
 
             if isSuggestNextFlux
                 analysis.suggestNextFluxExperiment();
@@ -80,7 +68,7 @@ classdef BatchRunService
                 return
             end
 
-            if analysisConfig.isCalcCI && ~isSuggestNextFlux
+            if logical(config.isCalcCI) && ~isSuggestNextFlux
                 analysis.calculateConfidenceInterval();
             end
 
@@ -112,16 +100,6 @@ classdef BatchRunService
             end
 
         end % terminalResult
-
-        function deleteListeners(listeners)
-
-            for i = 1:numel(listeners)
-                if isvalid(listeners(i))
-                    delete(listeners(i));
-                end
-            end
-
-        end % deleteListeners
 
     end % methods (Static, Access = private)
 

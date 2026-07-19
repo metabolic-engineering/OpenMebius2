@@ -96,7 +96,7 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
 
             analysis = helpers.BatchAnalysisStub( ...
                 openmebius.domain.batch.BatchConfig.defaultConfig());
-            factory = helpers.FluxAnalysisFactoryStub(analysis);
+            factory = helpers.MFAAnalysisRunFactoryStub(analysis);
             service = openmebius.application.batch.BatchRunService( ...
                 AnalysisFactory = factory);
             provenance = struct('contentHash', "sha256:test");
@@ -130,7 +130,7 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
             end
 
             analysis = helpers.BatchAnalysisStub(config, failurePhase);
-            factory = helpers.FluxAnalysisFactoryStub(analysis);
+            factory = helpers.MFAAnalysisRunFactoryStub(analysis);
             service = openmebius.application.batch.BatchRunService( ...
                 AnalysisFactory = factory);
 

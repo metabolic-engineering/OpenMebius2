@@ -1,4 +1,4 @@
-classdef ResultWorkspace < handle
+classdef ResultCatalog < handle
 
     properties (SetAccess = public)
 
@@ -24,8 +24,8 @@ classdef ResultWorkspace < handle
 
     methods
 
-        function obj = ResultWorkspace(resultInput, options)
-            % Constructor for ResultWorkspace class
+        function obj = ResultCatalog(resultInput, options)
+            % Constructor for ResultCatalog class
 
             arguments
                 resultInput
@@ -77,7 +77,7 @@ classdef ResultWorkspace < handle
         function setNotificationReporter(obj, reporter)
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 reporter (1, 1) function_handle
             end
 
@@ -95,7 +95,7 @@ classdef ResultWorkspace < handle
         function tableRtn = getFluxOverView(obj, id, options)
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 id (1, 1) string
                 options.relative (1, 1) logical = false
                 options.relativeTo (1, 1) string = ""
@@ -122,7 +122,7 @@ classdef ResultWorkspace < handle
         function tableRtn = getFluxDetailed(obj, batchID)
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 batchID (1, 1) string
             end
 
@@ -144,7 +144,7 @@ classdef ResultWorkspace < handle
         function tableRtn = getFluxComparison(obj, batchIDs, names, options)
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 batchIDs (1, :) string
                 names (1, :) string
                 options.relative (1, 1) logical = false
@@ -175,7 +175,7 @@ classdef ResultWorkspace < handle
             % GETCIREACTION Get the confidence interval reaction data from the result file.
             %
             % Parameters:
-            %   obj: ResultWorkspace
+            %   obj: ResultCatalog
             %       The result workspace object.
             %   batchID: string
             %       The batch ID to load the result files.
@@ -183,7 +183,7 @@ classdef ResultWorkspace < handle
             %       The reaction ID to get the confidence interval data.
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 batchID (1, 1) string
                 RxnID (1, 1) string
             end % arguments
@@ -203,13 +203,13 @@ classdef ResultWorkspace < handle
             % GETNEXTLABELSUGGESTION Get the next label suggestion from the result file.
             %
             % Parameters:
-            %   obj: ResultWorkspace
+            %   obj: ResultCatalog
             %       The result workspace object.
             %   batchID: string
             %       The batch ID to load the result files.
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 batchID (1, 1) string
             end % arguments
 
@@ -222,7 +222,7 @@ classdef ResultWorkspace < handle
             % GETRSS Get the RSS from the result file.
             %
             % Parameters:
-            %   obj: ResultWorkspace
+            %   obj: ResultCatalog
             %       The result workspace object.
             %   data: cell
             %       The result data.
@@ -254,7 +254,7 @@ classdef ResultWorkspace < handle
             % GETISPASSEDCHI2TEST Get the isPassedChi2Test from the result file.
             %
             % Parameters:
-            %   obj: ResultWorkspace
+            %   obj: ResultCatalog
             %       The result workspace object.
             %   data: cell
             %       The result data.
@@ -276,13 +276,13 @@ classdef ResultWorkspace < handle
             % LOADRESULTFILES Load the result files from the directory.
             %
             % Parameters:
-            %   obj: ResultWorkspace
+            %   obj: ResultCatalog
             %       The result workspace object.
             %   ids: string array
             %       The batch IDs to load the result files.
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 % Batch IDs
                 ids (1, :) string
                 options.readstatus (1, 4) logical = [true, true, true, true]
@@ -305,13 +305,13 @@ classdef ResultWorkspace < handle
             % LOADRESULTFILE Load the result files from the directory.
             %
             % Parameters:
-            %   obj: ResultWorkspace
+            %   obj: ResultCatalog
             %       The result workspace object.
             %   id: string
             %       The batch ID to load the result files.
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 % Batch ID
                 id (1, 1) string
                 % Read status
@@ -341,7 +341,7 @@ classdef ResultWorkspace < handle
             %
             % Parameters:
             % -----------
-            %   obj: ResultWorkspace
+            %   obj: ResultCatalog
             %       The result workspace object.
             %   batchID: (1, :) string
             %       The batch IDs to save the result files.
@@ -357,7 +357,7 @@ classdef ResultWorkspace < handle
             % See also: saveResultData
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 batchID (:, 1) string
                 names (:, 1) string
                 directoryPath
@@ -421,7 +421,7 @@ classdef ResultWorkspace < handle
             % SAVERESULTDATA Save the result data to the selected directory.
             %
             % Parameters:
-            %   obj: ResultWorkspace
+            %   obj: ResultCatalog
             %       The result workspace object.
             %   batchID: (1, 1) string
             %       The batch IDs to save the result files.
@@ -433,7 +433,7 @@ classdef ResultWorkspace < handle
             %       The format to save the result files.
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 batchID (1, 1) string
                 name (1, 1) string
                 directoryPath
@@ -523,7 +523,7 @@ classdef ResultWorkspace < handle
             % GETX Get the X data from the result file.
             %
             % Parameters:
-            %   obj: ResultWorkspace
+            %   obj: ResultCatalog
             %       The result workspace object.
             %   data: cell
             %       The result data.
@@ -556,13 +556,13 @@ classdef ResultWorkspace < handle
             % GETRESULTDATA Get the result data from the file.
             %
             % Parameters:
-            %   obj: ResultWorkspace
+            %   obj: ResultCatalog
             %       The result workspace object.
             %   id: (1, 1) string
             %       The batch ID to load the result files.
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 id (1, 1) string
                 options.readstatus (1, 4) logical = [true, true, true, true]
             end % arguments
@@ -586,11 +586,11 @@ classdef ResultWorkspace < handle
             % NOTIFYINITIALFLUXEVENT Notify the initial flux event.
             %
             % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
+            %   obj: ResultCatalog
+            %       The current result catalog.
 
             arguments
-                obj (1, 1) openmebius.application.result.ResultWorkspace
+                obj (1, 1) openmebius.application.result.ResultCatalog
                 status (1, 1) string {mustBeMember(status, ["info", "warning", "error"])}
                 msg (1, 1) string
             end % arguments
@@ -769,4 +769,4 @@ classdef ResultWorkspace < handle
 
     end % methods (Access = private)
 
-end % class ResultWorkspace
+end % class ResultCatalog

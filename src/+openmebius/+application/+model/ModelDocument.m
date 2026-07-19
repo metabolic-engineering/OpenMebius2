@@ -1,4 +1,4 @@
-classdef ModelWorkspace < handle
+classdef ModelDocument < handle
 
     properties
 
@@ -88,7 +88,7 @@ classdef ModelWorkspace < handle
     %% General methods
     methods
 
-        function obj = ModelWorkspace(modelInput, options)
+        function obj = ModelDocument(modelInput, options)
 
             arguments
                 modelInput
@@ -146,7 +146,7 @@ classdef ModelWorkspace < handle
             loadLabel(obj);
             createLabelView(obj);
 
-        end % ModelWorkspace
+        end % ModelDocument
 
         % Dependent properties
         % Get the file name
@@ -381,7 +381,7 @@ classdef ModelWorkspace < handle
             numRxn = height(obj.modelRxn);
 
             if numel(netFlux) ~= numRxn
-                error("OpenMebius2:ModelWorkspace:InvalidSplitFluxSize", ...
+                error("OpenMebius2:ModelDocument:InvalidSplitFluxSize", ...
                     "The length of netFlux (%d) does not match the number of reactions (%d).", ...
                     numel(netFlux), numRxn);
             end

@@ -26,7 +26,7 @@ classdef ExperimentRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyClass( ...
                 experiments, ...
-                "openmebius.application.experiment.ExperimentWorkspace");
+                "openmebius.application.experiment.ExperimentSet");
             testCase.verifyEqual(experiments.numFile, 1);
             testCase.verifyFalse(isprop(experiments, "isError"));
             testCase.verifyFalse(isprop(experiments, "statusMsg"));

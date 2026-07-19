@@ -1,43 +1,22 @@
-classdef FluxAnalysis < handle
-
-    events
-
-        GeneralMsg
-        FluxResult
-
-    end % events
+classdef MFAAnalysisRun < handle
 
     properties (SetAccess = private)
         AnalysisController
     end % properties
 
     properties (Dependent, SetAccess = private)
-        model
-        exps
-        config
-        Dependencies
-        RunContext
-        ResultSession
-        isExport
-        ResultLocation
-        HDF5FileName
-        HDF5FilePath
-        Provenance
-        expsList
         isCanceled
         isError
-        AnalysisRunScope
-        RunSettings
-        InputPreparation
     end
 
     properties (Access = private)
-        MessagePublisher
+        MessageReporter (1, 1) function_handle = @(~) []
+        ResultReporter (1, 1) function_handle = @(~) []
     end
 
     methods
 
-        function obj = FluxAnalysis( ...
+        function obj = MFAAnalysisRun( ...
                 model, ...
                 experiments, ...
                 expList, ...
@@ -62,11 +41,13 @@ classdef FluxAnalysis < handle
                     openmebius.application.analysis ...
                     .FluxAnalysisComposition()
                 options.Provenance (1, 1) struct = struct
+                options.MessageReporter (1, 1) function_handle = @(~) []
+                options.ResultReporter (1, 1) function_handle = @(~) []
             end
 
             composition = options.Composition;
-            obj.MessagePublisher = openmebius.presentation ...
-                .notification.GeneralMessagePublisher();
+            obj.MessageReporter = options.MessageReporter;
+            obj.ResultReporter = options.ResultReporter;
             runtimeFactory = composition.Execution.RuntimeFactory;
 
             if isempty(runtimeFactory)
@@ -80,8 +61,8 @@ classdef FluxAnalysis < handle
                 composition, ...
                 FailureReporter = ...
                 @(message) handleAnalysisFailure(obj, message));
-            obj.MessagePublisher.write( ...
-                runtime.DirectoryMessageLevel, ...
+            reportAnalysisMessage( ...
+                obj, runtime.DirectoryMessageLevel, ...
                 runtime.DirectoryMessage);
             obj.AnalysisController = ...
                 composition.Execution.AnalysisControllerFactory.create( ...
@@ -100,15 +81,15 @@ classdef FluxAnalysis < handle
 
             end
 
-        end % FluxAnalysis
+        end % MFAAnalysisRun
 
         %% Main functions
         function calculateFluxDistribution(obj)
             % CALCULATEFLUXDISTRIBUTION Calculate the flux distribution.
             %
             % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
+            %   obj: MFAAnalysisRun
+            %       The current MFA analysis run.
 
             tStart = tic;
             initializeRunMetadata(obj);
@@ -135,10 +116,8 @@ classdef FluxAnalysis < handle
             end
 
             % Notify the result of the flux calculation
-            eventData = openmebius.presentation.result ...
-                .FluxResultEventMapper.fromSessionResult( ...
+            obj.ResultReporter( ...
                 obj.AnalysisController.ResultSession.Result);
-            notify(obj, 'FluxResult', eventData);
 
             tStop = toc(tStart);
             elapsedTimeText = string(seconds(tStop), "hh:mm:ss");
@@ -153,12 +132,12 @@ classdef FluxAnalysis < handle
             % CALCULATECONFIDENCEINTERVAL Calculate the confidence interval.
             %
             % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
+            %   obj: MFAAnalysisRun
+            %       The current MFA analysis run.
             %   options.forNextSuggestion (1, 1) logical = false
 
             arguments
-                obj (1, 1) FluxAnalysis
+                obj (1, 1) openmebius.application.analysis.MFAAnalysisRun
                 options.forNextSuggestion (1, 1) logical = false
             end % arguments
 
@@ -180,11 +159,11 @@ classdef FluxAnalysis < handle
             % SUGGESTNEXTFLUXEXPERIMENT Suggest the next flux experiment.
             %
             % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
+            %   obj: MFAAnalysisRun
+            %       The current MFA analysis run.
 
             arguments
-                obj (1, 1) FluxAnalysis
+                obj (1, 1) openmebius.application.analysis.MFAAnalysisRun
             end % arguments
 
             runMetadataCleanup = onCleanup(@() finalizeRun(obj));
@@ -200,100 +179,6 @@ classdef FluxAnalysis < handle
 
         end % suggestNextFluxExperiment
 
-        %% Get functions
-        function config = getConfig(obj)
-            % GETCONFIG Get the configuration of the FluxAnalysis object.
-            %
-            % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
-            %
-            % Returns:
-            %   config: struct
-            %       The configuration of the FluxAnalysis object.
-
-            config = obj.AnalysisController.Config;
-
-        end % getConfig
-
-        function value = get.RunSettings(obj)
-
-            value = obj.AnalysisController.RunSettings;
-
-        end
-
-        function value = get.model(obj)
-
-            value = obj.AnalysisController.Model;
-
-        end
-
-        function value = get.exps(obj)
-
-            value = obj.AnalysisController.Experiments;
-
-        end
-
-        function value = get.config(obj)
-
-            value = obj.AnalysisController.Config;
-
-        end
-
-        function value = get.Dependencies(obj)
-
-            value = obj.AnalysisController.Dependencies;
-
-        end
-
-        function value = get.RunContext(obj)
-
-            value = obj.AnalysisController.RunContext;
-
-        end
-
-        function value = get.ResultSession(obj)
-
-            value = obj.AnalysisController.ResultSession;
-
-        end
-
-        function value = get.isExport(obj)
-
-            value = obj.AnalysisController.IsExport;
-
-        end
-
-        function value = get.ResultLocation(obj)
-
-            value = obj.AnalysisController.ResultLocation;
-
-        end
-
-        function value = get.HDF5FileName(obj)
-
-            value = obj.AnalysisController.ResultID;
-
-        end
-
-        function value = get.HDF5FilePath(obj)
-
-            value = obj.AnalysisController.ResultFilePath;
-
-        end
-
-        function value = get.Provenance(obj)
-
-            value = obj.AnalysisController.Provenance;
-
-        end
-
-        function value = get.expsList(obj)
-
-            value = obj.AnalysisController.ExperimentList;
-
-        end
-
         function value = get.isCanceled(obj)
 
             value = obj.AnalysisController.IsCanceled;
@@ -303,18 +188,6 @@ classdef FluxAnalysis < handle
         function value = get.isError(obj)
 
             value = obj.AnalysisController.IsError;
-
-        end
-
-        function value = get.AnalysisRunScope(obj)
-
-            value = obj.AnalysisController.RunScope;
-
-        end
-
-        function value = get.InputPreparation(obj)
-
-            value = obj.AnalysisController.InputPreparation;
 
         end
 
@@ -331,10 +204,9 @@ classdef FluxAnalysis < handle
 
         function reportAnalysisMessage(obj, level, message)
 
-            obj.MessagePublisher.report( ...
-                level, ...
-                message, ...
-                @(eventData) notify(obj, 'GeneralMsg', eventData));
+            obj.MessageReporter( ...
+                openmebius.core.notification.Message( ...
+                    string(message), string(level)));
 
         end % reportAnalysisMessage
 
@@ -361,8 +233,8 @@ classdef FluxAnalysis < handle
             % CANCEL Cancel the calculation.
             %
             % Parameters:
-            %   obj: FluxAnalysis
-            %       The FluxAnalysis object.
+            %   obj: MFAAnalysisRun
+            %       The current MFA analysis run.
 
             obj.AnalysisController.requestCancellation();
 

@@ -1,6 +1,0 @@
-dirExp = "../tutorial/ecoli_single/experiments";
-dirModel = "../tutorial/ecoli_single/model";
-
-Experiment = openmebius.application.experiment.ExperimentWorkspace( ...
-    fullfile(dirExp), ...
-    fullfile(dirModel));

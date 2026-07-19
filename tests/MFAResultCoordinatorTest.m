@@ -15,13 +15,13 @@ classdef MFAResultCoordinatorTest < matlab.unittest.TestCase
         function accumulatesGeneralAndFluxVariabilityState(testCase)
 
             coordinator = MFAResultCoordinatorTest.coordinator();
-            status = zeros(1, 4);
-            [result, status, isSuccess] = coordinator.writeGeneral( ...
-                struct, status, "run-1", [0.2; 0.8], ...
+            progress = MFAResultCoordinatorTest.progress();
+            [result, progress, isSuccess] = coordinator.writeGeneral( ...
+                struct, progress, "run-1", [0.2; 0.8], ...
                 ["A"; "A"], [true; true]);
-            [result, status, fvaSuccess] = ...
+            [result, progress, fvaSuccess] = ...
                 coordinator.writeFluxVariability( ...
-                result, status, [0; 1], [2; 3], zeros(0, 2));
+                result, progress, [0; 1], [2; 3], zeros(0, 2));
 
             testCase.verifyTrue(isSuccess);
             testCase.verifyTrue(fvaSuccess);
@@ -29,18 +29,21 @@ classdef MFAResultCoordinatorTest < matlab.unittest.TestCase
             testCase.verifyEqual(result.MDVExp, [0.2; 0.8]);
             testCase.verifyEqual( ...
                 result.fluxVariability.fluxLB, [0; 1]);
-            testCase.verifyEqual(status, zeros(1, 4));
+            testCase.verifyEqual( ...
+                progress.toStorageVector(), zeros(1, 4));
 
         end
 
         function advancesInitialAndSummaryStatus(testCase)
 
             coordinator = MFAResultCoordinatorTest.coordinator();
-            [result, status] = coordinator.writeInitialFlux( ...
-                struct, zeros(1, 4), [1; 2], [3; 4], 5, zeros(0, 2));
-            [result, status] = coordinator.writeSummary( ...
-                result, status, [1, 2], [2, 1], 3.84);
+            progress = MFAResultCoordinatorTest.progress();
+            [result, progress] = coordinator.writeInitialFlux( ...
+                struct, progress, [1; 2], [3; 4], 5, zeros(0, 2));
+            [result, progress] = coordinator.writeSummary( ...
+                result, progress, [1, 2], [2, 1], 3.84);
 
+            status = progress.toStorageVector();
             testCase.verifyEqual(status, [1, 1, 0, 0]);
             testCase.verifyEqual(result.status, status);
             testCase.verifyEqual(result.initialFlux.RSS, 5);
@@ -59,13 +62,15 @@ classdef MFAResultCoordinatorTest < matlab.unittest.TestCase
                 ObjectiveValue = 4, ...
                 ExitFlag = 1);
 
-            [result, status, isSuccess] = coordinator.writeIteration( ...
-                struct, zeros(1, 4), 1, iterationResult, zeros(0, 2));
+            progress = MFAResultCoordinatorTest.progress();
+            [result, progress, isSuccess] = coordinator.writeIteration( ...
+                struct, progress, 1, iterationResult, zeros(0, 2));
 
             testCase.verifyTrue(isSuccess);
             testCase.verifyTrue(isfield(result, 'fluxResult0001'));
             testCase.verifyEqual(result.fluxResult0001.RSS, 4);
-            testCase.verifyEqual(status, zeros(1, 4));
+            testCase.verifyEqual( ...
+                progress.toStorageVector(), zeros(1, 4));
 
         end
 
@@ -73,17 +78,18 @@ classdef MFAResultCoordinatorTest < matlab.unittest.TestCase
 
             coordinator = MFAResultCoordinatorTest.coordinator();
             result = struct(existing = 1);
-            status = zeros(1, 4);
+            progress = MFAResultCoordinatorTest.progress();
 
-            [result, status, isSuccess] = ...
+            [result, progress, isSuccess] = ...
                 coordinator.writeMonteCarloConfidenceInterval( ...
-                result, status, [0; 0], [1; 1], ...
+                result, progress, [0; 0], [1; 1], ...
                 openmebius.mfa.ConfidenceIntervalSettings(), ...
                 struct);
 
             testCase.verifyTrue(isSuccess);
             testCase.verifyEqual(result, struct(existing = 1));
-            testCase.verifyEqual(status, zeros(1, 4));
+            testCase.verifyEqual( ...
+                progress.toStorageVector(), [0, 0, 1, 0]);
 
         end
 
@@ -95,6 +101,12 @@ classdef MFAResultCoordinatorTest < matlab.unittest.TestCase
 
             value = openmebius.infrastructure.result ...
                 .MFAResultCoordinator(IsExport = false);
+
+        end
+
+        function value = progress()
+
+            value = openmebius.application.analysis.AnalysisProgress();
 
         end
 

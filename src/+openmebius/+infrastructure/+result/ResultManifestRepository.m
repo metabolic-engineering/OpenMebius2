@@ -107,6 +107,8 @@ classdef ResultManifestRepository < handle
 
             document = obj.JsonFileStore.read( ...
                 resultLocation.manifestFile(batchId));
+            document = openmebius.infrastructure.result ...
+                .ResultManifestMigration.toCurrentDocument(document);
 
         end % read
 

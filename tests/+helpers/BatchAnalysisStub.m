@@ -1,10 +1,5 @@
 classdef BatchAnalysisStub < handle
 
-    events
-        GeneralMsg
-        FluxResult
-    end
-
     properties
         isCanceled (1, 1) logical = false
         isError (1, 1) logical = false
@@ -12,6 +7,8 @@ classdef BatchAnalysisStub < handle
         FailurePhase (1, 1) string = ""
         Calls (1, :) string = strings(1, 0)
         FinalizeCount (1, 1) double = 0
+        MessageReporter (1, 1) function_handle = @(~) []
+        ResultReporter (1, 1) function_handle = @(~) []
     end
 
     methods
@@ -32,14 +29,10 @@ classdef BatchAnalysisStub < handle
 
             obj.Calls(end + 1) = "flux";
             obj.applyOutcome("flux");
-            notification = openmebius.presentation.notification ...
-                .Notification.info("Flux calculation updated.");
-            notify( ...
-                obj, ...
-                'GeneralMsg', ...
-                openmebius.presentation.notification ...
-                .GeneralMessageEventData(notification));
-            notify(obj, 'FluxResult');
+            obj.MessageReporter( ...
+                openmebius.core.notification.Message( ...
+                    "Flux calculation updated.", "info"));
+            obj.ResultReporter(struct("ID", "stub-result"));
 
         end
 
@@ -57,15 +50,29 @@ classdef BatchAnalysisStub < handle
 
         end
 
-        function config = getConfig(obj)
-
-            config = obj.Config;
-
-        end
-
         function finalizeRun(obj)
 
             obj.FinalizeCount = obj.FinalizeCount + 1;
+
+        end
+
+        function configureReporters(obj, varargin)
+
+            for index = 1:numel(varargin) - 1
+                value = varargin{index};
+
+                if ~(ischar(value) || isstring(value))
+                    continue
+                end
+
+                name = string(value);
+
+                if name == "MessageReporter"
+                    obj.MessageReporter = varargin{index + 1};
+                elseif name == "ResultReporter"
+                    obj.ResultReporter = varargin{index + 1};
+                end
+            end
 
         end
 

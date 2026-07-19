@@ -10,7 +10,7 @@ classdef ReportGenerationService < handle
 
             arguments
                 options.ReportRepository = ...
-                    openmebius.infrastructure.report.LegacyReportRepository()
+                    openmebius.infrastructure.report.ReportRepository()
             end
 
             obj.ReportRepository = options.ReportRepository;

@@ -1,11 +1,5 @@
 classdef MetabolicModel < handle
 
-    events
-
-        generalMsg
-
-    end % events
-
     properties (GetAccess = public, SetAccess = private)
 
         % EMU list
@@ -112,7 +106,8 @@ classdef MetabolicModel < handle
 
     properties (Access = private)
 
-        Workspace
+        Document
+        MessageReporter (1, 1) function_handle = @(~) []
         StoichiometricNetwork
         StoichiometricNetworkFactory
         NetworkBuilder
@@ -125,11 +120,11 @@ classdef MetabolicModel < handle
 
     methods
 
-        function obj = MetabolicModel(workspace, stoichiometricNetwork, options)
+        function obj = MetabolicModel(document, stoichiometricNetwork, options)
             % METABOLICMODEL Compose loaded model data and numerical state.
 
             arguments
-                workspace (1, 1) openmebius.application.model.ModelWorkspace
+                document (1, 1) openmebius.application.model.ModelDocument
                 stoichiometricNetwork (1, 1) ...
                     openmebius.domain.model.StoichiometricNetwork
                 options.NetworkBuilder = openmebius.mfa.EMUNetworkBuilder()
@@ -140,9 +135,11 @@ classdef MetabolicModel < handle
                 options.StoichiometricNetworkFactory = ...
                     openmebius.application.model ...
                         .StoichiometricNetworkFactory()
+                options.MessageReporter (1, 1) function_handle = @(~) []
             end
 
-            obj.Workspace = workspace;
+            obj.Document = document;
+            obj.MessageReporter = options.MessageReporter;
             obj.StoichiometricNetwork = stoichiometricNetwork;
             obj.StoichiometricNetworkFactory = ...
                 options.StoichiometricNetworkFactory;
@@ -392,7 +389,7 @@ classdef MetabolicModel < handle
             maximumCNumber = max(cell2mat(tableTracer.Num));
 
             msg = "Constructing substrate EMUs...";
-            emitMsg(obj, msg, "Info");
+            reportMessage(obj, msg, "Info");
 
             for i = 1:size(tableTracer, 1)
 
@@ -480,7 +477,7 @@ classdef MetabolicModel < handle
 
             if isempty(regexp(pattern, regex, 'once'))
                 msg = "Label pattern must be in the format of '#dddddd'.";
-                emitMsg(obj, msg, "Error");
+                reportMessage(obj, msg, "Error");
                 EMU = [];
                 return
             end
@@ -735,127 +732,127 @@ classdef MetabolicModel < handle
 
         end % getLabelStructEMU
 
-        %% Workspace facade
+        %% Model document delegation
         function value = getModelLocation(obj)
-            value = obj.Workspace.getModelLocation();
+            value = obj.Document.getModelLocation();
         end
         function [fileName, fileType] = getModelFileDescriptor(obj)
-            [fileName, fileType] = obj.Workspace.getModelFileDescriptor();
+            [fileName, fileType] = obj.Document.getModelFileDescriptor();
         end
         function path = getModelFilePath(obj)
-            path = obj.Workspace.getModelFilePath();
+            path = obj.Document.getModelFilePath();
         end
         function value = getInfoTable(obj)
-            value = obj.Workspace.getInfoTable();
+            value = obj.Document.getInfoTable();
         end
         function value = getModelTable(obj)
-            value = obj.Workspace.getModelTable();
+            value = obj.Document.getModelTable();
         end
         function value = getModelTableGUI(obj)
-            value = obj.Workspace.getModelTableGUI();
+            value = obj.Document.getModelTableGUI();
         end
         function value = getMSTable(obj)
-            value = obj.Workspace.getMSTable();
+            value = obj.Document.getMSTable();
         end
         function value = getMSRxnTable(obj)
-            value = obj.Workspace.getMSRxnTable();
+            value = obj.Document.getMSRxnTable();
         end
         function value = getMSTransTable(obj)
-            value = obj.Workspace.getMSTransTable();
+            value = obj.Document.getMSTransTable();
         end
         function value = getAtomTable(obj)
-            value = obj.Workspace.getAtomTable();
+            value = obj.Document.getAtomTable();
         end
         function value = getBiomassTable(obj)
-            value = obj.Workspace.getBiomassTable();
+            value = obj.Document.getBiomassTable();
         end
         function value = getMetaboliteTable(obj)
-            value = obj.Workspace.getMetaboliteTable();
+            value = obj.Document.getMetaboliteTable();
         end
         function value = getMetaboliteTableMetabolite(obj)
-            value = obj.Workspace.getMetaboliteTableMetabolite();
+            value = obj.Document.getMetaboliteTableMetabolite();
         end
         function value = getMetaboliteTableSubstrate(obj)
-            value = obj.Workspace.getMetaboliteTableSubstrate();
+            value = obj.Document.getMetaboliteTableSubstrate();
         end
         function value = getMSMetaboliteTable(obj)
-            value = obj.Workspace.getMSMetaboliteTable();
+            value = obj.Document.getMSMetaboliteTable();
         end
         function value = getInvalidModelRowIdx(obj)
-            value = obj.Workspace.getInvalidModelRowIdx();
+            value = obj.Document.getInvalidModelRowIdx();
         end
         function value = getInvalidMSRowIdx(obj)
-            value = obj.Workspace.getInvalidMSRowIdx();
+            value = obj.Document.getInvalidMSRowIdx();
         end
         function value = getInvalidAtomRowIdx(obj)
-            value = obj.Workspace.getInvalidAtomRowIdx();
+            value = obj.Document.getInvalidAtomRowIdx();
         end
         function value = getTableLabelView(obj)
-            value = obj.Workspace.getTableLabelView();
+            value = obj.Document.getTableLabelView();
         end
         function value = getLabelStruct(obj)
-            value = obj.Workspace.getLabelStruct();
+            value = obj.Document.getLabelStruct();
         end
         function value = getLabelStructView(obj)
-            value = obj.Workspace.getLabelStructView();
+            value = obj.Document.getLabelStructView();
         end
         function value = getTemplateMSTable(obj)
-            value = obj.Workspace.getTemplateMSTable();
+            value = obj.Document.getTemplateMSTable();
         end
         function value = getPathwayData(obj)
-            value = obj.Workspace.getPathwayData();
+            value = obj.Document.getPathwayData();
         end
         function value = snapshot(obj)
-            value = obj.Workspace.snapshot();
+            value = obj.Document.snapshot();
         end
         function updatePathwayLabelPosition(obj, reactionID, position)
-            obj.Workspace.updatePathwayLabelPosition(reactionID, position);
+            obj.Document.updatePathwayLabelPosition(reactionID, position);
         end
         function updateLabelConfiguration(obj, labelTable, ratioTables)
-            obj.Workspace.updateLabelConfiguration(labelTable, ratioTables);
+            obj.Document.updateLabelConfiguration(labelTable, ratioTables);
         end
         function setupTableInfo(obj)
-            obj.Workspace.setupTableInfo();
+            obj.Document.setupTableInfo();
         end
         function loadLabel(obj)
-            obj.Workspace.loadLabel();
+            obj.Document.loadLabel();
         end
         function exportLabel(obj)
-            obj.Workspace.exportLabel();
+            obj.Document.exportLabel();
         end
         function value = isSymmetricMetabolite(obj, metaboliteName)
-            value = obj.Workspace.isSymmetricMetabolite(metaboliteName);
+            value = obj.Document.isSymmetricMetabolite(metaboliteName);
         end
         function value = getSubstrateTable(obj)
-            value = obj.Workspace.getSubstrateTable();
+            value = obj.Document.getSubstrateTable();
         end
         function value = getSplittedFlux(obj, netFlux)
-            value = obj.Workspace.getSplittedFlux(netFlux);
+            value = obj.Document.getSplittedFlux(netFlux);
         end
         function updateStructLabel(obj, value)
-            obj.Workspace.updateStructLabel(value);
+            obj.Document.updateStructLabel(value);
         end
 
         function report = updateModelTableGUI(obj, value)
-            report = obj.Workspace.updateModelTableGUI(value);
+            report = obj.Document.updateModelTableGUI(value);
             if report.IsValid
                 rebuildDerivedModels(obj);
             end
         end
         function report = updateMSTable(obj, value)
-            report = obj.Workspace.updateMSTable(value);
+            report = obj.Document.updateMSTable(value);
             if report.IsValid
                 rebuildDerivedModels(obj);
             end
         end
         function report = updateAtomTable(obj, value)
-            report = obj.Workspace.updateAtomTable(value);
+            report = obj.Document.updateAtomTable(value);
             if report.IsValid
                 rebuildDerivedModels(obj);
             end
         end
         function reconstructModel(obj)
-            obj.Workspace.reconstructModel();
+            obj.Document.reconstructModel();
             rebuildDerivedModels(obj);
         end
 
@@ -903,9 +900,9 @@ classdef MetabolicModel < handle
                 .getReactionIndependent(reactionID);
         end
         function setReactionIndependent(obj, reactionID, independent)
-            obj.Workspace.setReactionIndependent(reactionID, independent);
+            obj.Document.setReactionIndependent(reactionID, independent);
             obj.StoichiometricNetwork = ...
-                obj.StoichiometricNetworkFactory.create(obj.Workspace);
+                obj.StoichiometricNetworkFactory.create(obj.Document);
         end
         function value = getSubstrateNameFromRxnID(obj, reactionID)
             value = obj.StoichiometricNetwork ...
@@ -936,11 +933,11 @@ classdef MetabolicModel < handle
                 reactionID = obj.findSubstrateRxnIDFromMetaboliteIrrev( ...
                     substrateName);
                 if ~isempty(reactionID)
-                    obj.Workspace.setReactionIndependent(reactionID, true);
+                    obj.Document.setReactionIndependent(reactionID, true);
                 end
             end
             obj.StoichiometricNetwork = ...
-                obj.StoichiometricNetworkFactory.create(obj.Workspace);
+                obj.StoichiometricNetworkFactory.create(obj.Document);
         end
 
     end % methods (Access = public)
@@ -950,7 +947,7 @@ classdef MetabolicModel < handle
         function rebuildDerivedModels(obj)
 
             obj.StoichiometricNetwork = ...
-                obj.StoichiometricNetworkFactory.create(obj.Workspace);
+                obj.StoichiometricNetworkFactory.create(obj.Document);
             obj.constructEMUNetwork();
 
         end % rebuildDerivedModels
@@ -1001,7 +998,7 @@ classdef MetabolicModel < handle
             % -------
             % None
 
-            emitMsg( ...
+            reportMessage( ...
                 obj, ...
                 "Listing up all EMUs from the model.", ...
                 "Info");
@@ -1014,7 +1011,7 @@ classdef MetabolicModel < handle
             result = obj.NetworkEnumerator.enumerate(source);
 
             for message = result.ErrorMessages'
-                emitMsg(obj, message, "Error");
+                reportMessage(obj, message, "Error");
             end
 
             if ~result.IsValid
@@ -1118,7 +1115,7 @@ classdef MetabolicModel < handle
             % -------
             % None
 
-            emitMsg( ...
+            reportMessage( ...
                 obj, ...
                 "List up A and B EMUs for each EMU size.", ...
                 "Info");
@@ -1328,16 +1325,15 @@ classdef MetabolicModel < handle
     %% Protected methods
     methods (Access = protected)
 
-        function emitMsg(obj, msg, level, varargin)
-            % 既存呼び出し互換のメッセージ通知ヘルパー
-            % level: "Info" | "Warning" | "Error" | "Debug"
+        function reportMessage(obj, msg, level)
             if nargin < 3 || strlength(string(level)) == 0
                 level = "Info";
             end
 
-            evt = MsgEventData(msg, level, "MetabolicModel");
-            notify(obj, 'generalMsg', evt);
-        end % method updateMsg
+            obj.MessageReporter( ...
+                openmebius.core.notification.Message( ...
+                    string(msg), string(level)));
+        end % reportMessage
 
     end % methods (Access = protected)
 
