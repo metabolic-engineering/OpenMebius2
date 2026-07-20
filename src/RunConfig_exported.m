@@ -129,6 +129,13 @@ classdef RunConfig_exported < matlab.apps.AppBase
         MSFragmentTableMetadata
     end
 
+    events
+        Applied
+        Closed
+        NotificationRequested
+        BatchExperimentSelectionApplied
+    end
+
     methods (Access = protected)
 
         function updateINSTMFATimeCourseTable(app)
@@ -1718,6 +1725,10 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         % Code that executes before app deletion
         function delete(app)
+
+            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
+                app.ChildAppHost.closeAll();
+            end
 
             % Delete UIFigure when app is deleted
             delete(app.BatchconfigUIFigure)

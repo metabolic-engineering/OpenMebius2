@@ -48,6 +48,21 @@ classdef BatchOperationPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function abbreviatesDisplayedIdAndPreservesRawId(testCase)
+
+            batch = helpers.BatchOperationStub();
+            batch.Data.ID = "bat_dd0eff6798474f24b58b6657e5dd0354";
+            presenter = openmebius.presentation.batch.BatchPresenter();
+
+            viewModel = presenter.presentTable(batch);
+
+            testCase.verifyEqual(viewModel.Data.ID, "bat_dd0eff");
+            testCase.verifyEqual( ...
+                viewModel.RawData.ID, ...
+                "bat_dd0eff6798474f24b58b6657e5dd0354");
+
+        end
+
         function presentsBatchOperationFailure(testCase)
 
             batch = helpers.BatchOperationStub();
@@ -63,6 +78,29 @@ classdef BatchOperationPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(notification.Level, "error");
             testCase.verifyEqual(notification.Title, "Batch table save failed");
             testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
+        function presentsFinishedBatchRemovalAsAlert(testCase)
+
+            batch = helpers.BatchOperationStub();
+            presenter = openmebius.presentation.batch.BatchPresenter();
+            outcome = openmebius.application.batch ...
+                .BatchOperationOutcome( ...
+                false, ...
+                ErrorMessage = ...
+                    "Batch ID bat_dd0eff is finished. Cannot remove.");
+
+            viewModel = presenter.presentRemoveOutcome(outcome, batch);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyEqual(notification.Title, "Batch removal failed");
+            testCase.verifyTrue(notification.ShowAlert);
+            testCase.verifyThat( ...
+                notification.Message, ...
+                matlab.unittest.constraints.ContainsSubstring( ...
+                    "bat_dd0eff"));
 
         end
 

@@ -20,6 +20,10 @@ classdef BatchPresenter < handle
                 return
             end
 
+            rawData = batchGUI;
+            batchGUI.ID = openmebius.presentation ...
+                .IdentifierFormatter.short(batchGUI.ID);
+
             if any(batchGUI.Properties.VariableNames == "Experiment")
                 batchGUI.Experiment = string(batchGUI.Experiment);
             end
@@ -32,6 +36,7 @@ classdef BatchPresenter < handle
             viewModel = ...
                 openmebius.presentation.batch.BatchTableViewModel( ...
                 Data = batchGUI, ...
+                RawData = rawData, ...
                 ColumnEditable = columnEditable, ...
                 StyleRules = styleRules);
 
@@ -335,6 +340,9 @@ classdef BatchPresenter < handle
         end
 
         function message = progressMessage(~, batchId, status)
+
+            batchId = openmebius.presentation ...
+                .IdentifierFormatter.short(batchId);
 
             switch lower(string(status))
 

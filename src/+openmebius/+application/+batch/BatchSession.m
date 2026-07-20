@@ -1044,10 +1044,12 @@ classdef BatchSession < handle
 
             if reason == "finished"
 
-                msg = sprintf("Batch ID %s is finished. Cannot remove.", id);
-
-                publishGeneralMessage(obj, "error", string(msg));
-                return
+                displayId = extractBefore(string(id), ...
+                    min(strlength(string(id)) + 1, 11));
+                error( ...
+                    "OpenMebius2:Batch:FinishedBatchRemoval", ...
+                    "Batch ID %s is finished. Cannot remove.", ...
+                    displayId);
 
             end
 

@@ -127,7 +127,7 @@ classdef ResultTableBuilder
                     (mdv(:, labelingIndex) - measured(:, labelingIndex)) ...
                     ./ 0.01;
                 chiSquare = difference .^ 2;
-                mask = fragmentMask(:, labelingIndex);
+                mask = logical(fragmentMask(:, labelingIndex));
                 value{mask, chiSquareColumn} = chiSquare(mask);
             end
 

@@ -782,6 +782,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.RunTable.Data = viewModel.Data;
 
+            try
+                app.RunTable.UserData = struct( ...
+                    "RawData", viewModel.RawData);
+            catch
+                % Fall back to the displayed table on older releases.
+            end
+
             if isempty(viewModel.Data)
                 app.RunTable.ColumnName = [];
                 app.RunTable.RowName = [];
@@ -1119,6 +1126,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             removeStyle(app.ResultSubTable);
 
             app.ResultSubTable.Data = viewModel.Data;
+
+            try
+                app.ResultSubTable.UserData = struct( ...
+                    "RawData", viewModel.RawData);
+            catch
+                % Fall back to the displayed table on older releases.
+            end
 
             if isempty(viewModel.Data)
                 app.ResultSubTable.ColumnName = [];
@@ -3232,7 +3246,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            batchIds = string(app.RunTable.Data.ID(selectedRows));
+            batchData = app.getBatchOperationalData();
+            batchIds = string(batchData.ID(selectedRows));
             [answer, isOK] = app.uiConfirmWrap( ...
                 "Are you sure you want to remove the selected batch?", ...
                 "Remove Batch", ...
@@ -3266,7 +3281,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.selectedTableRows(app.ResultSubTable);
 
             context.MainTableData = app.getResultMainRawData();
-            context.SubTableData = app.ResultSubTable.Data;
+            context.SubTableData = app.getResultSubRawData();
 
             context.MainTableRowNames = ...
                 app.getResultReactionIds(context.MainTableData);
@@ -3756,7 +3771,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 case "Overview"
 
                     row = rows(1);
-                    batchID = string(app.ResultSubTable.Data.ID(row));
+                    data = app.getResultSubRawData();
+                    batchID = string(data.ID(row));
 
                     loadResultOverView( ...
                         app, ...
@@ -3767,7 +3783,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 case {"Details", "Detailed"}
 
                     row = rows(1);
-                    batchID = string(app.ResultSubTable.Data.ID(row));
+                    data = app.getResultSubRawData();
+                    batchID = string(data.ID(row));
 
                     loadResultDetailed(app, batchID);
 
@@ -3779,8 +3796,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                         return
                     end
 
-                    batchIDs = string(app.ResultSubTable.Data.ID(rows));
-                    names = string(app.ResultSubTable.Data.Name(rows));
+                    data = app.getResultSubRawData();
+                    batchIDs = string(data.ID(rows));
+                    names = string(data.Name(rows));
 
                     loadResultComparison( ...
                         app, ...
@@ -4241,6 +4259,55 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method getResultMainRawData
 
+        function data = getResultSubRawData(app)
+
+            data = app.ResultSubTable.Data;
+
+            try
+                userData = app.ResultSubTable.UserData;
+
+                if isstruct(userData) && ...
+                        isfield(userData, "RawData") && ...
+                        ~isempty(userData.RawData)
+                    data = userData.RawData;
+                end
+
+            catch
+                data = app.ResultSubTable.Data;
+            end
+
+        end % method getResultSubRawData
+
+        function data = getBatchOperationalData(app)
+
+            displayed = app.RunTable.Data;
+            data = displayed;
+
+            try
+                userData = app.RunTable.UserData;
+
+                if isstruct(userData) && ...
+                        isfield(userData, "RawData") && ...
+                        ~isempty(userData.RawData) && ...
+                        height(userData.RawData) == height(displayed)
+                    data = userData.RawData;
+                    names = intersect( ...
+                        string(displayed.Properties.VariableNames), ...
+                        string(data.Properties.VariableNames), ...
+                        "stable");
+                    names(names == "ID") = [];
+
+                    for name = names
+                        data.(name) = displayed.(name);
+                    end
+                end
+
+            catch
+                data = displayed;
+            end
+
+        end % method getBatchOperationalData
+
         function rxnIDs = getResultReactionIds(app, tableData)
 
             rxnIDs = strings(0, 1);
@@ -4294,7 +4361,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             viewModel = ...
                 app.BatchPresenter.presentProgress( ...
                 progress, ...
-                app.RunTable.Data);
+                app.getBatchOperationalData());
 
             if ~isempty(viewModel.Notification)
                 app.showNotification(viewModel.Notification);
@@ -4678,7 +4745,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function [batchIDs, batchNames] = selectedResultIdentities(app)
 
             rows = app.selectedTableRows(app.ResultSubTable);
-            data = app.ResultSubTable.Data;
+            data = app.getResultSubRawData();
             batchIDs = strings(0, 1);
             batchNames = strings(0, 1);
 
@@ -4896,7 +4963,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             requestFactory = @() app.RunConfigPresenter ...
                 .createLaunchRequest( ...
-                app.RunTable.Data, app.RunTable.Selection);
+                app.getBatchOperationalData(), ...
+                app.RunTable.Selection);
             outcome = app.ApplicationController ...
                 .prepareBatchConfiguration(requestFactory);
             app.updateBatchTable();
@@ -5335,7 +5403,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function RunSaveButtonPushed(app, ~)
 
             [outcome, batch] = app.ApplicationController.saveBatch( ...
-                app.RunTable.Data);
+                app.getBatchOperationalData());
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentSaveOutcome( ...
                 outcome, batch));
