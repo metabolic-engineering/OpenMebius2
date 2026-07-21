@@ -47,6 +47,24 @@ classdef ResultTableBuilderTest < matlab.unittest.TestCase
                 AbsTol = 1e-12);
         end
 
+        function acceptsNumericFragmentMaskFromHdf5(testCase)
+
+            builder = openmebius.application.result.ResultTableBuilder();
+            data = ResultTableBuilderTest.resultData([10; 20]);
+            data.MDVExp = [0.25; 0.75];
+            data.MDVExpName = ["fragment-a"; "fragment-a"];
+            data.MDVFragMask = [1; 0];
+            data.fluxResult0001.MDV = [0.2; 0.8];
+
+            [value, message] = builder.fluxDetailed(data);
+
+            testCase.verifyEqual(message, "");
+            testCase.verifyEqual(value.("Chi^2")(1), 25, ...
+                AbsTol = 1e-12);
+            testCase.verifyTrue(isnan(value.("Chi^2")(2)));
+
+        end
+
         function buildsComparisonWithUniqueSeriesNames(testCase)
             builder = openmebius.application.result.ResultTableBuilder();
             first = ResultTableBuilderTest.resultData([10; 20]);

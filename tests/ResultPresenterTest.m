@@ -13,6 +13,23 @@ classdef ResultPresenterTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function abbreviatesResultIdAndPreservesRawId(testCase)
+
+            batch = helpers.BatchOperationStub();
+            batch.Data.ID = "bat_dd0eff6798474f24b58b6657e5dd0354";
+            batch.Status = "finished";
+            presenter = openmebius.presentation.result.ResultPresenter();
+
+            viewModel = presenter.presentIndex( ...
+                helpers.ResultIndexStub(), batch);
+
+            testCase.verifyEqual(viewModel.Data.ID, "bat_dd0eff");
+            testCase.verifyEqual( ...
+                viewModel.RawData.ID, ...
+                "bat_dd0eff6798474f24b58b6657e5dd0354");
+
+        end
+
         function presentsGeneratedReport(testCase)
 
             presenter = openmebius.presentation.result.ResultPresenter();

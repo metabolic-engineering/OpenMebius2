@@ -1,11 +1,5 @@
 classdef LabelConfig_exported < matlab.apps.AppBase
 
-    events
-        Applied
-        NotificationRequested
-        Closed
-    end
-
     % Properties that correspond to app components
     properties (Access = public)
         LabelconfigUIFigure matlab.ui.Figure
@@ -141,14 +135,12 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             app.LabelTable.Data = app.Action.LabelTable;
             app.LabelTable.ColumnName = ...
                 app.Action.LabelTable.Properties.VariableNames;
-
         end
 
         % Cell selection callback: LabelTable
         function LabelTableCellSelection(app, event)
 
             app.selectLabel(event.Indices);
-
         end
 
         % Button pushed function: AddLabelButton
@@ -157,14 +149,12 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             message = app.Action.addLabel();
             app.LabelTable.Data = app.Action.LabelTable;
             app.requestInfo(message);
-
         end
 
         % Button pushed function: RemoveLabelButton
         function RemoveLabelButtonPushed(app, event)
 
             app.removeSelectedLabels();
-
         end
 
         % Button pushed function: AddRatioButton
@@ -175,14 +165,12 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             idx = indices(1, 1);
             [app.RatioTable.Data, message] = app.Action.addRatio(idx);
             app.requestInfo(message);
-
         end
 
         % Button pushed function: RemoveRatioButton
         function RemoveRatioButtonPushed(app, event)
 
             app.removeSelectedRatio();
-
         end
 
         % Button pushed function: LoadButton
@@ -191,7 +179,6 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             lockRatioTable(app);
 
             app.initLabelTable();
-
         end
 
         % Button pushed function: SaveButton
@@ -200,24 +187,21 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             app.updateLabelTable();
             eventData = openmebius.presentation.model ...
                 .LabelConfigurationAppliedEventData( ...
-                    app.Action.LabelTable, app.Action.RatioTables);
+                app.Action.LabelTable, app.Action.RatioTables);
             notify(app, "Applied", eventData);
             close(app.LabelconfigUIFigure);
-
         end
 
         % Display data changed function: RatioTable
         function RatioTableDisplayDataChanged(app, event)
 
             updateRatioTable(app);
-
         end
 
         % Cell edit callback: RatioTable
         function RatioTableCellEdit(app, event)
 
             updateRatioTable(app);
-
         end
 
         % Close request function: LabelconfigUIFigure
@@ -225,7 +209,6 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
             notify(app, "Closed");
             delete(app);
-
         end
 
         % Key press function: LabelconfigUIFigure

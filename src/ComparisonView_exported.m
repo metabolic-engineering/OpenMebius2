@@ -1,23 +1,18 @@
 classdef ComparisonView_exported < matlab.apps.AppBase
 
-    events
-        NotificationRequested
-        Closed
-    end
-
     % Properties that correspond to app components
     properties (Access = public)
         ComparisonviewUIFigure matlab.ui.Figure
         GridLayout matlab.ui.container.GridLayout
-        GridLayout2 matlab.ui.container.GridLayout
-        GridAxes matlab.ui.container.GridLayout
-        GridLayout3 matlab.ui.container.GridLayout
-        ConfigButton matlab.ui.control.Button
-        ReloadButton matlab.ui.control.Button
-        SaveButton matlab.ui.control.Button
-        CloseButton matlab.ui.control.Button
-        ExpListBox matlab.ui.control.ListBox
         DataListBox matlab.ui.control.ListBox
+        ExpListBox matlab.ui.control.ListBox
+        GridLayout2 matlab.ui.container.GridLayout
+        GridLayout3 matlab.ui.container.GridLayout
+        CloseButton matlab.ui.control.Button
+        SaveButton matlab.ui.control.Button
+        ReloadButton matlab.ui.control.Button
+        ConfigButton matlab.ui.control.Button
+        GridAxes matlab.ui.container.GridLayout
     end
 
     properties (Access = private)
@@ -179,9 +174,11 @@ classdef ComparisonView_exported < matlab.apps.AppBase
         function closeProgressDialog(~, progressDlg)
 
             try
+
                 if ~isempty(progressDlg) && isvalid(progressDlg)
                     close(progressDlg);
                 end
+
             catch
             end
 
@@ -192,7 +189,7 @@ classdef ComparisonView_exported < matlab.apps.AppBase
             for notificationIndex = 1:numel(notifications)
                 eventData = openmebius.presentation.notification ...
                     .NotificationEventData( ...
-                        notifications{notificationIndex});
+                    notifications{notificationIndex});
                 notify(app, "NotificationRequested", eventData);
             end
 
@@ -210,7 +207,6 @@ classdef ComparisonView_exported < matlab.apps.AppBase
             app.Action = context.Action;
             app.Mode = context.Mode;
             app.applyCatalog(context.InitialCatalog);
-
         end
 
         % Clicked callback: ExpListBox
@@ -236,7 +232,6 @@ classdef ComparisonView_exported < matlab.apps.AppBase
         function ReloadButtonPushed(app, event)
 
             app.applyCatalog(app.Presenter.presentCatalog());
-
         end
 
         % Button pushed function: SaveButton
@@ -250,15 +245,13 @@ classdef ComparisonView_exported < matlab.apps.AppBase
         function CloseButtonPushed(app, event)
 
             close(app.ComparisonviewUIFigure);
-
         end
 
-        % Close request function: ComparisonviewUIFigure
+        % Callback function
         function ComparisonviewUIFigureCloseRequest(app, event)
 
             notify(app, "Closed");
             delete(app);
-
         end
 
     end
@@ -277,21 +270,63 @@ classdef ComparisonView_exported < matlab.apps.AppBase
             app.ComparisonviewUIFigure.Position = [100 100 1280 720];
             app.ComparisonviewUIFigure.Name = 'Comparison view';
             app.ComparisonviewUIFigure.Icon = fullfile(pathToMLAPP, '+img', 'logo.png');
-            app.ComparisonviewUIFigure.CloseRequestFcn = createCallbackFcn(app, @ComparisonviewUIFigureCloseRequest, true);
 
             % Create GridLayout
             app.GridLayout = uigridlayout(app.ComparisonviewUIFigure);
             app.GridLayout.ColumnWidth = {'1x', '1x', '4x'};
             app.GridLayout.RowHeight = {'1x'};
 
-            % Create DataListBox
-            app.DataListBox = uilistbox(app.GridLayout);
-            app.DataListBox.Items = {};
-            app.DataListBox.Multiselect = 'on';
-            app.DataListBox.Layout.Row = 1;
-            app.DataListBox.Layout.Column = 2;
-            app.DataListBox.ClickedFcn = createCallbackFcn(app, @DataListBoxClicked, true);
-            app.DataListBox.Value = {};
+            % Create GridLayout2
+            app.GridLayout2 = uigridlayout(app.GridLayout);
+            app.GridLayout2.ColumnWidth = {'1x'};
+            app.GridLayout2.RowHeight = {'1x', 'fit'};
+            app.GridLayout2.Padding = [0 0 0 0];
+            app.GridLayout2.Layout.Row = 1;
+            app.GridLayout2.Layout.Column = 3;
+
+            % Create GridAxes
+            app.GridAxes = uigridlayout(app.GridLayout2);
+            app.GridAxes.ColumnWidth = {'1x'};
+            app.GridAxes.RowHeight = {'1x'};
+            app.GridAxes.Padding = [0 0 0 0];
+            app.GridAxes.Layout.Row = 1;
+            app.GridAxes.Layout.Column = 1;
+
+            % Create GridLayout3
+            app.GridLayout3 = uigridlayout(app.GridLayout2);
+            app.GridLayout3.ColumnWidth = {'1x', '1x', '1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout3.RowHeight = {'1x'};
+            app.GridLayout3.Layout.Row = 2;
+            app.GridLayout3.Layout.Column = 1;
+
+            % Create ConfigButton
+            app.ConfigButton = uibutton(app.GridLayout3, 'push');
+            app.ConfigButton.ButtonPushedFcn = createCallbackFcn(app, @ConfigButtonPushed, true);
+            app.ConfigButton.Enable = 'off';
+            app.ConfigButton.Layout.Row = 1;
+            app.ConfigButton.Layout.Column = 4;
+            app.ConfigButton.Text = 'Config';
+
+            % Create ReloadButton
+            app.ReloadButton = uibutton(app.GridLayout3, 'push');
+            app.ReloadButton.ButtonPushedFcn = createCallbackFcn(app, @ReloadButtonPushed, true);
+            app.ReloadButton.Layout.Row = 1;
+            app.ReloadButton.Layout.Column = 5;
+            app.ReloadButton.Text = 'Reload';
+
+            % Create SaveButton
+            app.SaveButton = uibutton(app.GridLayout3, 'push');
+            app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
+            app.SaveButton.Layout.Row = 1;
+            app.SaveButton.Layout.Column = 6;
+            app.SaveButton.Text = 'Save';
+
+            % Create CloseButton
+            app.CloseButton = uibutton(app.GridLayout3, 'push');
+            app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
+            app.CloseButton.Layout.Row = 1;
+            app.CloseButton.Layout.Column = 7;
+            app.CloseButton.Text = 'Close';
 
             % Create ExpListBox
             app.ExpListBox = uilistbox(app.GridLayout);
@@ -302,57 +337,14 @@ classdef ComparisonView_exported < matlab.apps.AppBase
             app.ExpListBox.ClickedFcn = createCallbackFcn(app, @ExpListBoxClicked, true);
             app.ExpListBox.Value = {};
 
-            % Create GridLayout2
-            app.GridLayout2 = uigridlayout(app.GridLayout);
-            app.GridLayout2.ColumnWidth = {'1x'};
-            app.GridLayout2.RowHeight = {'1x', 'fit'};
-            app.GridLayout2.Padding = [0 0 0 0];
-            app.GridLayout2.Layout.Row = 1;
-            app.GridLayout2.Layout.Column = 3;
-
-            % Create GridLayout3
-            app.GridLayout3 = uigridlayout(app.GridLayout2);
-            app.GridLayout3.ColumnWidth = {'1x', '1x', '1x', '1x', '1x', '1x', '1x'};
-            app.GridLayout3.RowHeight = {'1x'};
-            app.GridLayout3.Layout.Row = 2;
-            app.GridLayout3.Layout.Column = 1;
-
-            % Create CloseButton
-            app.CloseButton = uibutton(app.GridLayout3, 'push');
-            app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
-            app.CloseButton.Layout.Row = 1;
-            app.CloseButton.Layout.Column = 7;
-            app.CloseButton.Text = 'Close';
-
-            % Create SaveButton
-            app.SaveButton = uibutton(app.GridLayout3, 'push');
-            app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
-            app.SaveButton.Layout.Row = 1;
-            app.SaveButton.Layout.Column = 6;
-            app.SaveButton.Text = 'Save';
-
-            % Create ReloadButton
-            app.ReloadButton = uibutton(app.GridLayout3, 'push');
-            app.ReloadButton.ButtonPushedFcn = createCallbackFcn(app, @ReloadButtonPushed, true);
-            app.ReloadButton.Layout.Row = 1;
-            app.ReloadButton.Layout.Column = 5;
-            app.ReloadButton.Text = 'Reload';
-
-            % Create ConfigButton
-            app.ConfigButton = uibutton(app.GridLayout3, 'push');
-            app.ConfigButton.ButtonPushedFcn = createCallbackFcn(app, @ConfigButtonPushed, true);
-            app.ConfigButton.Enable = 'off';
-            app.ConfigButton.Layout.Row = 1;
-            app.ConfigButton.Layout.Column = 4;
-            app.ConfigButton.Text = 'Config';
-
-            % Create GridAxes
-            app.GridAxes = uigridlayout(app.GridLayout2);
-            app.GridAxes.ColumnWidth = {'1x'};
-            app.GridAxes.RowHeight = {'1x'};
-            app.GridAxes.Padding = [0 0 0 0];
-            app.GridAxes.Layout.Row = 1;
-            app.GridAxes.Layout.Column = 1;
+            % Create DataListBox
+            app.DataListBox = uilistbox(app.GridLayout);
+            app.DataListBox.Items = {};
+            app.DataListBox.Multiselect = 'on';
+            app.DataListBox.Layout.Row = 1;
+            app.DataListBox.Layout.Column = 2;
+            app.DataListBox.ClickedFcn = createCallbackFcn(app, @DataListBoxClicked, true);
+            app.DataListBox.Value = {};
 
             % Show the figure after all components are created
             app.ComparisonviewUIFigure.Visible = 'on';

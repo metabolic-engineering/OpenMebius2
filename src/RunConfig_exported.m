@@ -1,12 +1,5 @@
 classdef RunConfig_exported < matlab.apps.AppBase
 
-    events
-        Applied
-        BatchExperimentSelectionApplied
-        Closed
-        NotificationRequested
-    end
-
     % Properties that correspond to app components
     properties (Access = public)
         BatchconfigUIFigure matlab.ui.Figure
@@ -136,6 +129,13 @@ classdef RunConfig_exported < matlab.apps.AppBase
         MSFragmentTableMetadata
     end
 
+    events
+        Applied
+        Closed
+        NotificationRequested
+        BatchExperimentSelectionApplied
+    end % events
+
     methods (Access = protected)
 
         function updateINSTMFATimeCourseTable(app)
@@ -230,7 +230,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             tableData = app.LabelTable.Data;
             newRows = strings(numberOfRows, width(tableData));
             tableData = [tableData; array2table( ...
-                newRows, VariableNames = app.LabelTable.ColumnName.')];
+                             newRows, VariableNames = app.LabelTable.ColumnName.')];
             app.LabelTable.Data = tableData;
 
         end % addPatternRows
@@ -293,7 +293,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             for notificationIndex = 1:numel(notifications)
                 eventData = openmebius.presentation.notification ...
                     .NotificationEventData( ...
-                        notifications{notificationIndex});
+                    notifications{notificationIndex});
                 notify(app, "NotificationRequested", eventData);
             end
 
@@ -469,9 +469,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 "RunAddBatch", ...
                 runAddBatchApp, ...
                 {"Applied", ...
-                @(source, event) app.forwardBatchExperimentSelection(source, event); ...
-                "Closed", ...
-                @(source, event) app.onRunAddBatchClosed(source, event)});
+                 @(source, event) app.forwardBatchExperimentSelection(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onRunAddBatchClosed(source, event)});
 
         end % attachRunAddBatchListeners
 
@@ -501,9 +501,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 "TracerConfig", ...
                 tracerConfigApp, ...
                 {"Applied", ...
-                @(source, event) app.onTracerConfigurationApplied(source, event); ...
-                "Closed", ...
-                @(source, event) app.onTracerConfigurationClosed(source, event)});
+                 @(source, event) app.onTracerConfigurationApplied(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onTracerConfigurationClosed(source, event)});
 
         end % attachTracerConfigListeners
 
@@ -535,8 +535,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.closeTracerConfigApp();
             context = openmebius.presentation.experiment ...
                 .TracerConfigContext( ...
-                    EditorTable = viewModel.EditorTable, ...
-                    Position = viewModel.Position);
+                EditorTable = viewModel.EditorTable, ...
+                Position = viewModel.Position);
             app.TracerConfigApp = TracerConfig(context);
             app.attachTracerConfigListeners(app.TracerConfigApp);
 
@@ -572,7 +572,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             for notificationIndex = 1:numel(viewModel.Notifications)
                 eventData = openmebius.presentation.notification ...
                     .NotificationEventData( ...
-                        viewModel.Notifications{notificationIndex});
+                    viewModel.Notifications{notificationIndex});
                 notify(app, "NotificationRequested", eventData);
             end
 
@@ -634,23 +634,23 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function wireActionButtons(app)
 
             restoreButtons = [ ...
-                app.GeneralRestoreDefaultButton
-                app.MSRestoreDefaultButton
-                app.EffluxRestoreDefaultButton
-                app.SuggestionRestoreDefaultButton
-                app.INSTMFARestoreDefaultButton];
+                                  app.GeneralRestoreDefaultButton
+                              app.MSRestoreDefaultButton
+                              app.EffluxRestoreDefaultButton
+                              app.SuggestionRestoreDefaultButton
+                              app.INSTMFARestoreDefaultButton];
             applyButtons = [ ...
-                app.GeneralApplyButton
-                app.MSApplyAllButton
-                app.EffluxApplyButton
-                app.SuggestionApplyButton
-                app.INSTMFAApplyButton];
+                                app.GeneralApplyButton
+                            app.MSApplyAllButton
+                            app.EffluxApplyButton
+                            app.SuggestionApplyButton
+                            app.INSTMFAApplyButton];
             cancelButtons = [ ...
-                app.GeneralCancelButton
-                app.MSCancelButton
-                app.EffluxCancelButton
-                app.SuggestionCancelButton
-                app.INSTMFACancelButton];
+                                 app.GeneralCancelButton
+                             app.MSCancelButton
+                             app.EffluxCancelButton
+                             app.SuggestionCancelButton
+                             app.INSTMFACancelButton];
 
             for buttonIndex = 1:numel(restoreButtons)
                 restoreButtons(buttonIndex).ButtonPushedFcn = ...
@@ -744,56 +744,48 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function startupFcn(app, context)
 
             app.initializeView(context);
-
         end
 
         % Close request function: BatchconfigUIFigure
         function BatchconfigUIFigureCloseRequest(app, event)
 
             app.cancelChanges();
-
         end
 
-        % Callback function: not associated with a component
-        function GeneralApplyButtonPushed(app, ~)
+        % Callback function
+        function GeneralApplyButtonPushed(app, event)
 
             app.applyCurrentSettings();
-
         end
 
         % Button pushed function: GeneralApplyButton
-        function GeneralApplyButtonPushed2(app, ~)
+        function GeneralApplyButtonPushed2(app, event)
 
             app.applyCurrentSettings();
-
         end
 
         % Button pushed function: GeneralCancelButton
-        function GeneralCancelButtonPushed(app, ~)
+        function GeneralCancelButtonPushed(app, event)
 
             app.cancelChanges();
-
         end
 
-        % Callback function: not associated with a component
-        function MSApplyButtonPushed(app, ~)
+        % Callback function
+        function MSApplyButtonPushed(app, event)
 
             app.applyCurrentSettings();
-
         end
 
         % Button pushed function: MSApplyAllButton
-        function MSApplyAllButtonPushed(app, ~)
+        function MSApplyAllButtonPushed(app, event)
 
             app.applyCurrentSettings();
-
         end
 
         % Button pushed function: MSCancelButton
-        function MSCancelButtonPushed(app, ~)
+        function MSCancelButtonPushed(app, event)
 
             app.cancelChanges();
-
         end
 
         % Value changed function: PerturbateEffluxCheckBox
@@ -803,39 +795,34 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end
 
-        % Callback function: not associated with a component
-        function EffluxApplyButtonPushed(app, ~)
+        % Callback function
+        function EffluxApplyButtonPushed(app, event)
 
             app.applyCurrentSettings();
-
         end
 
-        % Callback function: not associated with a component
-        function EffluxApplyAllButtonPushed(app, ~)
+        % Callback function
+        function EffluxApplyAllButtonPushed(app, event)
 
             app.applyCurrentSettings();
-
         end
 
         % Button pushed function: EffluxCancelButton
-        function EffluxCancelButtonPushed(app, ~)
+        function EffluxCancelButtonPushed(app, event)
 
             app.cancelChanges();
-
         end
 
-        % Callback function: not associated with a component
-        function SuggestionApplyButtonPushed(app, ~)
+        % Callback function
+        function SuggestionApplyButtonPushed(app, event)
 
             app.applyCurrentSettings();
-
         end
 
         % Button pushed function: SuggestionCancelButton
-        function SuggestionCancelButtonPushed(app, ~)
+        function SuggestionCancelButtonPushed(app, event)
 
             app.cancelChanges();
-
         end
 
         % Value changed function: CalcCICheckBox
@@ -874,7 +861,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function AddexperimentsMenuSelected(app, event)
 
             app.editTimeCourse();
-
         end
 
         % Menu selected function: RemoveselectedexperimentMenu
@@ -899,16 +885,17 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.CalcCICheckBox.Value = true;
             app.enabledisableCIUI(app.CalcCICheckBox.Value);
             app.enabledisableSuggestion();
-
         end
 
         % Double-clicked callback: LabelTable
         function LabelTableDoubleClicked(app, event)
             displayRow = event.InteractionInformation.DisplayRow;
             displayColumn = event.InteractionInformation.DisplayColumn;
+
             if isempty(displayRow) || isempty(displayColumn)
                 return
             end
+
             app.openTracerConfiguration( ...
                 [displayRow, displayColumn]);
         end
@@ -923,21 +910,18 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             tableNow = [tableNow; tableNew];
             app.LabelTable.Data = tableNow;
-
         end
 
         % Menu selected function: AddnewpatternsMenu
         function AddnewpatternsMenuSelected(app, event)
 
             app.addPatternRows();
-
         end
 
         % Menu selected function: CopythistracerforallentriesMenu
         function CopythistracerforallentriesMenuSelected(app, event)
 
             app.copySelectedTracerColumn();
-
         end
 
         % Key press function: BatchconfigUIFigure
@@ -952,25 +936,22 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end
 
-        % Callback function: not associated with a component
-        function INSTMFAApplyButtonPushed(app, ~)
+        % Callback function
+        function INSTMFAApplyButtonPushed(app, event)
 
             app.applyCurrentSettings();
-
         end
 
-        % Callback function: not associated with a component
-        function INSTMFAReloadButtonPushed(app, ~)
+        % Callback function
+        function INSTMFAReloadButtonPushed(app, event)
 
             app.restoreDefaultValues();
-
         end
 
         % Button pushed function: INSTMFACancelButton
-        function INSTMFACancelButtonPushed(app, ~)
+        function INSTMFACancelButtonPushed(app, event)
 
             app.cancelChanges();
-
         end
 
     end

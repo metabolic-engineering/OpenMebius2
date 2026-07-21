@@ -1,11 +1,5 @@
 classdef MSView_exported < matlab.apps.AppBase
 
-    events
-        ComparisonRequested
-        NotificationRequested
-        Closed
-    end
-
     % Properties that correspond to app components
     properties (Access = public)
         MSViewerUIFigure matlab.ui.Figure
@@ -111,6 +105,7 @@ classdef MSView_exported < matlab.apps.AppBase
                         addStyle(app.MSTable, ui, 'cell', [j, i]);
                         clear ui;
                     end
+
                 end
 
                 clear data;
@@ -147,42 +142,37 @@ classdef MSView_exported < matlab.apps.AppBase
         function startupFcn(app, context)
 
             app.initializeView(context);
-
         end
 
         % Value changed function: ExpDropDown
-        function ExpDropDownValueChanged(app, ~)
+        function ExpDropDownValueChanged(app, event)
 
             value = app.ExpDropDown.Value;
             app.changeMSTable(value, app.TableTypeDropDown.Value);
-
         end
 
         % Value changed function: TableTypeDropDown
-        function TableTypeDropDownValueChanged(app, ~)
+        function TableTypeDropDownValueChanged(app, event)
 
             value = app.TableTypeDropDown.Value;
             app.changeMSTable(app.ExpDropDown.Value, value);
-
         end
 
         % Button pushed function: PlotButton
-        function PlotButtonPushed(app, ~)
+        function PlotButtonPushed(app, event)
 
             notify(app, 'ComparisonRequested');
-
         end
 
         % Button pushed function: ReloadButton
-        function ReloadButtonPushed(~, ~)
+        function ReloadButtonPushed(app, event)
 
         end
 
         % Button pushed function: SaveButton
-        function SaveButtonPushed(app, ~)
+        function SaveButtonPushed(app, event)
 
             app.saveTable();
-
         end
 
         % Key press function: MSViewerUIFigure
@@ -198,7 +188,7 @@ classdef MSView_exported < matlab.apps.AppBase
         end
 
         % Close request function: MSViewerUIFigure
-        function MSViewerUIFigureCloseRequest(app, ~)
+        function MSViewerUIFigureCloseRequest(app, event)
 
             notify(app, "Closed");
             delete(app)

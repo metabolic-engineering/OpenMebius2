@@ -1,9 +1,14 @@
 function synchronizeMlappSource(appNames, root)
-%SYNCHRONIZEMLAPPSOURCE Replace mlapp document code from exported sources.
+%SYNCHRONIZEMLAPPSOURCE Replace both mlapp code stores from exports.
 
 arguments
-    appNames (:, 1) string
+    appNames (:, 1) string = strings(0, 1)
     root (1, 1) string = string(fileparts(fileparts(mfilename("fullpath"))))
+end
+
+if isempty(appNames)
+    appFiles = dir(fullfile(root, "src", "*.mlapp"));
+    appNames = sort(erase(string({appFiles.name}).', ".mlapp"));
 end
 
 for appIndex = 1:numel(appNames)
@@ -21,77 +26,82 @@ for appIndex = 1:numel(appNames)
 
     source = string(fileread(exportedPath));
     source = replace(source, appName + "_exported", appName);
-    replaceDocumentEntry(mlappPath, source);
+    synchronizeCodeStores(mlappPath, source);
 end
 
 end
 
-function replaceDocumentEntry(mlappPath, source)
+function synchronizeCodeStores(mlappPath, source)
 
-xml = createDocumentXml(mlappPath, source);
-NET.addAssembly('System.IO.Compression');
-NET.addAssembly('System.IO.Compression.FileSystem');
-mode = System.IO.Compression.ZipArchiveMode.Update;
-archive = System.IO.Compression.ZipFile.Open(char(mlappPath), mode);
-archiveCleanup = onCleanup(@() archive.Dispose());
-entry = archive.GetEntry('matlab/document.xml');
+mlappPath = char(mlappPath);
+[currentCode, ~, metadata] = ...
+    appdesigner.internal.comparison.getAppData(mlappPath);
+parser = appdesigner.internal.serialization.PlainTextCodeParser(source);
+callbackInfo = struct( ...
+    AssignedCallbacks = currentCode.Callbacks, ...
+    Children = struct.empty);
+startupName = "";
 
-if isempty(entry)
+if isfield(currentCode, 'StartupCallback') && ...
+        ~isempty(currentCode.StartupCallback)
+    startupName = string(currentCode.StartupCallback.Name);
+end
+
+isSingleton = isfield(currentCode, 'SingletonMode') && ...
+    strcmp(currentCode.SingletonMode, 'FOCUS');
+updatedCode = parser.parseCodeData( ...
+    callbackInfo, startupName, isSingleton, string(metadata.AppType));
+
+if isfield(updatedCode, 'StartupFcn')
+    updatedCode.StartupCallback = updatedCode.StartupFcn;
+    updatedCode = rmfield(updatedCode, 'StartupFcn');
+end
+
+fieldsToUpdate = [ ...
+    "ClassName", ...
+    "EditableSectionCode", ...
+    "Callbacks", ...
+    "StartupCallback", ...
+    "InputParameters"];
+fieldsToUpdate = fieldsToUpdate( ...
+    isfield(updatedCode, cellstr(fieldsToUpdate)));
+updatedCode = rmfield( ...
+    updatedCode, ...
+    setdiff(fieldnames(updatedCode), cellstr(fieldsToUpdate)));
+temporaryPath = [tempname, '.mlapp'];
+temporaryCleanup = onCleanup(@() deleteIfPresent(temporaryPath));
+outcome = appdesigner.internal.comparison.saveAppCode( ...
+    mlappPath, temporaryPath, char(source), updatedCode, true);
+
+if string(outcome.Status) ~= "success"
+    message = "Unknown App Designer serialization failure.";
+
+    if isfield(outcome, 'Message')
+        message = string(outcome.Message);
+    end
+
     error( ...
-        "OpenMebius2:Development:MissingDocumentCode", ...
-        "The mlapp does not contain matlab/document.xml: %s", ...
-        mlappPath);
+        "OpenMebius2:Development:MlappSynchronizationFailed", ...
+        "Failed to synchronize %s: %s", mlappPath, message);
 end
 
-entry.Delete();
-entry = archive.CreateEntry( ...
-    'matlab/document.xml', ...
-    System.IO.Compression.CompressionLevel.Optimal);
-stream = entry.Open();
-streamCleanup = onCleanup(@() stream.Dispose());
-writer = System.IO.StreamWriter( ...
-    stream, System.Text.UTF8Encoding(false));
-writerCleanup = onCleanup(@() writer.Dispose());
-writer.Write(xml);
-writer.Flush();
-clear writerCleanup streamCleanup archiveCleanup
+[isCopied, copyMessage] = copyfile(temporaryPath, mlappPath, 'f');
 
-end
-
-function xml = createDocumentXml(mlappPath, source)
-
-archive = java.util.zip.ZipFile(char(mlappPath));
-archiveCleanup = onCleanup(@() archive.close());
-entry = archive.getEntry("matlab/document.xml");
-
-if isempty(entry)
+if ~isCopied
     error( ...
-        "OpenMebius2:Development:MissingDocumentCode", ...
-        "The mlapp does not contain matlab/document.xml: %s", ...
-        mlappPath);
+        "OpenMebius2:Development:MlappCopyFailed", ...
+        "Failed to replace %s: %s", mlappPath, copyMessage);
 end
 
-input = archive.getInputStream(entry);
-inputCleanup = onCleanup(@() input.close());
-factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
-document = factory.newDocumentBuilder().parse(input);
-textNodes = document.getElementsByTagName("w:t");
+clear temporaryCleanup
 
-if textNodes.getLength() == 0
-    error( ...
-        "OpenMebius2:Development:MissingDocumentText", ...
-        "The App Designer document contains no w:t source node.");
 end
 
-textNodes.item(0).setTextContent(char(source));
-transformer = javax.xml.transform.TransformerFactory ...
-    .newInstance().newTransformer();
-transformer.setOutputProperty( ...
-    javax.xml.transform.OutputKeys.ENCODING, "UTF-8");
-writer = java.io.StringWriter();
-transformer.transform( ...
-    javax.xml.transform.dom.DOMSource(document), ...
-    javax.xml.transform.stream.StreamResult(writer));
-xml = char(writer.toString());
+
+function deleteIfPresent(path)
+
+if isfile(path)
+    delete(path);
+end
 
 end
