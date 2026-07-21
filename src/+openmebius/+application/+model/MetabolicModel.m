@@ -1180,7 +1180,9 @@ classdef MetabolicModel < handle
             obj.globalYnList = result.YnList;
 
             if ~result.HasSubstrates
-                disp("No substrate metabolites found.");
+                obj.reportMessage( ...
+                    "No substrate metabolites found.", ...
+                    "info");
             end
 
         end % method buildXnYnMatrix

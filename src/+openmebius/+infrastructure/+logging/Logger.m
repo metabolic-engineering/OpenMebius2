@@ -13,42 +13,17 @@ classdef Logger
 
         function level = normalizeLevel(level)
 
-            level = string(level);
-
-            if isempty(level) || ismissing(level(1)) || strlength(level(1)) == 0
-                level = "Info";
-            else
-                level = lower(strtrim(level(1)));
+            try
+                normalized = openmebius.core.notification.Severity ...
+                    .normalize(level);
+            catch
+                error( ...
+                    "OpenMebius2:Logger:InvalidLevel", ...
+                    "Log level must be Debug, Info, Success, Notice, Warning, Error, or Fatal.");
             end
 
-            switch level
-
-                case "debug"
-                    level = "Debug";
-
-                case {"info", "information"}
-                    level = "Info";
-
-                case {"ok", "success", "finished", "complete", "completed"}
-                    level = "Success";
-
-                case "notice"
-                    level = "Notice";
-
-                case {"warn", "warning"}
-                    level = "Warning";
-
-                case {"err", "error", "exception"}
-                    level = "Error";
-
-                case "fatal"
-                    level = "Fatal";
-
-                otherwise
-                    error( ...
-                        "OpenMebius2:Logger:InvalidLevel", ...
-                        "Log level must be Debug, Info, Success, Notice, Warning, Error, or Fatal.");
-            end
+            level = upper(extractBefore(normalized, 2)) + ...
+                extractAfter(normalized, 1);
 
         end % normalizeLevel
 

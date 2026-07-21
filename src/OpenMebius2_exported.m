@@ -211,6 +211,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
 
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
+        NotificationDispatcher openmebius.infrastructure.notification ...
+            .NotificationDispatcher
 
         PreferencesApp
 
@@ -235,7 +237,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 text string
             end
 
-            app.appendLogText(text);
+            app.showNotification( ...
+                openmebius.presentation.notification.Notification.info(text));
 
         end % function LogText
 
@@ -481,6 +484,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ExperimentEditController = ...
                 dependencies.ExperimentEditController;
             app.SlackNotifier = dependencies.SlackNotifier;
+            app.NotificationDispatcher = ...
+                dependencies.NotificationDispatcher;
 
         end % applyApplicationDependencies
 
@@ -906,15 +911,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.updateStatus("batch", viewModel.SectionStatus);
             end
 
-            if ~isempty(viewModel.Notification)
-                app.showNotification(viewModel.Notification);
-            end
-
             if viewModel.CompletionStatus ~= ""
-                app.notifySlackBatchCompleted( ...
-                    viewModel.CompletionStatus, ...
-                    ErrorMessage = viewModel.ErrorMessage, ...
-                    DeltaTime = viewModel.ElapsedTime);
+                app.publishBatchCompletion(viewModel);
+            elseif ~isempty(viewModel.Notification)
+                app.showNotification(viewModel.Notification);
             end
 
         end % renderBatchRunViewModel
@@ -994,7 +994,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             if ~isempty(viewModel.Suggestion)
                 app.ViewSuggestionApp = ...
-                    ViewSuggestion(viewModel.Suggestion);
+                    ViewSuggestion( ...
+                    viewModel.Suggestion, ...
+                    app.NotificationDispatcher.reporter());
             end
 
             for notificationIndex = 1:numel(viewModel.Notifications)
@@ -2324,10 +2326,19 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         %% Private notification function
         function showNotification(app, notification)
             % SHOWNOTIFICATION
-            % Central notification sink for OpenMebius2.mlapp.
+            % Compatibility adapter into the central notification dispatcher.
             % showNotification(notification)
 
             if isempty(notification)
+                return
+            end
+
+            if iscell(notification)
+
+                for i = 1:numel(notification)
+                    app.showNotification(notification{i});
+                end
+
                 return
             end
 
@@ -2343,35 +2354,72 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if isa(notification, ...
                 "openmebius.core.notification.Message")
 
-                notification = openmebius.presentation.notification ...
-                    .Notification.fromMessage(notification);
+                message = notification;
 
-            elseif ~isa(notification, ...
+            elseif isa(notification, ...
                 "openmebius.presentation.notification.Notification")
 
-                notification = ...
-                    openmebius.presentation.notification.Notification.info( ...
-                    string(notification));
+                message = notification.toMessage();
+
+            else
+
+                message = openmebius.core.notification.Message( ...
+                    string(notification), ...
+                    "info", ...
+                    Code = "presentation.notification", ...
+                    Source = "OpenMebius2");
 
             end
 
-            app.appendLogText( ...
-                notification.Message, ...
-                notification.Level, ...
-                notification.Timestamp);
-
-            if notification.ShowAlert
-
-                uialert( ...
-                    app.OpenMebius2UIFigure, ...
-                    char(notification.Message), ...
-                    char(notification.Title), ...
-                    "Icon", char(notification.alertIcon()), ...
-                    "Interpreter", "none");
-
-            end
+            app.NotificationDispatcher.publish(message);
 
         end % method showNotification
+
+        function renderUiLogMessage(app, message)
+
+            app.appendLogText( ...
+                message.Text, ...
+                message.Level, ...
+                message.Timestamp);
+
+        end % method renderUiLogMessage
+
+        function renderUiAlertMessage(app, message)
+
+            title = message.Title;
+
+            if title == ""
+                title = openmebius.presentation.notification.Notification ...
+                    .defaultTitle(message.Level);
+            end
+
+            notification = openmebius.presentation.notification ...
+                .Notification( ...
+                message.Text, ...
+                message.Level, ...
+                Title = title, ...
+                Timestamp = message.Timestamp, ...
+                ShowAlert = true);
+
+            uialert( ...
+                app.OpenMebius2UIFigure, ...
+                char(notification.Message), ...
+                char(notification.Title), ...
+                "Icon", char(notification.alertIcon()), ...
+                "Interpreter", "none");
+
+        end % method renderUiAlertMessage
+
+        function configureNotificationSinks(app)
+
+            app.NotificationDispatcher.addSink( ...
+                openmebius.presentation.notification.UiLogSink( ...
+                @(message) app.renderUiLogMessage(message)));
+            app.NotificationDispatcher.addSink( ...
+                openmebius.presentation.notification.UiAlertSink( ...
+                @(message) app.renderUiAlertMessage(message)));
+
+        end % method configureNotificationSinks
 
         function openMSComparison(app)
 
@@ -2418,7 +2466,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 Timestamp = timestamp);
 
             before = app.LogTextArea.Value;
-            app.LogTextArea.Value = [before; text(:)];
+            values = [before; text(:)];
+            maximumLines = 5000;
+
+            if numel(values) > maximumLines
+                values = values(end - maximumLines + 1:end);
+            end
+
+            app.LogTextArea.Value = values;
 
             scroll(app.LogTextArea, "bottom");
 
@@ -3315,67 +3370,60 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % selectedModelReactionID
 
-        %% Slack notification helpers
-        function notifySlackBatchCompleted(app, status, options)
+        %% Batch completion notification helper
+        function publishBatchCompletion(app, viewModel)
 
-            arguments
-                app
-                status (1, 1) string
-                options.ErrorMessage (1, 1) string = ""
-                options.DeltaTime (1, 1) duration = seconds(0)
+            status = lower(string(viewModel.CompletionStatus));
+
+            switch status
+                case "finished"
+                    code = "batch.completed";
+                case "canceled"
+                    code = "batch.canceled";
+                otherwise
+                    code = "batch.failed";
             end
+
+            projectName = "";
 
             try
+                project = app.ApplicationController.project();
 
-                if ~app.SlackNotifier.canNotify()
-                    return
+                if ~isempty(project)
+                    projectName = project.Metadata.Name;
                 end
 
+            catch
                 projectName = "";
-
-                try
-
-                    project = app.ApplicationController.project();
-
-                    if ~isempty(project)
-                        projectName = project.Metadata.Name;
-                    end
-
-                catch
-                    projectName = "";
-                end
-
-                message = "Batch calculation " + status + ".";
-
-                if options.ErrorMessage ~= ""
-                    message = message + newline + "Error: " + options.ErrorMessage;
-                end
-
-                result = app.SlackNotifier.send( ...
-                    message, ...
-                    Title = "OpenMebius2 Batch Run", ...
-                    Status = status, ...
-                    ProjectName = projectName, ...
-                    BatchStatus = status, ...
-                    DeltaTime = options.DeltaTime);
-
-                if result.Success
-                    app.notifyInfo("Slack notification sent.");
-                elseif ~result.Skipped
-                    app.notifyWarning("Slack notification failed: " + result.Message);
-                end
-
-            catch ME
-
-                try
-                    app.notifyWarning( ...
-                        "Slack notification skipped: " + string(ME.message));
-                catch
-                end
-
             end
 
-        end % method notifySlackBatchCompleted
+            context = struct( ...
+                Status = status, ...
+                ProjectName = projectName, ...
+                BatchStatus = status, ...
+                DeltaTime = viewModel.ElapsedTime, ...
+                ErrorMessage = viewModel.ErrorMessage);
+            notification = viewModel.Notification;
+
+            if isa(notification, ...
+                "openmebius.presentation.notification.Notification")
+                message = notification.toMessage( ...
+                    Code = code, ...
+                    Source = "BatchPresenter", ...
+                    Context = context);
+            else
+                message = openmebius.core.notification.Message( ...
+                    string(notification), ...
+                    "info", ...
+                    Code = code, ...
+                    Title = "OpenMebius2 Batch Run", ...
+                    Source = "BatchPresenter", ...
+                    Context = context);
+            end
+
+            app.NotificationDispatcher.publish(message);
+
+        end % method publishBatchCompletion
 
         function beginPresentationPreferences(app)
 
@@ -3521,19 +3569,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % function initStatusTable
-
-        function setLogFile(app)
-
-            try
-                openmebius.infrastructure.logging.Logger ...
-                    .configureDefaultDiary();
-            catch ME
-                msg = "Could not set log file." + newline + ...
-                    string(ME.message);
-                app.LogTextDate(msg, "Error");
-            end
-
-        end % function setLogFile
 
         %% Private load function
         function loadHistory(app)
@@ -3692,9 +3727,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
-            msg = openmebius.infrastructure.logging.Logger ...
-                .formatDatedMessage("Pathway loaded successfully", "Info");
-            app.LogText(msg);
+            app.notifyInfo("Pathway loaded successfully");
 
         end % function loadPathway
 
@@ -4294,12 +4327,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     names = intersect( ...
                         string(displayed.Properties.VariableNames), ...
                         string(data.Properties.VariableNames), ...
-                        "stable");
+                    "stable");
                     names(names == "ID") = [];
 
                     for name = names
                         data.(name) = displayed.(name);
                     end
+
                 end
 
             catch
@@ -4427,13 +4461,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function initializeMainApp(app, filepath)
 
-            app.setLogFile();
             app.DialogService = openmebius.presentation.dialog ...
                 .AppDialogService(app.OpenMebius2UIFigure);
             dependencies = app.createMainAppDependencies();
             app.applyApplicationDependencies(dependencies);
+            app.configureNotificationSinks();
             app.ApplicationController.setNotificationReporter( ...
-                @(notification) app.handleNotification(notification));
+                app.NotificationDispatcher.reporter());
 
             if nargin < 2
                 filepath = "";
@@ -4817,7 +4851,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             try
                 app.beginPresentationPreferences();
-                app.PreferencesApp = Preferences(app.SlackNotifier);
+                app.PreferencesApp = Preferences( ...
+                    app.SlackNotifier, ...
+                    app.NotificationDispatcher.reporter());
                 app.attachPreferencesListeners(app.PreferencesApp);
             catch exception
                 app.finishPresentationPreferences();
@@ -5343,11 +5379,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function TracerReloadButtonPushed(app, event)
 
             app.loadTracerTable();
-            msg = openmebius.infrastructure.logging.Logger ...
-                .formatDatedMessage( ...
-                "Tracer and uptake tables reloaded", ...
-            "Info");
-            app.LogText(msg);
+            app.notifyInfo("Tracer and uptake tables reloaded");
 
         end
 
@@ -5600,7 +5632,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: ViewlogsMenu
         function ViewlogsMenuSelected(app, event)
 
-            app.LogApp = AppLogs();
+            app.LogApp = AppLogs(app.NotificationDispatcher.reporter());
 
         end
 
@@ -6490,6 +6522,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Code that executes before app deletion
         function delete(app)
+
+            if ~isempty(app.NotificationDispatcher) && ...
+                    isvalid(app.NotificationDispatcher)
+                app.NotificationDispatcher.removeSink("ui-log");
+                app.NotificationDispatcher.removeSink("ui-alert");
+            end
 
             if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
                 app.ChildAppHost.closeAll();

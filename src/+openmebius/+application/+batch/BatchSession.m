@@ -20,7 +20,8 @@ classdef BatchSession < handle
         BatchJsonRepository
         BatchPreparationService
         BatchExecutionCoordinator
-        MessageReporter
+        NotificationEmitter openmebius.application.notification ...
+            .NotificationEmitter
         batchColumnNamesforGUI = ["ID", "Name", "Experiment", "Description"];
         batchColumnEditableforGUI = [false, true, false, true];
 
@@ -46,6 +47,11 @@ classdef BatchSession < handle
                     openmebius.application.batch.BatchRunService()
                 options.BatchPreparationService = []
                 options.BatchExecutionCoordinator = []
+                options.NotificationEmitter (1, 1) ...
+                    openmebius.application.notification ...
+                    .NotificationEmitter = ...
+                    openmebius.application.notification ...
+                    .NotificationEmitter(Source = "BatchSession")
             end
 
             % Set properties
@@ -71,9 +77,7 @@ classdef BatchSession < handle
                 obj.BatchExecutionCoordinator = ...
                     options.BatchExecutionCoordinator;
             end
-            obj.MessageReporter = openmebius.infrastructure.logging ...
-                .MessageReporter();
-
+            obj.NotificationEmitter = options.NotificationEmitter;
             % Initialize table
             initTableBatch(obj);
             loadBatchFile(obj);
@@ -355,14 +359,17 @@ classdef BatchSession < handle
             columnEditable = [true, true];
 
             if length(ids) ~= 1
-                warning("Only one batch ID can be specified for efflux standard deviation table.");
+                obj.reportDiagnosticWarning( ...
+                    "Only one batch ID can be specified for efflux " + ...
+                    "standard deviation table.");
                 return
             end
 
             collection = obj.batchCollection();
 
             if collection.statusesFor(ids(1)) == "unknown"
-                warning("Batch ID not found: %s", ids(1));
+                obj.reportDiagnosticWarning( ...
+                    "Batch ID not found: " + ids(1));
                 return
             end
 
@@ -375,7 +382,9 @@ classdef BatchSession < handle
             nConfig = min([length(currentSubstrate), length(currentSelection), length(currentSubstrateSD)]);
 
             if nConfig < length(currentSubstrate) || nConfig < length(currentSelection) || nConfig < length(currentSubstrateSD)
-                warning("Length of substrates, selection, and substrateSD are not the same. Extra entries are ignored.");
+                obj.reportDiagnosticWarning( ...
+                    "Length of substrates, selection, and substrateSD " + ...
+                    "are not the same. Extra entries are ignored.");
                 currentSubstrate = currentSubstrate(1:nConfig);
                 currentSelection = currentSelection(1:nConfig);
                 currentSubstrateSD = currentSubstrateSD(1:nConfig);
@@ -528,7 +537,9 @@ classdef BatchSession < handle
             end
 
             if length(ids) ~= 1
-                warning("Only one batch ID can be specified for INST-MFA pool size table.");
+                obj.reportDiagnosticWarning( ...
+                    "Only one batch ID can be specified for INST-MFA " + ...
+                    "pool size table.");
                 tableRtn = table();
                 return
             end
@@ -536,7 +547,8 @@ classdef BatchSession < handle
             collection = obj.batchCollection();
 
             if collection.statusesFor(ids(1)) == "unknown"
-                warning("Batch ID not found: %s", ids(1));
+                obj.reportDiagnosticWarning( ...
+                    "Batch ID not found: " + ids(1));
                 tableRtn = table();
                 return
             end
@@ -595,7 +607,9 @@ classdef BatchSession < handle
             columnEditable = [false, true];
 
             if length(ids) ~= 1
-                warning("Only one batch ID can be specified for INST-MFA time points.");
+                obj.reportDiagnosticWarning( ...
+                    "Only one batch ID can be specified for INST-MFA " + ...
+                    "time points.");
                 tableRtn = table();
                 return
             end
@@ -603,7 +617,8 @@ classdef BatchSession < handle
             collection = obj.batchCollection();
 
             if collection.statusesFor(ids(1)) == "unknown"
-                warning("Batch ID not found: %s", ids(1));
+                obj.reportDiagnosticWarning( ...
+                    "Batch ID not found: " + ids(1));
                 tableRtn = table();
                 return
             end
@@ -611,7 +626,8 @@ classdef BatchSession < handle
             config = collection.configFor(ids(1));
 
             if ~config.isINSTMFA
-                warning("INST-MFA is not enabled for batch ID: %s", ids(1));
+                obj.reportDiagnosticWarning( ...
+                    "INST-MFA is not enabled for batch ID: " + ids(1));
                 tableRtn = table();
                 return
             end
@@ -1282,10 +1298,27 @@ classdef BatchSession < handle
                 reporter = @(~) [];
             end
 
-            coreMessage = obj.MessageReporter.report(level, message);
-            reporter(coreMessage);
+            emitter = openmebius.application.notification ...
+                .NotificationEmitter( ...
+                    Publisher = reporter, ...
+                    Source = "BatchSession");
+            emitter.report( ...
+                level, ...
+                message, ...
+                Code = "batch.operation");
 
         end % method publishGeneralMessage
+
+        function reportDiagnosticWarning(obj, message)
+
+            obj.NotificationEmitter.report( ...
+                "warning", ...
+                string(message), ...
+                Code = "batch.validation", ...
+                Audience = "developer", ...
+                Kind = "diagnostic");
+
+        end % reportDiagnosticWarning
 
         function experimentLocation = getExperimentLocation(obj)
 

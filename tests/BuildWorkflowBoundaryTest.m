@@ -47,6 +47,9 @@ classdef BuildWorkflowBoundaryTest < matlab.unittest.TestCase
             testCase.verifyTrue(contains(source, "runFastTests()"));
             testCase.verifyTrue(contains(source, ...
                 "OpenMebius2SourceSyncTest.m"));
+            testCase.verifyTrue(contains(source, ...
+                "NotificationDispatcher"));
+            testCase.verifyFalse(contains(source, "disp("));
         end
 
     end

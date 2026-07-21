@@ -50,6 +50,46 @@ application services.
 `LayerDependencyBoundaryTest`, `MainAppDomainBoundaryTest`, and the child-App
 boundary tests enforce these rules in the fast test profile.
 
+# Unified notification delivery
+
+Every user-facing message and operational diagnostic is represented by
+`openmebius.core.notification.Message`. Producers do not select UI, file,
+console, or Slack destinations. Application services create the value through
+`NotificationEmitter` and publish it once through an injected function-handle
+port.
+
+```mermaid
+flowchart LR
+    P["Application / presentation producer"] --> E["NotificationEmitter"]
+    E --> M["core.notification.Message"]
+    M --> D["NotificationDispatcher"]
+    D --> R["RoutingPolicy"]
+    R --> U["UI log sink"]
+    R --> A["UI alert sink"]
+    R --> F["Rotating file sink"]
+    R --> C["stdout / stderr sink"]
+    R --> S["Slack sink"]
+```
+
+The message carries a stable event ID, optional correlation ID, event code,
+severity, user text, diagnostic text, source, structured context, audience,
+attention requirement, and kind. `NotificationDispatcher` suppresses repeated
+event IDs and isolates sink failures so a logging or remote-delivery failure
+cannot fail the application operation.
+
+| Sink | Default desktop policy |
+|---|---|
+| File | `debug` and above; explicit append with size-based rotation |
+| Console | `warning` and above; normal output uses stdout, failures use stderr |
+| UI log | `info` and above, excluding progress and developer-only messages |
+| UI alert | User messages requiring action, plus fatal messages |
+| Slack | Allow-listed terminal batch event codes only |
+
+UI sinks are registered after the App Designer controls exist and removed when
+the main App closes. `MainAppCompositionRoot` owns the long-lived dispatcher
+and non-UI sinks. Test mode disables console delivery. The file sink replaces
+MATLAB `diary`, so log ownership, rotation, and failure handling are explicit.
+
 # Runtime ownership
 
 `MainApplicationSession` is the runtime owner of the current `ProjectSession`

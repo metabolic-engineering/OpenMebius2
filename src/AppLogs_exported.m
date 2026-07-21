@@ -9,6 +9,10 @@ classdef AppLogs_exported < matlab.apps.AppBase
         TextArea matlab.ui.control.TextArea
     end
 
+    properties (Access = private)
+        NotificationPublisher (1, 1) function_handle = @(~) []
+    end
+
     methods (Access = protected)
 
         function [folder, isOK] = uiGetDirWrap(~, options)
@@ -68,7 +72,16 @@ classdef AppLogs_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app)
+        function startupFcn(app, notificationPublisher)
+
+            if nargin >= 2 && ~isempty(notificationPublisher)
+                app.NotificationPublisher = notificationPublisher;
+            else
+                consoleSink = openmebius.infrastructure.notification ...
+                    .ConsoleSink();
+                app.NotificationPublisher = ...
+                    @(message) consoleSink.write(message);
+            end
 
             app.loadLogs();
 
@@ -88,10 +101,10 @@ classdef AppLogs_exported < matlab.apps.AppBase
                     .copyDefaultLogTo(folder);
                 msg = "Log file saved to: " + ...
                     fullfile(folder, "openmebius2.log");
-                disp(msg);
+                app.publishNotification("success", msg);
             catch ME
                 msg = "Failed to save log file: " + ME.message;
-                disp(msg);
+                app.publishNotification("error", msg);
             end
 
         end
@@ -156,7 +169,7 @@ classdef AppLogs_exported < matlab.apps.AppBase
     methods (Access = public)
 
         % Construct app
-        function app = AppLogs_exported
+        function app = AppLogs_exported(varargin)
 
             % Create UIFigure and components
             createComponents(app)
@@ -165,7 +178,7 @@ classdef AppLogs_exported < matlab.apps.AppBase
             registerApp(app, app.LogsUIFigure)
 
             % Execute the startup function
-            runStartupFcn(app, @startupFcn)
+            runStartupFcn(app, @(app)startupFcn(app, varargin{:}))
 
             if nargout == 0
                 clear app
@@ -179,6 +192,23 @@ classdef AppLogs_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.LogsUIFigure)
         end
+
+    end
+
+    methods (Access = private)
+
+        function publishNotification(app, level, text)
+
+            emitter = openmebius.application.notification ...
+                .NotificationEmitter( ...
+                    Publisher = app.NotificationPublisher, ...
+                    Source = "AppLogs");
+            emitter.report( ...
+                level, ...
+                text, ...
+                Code = "log.export");
+
+        end % publishNotification
 
     end
 

@@ -59,7 +59,8 @@ classdef ModelDocument < handle
         ModelRepository
         ReactionParser
         Validator
-        MessageReporter
+        NotificationEmitter openmebius.application.notification ...
+            .NotificationEmitter
         ValidationErrors (:, 1) string = strings(0, 1)
         ValidationWarnings (:, 1) string = strings(0, 1)
 
@@ -98,6 +99,11 @@ classdef ModelDocument < handle
                     .ModelReactionParser()
                 options.Validator = openmebius.application.model ...
                     .ModelWorkspaceValidator()
+                options.NotificationEmitter (1, 1) ...
+                    openmebius.application.notification ...
+                    .NotificationEmitter = ...
+                    openmebius.application.notification ...
+                    .NotificationEmitter(Source = "ModelDocument")
             end
 
             modelLocation = ...
@@ -109,9 +115,7 @@ classdef ModelDocument < handle
             obj.ModelRepository = options.ModelRepository;
             obj.ReactionParser = options.ReactionParser;
             obj.Validator = options.Validator;
-            obj.MessageReporter = openmebius.infrastructure.logging ...
-                .MessageReporter( ...
-                LogLevel = obj.logLevel);
+            obj.NotificationEmitter = options.NotificationEmitter;
 
             obj.ModelRepository.assertModelDirectory(modelLocation);
 
@@ -1259,7 +1263,12 @@ classdef ModelDocument < handle
 
         function updateMsg(obj, text, level, ~)
 
-            obj.MessageReporter.report(lower(string(level)), string(text));
+            obj.NotificationEmitter.report( ...
+                lower(string(level)), ...
+                string(text), ...
+                Code = "model.document", ...
+                Audience = "developer", ...
+                Kind = "diagnostic");
 
         end % updateMsg
 

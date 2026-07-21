@@ -19,6 +19,7 @@ classdef Preferences_exported < matlab.apps.AppBase
     properties (Access = private)
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
         PreferencesClosedNotified (1, 1) logical = false
+        NotificationPublisher (1, 1) function_handle = @(~) []
     end
 
     events
@@ -101,18 +102,28 @@ classdef Preferences_exported < matlab.apps.AppBase
                     string(notification));
             end
 
-            try
-                uialert( ...
-                    app.PreferencesUIFigure, ...
-                    char(notification.Message), ...
-                    char(notification.Title), ...
-                    "Icon", char(notification.alertIcon()), ...
-                    "Interpreter", "none");
-            catch
-                warning("%s", notification.toLogText());
-            end
+            app.NotificationPublisher( ...
+                notification.toMessage( ...
+                    Code = "preferences.operation", ...
+                    Source = "Preferences"));
 
         end % method showPreferenceNotification
+
+        function renderLocalNotification(app, message)
+
+            notification = openmebius.presentation.notification ...
+                .Notification.fromMessage( ...
+                    message, ...
+                    Title = message.Title, ...
+                    ShowAlert = true);
+            uialert( ...
+                app.PreferencesUIFigure, ...
+                char(notification.Message), ...
+                char(notification.Title), ...
+                "Icon", char(notification.alertIcon()), ...
+                "Interpreter", "none");
+
+        end % method renderLocalNotification
 
         function showLocalWarning(app, ME)
 
@@ -148,7 +159,7 @@ classdef Preferences_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, slackNotifier)
+        function startupFcn(app, slackNotifier, notificationPublisher)
 
             if nargin < 2 || isempty(slackNotifier)
                 slackNotifier = ...
@@ -156,6 +167,13 @@ classdef Preferences_exported < matlab.apps.AppBase
             end
 
             app.SlackNotifier = slackNotifier;
+
+            if nargin >= 3 && ~isempty(notificationPublisher)
+                app.NotificationPublisher = notificationPublisher;
+            else
+                app.NotificationPublisher = ...
+                    @(message) app.renderLocalNotification(message);
+            end
 
             app.loadSlackPreferences();
         end

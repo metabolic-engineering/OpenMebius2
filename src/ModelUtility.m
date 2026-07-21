@@ -2,11 +2,12 @@ classdef ModelUtility < handle
 
     methods (Static)
 
-        function reversedReaction = flipReversibleReaction(reaction)
+        function reversedReaction = flipReversibleReaction(reaction, options)
             % FLIPREVERSIBLEREACTION Flip reversible reaction strings "A <=> B" -> "B <=> A"
 
             arguments
                 reaction (:, 1) string
+                options.NotificationReporter (1, 1) function_handle = @(~) []
             end
 
             reversedReaction = reaction;
@@ -21,7 +22,15 @@ classdef ModelUtility < handle
                     products = strtrim(tok{2});
                     reversedReaction(k) = products + " <=> " + reactants;
                 else
-                    warning('The provided reaction is not reversible: %s', reaction(k));
+                    options.NotificationReporter( ...
+                        openmebius.core.notification.Message( ...
+                            "The provided reaction is not reversible: " + ...
+                            reaction(k), ...
+                            "warning", ...
+                            Code = "model.reaction.not-reversible", ...
+                            Source = "ModelUtility", ...
+                            Audience = "developer", ...
+                            Kind = "diagnostic"));
                 end
 
             end

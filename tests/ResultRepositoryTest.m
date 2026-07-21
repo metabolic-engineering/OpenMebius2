@@ -116,7 +116,7 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
             data = result.loadResultFile("missing");
 
             testCase.verifyEmpty(data);
-            testCase.verifyEqual(observer.EventCount, 1);
+            testCase.verifyEqual(observer.EventCount, 2);
             testCase.verifyClass( ...
                 observer.LastEvent, ...
                 'openmebius.core.notification.Message');

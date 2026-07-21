@@ -4,6 +4,7 @@ classdef ResultRepository < handle
 
     properties (Access = private)
         Hdf5ResultRepository
+        NotificationPublisher (1, 1) function_handle = @(~) []
     end
 
     methods
@@ -14,10 +15,12 @@ classdef ResultRepository < handle
                 options.Hdf5ResultRepository = ...
                     openmebius.infrastructure.result ...
                     .Hdf5ResultRepository()
+                options.NotificationPublisher (1, 1) function_handle = @(~) []
             end
 
             obj.Hdf5ResultRepository = ...
                 options.Hdf5ResultRepository;
+            obj.NotificationPublisher = options.NotificationPublisher;
 
         end % constructor
 
@@ -31,7 +34,8 @@ classdef ResultRepository < handle
             result = openmebius.application.result.ResultCatalog( ...
                 resultLocation, ...
                 ResultRepository = obj, ...
-                Hdf5ResultRepository = obj.Hdf5ResultRepository);
+                Hdf5ResultRepository = obj.Hdf5ResultRepository, ...
+                NotificationReporter = obj.NotificationPublisher);
 
             if isempty(result) || ~isvalid(result)
                 error( ...

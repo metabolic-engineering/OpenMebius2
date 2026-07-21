@@ -1,12 +1,26 @@
 classdef BatchRepository
     % BATCHREPOSITORY Restores the application batch session.
 
+    properties (Access = private)
+        NotificationPublisher (1, 1) function_handle = @(~) []
+    end
+
     methods
 
-        function batch = load(~, experimentLocation, experiments)
+        function obj = BatchRepository(options)
 
             arguments
-                ~
+                options.NotificationPublisher (1, 1) function_handle = @(~) []
+            end
+
+            obj.NotificationPublisher = options.NotificationPublisher;
+
+        end
+
+        function batch = load(obj, experimentLocation, experiments)
+
+            arguments
+                obj
                 experimentLocation openmebius.domain.experiment ...
                     .ExperimentLocation
                 experiments
@@ -23,7 +37,12 @@ classdef BatchRepository
                 end
             end
 
-            batch = openmebius.application.batch.BatchSession(experiments);
+            batch = openmebius.application.batch.BatchSession( ...
+                experiments, ...
+                NotificationEmitter = openmebius.application.notification ...
+                    .NotificationEmitter( ...
+                        Publisher = obj.NotificationPublisher, ...
+                        Source = "BatchSession"));
 
             if isempty(batch) || ~isvalid(batch)
                 error( ...
