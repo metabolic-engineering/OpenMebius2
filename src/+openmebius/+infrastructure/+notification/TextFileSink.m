@@ -11,6 +11,10 @@ classdef TextFileSink < handle
         BackupCount (1, 1) double
     end
 
+    properties (Access = private)
+        RotationDeferred (1, 1) logical = false
+    end
+
     methods
 
         function obj = TextFileSink(options)
@@ -74,7 +78,7 @@ classdef TextFileSink < handle
 
         function rotateIfNeeded(obj, incomingLength)
 
-            if ~isfile(obj.Path)
+            if obj.RotationDeferred || ~isfile(obj.Path)
                 return
             end
 
@@ -85,29 +89,56 @@ classdef TextFileSink < handle
             end
 
             if obj.BackupCount == 0
-                delete(char(obj.Path));
+                try
+                    delete(char(obj.Path));
+                catch
+                    obj.RotationDeferred = true;
+                end
+
                 return
             end
 
             oldest = obj.Path + "." + string(obj.BackupCount);
 
             if isfile(oldest)
-                delete(char(oldest));
+                try
+                    delete(char(oldest));
+                catch
+                    obj.RotationDeferred = true;
+                    return
+                end
             end
 
             for backupIndex = obj.BackupCount - 1:-1:1
                 source = obj.Path + "." + string(backupIndex);
 
-                if isfile(source)
-                    movefile(char(source), ...
-                        char(obj.Path + "." + string(backupIndex + 1)), ...
-                        "f");
+                if isfile(source) && ~obj.tryMove( ...
+                        source, ...
+                        obj.Path + "." + string(backupIndex + 1))
+                    obj.RotationDeferred = true;
+                    return
                 end
             end
 
-            movefile(char(obj.Path), char(obj.Path + ".1"), "f");
+            if ~obj.tryMove(obj.Path, obj.Path + ".1")
+                % A previous diary session or another process can keep the
+                % file open on Windows. Continue appending for this session
+                % and retry rotation when a new sink is constructed.
+                obj.RotationDeferred = true;
+            end
 
         end % rotateIfNeeded
+
+        function success = tryMove(~, source, destination)
+
+            try
+                [success, ~] = movefile( ...
+                    char(source), char(destination), "f");
+            catch
+                success = false;
+            end
+
+        end % tryMove
 
     end % methods (Access = private)
 

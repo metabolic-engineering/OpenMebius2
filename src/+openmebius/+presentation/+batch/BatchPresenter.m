@@ -28,7 +28,7 @@ classdef BatchPresenter < handle
                 batchGUI.Experiment = string(batchGUI.Experiment);
             end
 
-            ids = batchGUI.ID;
+            ids = rawData.ID;
             status = getBatchStatus(batch, ids);
 
             styleRules = obj.styleRulesForStatus(batchGUI, status);

@@ -85,8 +85,11 @@ classdef NotificationDispatcherTest < matlab.unittest.TestCase
 
             dispatcher.publish(openmebius.core.notification.Message( ...
                 "Message", "info", EventId = "event-3"));
+            dispatcher.publish(openmebius.core.notification.Message( ...
+                "Second message", "info", EventId = "event-4"));
 
-            testCase.verifyEqual(surviving.count(), 1);
+            testCase.verifyEqual(failing.attemptCount(), 1);
+            testCase.verifyEqual(surviving.count(), 2);
             testCase.verifyNumElements(emergency, 1);
             testCase.verifyTrue(contains(emergency, "sink failed"));
 

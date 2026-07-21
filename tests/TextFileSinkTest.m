@@ -35,6 +35,28 @@ classdef TextFileSinkTest < matlab.unittest.TestCase
 
         end
 
+        function rotatesOversizedLog(testCase)
+
+            path = string(tempname) + ".log";
+            cleanup = onCleanup(@() TextFileSinkTest.deleteIfExists(path));
+            sink = openmebius.infrastructure.notification.TextFileSink( ...
+                Path = path, ...
+                MaxBytes = 1, ...
+                BackupCount = 1);
+
+            sink.write(openmebius.core.notification.Message( ...
+                "first", "info", EventId = "rotation-first"));
+            sink.write(openmebius.core.notification.Message( ...
+                "second", "info", EventId = "rotation-second"));
+
+            testCase.verifyTrue(isfile(path + ".1"));
+            testCase.verifyTrue(contains( ...
+                string(fileread(path + ".1")), "first"));
+            testCase.verifyTrue(contains( ...
+                string(fileread(path)), "second"));
+
+        end
+
     end
 
     methods (Static, Access = private)

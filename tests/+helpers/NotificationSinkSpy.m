@@ -4,6 +4,7 @@ classdef NotificationSinkSpy < handle
         Name (1, 1) string
         Messages (1, :) cell = {}
         ThrowOnWrite (1, 1) logical = false
+        WriteAttempts (1, 1) double = 0
     end
 
     methods
@@ -22,6 +23,8 @@ classdef NotificationSinkSpy < handle
 
         function write(obj, message)
 
+            obj.WriteAttempts = obj.WriteAttempts + 1;
+
             if obj.ThrowOnWrite
                 error("OpenMebius2:Test:SinkFailure", "sink failed");
             end
@@ -33,6 +36,12 @@ classdef NotificationSinkSpy < handle
         function value = count(obj)
 
             value = numel(obj.Messages);
+
+        end
+
+        function value = attemptCount(obj)
+
+            value = obj.WriteAttempts;
 
         end
 

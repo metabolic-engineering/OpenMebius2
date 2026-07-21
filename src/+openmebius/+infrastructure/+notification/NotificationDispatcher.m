@@ -7,6 +7,7 @@ classdef NotificationDispatcher < handle
 
     properties (Access = private)
         Sinks (1, :) cell = {}
+        DisabledSinkNames (:, 1) string = strings(0, 1)
         DeliveredEventIds (:, 1) string = strings(0, 1)
         MaxTrackedEventIds (1, 1) double = 2048
         EmergencyWriter (1, 1) function_handle = ...
@@ -51,6 +52,8 @@ classdef NotificationDispatcher < handle
             end
 
             obj.Sinks = obj.Sinks(keep);
+            obj.DisabledSinkNames( ...
+                obj.DisabledSinkNames == name) = [];
 
         end % removeSink
 
@@ -71,7 +74,8 @@ classdef NotificationDispatcher < handle
                 sink = obj.Sinks{sinkIndex};
                 sinkName = obj.sinkName(sink);
 
-                if ~obj.Policy.shouldRoute(message, sinkName)
+                if ismember(sinkName, obj.DisabledSinkNames) || ...
+                        ~obj.Policy.shouldRoute(message, sinkName)
                     continue
                 end
 
@@ -79,6 +83,7 @@ classdef NotificationDispatcher < handle
                     sink.write(message);
                 catch cause
                     obj.reportSinkFailure(sinkName, message, cause);
+                    obj.DisabledSinkNames(end + 1, 1) = sinkName;
                 end
             end
 
