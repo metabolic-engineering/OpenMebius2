@@ -5150,7 +5150,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ProjectLoadButton
-        function ProjectLoadButtonPushed(app, ~)
+        function ProjectLoadButtonPushed(app, event)
 
             cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
             app.renderProjectOperationViewModel( ...
@@ -5164,7 +5164,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ProjectSaveButton
-        function ProjectSaveButtonPushed(app, ~)
+        function ProjectSaveButtonPushed(app, event)
 
             outcome = app.ApplicationController.saveProject( ...
                 string(app.ProjectDirectoryDropDown.Value), ...
@@ -5177,7 +5177,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ProjectCreateButton
-        function ProjectCreateButtonPushed(app, ~)
+        function ProjectCreateButtonPushed(app, event)
 
             app.createProjectFromDialog();
 
@@ -5198,7 +5198,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: TemplateModelLoadButton
-        function TemplateModelLoadButtonPushed(app, ~)
+        function TemplateModelLoadButtonPushed(app, event)
 
             cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
             app.renderModelOperationViewModel( ...
@@ -5242,7 +5242,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ModelSaveButton
-        function ModelSaveButtonPushed(app, ~)
+        function ModelSaveButtonPushed(app, event)
 
             app.beginPresentationEditCommit();
             app.renderModelOperationViewModel( ...
@@ -5263,7 +5263,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: AddLabelMenu
-        function AddLabelMenuSelected(app, ~)
+        function AddLabelMenuSelected(app, event)
 
             point = get(app.MainUIAxes, 'CurrentPoint');
             position = [point(1, 1) point(1, 2)];
@@ -5277,7 +5277,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: RemoveLabelMenu
-        function RemoveLabelMenuSelected(app, ~)
+        function RemoveLabelMenuSelected(app, event)
 
             reactionID = app.selectedModelReactionID();
             outcome = app.ApplicationController ...
@@ -5307,7 +5307,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: MSSaveButton
-        function MSSaveButtonPushed(app, ~)
+        function MSSaveButtonPushed(app, event)
 
             app.saveMassSpectrometryEdits();
 
@@ -5321,14 +5321,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ExpImportButton
-        function ExpImportButtonPushed(app, ~)
+        function ExpImportButtonPushed(app, event)
 
             app.importExperimentFilesFromDialog();
 
         end
 
         % Button pushed function: ExpReloadButton
-        function ExpReloadButtonPushed(app, ~)
+        function ExpReloadButtonPushed(app, event)
 
             cleanupPresentation = app.beginPresentationOperation(); %#ok<NASGU>
             app.renderExperimentImportViewModel( ...
@@ -5342,7 +5342,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ExpSaveButton
-        function ExpSaveButtonPushed(app, ~)
+        function ExpSaveButtonPushed(app, event)
 
             app.saveExperimentInfo();
 
@@ -5363,7 +5363,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: TracerConfigButton
-        function LabelConfigButtonPushed(app, ~)
+        function LabelConfigButtonPushed(app, event)
 
             cleanupPresentation = ...
                 app.beginPresentationOperation(); %#ok<NASGU>
@@ -5384,7 +5384,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: TracerSaveButton
-        function TracerSaveButtonPushed(app, ~)
+        function TracerSaveButtonPushed(app, event)
 
             app.saveTracerEdits();
 
@@ -5405,7 +5405,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: RunAutoButton
-        function RunAutoButtonPushed(app, ~)
+        function RunAutoButtonPushed(app, event)
 
             [outcome, batch] = ...
                 app.ApplicationController.autoFillBatch();
@@ -5416,14 +5416,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: RunConfigButton
-        function RunConfigButtonPushed(app, ~)
+        function RunConfigButtonPushed(app, event)
 
             app.openRunConfiguration();
 
         end
 
         % Button pushed function: RunReloadButton
-        function RunReloadButtonPushed(app, ~)
+        function RunReloadButtonPushed(app, event)
 
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentReloaded( ...
@@ -5432,7 +5432,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: RunSaveButton
-        function RunSaveButtonPushed(app, ~)
+        function RunSaveButtonPushed(app, event)
 
             [outcome, batch] = app.ApplicationController.saveBatch( ...
                 app.getBatchOperationalData());
@@ -5450,14 +5450,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: AddbatchMenu
-        function RunAddbatchMenuSelected(app, ~)
+        function RunAddbatchMenuSelected(app, event)
 
             app.openParallelBatchEditor();
 
         end
 
         % Menu selected function: RemovethisbatchMenu
-        function RunRemovethisbatchMenuSelected(app, ~)
+        function RunRemovethisbatchMenuSelected(app, event)
 
             app.removeSelectedBatches();
 
@@ -5506,7 +5506,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ResultReportButton
-        function ResultReportButtonPushed(app, ~)
+        function ResultReportButtonPushed(app, event)
 
             outcome = app.ApplicationController.generateReport( ...
                 app.directoryResult, ...
@@ -5517,7 +5517,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ResultReloadButton
-        function ResultReloadButtonPushed(app, ~)
+        function ResultReloadButtonPushed(app, event)
 
             app.handleResultAvailable([]);
             app.renderResultOperationViewModel( ...
@@ -5526,7 +5526,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Button pushed function: ResultSaveButton
-        function ResultSaveButtonPushed(app, ~)
+        function ResultSaveButtonPushed(app, event)
 
             app.exportSelectedResults();
 
@@ -5547,7 +5547,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: RelativetoMenu
-        function RelativetoMenuSelected(app, ~)
+        function RelativetoMenuSelected(app, event)
 
             selectedRows = ...
                 app.selectedTableRows(app.ResultMainTable);
@@ -5560,28 +5560,28 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: RangeplotMenu
-        function RangeplotMenuSelected(app, ~)
+        function RangeplotMenuSelected(app, event)
 
             app.showRangePlot();
 
         end
 
         % Menu selected function: ViewsuggestionMenu
-        function ViewsuggestionMenuSelected(app, ~)
+        function ViewsuggestionMenuSelected(app, event)
 
             app.showSuggestion();
 
         end
 
         % Menu selected function: CopythistracerforallentriesMenu
-        function CopythistracerforallentriesMenuSelected(app, ~)
+        function CopythistracerforallentriesMenuSelected(app, event)
 
             app.copySelectedTracer();
 
         end
 
         % Menu selected function: ImportMSdatafromtextfilesMenu
-        function ImportMSdatafromtextfilesMenuSelected(app, ~)
+        function ImportMSdatafromtextfilesMenuSelected(app, event)
 
             app.importRawMSFromDirectory();
 
@@ -5623,7 +5623,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         % Menu selected function: ExporttemplateExcelfileMenu
-        function ExporttemplateExcelfileMenuSelected(app, ~)
+        function ExporttemplateExcelfileMenuSelected(app, event)
 
             app.exportTemplateWorkbook();
 
@@ -5632,7 +5632,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: ViewlogsMenu
         function ViewlogsMenuSelected(app, event)
 
-            app.LogApp = AppLogs(app.NotificationDispatcher.reporter());
+            app.LogApp = AppLogs();
 
         end
 
@@ -6522,20 +6522,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Code that executes before app deletion
         function delete(app)
-
-            if ~isempty(app.NotificationDispatcher) && ...
-                    isvalid(app.NotificationDispatcher)
-                app.NotificationDispatcher.removeSink("ui-log");
-                app.NotificationDispatcher.removeSink("ui-alert");
-            end
-
-            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
-                app.ChildAppHost.closeAll();
-            end
-
-            if app.isLoadedObject(app.RangePlotFigure)
-                delete(app.RangePlotFigure);
-            end
 
             % Delete UIFigure when app is deleted
             delete(app.OpenMebius2UIFigure)

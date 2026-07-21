@@ -66,6 +66,19 @@ classdef AppLogs_exported < matlab.apps.AppBase
 
         end % function loadLogs
 
+        function publishNotification(app, level, text)
+
+            emitter = openmebius.application.notification ...
+                .NotificationEmitter( ...
+                Publisher = app.NotificationPublisher, ...
+                Source = "AppLogs");
+            emitter.report( ...
+                level, ...
+                text, ...
+                Code = "log.export");
+
+        end % publishNotification
+
     end
 
     % Callbacks that handle component events
@@ -84,7 +97,6 @@ classdef AppLogs_exported < matlab.apps.AppBase
             end
 
             app.loadLogs();
-
         end
 
         % Menu selected function: SaveAsCtrlSMenu
@@ -192,23 +204,6 @@ classdef AppLogs_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.LogsUIFigure)
         end
-
-    end
-
-    methods (Access = private)
-
-        function publishNotification(app, level, text)
-
-            emitter = openmebius.application.notification ...
-                .NotificationEmitter( ...
-                    Publisher = app.NotificationPublisher, ...
-                    Source = "AppLogs");
-            emitter.report( ...
-                level, ...
-                text, ...
-                Code = "log.export");
-
-        end % publishNotification
 
     end
 
