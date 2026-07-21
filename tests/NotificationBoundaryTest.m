@@ -45,8 +45,12 @@ classdef NotificationBoundaryTest < matlab.unittest.TestCase
 
             testCase.verifyTrue(contains( ...
                 source, "NotificationDispatcher.publish(message)"));
+            testCase.verifyTrue(contains(source, "publishMessage"));
+            testCase.verifyTrue(contains(source, "publishNotification"));
             testCase.verifyTrue(contains( ...
                 source, "configureNotificationSinks"));
+            testCase.verifyFalse(contains(source, "function LogText("));
+            testCase.verifyFalse(contains(source, "function LogTextDate("));
             testCase.verifyFalse(contains(source, "configureDefaultDiary"));
             testCase.verifyFalse(contains(source, "notifySlackBatchCompleted"));
 
