@@ -18,9 +18,11 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
     end % private properties
 
     events
+
         Applied
         Closed
-    end
+
+    end % events
 
     methods (Access = private)
 

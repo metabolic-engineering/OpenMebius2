@@ -134,7 +134,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         Closed
         NotificationRequested
         BatchExperimentSelectionApplied
-    end
+    end % events
 
     methods (Access = protected)
 
