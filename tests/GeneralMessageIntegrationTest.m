@@ -59,7 +59,7 @@ classdef GeneralMessageIntegrationTest < matlab.unittest.TestCase
 
             result.loadResultFile("missing");
 
-            testCase.verifyEqual(observer.EventCount, 1);
+            testCase.verifyEqual(observer.EventCount, 2);
             testCase.verifyClass( ...
                 observer.LastEvent, ...
                 'openmebius.core.notification.Message');

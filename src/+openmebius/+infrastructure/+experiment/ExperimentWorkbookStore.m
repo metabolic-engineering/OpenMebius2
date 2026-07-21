@@ -2,7 +2,8 @@ classdef ExperimentWorkbookStore < handle
     % EXPERIMENTWORKBOOKSTORE Maps experiment workbooks to persistence DTOs.
 
     properties (Access = private)
-        MessageReporter
+        NotificationEmitter openmebius.application.notification ...
+            .NotificationEmitter
     end
 
     properties (Constant, Access = private)
@@ -26,11 +27,13 @@ classdef ExperimentWorkbookStore < handle
         function obj = ExperimentWorkbookStore(options)
 
             arguments
-                options.MessageReporter = openmebius.infrastructure.logging ...
-                    .MessageReporter()
+                options.NotificationPublisher (1, 1) function_handle = @(~) []
             end
 
-            obj.MessageReporter = options.MessageReporter;
+            obj.NotificationEmitter = openmebius.application.notification ...
+                .NotificationEmitter( ...
+                    Publisher = options.NotificationPublisher, ...
+                    Source = "ExperimentWorkbookStore");
 
         end % constructor
 
@@ -398,7 +401,12 @@ classdef ExperimentWorkbookStore < handle
 
         function publish(obj, level, message)
 
-            obj.MessageReporter.report(string(level), string(message));
+            obj.NotificationEmitter.report( ...
+                string(level), ...
+                string(message), ...
+                Code = "experiment.workbook", ...
+                Audience = "developer", ...
+                Kind = "diagnostic");
 
         end % publish
 

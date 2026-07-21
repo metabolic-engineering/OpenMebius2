@@ -18,8 +18,8 @@ classdef ResultCatalog < handle
     end % properties
 
     properties (Access = private)
-        MessageReporter
-        NotificationReporter (1, 1) function_handle = @(~) []
+        NotificationEmitter openmebius.application.notification ...
+            .NotificationEmitter
     end
 
     methods
@@ -57,16 +57,20 @@ classdef ResultCatalog < handle
                 obj.QueryService = options.QueryService;
             end
             obj.TableBuilder = options.TableBuilder;
-            obj.MessageReporter = openmebius.infrastructure.logging ...
-                .MessageReporter();
-            obj.NotificationReporter = options.NotificationReporter;
+            obj.NotificationEmitter = openmebius.application.notification ...
+                .NotificationEmitter( ...
+                    Publisher = options.NotificationReporter, ...
+                    Source = "ResultCatalog");
 
             obj.ResultRepository.assertResultDirectory(resultLocation);
 
-            obj.MessageReporter.report( ...
+            obj.NotificationEmitter.report( ...
                 "info", ...
                 "The directory " + resultLocation.Directory + ...
-                " exists.");
+                " exists.", ...
+                Code = "result.directory.available", ...
+                Audience = "developer", ...
+                Kind = "diagnostic");
 
         end % constructor
 
@@ -81,7 +85,10 @@ classdef ResultCatalog < handle
                 reporter (1, 1) function_handle
             end
 
-            obj.NotificationReporter = reporter;
+            obj.NotificationEmitter = openmebius.application.notification ...
+                .NotificationEmitter( ...
+                    Publisher = reporter, ...
+                    Source = "ResultCatalog");
 
         end % setNotificationReporter
 
@@ -595,8 +602,10 @@ classdef ResultCatalog < handle
                 msg (1, 1) string
             end % arguments
 
-            message = obj.MessageReporter.report(status, msg);
-            obj.NotificationReporter(message);
+            obj.NotificationEmitter.report( ...
+                status, ...
+                msg, ...
+                Code = "result.operation");
 
         end % notifyGeneralMessage
 

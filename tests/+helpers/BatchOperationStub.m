@@ -23,6 +23,7 @@ classdef BatchOperationStub < handle
         EditedDescription (1, 1) string = ""
         EditedConfig struct = struct()
         Exception = []
+        RequestedStatusIds (:, 1) string = strings(0, 1)
     end
 
     methods
@@ -87,6 +88,7 @@ classdef BatchOperationStub < handle
 
         function status = getBatchStatus(obj, ids)
 
+            obj.RequestedStatusIds = string(ids(:));
             status = repmat(obj.Status(1), numel(ids), 1);
 
         end
