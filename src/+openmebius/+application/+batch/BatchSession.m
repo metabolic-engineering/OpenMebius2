@@ -1343,7 +1343,7 @@ classdef BatchSession < handle
 
         end % checkpointBatch
 
-        function publishGeneralMessage(obj, level, message, reporter)
+        function publishGeneralMessage(~, level, message, reporter)
 
             if nargin < 4
                 reporter = @(~) [];
