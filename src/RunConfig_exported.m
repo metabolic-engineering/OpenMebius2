@@ -55,6 +55,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
         ThenumberofgridpointsEditField matlab.ui.control.NumericEditField
         ThenumberofgridpointsEditFieldLabel matlab.ui.control.Label
         DeterminegridintervalautomaticallyCheckBox matlab.ui.control.CheckBox
+        GridreactionTab matlab.ui.container.Tab
+        GridLayout23 matlab.ui.container.GridLayout
+        GridReactionUITable matlab.ui.control.Table
         GridLayout8 matlab.ui.container.GridLayout
         INSTMFACheckBox matlab.ui.control.CheckBox
         DeleteResultButton matlab.ui.control.CheckBox
@@ -175,6 +178,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.renderRunConfigViewModel(editor.Config);
             app.MSFragmentTableMetadata = editor.MSFragmentTable.Metadata;
             app.renderTableViewModel(app.MSTable, editor.MSFragmentTable);
+            app.renderTableViewModel( ...
+                app.GridReactionUITable, editor.GridReactionTable);
             app.renderTableViewModel( ...
                 app.EffluxUITable, editor.EffluxTable);
             app.renderTableViewModel( ...
@@ -340,6 +345,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 app.onOff(state.GridPointsEnabled);
             app.GridintervalDeltaixiEditField.Enable = ...
                 app.onOff(state.GridDeltaEnabled);
+            app.GridReactionUITable.Enable = grid;
+            app.renderGridReactionVisibility( ...
+                state.GridReactionVisible);
 
             app.EffluxUITable.Enable = app.onOff(state.EffluxEnabled);
             app.LabelTable.Enable = app.onOff(state.SuggestionEnabled);
@@ -348,6 +356,29 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.INSTMFATimeCourseUITable.Enable = instMFA;
 
         end % renderControlState
+
+        function renderGridReactionVisibility(app, isVisible)
+
+            if isVisible
+                if isempty(app.GridreactionTab.Parent)
+                    app.GridreactionTab.Parent = app.TabGroup2;
+                end
+
+                return
+            end
+
+            if isempty(app.GridreactionTab.Parent)
+                return
+            end
+
+            if isequal(app.TabGroup2.SelectedTab, ...
+                    app.GridreactionTab)
+                app.TabGroup2.SelectedTab = app.GridsearchTab;
+            end
+
+            app.GridreactionTab.Parent = [];
+
+        end % renderGridReactionVisibility
 
         function value = onOff(~, enabled)
 
@@ -615,6 +646,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
             viewModel.GridThreshold = app.ThresholdDropDown.Value;
             viewModel.IsINSTMFA = app.INSTMFACheckBox.Value;
 
+            if istable(app.GridReactionUITable.Data)
+                viewModel.GridReactionTable = ...
+                    app.GridReactionUITable.Data;
+            end
+
             if istable(app.EffluxUITable.Data)
                 viewModel.EffluxTable = app.EffluxUITable.Data;
             end
@@ -666,6 +702,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function restoreDefaultValues(app)
 
             effluxData = app.EffluxUITable.Data;
+            gridReactionData = app.GridReactionUITable.Data;
             instPoolData = app.INSTMFAPoolUITable.Data;
             instTimeCourseData = app.INSTMFATimeCourseUITable.Data;
             viewModel = app.Presenter.presentDefaults();
@@ -680,6 +717,16 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             app.enabledisableCIUI(app.CalcCICheckBox.Value);
             app.enabledisableSuggestion();
+
+            if istable(gridReactionData) && ...
+                    ismember('Select', ...
+                        gridReactionData.Properties.VariableNames)
+                gridReactionData.Select(:) = true;
+            end
+
+            app.GridReactionUITable.Data = gridReactionData;
+            app.GridReactionUITable.ColumnEditable = ...
+                [true, false, false];
 
             app.EffluxUITable.Data = effluxData;
             app.EffluxUITable.Enable = 'off';
@@ -1410,6 +1457,23 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.ThresholdDropDown.Layout.Column = 2;
             app.ThresholdDropDown.Value = 'F-distribution';
 
+            % Create GridreactionTab
+            app.GridreactionTab = uitab(app.TabGroup2);
+            app.GridreactionTab.Title = 'Grid reaction';
+
+            % Create GridLayout23
+            app.GridLayout23 = uigridlayout(app.GridreactionTab);
+            app.GridLayout23.ColumnWidth = {'1x'};
+            app.GridLayout23.RowHeight = {'1x'};
+            app.GridLayout23.Padding = [5 5 5 5];
+
+            % Create GridReactionUITable
+            app.GridReactionUITable = uitable(app.GridLayout23);
+            app.GridReactionUITable.ColumnName = '';
+            app.GridReactionUITable.RowName = {};
+            app.GridReactionUITable.Layout.Row = 1;
+            app.GridReactionUITable.Layout.Column = 1;
+
             % Create GridLayout7_2
             app.GridLayout7_2 = uigridlayout(app.GridLayout5_2);
             app.GridLayout7_2.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
@@ -1725,10 +1789,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         % Code that executes before app deletion
         function delete(app)
-
-            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
-                app.ChildAppHost.closeAll();
-            end
 
             % Delete UIFigure when app is deleted
             delete(app.BatchconfigUIFigure)

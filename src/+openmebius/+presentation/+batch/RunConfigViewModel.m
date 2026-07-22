@@ -26,6 +26,7 @@ classdef RunConfigViewModel
         GridDelta (1, 1) double = 1
         GridIterations (1, 1) double = 30
         GridThreshold (1, 1) string = "Chi-squared"
+        GridReactionTable table = table()
 
         IsINSTMFA (1, 1) logical = false
         EffluxTable table = table()

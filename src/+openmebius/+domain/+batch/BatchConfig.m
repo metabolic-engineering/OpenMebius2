@@ -83,6 +83,9 @@ classdef BatchConfig
             config.CIConf.grid.iteration = config.iteration;
             config.CIConf.grid.alpha = 0.05;
             config.CIConf.grid.isParallel = true;
+            config.CIConf.grid.reactions.select = logical([]);
+            config.CIConf.grid.reactions.id = string([]);
+            config.CIConf.grid.reactions.reaction = string([]);
             config.CIConf.MC.iteration = 500;
             config.CIConf.MC.fixMID = true;
             config.CIConf.MC.MIDSD = 0.01;
@@ -304,6 +307,7 @@ classdef BatchConfig
             BatchConfig.mustBePositiveInteger(config, 'CIConf.grid.iteration');
             BatchConfig.mustBeProbability(config, 'CIConf.grid.alpha');
             BatchConfig.mustBeLogical(config, 'CIConf.grid.isParallel');
+            BatchConfig.validateGridReactions(config.CIConf.grid);
 
             BatchConfig.mustBeStruct(config, 'CIConf.MC');
             BatchConfig.mustBePositiveInteger(config, 'CIConf.MC.iteration');
@@ -327,6 +331,73 @@ classdef BatchConfig
                 ["discarding", "mean-varianced"]);
 
         end % validateCI
+
+        function validateGridReactions(gridConfig)
+
+            if ~isfield(gridConfig, 'reactions') || ...
+                    ~isstruct(gridConfig.reactions) || ...
+                    ~isscalar(gridConfig.reactions)
+                error( ...
+                    "OpenMebius2:BatchConfig:InvalidStruct", ...
+                    "Batch config field CIConf.grid.reactions must be " + ...
+                    "a scalar struct.");
+            end
+
+            reactions = gridConfig.reactions;
+            requiredFields = ["select", "id", "reaction"];
+
+            if ~all(isfield(reactions, cellstr(requiredFields)))
+                error( ...
+                    "OpenMebius2:BatchConfig:MissingField", ...
+                    "Batch config field CIConf.grid.reactions must " + ...
+                    "contain select, id, and reaction.");
+            end
+
+            selection = reactions.select;
+
+            if ~(islogical(selection) || isnumeric(selection)) || ...
+                    any(~isfinite(double(selection(:)))) || ...
+                    any(~ismember(double(selection(:)), [0, 1]))
+                error( ...
+                    "OpenMebius2:BatchConfig:InvalidLogical", ...
+                    "Grid reaction selections must be logical values.");
+            end
+
+            try
+                reactionIDs = string(reactions.id(:));
+                reactionNames = string(reactions.reaction(:));
+            catch
+                error( ...
+                    "OpenMebius2:BatchConfig:InvalidString", ...
+                    "Grid reaction IDs and reactions must be strings.");
+            end
+
+            rowCount = numel(selection);
+
+            if numel(reactionIDs) ~= rowCount || ...
+                    numel(reactionNames) ~= rowCount
+                error( ...
+                    "OpenMebius2:BatchConfig:GridReactionSizeMismatch", ...
+                    "Grid reaction selections, IDs, and reactions " + ...
+                    "must have the same length.");
+            end
+
+            if any(ismissing(reactionIDs)) || ...
+                    any(strlength(strtrim(reactionIDs)) == 0) || ...
+                    numel(unique(reactionIDs)) ~= rowCount
+                error( ...
+                    "OpenMebius2:BatchConfig:InvalidGridReactionID", ...
+                    "Grid reaction IDs must be nonempty and unique.");
+            end
+
+            if any(ismissing(reactionNames)) || ...
+                    any(strlength(strtrim(reactionNames)) == 0)
+                error( ...
+                    "OpenMebius2:BatchConfig:InvalidGridReaction", ...
+                    "Grid reaction descriptions must be nonempty.");
+            end
+
+        end % validateGridReactions
 
         function validateEfflux(config)
 
