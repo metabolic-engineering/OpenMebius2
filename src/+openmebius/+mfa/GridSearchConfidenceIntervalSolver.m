@@ -24,7 +24,11 @@ classdef GridSearchConfidenceIntervalSolver
                     (1, 1) function_handle = @() false
             end % arguments
 
-        end % constructor
+            error( ...
+                "OpenMebius:GridSearchConfidenceIntervalSolver:NotImplemented", ...
+            "Grid search confidence interval solver is not implemented yet.");
+
+        end % solve
 
     end % methods
 
