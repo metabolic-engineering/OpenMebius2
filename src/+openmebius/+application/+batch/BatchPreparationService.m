@@ -63,6 +63,7 @@ classdef BatchPreparationService
                         string(batchTable.config(index).status) == "finished"
                     batchTable.config(index).status = 'ready';
                 end
+
             end
 
         end % prepare

@@ -101,6 +101,7 @@ classdef FluxVariabilitySolver
                     fluxUpperBounds(counterpartIndex) = ...
                         -fluxLowerBounds(iFlux);
                 end
+
             end
 
             [fluxLowerBounds, fluxUpperBounds] = ...
@@ -131,26 +132,26 @@ classdef FluxVariabilitySolver
             if size(equalityMatrix, 1) ~= numel(equalityRightHandSide)
                 error( ...
                     "OpenMebius2:FVA:EqualityDimensionMismatch", ...
-                    "The equality matrix and right-hand side must have equal row counts.");
+                "The equality matrix and right-hand side must have equal row counts.");
             end
 
             if numFlux == 0 || numel(lowerBounds) ~= numFlux || ...
                     numel(upperBounds) ~= numFlux
                 error( ...
                     "OpenMebius2:FVA:BoundaryDimensionMismatch", ...
-                    "Each flux must have one lower and one upper boundary.");
+                "Each flux must have one lower and one upper boundary.");
             end
 
             if any(lowerBounds > upperBounds)
                 error( ...
                     "OpenMebius2:FVA:InvalidBoundary", ...
-                    "Flux lower boundaries must not exceed upper boundaries.");
+                "Flux lower boundaries must not exceed upper boundaries.");
             end
 
             if numel(reverseCounterpartIndices) ~= numFlux
                 error( ...
                     "OpenMebius2:FVA:ReverseIndexDimensionMismatch", ...
-                    "Each flux must have one reverse counterpart index or NaN.");
+                "Each flux must have one reverse counterpart index or NaN.");
             end
 
             isInvalidIndex = ~isnan(reverseCounterpartIndices) & ...
@@ -162,7 +163,7 @@ classdef FluxVariabilitySolver
             if any(isInvalidIndex)
                 error( ...
                     "OpenMebius2:FVA:InvalidReverseIndex", ...
-                    "Reverse counterpart indices must reference an existing flux.");
+                "Reverse counterpart indices must reference an existing flux.");
             end
 
         end % validateDimensions

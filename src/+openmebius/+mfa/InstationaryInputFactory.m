@@ -22,7 +22,7 @@ classdef InstationaryInputFactory
                     "OpenMebius2:InstationaryInputFactory:" + ...
                     "MissingModelMetabolites", ...
                     "No model metabolites are available for INST-MFA " + ...
-                    "pool-size alignment.");
+                "pool-size alignment.");
             end
 
             configuredPoolSizes = specification.PoolSizes;
@@ -47,12 +47,13 @@ classdef InstationaryInputFactory
             hasMetaboliteNames = ~isempty(configuredMetabolites);
 
             if ~hasMetaboliteNames
+
                 if numel(configuredPoolSizes) ~= numel(modelMetabolites)
                     error( ...
                         "OpenMebius2:InstationaryInputFactory:" + ...
                         "PoolSizeCountMismatch", ...
                         "The number of INST-MFA pool-size values must " + ...
-                        "match the number of model metabolites.");
+                    "match the number of model metabolites.");
                 end
 
                 poolSizes = configuredPoolSizes;
@@ -65,7 +66,7 @@ classdef InstationaryInputFactory
                     "OpenMebius2:InstationaryInputFactory:" + ...
                     "ConfiguredPoolSizeCountMismatch", ...
                     "The number of INST-MFA pool-size metabolites must " + ...
-                    "match the number of pool-size values.");
+                "match the number of pool-size values.");
             end
 
             poolSizes = nan(numel(modelMetabolites), 1);
@@ -74,11 +75,12 @@ classdef InstationaryInputFactory
                 matchedIndex = find( ...
                     configuredMetabolites == modelMetabolites(i), ...
                     1, ...
-                    "first");
+                "first");
 
                 if ~isempty(matchedIndex)
                     poolSizes(i) = configuredPoolSizes(matchedIndex);
                 end
+
             end
 
             missingMetabolites = modelMetabolites(isnan(poolSizes));

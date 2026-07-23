@@ -24,7 +24,7 @@ classdef EffluxPenalty
                     numel(options.StandardDeviations) ~= measurementCount
                 error( ...
                     "OpenMebius2:EffluxPenalty:DimensionMismatch", ...
-                    "Efflux penalty vectors must have the same length.");
+                "Efflux penalty vectors must have the same length.");
             end
 
             if any(~isfinite(options.ReactionIndices)) || ...
@@ -32,20 +32,20 @@ classdef EffluxPenalty
                     any(options.ReactionIndices ~= fix(options.ReactionIndices))
                 error( ...
                     "OpenMebius2:EffluxPenalty:InvalidReactionIndex", ...
-                    "Efflux reaction indices must be positive integers.");
+                "Efflux reaction indices must be positive integers.");
             end
 
             if any(~isfinite(options.ExperimentalValues))
                 error( ...
                     "OpenMebius2:EffluxPenalty:InvalidExperimentalValue", ...
-                    "Efflux experimental values must be finite.");
+                "Efflux experimental values must be finite.");
             end
 
             if any(~isfinite(options.StandardDeviations)) || ...
                     any(options.StandardDeviations <= 0)
                 error( ...
                     "OpenMebius2:EffluxPenalty:InvalidStandardDeviation", ...
-                    "Efflux standard deviations must be positive and finite.");
+                "Efflux standard deviations must be positive and finite.");
             end
 
             obj.ReactionIndices = options.ReactionIndices;
@@ -71,7 +71,7 @@ classdef EffluxPenalty
             if max(obj.ReactionIndices) > size(flux, 1)
                 error( ...
                     "OpenMebius2:EffluxPenalty:FluxDimensionMismatch", ...
-                    "Efflux reaction indices exceed the flux vector length.");
+                "Efflux reaction indices exceed the flux vector length.");
             end
 
             simulatedValues = flux(obj.ReactionIndices, :);

@@ -15,9 +15,9 @@ classdef ProjectOperationViewModel
 
             arguments
                 options.ModelStatus (1, 1) string {mustBeMember( ...
-                    options.ModelStatus, ["", "running", "error"])} = ""
+                                                       options.ModelStatus, ["", "running", "error"])} = ""
                 options.ArtifactMode (1, 1) string {mustBeMember( ...
-                    options.ArtifactMode, ["", "open", "create"])} = ""
+                                                        options.ArtifactMode, ["", "open", "create"])} = ""
                 options.Session = []
                 options.Artifacts = []
                 options.Notifications (:, 1) cell = cell(0, 1)

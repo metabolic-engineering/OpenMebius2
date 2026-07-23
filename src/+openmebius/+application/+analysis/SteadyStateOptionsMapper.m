@@ -27,6 +27,7 @@ classdef SteadyStateOptionsMapper
                             "Unknown FMINCON algorithm '" + candidate + ...
                             "'. Using sqp.";
                 end
+
             end
 
             userConfig = struct;
@@ -151,6 +152,7 @@ classdef SteadyStateOptionsMapper
                 if isnumeric(candidate) || islogical(candidate)
                     value = double(candidate(1));
                 end
+
             end
 
         end % readNumeric
@@ -170,6 +172,7 @@ classdef SteadyStateOptionsMapper
                     value = ismember( ...
                         candidate(1), ["true", "1", "yes", "on"]);
                 end
+
             end
 
         end % readLogical
@@ -186,6 +189,7 @@ classdef SteadyStateOptionsMapper
                     candidate = string(candidate);
                     value = candidate(1);
                 end
+
             end
 
         end % readString
@@ -211,16 +215,19 @@ classdef SteadyStateOptionsMapper
                             values = [values; double(item(:))]; %#ok<AGROW>
                         elseif ischar(item) || isstring(item)
                             values = [values; ...
-                                openmebius.application.analysis ...
-                                .SteadyStateOptionsMapper ...
-                                .parseNumericTokens(item)]; %#ok<AGROW>
+                                          openmebius.application.analysis ...
+                                          .SteadyStateOptionsMapper ...
+                                          .parseNumericTokens(item)]; %#ok<AGROW>
                         end
+
                     end
+
                 elseif ischar(candidate) || isstring(candidate)
                     values = openmebius.application.analysis ...
                         .SteadyStateOptionsMapper ...
                         .parseNumericTokens(candidate);
                 end
+
             end
 
             values = values(isfinite(values) & values > 0);

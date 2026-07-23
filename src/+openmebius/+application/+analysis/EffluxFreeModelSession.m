@@ -52,6 +52,7 @@ classdef EffluxFreeModelSession < handle
             end
 
             try
+
                 for i = 1:numel(obj.ReactionIDs)
                     obj.Model.setReactionIndependent( ...
                         obj.ReactionIDs(i), ...

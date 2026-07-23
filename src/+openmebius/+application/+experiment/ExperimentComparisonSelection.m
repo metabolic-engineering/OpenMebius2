@@ -20,7 +20,7 @@ classdef ExperimentComparisonSelection
             if numel(options.DataNames) ~= numel(options.Tables)
                 error( ...
                     "OpenMebius2:ExperimentComparison:TableCountMismatch", ...
-                    "One comparison table is required for each data item.");
+                "One comparison table is required for each data item.");
             end
 
             obj.ExperimentNames = options.ExperimentNames;

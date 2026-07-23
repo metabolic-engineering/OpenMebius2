@@ -23,6 +23,7 @@ classdef BatchIdentity
                 if ~any(existingIds == id)
                     return
                 end
+
             end
 
         end % newId
@@ -42,7 +43,7 @@ classdef BatchIdentity
             if numel(experimentNames) ~= numel(experimentHashes)
                 error( ...
                     "OpenMebius2:BatchIdentity:ExperimentHashMismatch", ...
-                    "Each experiment must have one corresponding SHA-256 hash.");
+                "Each experiment must have one corresponding SHA-256 hash.");
             end
 
             payload = struct( ...
@@ -52,8 +53,8 @@ classdef BatchIdentity
                 string(modelHash), ...
                 'experiments', ...
                 struct( ...
-                    'name', cellstr(experimentNames), ...
-                    'sha256', cellstr(experimentHashes)), ...
+                'name', cellstr(experimentNames), ...
+                'sha256', cellstr(experimentHashes)), ...
                 'config', ...
                 openmebius.domain.batch.BatchIdentity.semanticConfig(config));
 
@@ -95,22 +96,26 @@ classdef BatchIdentity
                 fields = fieldnames(value);
 
                 for iValue = 1:numel(value)
+
                     for iField = 1:numel(fields)
                         field = fields{iField};
                         value(iValue).(field) = ...
                             openmebius.domain.batch.BatchIdentity.canonicalize( ...
                             value(iValue).(field));
                     end
+
                 end
 
                 return
             end
 
             if iscell(value)
+
                 for i = 1:numel(value)
                     value{i} = ...
                         openmebius.domain.batch.BatchIdentity.canonicalize(value{i});
                 end
+
             end
 
         end % canonicalize

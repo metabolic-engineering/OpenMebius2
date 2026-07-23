@@ -45,9 +45,9 @@ classdef SteadyStateSolver
             trialValues = cell(trialCount, 1);
             suppressGuardMessage = trialCount > 1;
             feasibilityTolerance = max([ ...
-                solverOptions.ConstraintTolerance, ...
-                solverOptions.InitialFeasibilityTolerance, ...
-                eps]);
+                                            solverOptions.ConstraintTolerance, ...
+                                            solverOptions.InitialFeasibilityTolerance, ...
+                                            eps]);
             bestIndex = 1;
             bestScore = inf;
             bestValues = initialIndependentValues;
@@ -79,7 +79,7 @@ classdef SteadyStateSolver
                     trialObjective;
                 trialOutput.fminconObjectiveGuardTriggered = false;
                 [trialIndependentValues, trialObjective, ...
-                    trialExitFlag, trialOutput] = ...
+                     trialExitFlag, trialOutput] = ...
                     openmebius.mfa.SteadyStateSolver.applyObjectiveGuard( ...
                     trialIndependentValues, ...
                     trialObjective, ...
@@ -126,9 +126,11 @@ classdef SteadyStateSolver
                     bestExitFlag = trialExitFlag;
                     bestOutput = trialOutput;
                 end
+
             end
 
             if ~isfinite(bestScore)
+
                 if isfinite(initialObjective) && ...
                         initialViolation <= 10 * feasibilityTolerance
                     bestIndex = 1;
@@ -162,7 +164,9 @@ classdef SteadyStateSolver
                             "step-size trials failed.";
                         bestOutput.fminconExecutionFailed = true;
                     end
+
                 end
+
             end
 
             searchOutput = struct;
@@ -279,6 +283,7 @@ classdef SteadyStateSolver
                 if ~isscalar(value) || ~isfinite(value)
                     value = inf;
                 end
+
             catch
                 value = inf;
             end
@@ -297,6 +302,7 @@ classdef SteadyStateSolver
                 if ~isfinite(violation)
                     violation = inf;
                 end
+
             catch
                 violation = inf;
             end
@@ -337,7 +343,7 @@ classdef SteadyStateSolver
                     "FMINCON returned a worse objective (" + ...
                     string(objective) + ") than the feasible " + ...
                     "initial objective (" + string(initialObjective) + ...
-                    "). Reverting to the initial point for this trial.");
+                "). Reverting to the initial point for this trial.");
             end
 
             values = initialValues;

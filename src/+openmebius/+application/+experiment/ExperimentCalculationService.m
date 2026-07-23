@@ -20,7 +20,7 @@ classdef ExperimentCalculationService < handle
                     .NotificationEmitter = ...
                     openmebius.application.notification ...
                     .NotificationEmitter( ...
-                        Source = "ExperimentCalculationService")
+                    Source = "ExperimentCalculationService")
             end
 
             obj.MDVCalculator = options.MDVCalculator;
@@ -64,16 +64,16 @@ classdef ExperimentCalculationService < handle
             if ~hasCalculatedMDV
                 error( ...
                     "OpenMebius2:ExperimentCalculation:NotCalculated", ...
-                    "MDV-derived tables were not created.");
+                "MDV-derived tables were not created.");
             end
 
             result = openmebius.application.experiment.ExperimentCalculationResult( ...
                 Experiments = experiments, ...
                 Batch = batch, ...
                 Messages = [
-                            "Experiment tables updated successfully."
-                            "MDV-derived tables have been updated successfully."
-                           ], ...
+                        "Experiment tables updated successfully."
+                        "MDV-derived tables have been updated successfully."
+                        ], ...
                 Warnings = warnings, ...
                 HasCalculatedMDV = hasCalculatedMDV);
 
@@ -92,7 +92,7 @@ classdef ExperimentCalculationService < handle
             if numExperiments == 0
                 error( ...
                     "OpenMebius2:ExperimentCalculation:CalculationFailed", ...
-                    "No experiments are available for MDV calculation.");
+                "No experiments are available for MDV calculation.");
             end
 
             derivedData = cell(numExperiments, 1);
@@ -116,6 +116,7 @@ classdef ExperimentCalculationService < handle
                         "Failed to calculate MDV-derived data for " + ...
                         experimentName + ": " + string(ME.message);
                 end
+
             end
 
             if numErrors > 0

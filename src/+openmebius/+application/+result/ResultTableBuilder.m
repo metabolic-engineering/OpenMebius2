@@ -4,6 +4,7 @@ classdef ResultTableBuilder
     methods
 
         function [value, message] = fluxOverview(~, data, options)
+
             arguments
                 ~
                 data struct
@@ -14,11 +15,11 @@ classdef ResultTableBuilder
             value = table( ...
                 'Size', [0, 6], ...
                 'VariableNames', [ ...
-                    "Reaction", "Flux", "UB", "LB", ...
-                    "UB (FVA)", "LB (FVA)"], ...
+                   "Reaction", "Flux", "UB", "LB", ...
+                   "UB (FVA)", "LB (FVA)"], ...
                 'VariableTypes', [ ...
-                    "string", "double", "double", "double", ...
-                    "double", "double"]);
+                   "string", "double", "double", "double", ...
+                   "double", "double"]);
             message = "";
             status = data.status;
 
@@ -30,11 +31,11 @@ classdef ResultTableBuilder
                 value = table( ...
                     'Size', [numberOfFluxes, 6], ...
                     'VariableNames', [ ...
-                        "Reaction", "Flux", "LB", "UB", ...
-                        "LB (FVA)", "UB (FVA)"], ...
+                       "Reaction", "Flux", "LB", "UB", ...
+                       "LB (FVA)", "UB (FVA)"], ...
                     'VariableTypes', [ ...
-                        "string", "double", "double", "double", ...
-                        "double", "double"]);
+                       "string", "double", "double", "double", ...
+                       "double", "double"]);
                 value{:, 2:end} = nan(numberOfFluxes, 5);
                 value.Properties.RowNames = reactionIDs;
                 value.Reaction = reactionNames;
@@ -59,6 +60,7 @@ classdef ResultTableBuilder
 
             reactionIndex = find(contains( ...
                 value.Properties.RowNames, options.RelativeTo), 1);
+
             if isempty(reactionIndex)
                 reference = 0.01;
             else
@@ -72,19 +74,21 @@ classdef ResultTableBuilder
             end
 
             variables = ["Flux", "LB", "UB", "LB (FVA)", "UB (FVA)"];
+
             for variable = variables
                 value.(variable) = value.(variable) ./ reference;
             end
+
         end
 
         function [value, message] = fluxDetailed(~, data)
             value = table( ...
                 'Size', [0, 5], ...
                 'VariableNames', [ ...
-                    "Fragment", "M+i", "Measured", ...
-                    "Estimated", "Chi^2"], ...
+                   "Fragment", "M+i", "Measured", ...
+                   "Estimated", "Chi^2"], ...
                 'VariableTypes', [ ...
-                    "string", "string", "double", "double", "double"]);
+                   "string", "string", "double", "double", "double"]);
             message = "";
 
             if ~isfield(data, 'RSSIdx') || isempty(data.RSSIdx)
@@ -97,13 +101,13 @@ classdef ResultTableBuilder
             mdv = data.(fieldName).MDV;
             numberOfLabelings = size(mdv, 2);
             variableNames = [ ...
-                "Fragment", "M+i", ...
-                repmat(["Measured", "Estimated", "Chi^2"], ...
-                    1, numberOfLabelings)];
+                                 "Fragment", "M+i", ...
+                                 repmat(["Measured", "Estimated", "Chi^2"], ...
+                                 1, numberOfLabelings)];
             variableTypes = [ ...
-                "string", "string", ...
-                repmat(["double", "double", "double"], ...
-                    1, numberOfLabelings)];
+                                 "string", "string", ...
+                                 repmat(["double", "double", "double"], ...
+                                 1, numberOfLabelings)];
             value = table( ...
                 'Size', [size(mdv, 1), numel(variableNames)], ...
                 'VariableNames', variableNames, ...
@@ -132,21 +136,26 @@ classdef ResultTableBuilder
             end
 
             isotopeCounter = 0;
+
             for rowIndex = 1:size(mdv, 1)
                 isNewFragment = rowIndex == 1 || ...
                     measuredNames(rowIndex - 1) ~= measuredNames(rowIndex);
+
                 if isNewFragment
                     fragmentNames(rowIndex) = measuredNames(rowIndex);
                     isotopeCounter = 0;
                 end
+
                 isotopeNames(rowIndex) = "M + " + string(isotopeCounter);
                 isotopeCounter = isotopeCounter + 1;
             end
+
             value{:, 1} = fragmentNames;
             value{:, 2} = isotopeNames;
         end
 
         function [value, message] = fluxComparison(~, data, names, options)
+
             arguments
                 ~
                 data cell
@@ -157,6 +166,7 @@ classdef ResultTableBuilder
 
             message = "";
             numberOfResults = numel(names);
+
             if numberOfResults ~= numel(data)
                 value = table();
                 message = "Failed to load the result files.";
@@ -172,21 +182,25 @@ classdef ResultTableBuilder
 
             for resultIndex = 1:numberOfResults
                 item = data{resultIndex};
+
                 if ~isfield(item, 'RSSIdx') || isempty(item.RSSIdx)
                     continue
                 end
+
                 fieldName = "fluxResult" + ...
                     string(sprintf("%04d", item.RSSIdx(1)));
                 flux = item.(fieldName).fluxFwd;
+
                 if resultIndex == 1
                     value = table( ...
                         'Size', [numel(flux), numberOfResults + 1], ...
                         'VariableNames', ["Reaction", names], ...
                         'VariableTypes', [ ...
-                            "string", repmat("double", 1, numberOfResults)], ...
+                           "string", repmat("double", 1, numberOfResults)], ...
                         'RowNames', [item.model.modelID; "biomass"]);
                     value.Reaction = [item.model.modelReaction; ""];
                 end
+
                 value.(names(resultIndex)) = flux;
             end
 
@@ -196,16 +210,20 @@ classdef ResultTableBuilder
 
             reactionIndex = find(contains( ...
                 value.Properties.RowNames, options.RelativeTo), 1);
+
             for resultIndex = 1:numberOfResults
+
                 if isempty(reactionIndex)
                     reference = 0.01;
                 else
                     reference = ...
                         value.(names(resultIndex))(reactionIndex) / 100;
                 end
+
                 value.(names(resultIndex)) = ...
                     value.(names(resultIndex)) ./ reference;
             end
+
         end
 
     end
@@ -214,12 +232,16 @@ classdef ResultTableBuilder
 
         function values = uniqueNames(values)
             original = values;
+
             for valueIndex = 1:numel(values)
+
                 if sum(original == original(valueIndex)) > 1
                     values(valueIndex) = ...
                         original(valueIndex) + "_" + string(valueIndex);
                 end
+
             end
+
         end
 
     end

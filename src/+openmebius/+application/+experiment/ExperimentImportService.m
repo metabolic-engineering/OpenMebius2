@@ -72,7 +72,7 @@ classdef ExperimentImportService < handle
                         options.Messages
                         "Experimental data loaded successfully."
                         "Batch object created successfully."
-                       ];
+                        ];
 
             result = openmebius.application.experiment.ExperimentImportResult( ...
                 Experiments = experiments, ...

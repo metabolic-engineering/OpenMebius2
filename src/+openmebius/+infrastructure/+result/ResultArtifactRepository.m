@@ -17,6 +17,7 @@ classdef ResultArtifactRepository
             deleted = false(size(artifacts));
 
             for i = 1:numel(artifacts)
+
                 if ~isfile(artifacts(i))
                     continue
                 end
@@ -33,6 +34,7 @@ classdef ResultArtifactRepository
                     exception = addCause(exception, cause);
                     throwAsCaller(exception);
                 end
+
             end
 
             deletedFiles = artifacts(deleted);

@@ -140,7 +140,6 @@ classdef ResultPlotPresenter < handle
 
             end
 
-
             pathwayViewModel = obj.PathwayPresenter.presentPathway( ...
                 model, ...
                 Labels = fluxColumn, ...
@@ -181,7 +180,7 @@ classdef ResultPlotPresenter < handle
                     ~isfield(data.CI, "algorithm")
                 notification = openmebius.presentation.notification ...
                     .Notification.warning( ...
-                        "Confidence interval data is invalid.");
+                "Confidence interval data is invalid.");
                 return
             end
 
@@ -190,8 +189,8 @@ classdef ResultPlotPresenter < handle
             if ~isscalar(algorithm) || algorithm ~= "Monte Carlo"
                 notification = openmebius.presentation.notification ...
                     .Notification.warning( ...
-                        "Unsupported confidence interval algorithm: " + ...
-                        join(algorithm, ", "));
+                    "Unsupported confidence interval algorithm: " + ...
+                    join(algorithm, ", "));
                 return
             end
 
@@ -202,8 +201,8 @@ classdef ResultPlotPresenter < handle
                 if isempty(reactionIndex)
                     notification = openmebius.presentation.notification ...
                         .Notification.warning( ...
-                            "Reaction ID is not available in confidence " + ...
-                            "interval data: " + reactionID);
+                        "Reaction ID is not available in confidence " + ...
+                        "interval data: " + reactionID);
                     return
                 end
 
@@ -217,10 +216,11 @@ classdef ResultPlotPresenter < handle
                         strlength(reactionNames(reactionIndex)) > 0
                     plotTitle = reactionNames(reactionIndex);
                 end
+
             catch
                 notification = openmebius.presentation.notification ...
                     .Notification.warning( ...
-                        "Confidence interval data is incomplete.");
+                "Confidence interval data is incomplete.");
                 return
             end
 
@@ -231,7 +231,7 @@ classdef ResultPlotPresenter < handle
                     ~isscalar(bestFit) || ~isfinite(bestFit)
                 notification = openmebius.presentation.notification ...
                     .Notification.warning( ...
-                        "Confidence interval values are unavailable.");
+                "Confidence interval values are unavailable.");
                 return
             end
 

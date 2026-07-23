@@ -44,6 +44,7 @@ classdef MFAAnalysisSettingsMapper
             specification = [];
 
             if iterationSettings.AnalysisMode.isInstationary()
+
                 try
                     specification = openmebius.application.analysis ...
                         .InstationaryInputSpecificationMapper ...
@@ -54,6 +55,7 @@ classdef MFAAnalysisSettingsMapper
                         "instationary", "instationary input", ME);
                     return
                 end
+
             end
 
             settings = openmebius.application.analysis ...

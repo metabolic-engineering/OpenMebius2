@@ -9,7 +9,7 @@ classdef RoutingPolicy < handle
         CliConsoleMinimumLevel (1, 1) string = "info"
         UiLogMinimumLevel (1, 1) string = "info"
         SlackCodes (:, 1) string = [ ...
-            "batch.completed"; "batch.failed"; "batch.canceled"]
+                                        "batch.completed"; "batch.failed"; "batch.canceled"]
     end
 
     methods
@@ -24,7 +24,7 @@ classdef RoutingPolicy < handle
                 options.CliConsoleMinimumLevel (1, 1) string = "info"
                 options.UiLogMinimumLevel (1, 1) string = "info"
                 options.SlackCodes (:, 1) string = [ ...
-                    "batch.completed"; "batch.failed"; "batch.canceled"]
+                                                        "batch.completed"; "batch.failed"; "batch.canceled"]
             end
 
             mode = lower(strtrim(options.Mode));
@@ -59,6 +59,7 @@ classdef RoutingPolicy < handle
                         message.Level, obj.FileMinimumLevel);
 
                 case "console"
+
                     if obj.Mode == "test"
                         tf = false;
                     elseif obj.Mode == "cli"
@@ -74,15 +75,15 @@ classdef RoutingPolicy < handle
                     tf = obj.Mode == "desktop" && ...
                         message.Kind ~= "progress" && ...
                         (message.Audience ~= "developer" || ...
-                            obj.DeveloperMode) && ...
+                        obj.DeveloperMode) && ...
                         openmebius.core.notification.Severity.atLeast( ...
-                            message.Level, obj.UiLogMinimumLevel);
+                        message.Level, obj.UiLogMinimumLevel);
 
                 case "ui-alert"
                     tf = obj.Mode == "desktop" && ...
                         message.Audience == "user" && ...
                         (message.Attention == "action-required" || ...
-                            message.Level == "fatal");
+                        message.Level == "fatal");
 
                 case "slack"
                     tf = ismember(message.Code, obj.SlackCodes);
