@@ -1,5 +1,16 @@
 classdef LoggerTest < matlab.unittest.TestCase
 
+    methods (TestMethodSetup)
+
+        function addSourcePath(~)
+
+            root = fileparts(fileparts(mfilename("fullpath")));
+            addpath(fullfile(root, "src"));
+
+        end
+
+    end
+
     methods (Test)
 
         function normalizeLevelAcceptsAliases(testCase)
@@ -93,9 +104,10 @@ classdef LoggerTest < matlab.unittest.TestCase
 
         function notificationAcceptsLoggerLevelAliases(testCase)
 
-            import openmebius.presentation.notification.Notification
-
-            notification = Notification("hello", "completed");
+            notification = ...
+                openmebius.presentation.notification.Notification( ...
+                    "hello", ...
+                    "completed");
 
             testCase.verifyEqual(notification.Level, "success");
 
@@ -103,13 +115,12 @@ classdef LoggerTest < matlab.unittest.TestCase
 
         function notificationUsesLoggerFormat(testCase)
 
-            import openmebius.presentation.notification.Notification
-
             timestamp = datetime(2026, 7, 12, 23, 10, 11);
-            notification = Notification( ...
-                "hello", ...
-                "warning", ...
-                Timestamp = timestamp);
+            notification = ...
+                openmebius.presentation.notification.Notification( ...
+                    "hello", ...
+                    "warning", ...
+                    Timestamp = timestamp);
 
             testCase.verifyEqual( ...
                 notification.toLogText(), ...
@@ -120,13 +131,12 @@ classdef LoggerTest < matlab.unittest.TestCase
 
         function notificationFormatsEachMultilineLogRow(testCase)
 
-            import openmebius.presentation.notification.Notification
-
             timestamp = datetime(2026, 7, 12, 23, 10, 11);
-            notification = Notification( ...
-                "hello" + newline + "world", ...
-                "fatal", ...
-                Timestamp = timestamp);
+            notification = ...
+                openmebius.presentation.notification.Notification( ...
+                    "hello" + newline + "world", ...
+                    "fatal", ...
+                    Timestamp = timestamp);
 
             expectedPrefix = "[2026-07-12 23:10:11]" + char(9) + ...
                 "[FATAL]" + char(9);

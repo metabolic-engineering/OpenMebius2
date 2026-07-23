@@ -39,9 +39,9 @@ classdef GridSearchProfileData
                 "Flux indices must be unique positive integers.");
             end
 
-            obj.FluxIndices = fluxIndices;
-            obj.FixedFluxValues = fixedFluxValues;
-            obj.MinimumSumOfSquares = minimumSumOfSquares;
+            obj.FluxIndices = options.FluxIndices;
+            obj.FixedFluxValues = options.FixedFluxValues;
+            obj.MinimumSumOfSquares = options.MinimumSumOfSquares;
 
         end % constructor
 
