@@ -28,12 +28,13 @@ classdef GridSearchConfidenceIntervalResult
                 "must have the same size.");
             end
 
-            if size(options.LowerBounds, 1) ~= ...
-                    size(options.ProfileData, 1)
+            numberOfFluxes = numel(options.ProfileData.FluxIndices);
+
+            if numel(options.LowerBounds) ~= numberOfFluxes
                 error( ...
                     "OpenMebius2:GridSearchCI:ProfileSizeMismatch", ...
                     "Confidence-interval bounds and profile data " + ...
-                "must have the same row count.");
+                "must have the same flux count.");
             end
 
             obj.LowerBounds = options.LowerBounds;

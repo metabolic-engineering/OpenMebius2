@@ -11,9 +11,9 @@ classdef GridSearchProfileData
         function obj = GridSearchProfileData(options)
 
             arguments
-                options.FluxIndices (:, 1) double
-                options.FixedFluxValues double
-                options.MinimumSumOfSquares double
+                options.FluxIndices (:, 1) double = zeros(0, 1)
+                options.FixedFluxValues double = zeros(0, 0, 0)
+                options.MinimumSumOfSquares double = zeros(0, 0, 0)
             end
 
             if ~isequal(size(options.FixedFluxValues), size(options.MinimumSumOfSquares))
