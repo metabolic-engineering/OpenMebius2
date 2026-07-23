@@ -160,6 +160,44 @@ classdef MFAProblem
 
         end % nonnegativeFluxInequalities
 
+        function [equalityMatrix, equalityRightHandSide] = ...
+                fixedFluxEqualities(obj, fluxWeights, targetValue, options)
+
+            arguments
+                obj (1, 1) openmebius.mfa.MFAProblem
+                fluxWeights (:, 1) double
+                targetValue (1, 1) double
+                options.BaseRightHandSide (:, 1) double = ...
+                    obj.RightHandSide
+            end
+
+            fluxCount = size(obj.Stoichiometry, 2);
+
+            if numel(fluxWeights) ~= fluxCount
+                error( ...
+                    "OpenMebius2:MFAProblem:FluxWeightDimensionMismatch", ...
+                "Flux weights must match the flux system.");
+            end
+
+            independentCount = nnz(obj.IndependentMask);
+
+            % E maps independent variables to the RHS vector.
+            selector = zeros(numel(obj.RightHandSide), independentCount);
+            selector(obj.IndependentMask, :) = eye(independentCount);
+
+            % Remove the current independent-variable values from the base RHS.
+            fixedRightHandSide = options.BaseRightHandSide;
+            fixedRightHandSide(obj.IndependentMask) = 0;
+
+            fluxOffset = obj.Stoichiometry \ fixedRightHandSide;
+            fluxCoefficient = obj.Stoichiometry \ selector;
+
+            equalityMatrix = fluxWeights.' * fluxCoefficient;
+            equalityRightHandSide = ...
+                targetValue - fluxWeights.' * fluxOffset;
+
+        end % method fixedFluxEqualities
+
     end % methods
 
     methods (Access = private)
