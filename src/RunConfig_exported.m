@@ -42,6 +42,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         maximumnumberoftrialsLsubmaxsubLabel matlab.ui.control.Label
         GridsearchTab matlab.ui.container.Tab
         GridLayout11 matlab.ui.container.GridLayout
+        CheckBox matlab.ui.control.CheckBox
         GridLayout12_4 matlab.ui.container.GridLayout
         ThresholdDropDown matlab.ui.control.DropDown
         ThresholdDropDownLabel matlab.ui.control.Label
@@ -360,6 +361,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function renderGridReactionVisibility(app, isVisible)
 
             if isVisible
+
                 if isempty(app.GridreactionTab.Parent)
                     app.GridreactionTab.Parent = app.TabGroup2;
                 end
@@ -720,7 +722,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             if istable(gridReactionData) && ...
                     ismember('Select', ...
-                        gridReactionData.Properties.VariableNames)
+                    gridReactionData.Properties.VariableNames)
                 gridReactionData.Select(:) = true;
             end
 
@@ -1361,7 +1363,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Create GridLayout11
             app.GridLayout11 = uigridlayout(app.GridsearchTab);
             app.GridLayout11.ColumnWidth = {'1x'};
-            app.GridLayout11.RowHeight = {'fit', 'fit', 'fit', 'fit', '1x', '1x'};
+            app.GridLayout11.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
             app.GridLayout11.Padding = [5 5 5 5];
 
             % Create DeterminegridintervalautomaticallyCheckBox
@@ -1377,7 +1379,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12.ColumnWidth = {'7x', '3x'};
             app.GridLayout12.RowHeight = {'1x'};
             app.GridLayout12.Padding = [0 0 0 0];
-            app.GridLayout12.Layout.Row = 2;
+            app.GridLayout12.Layout.Row = 3;
             app.GridLayout12.Layout.Column = 1;
 
             % Create ThenumberofgridpointsEditFieldLabel
@@ -1398,7 +1400,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12_2.ColumnWidth = {'7x', '3x'};
             app.GridLayout12_2.RowHeight = {'1x'};
             app.GridLayout12_2.Padding = [0 0 0 0];
-            app.GridLayout12_2.Layout.Row = 3;
+            app.GridLayout12_2.Layout.Row = 4;
             app.GridLayout12_2.Layout.Column = 1;
 
             % Create GridintervalDeltaixiEditFieldLabel
@@ -1420,7 +1422,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12_3.ColumnWidth = {'7x', '3x'};
             app.GridLayout12_3.RowHeight = {'1x'};
             app.GridLayout12_3.Padding = [0 0 0 0];
-            app.GridLayout12_3.Layout.Row = 4;
+            app.GridLayout12_3.Layout.Row = 5;
             app.GridLayout12_3.Layout.Column = 1;
 
             % Create IterationtimesforgridsearchEditFieldLabel
@@ -1441,7 +1443,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12_4.ColumnWidth = {'6x', '4x'};
             app.GridLayout12_4.RowHeight = {'fit'};
             app.GridLayout12_4.Padding = [0 0 0 0];
-            app.GridLayout12_4.Layout.Row = 5;
+            app.GridLayout12_4.Layout.Row = 6;
             app.GridLayout12_4.Layout.Column = 1;
 
             % Create ThresholdDropDownLabel
@@ -1456,6 +1458,13 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.ThresholdDropDown.Layout.Row = 1;
             app.ThresholdDropDown.Layout.Column = 2;
             app.ThresholdDropDown.Value = 'F-distribution';
+
+            % Create CheckBox
+            app.CheckBox = uicheckbox(app.GridLayout11);
+            app.CheckBox.Text = 'Execute grid search in parallel';
+            app.CheckBox.Layout.Row = 2;
+            app.CheckBox.Layout.Column = 1;
+            app.CheckBox.Value = true;
 
             % Create GridreactionTab
             app.GridreactionTab = uitab(app.TabGroup2);
