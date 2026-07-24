@@ -27,9 +27,32 @@ classdef BatchConfigTest < matlab.unittest.TestCase
             testCase.verifyTrue(isfield(config, 'CIConf'));
             testCase.verifyTrue( ...
                 isfield(config.CIConf.grid, 'reactions'));
+            testCase.verifyEqual( ...
+                config.CIConf.grid.intervalMode, 'automatic');
+            testCase.verifyEqual( ...
+                config.CIConf.grid.executionMode, 'parallel');
             testCase.verifyTrue(isfield(config, 'INSTMFA'));
 
         end % normalizeFillsMissingFieldsAndValidates
+
+        function normalizeMigratesLegacyGridMode(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.grid = rmfield( ...
+                config.CIConf.grid, ...
+                {'intervalMode', 'executionMode'});
+            config.CIConf.grid.isParallel = false;
+
+            actual = openmebius.domain.batch.BatchConfig.normalize(config);
+
+            testCase.verifyEqual( ...
+                actual.CIConf.grid.intervalMode, 'fixed-delta');
+            testCase.verifyEqual( ...
+                actual.CIConf.grid.executionMode, 'parallel');
+            testCase.verifyFalse( ...
+                isfield(actual.CIConf.grid, 'isParallel'));
+
+        end % normalizeMigratesLegacyGridMode
 
         function validateRejectsInvalidIteration(testCase)
 
@@ -86,6 +109,28 @@ classdef BatchConfigTest < matlab.unittest.TestCase
             'OpenMebius2:BatchConfig:InvalidPositiveInteger');
 
         end % validateRejectsInvalidNestedCIConfig
+
+        function validateRejectsUnknownGridIntervalMode(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.grid.intervalMode = 'adaptive';
+
+            testCase.verifyError( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config), ...
+            'OpenMebius2:BatchConfig:InvalidMember');
+
+        end % validateRejectsUnknownGridIntervalMode
+
+        function validateRejectsUnknownGridExecutionMode(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.grid.executionMode = 'distributed';
+
+            testCase.verifyError( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config), ...
+            'OpenMebius2:BatchConfig:InvalidMember');
+
+        end % validateRejectsUnknownGridExecutionMode
 
         function validateRejectsMismatchedGridReactionValues(testCase)
 

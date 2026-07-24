@@ -27,6 +27,8 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(viewModel.Iteration, 30);
             testCase.verifyEqual(viewModel.Algorithm, "SQP");
             testCase.verifyFalse(viewModel.CalculateCI);
+            testCase.verifyTrue(viewModel.GridAutomaticInterval);
+            testCase.verifyTrue(viewModel.GridParallelExecution);
             testCase.verifyFalse(viewModel.PerturbateEfflux);
             testCase.verifyFalse(viewModel.IsINSTMFA);
 
@@ -112,6 +114,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
             testCase.verifyTrue(state.CIAlgorithmEnabled);
             testCase.verifyTrue(state.MonteCarloEnabled);
             testCase.verifyFalse(state.GridEnabled);
+            testCase.verifyFalse(state.GridExecutionModeEnabled);
             testCase.verifyTrue(state.EffluxEnabled);
             testCase.verifyTrue(state.SuggestionEnabled);
 
@@ -131,6 +134,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
             manual = presenter.presentControlState(viewModel);
 
             testCase.verifyTrue(automatic.GridEnabled);
+            testCase.verifyTrue(automatic.GridExecutionModeEnabled);
             testCase.verifyTrue(automatic.GridPointsEnabled);
             testCase.verifyFalse(automatic.GridDeltaEnabled);
             testCase.verifyFalse(manual.GridPointsEnabled);
@@ -140,6 +144,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
             viewModel.CalculateCI = false;
             disabled = presenter.presentControlState(viewModel);
             testCase.verifyFalse(disabled.GridReactionVisible);
+            testCase.verifyFalse(disabled.GridExecutionModeEnabled);
 
         end
 

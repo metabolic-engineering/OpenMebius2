@@ -43,7 +43,10 @@ classdef RunConfigMapper
                 monteCarlo.calculationMethod);
 
             grid = config.CIConf.grid;
-            viewModel.GridAutomaticInterval = logical(grid.isParallel);
+            viewModel.GridAutomaticInterval = ...
+                strcmpi(string(grid.intervalMode), "automatic");
+            viewModel.GridParallelExecution = ...
+                strcmpi(string(grid.executionMode), "parallel");
             viewModel.GridPoints = double(grid.points);
             viewModel.GridDelta = double(grid.delta);
             viewModel.GridIterations = double(grid.iteration);
@@ -104,8 +107,18 @@ classdef RunConfigMapper
                 .mcCalculationMethodToConfig( ...
                 viewModel.MCCalculationMethod);
 
-            config.CIConf.grid.isParallel = ...
-                viewModel.GridAutomaticInterval;
+            if viewModel.GridAutomaticInterval
+                config.CIConf.grid.intervalMode = 'automatic';
+            else
+                config.CIConf.grid.intervalMode = 'fixed-delta';
+            end
+
+            if viewModel.GridParallelExecution
+                config.CIConf.grid.executionMode = 'parallel';
+            else
+                config.CIConf.grid.executionMode = 'serial';
+            end
+
             config.CIConf.grid.points = viewModel.GridPoints;
             config.CIConf.grid.delta = viewModel.GridDelta;
             config.CIConf.grid.iteration = viewModel.GridIterations;

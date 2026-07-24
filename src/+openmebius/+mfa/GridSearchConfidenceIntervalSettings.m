@@ -2,12 +2,13 @@ classdef GridSearchConfidenceIntervalSettings
     % GRIDSEARCHCONFIDENCEINTERVALSETTINGS Validated grid-search settings.
 
     properties (SetAccess = private)
+        IntervalMode (1, 1) openmebius.mfa.GridSearchIntervalMode
+        ExecutionMode (1, 1) openmebius.mfa.GridSearchExecutionMode
         Delta (1, 1) double
         Threshold (1, 1) string
         PointCount (1, 1) double
         IterationCount (1, 1) double
         Alpha (1, 1) double
-        UseParallel (1, 1) logical
     end
 
     methods
@@ -15,12 +16,17 @@ classdef GridSearchConfidenceIntervalSettings
         function obj = GridSearchConfidenceIntervalSettings(options)
 
             arguments
+                options.IntervalMode (1, 1) openmebius.mfa ...
+                    .GridSearchIntervalMode = openmebius.mfa ...
+                    .GridSearchIntervalMode.Automatic
+                options.ExecutionMode (1, 1) openmebius.mfa ...
+                    .GridSearchExecutionMode = openmebius.mfa ...
+                    .GridSearchExecutionMode.Parallel
                 options.Delta (1, 1) double = 1
                 options.Threshold (1, 1) string = "chi-sq"
                 options.PointCount (1, 1) double = 10
                 options.IterationCount (1, 1) double = 30
                 options.Alpha (1, 1) double = 0.05
-                options.UseParallel (1, 1) logical = true
             end
 
             if ~isfinite(options.Delta) || options.Delta <= 0
@@ -50,12 +56,13 @@ classdef GridSearchConfidenceIntervalSettings
                 "Alpha must be between zero and one.");
             end
 
+            obj.IntervalMode = options.IntervalMode;
+            obj.ExecutionMode = options.ExecutionMode;
             obj.Delta = options.Delta;
             obj.Threshold = options.Threshold;
             obj.PointCount = options.PointCount;
             obj.IterationCount = options.IterationCount;
             obj.Alpha = options.Alpha;
-            obj.UseParallel = options.UseParallel;
 
         end
 

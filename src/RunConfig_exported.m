@@ -271,6 +271,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             app.DeterminegridintervalautomaticallyCheckBox.Value = ...
                 viewModel.GridAutomaticInterval;
+            app.CheckBox.Value = viewModel.GridParallelExecution;
             app.ThenumberofgridpointsEditField.Value = ...
                 viewModel.GridPoints;
             app.GridintervalDeltaixiEditField.Value = viewModel.GridDelta;
@@ -340,6 +341,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             grid = app.onOff(state.GridEnabled);
             app.DeterminegridintervalautomaticallyCheckBox.Enable = grid;
+            app.CheckBox.Enable = ...
+                app.onOff(state.GridExecutionModeEnabled);
             app.IterationtimesforgridsearchEditField.Enable = grid;
             app.ThresholdDropDown.Enable = grid;
             app.ThenumberofgridpointsEditField.Enable = ...
@@ -640,6 +643,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             viewModel.GridAutomaticInterval = ...
                 app.DeterminegridintervalautomaticallyCheckBox.Value;
+            viewModel.GridParallelExecution = app.CheckBox.Value;
             viewModel.GridPoints = ...
                 app.ThenumberofgridpointsEditField.Value;
             viewModel.GridDelta = app.GridintervalDeltaixiEditField.Value;

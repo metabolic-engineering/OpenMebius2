@@ -84,6 +84,8 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
                 ["A -> B"; "B -> C"];
             config.CIConf.MC.optimizationProcedure = 'multiple';
             config.CIConf.MC.calculationMethod = 'discarding';
+            config.CIConf.grid.intervalMode = 'fixed-delta';
+            config.CIConf.grid.executionMode = 'serial';
 
             viewModel = ...
                 openmebius.presentation.batch.RunConfigMapper.toViewModel( ...
@@ -95,6 +97,8 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             testCase.verifyEqual(viewModel.Algorithm, "IPMs");
             testCase.verifyEqual(viewModel.CIAlgorithm, "Grid search");
             testCase.verifyEqual(viewModel.GridThreshold, "Chi-squared");
+            testCase.verifyFalse(viewModel.GridAutomaticInterval);
+            testCase.verifyFalse(viewModel.GridParallelExecution);
             testCase.verifyEqual( ...
                 viewModel.GridReactionTable.Properties.VariableNames, ...
                 {'Select', 'ID', 'Reaction'});
@@ -108,6 +112,8 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             viewModel.Algorithm = "SQP";
             viewModel.CIAlgorithm = "Monte Carlo";
             viewModel.GridThreshold = "F-distribution";
+            viewModel.GridAutomaticInterval = true;
+            viewModel.GridParallelExecution = true;
             viewModel.MCOptimizationProcedure = "Single run";
             viewModel.MCCalculationMethod = "Mean-varianced";
 
@@ -121,6 +127,12 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 updatedConfig.CIConf.grid.threshold, ...
             'f-distribution');
+            testCase.verifyEqual( ...
+                updatedConfig.CIConf.grid.intervalMode, ...
+            'automatic');
+            testCase.verifyEqual( ...
+                updatedConfig.CIConf.grid.executionMode, ...
+            'parallel');
             testCase.verifyEqual( ...
                 updatedConfig.CIConf.MC.optimizationProcedure, ...
             'single');
@@ -153,7 +165,8 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             config.CIConf.MC.certainThreshold = 8;
             config.CIConf.MC.theNumberOfRuns = 19;
             config.CIConf.MC.calculationMethod = 'mean-varianced';
-            config.CIConf.grid.isParallel = false;
+            config.CIConf.grid.intervalMode = 'fixed-delta';
+            config.CIConf.grid.executionMode = 'serial';
             config.CIConf.grid.points = 23;
             config.CIConf.grid.delta = 0.5;
             config.CIConf.grid.iteration = 71;

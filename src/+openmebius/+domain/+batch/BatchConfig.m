@@ -82,7 +82,8 @@ classdef BatchConfig
             config.CIConf.grid.points = 10;
             config.CIConf.grid.iteration = config.iteration;
             config.CIConf.grid.alpha = 0.05;
-            config.CIConf.grid.isParallel = true;
+            config.CIConf.grid.intervalMode = 'automatic';
+            config.CIConf.grid.executionMode = 'parallel';
             config.CIConf.grid.reactions.select = logical([]);
             config.CIConf.grid.reactions.id = string([]);
             config.CIConf.grid.reactions.reaction = string([]);
@@ -119,6 +120,11 @@ classdef BatchConfig
                 baseConfig = openmebius.domain.batch.BatchConfig.defaultConfig();
             end
 
+            config = ...
+                openmebius.domain.batch.BatchConfig.migrateGridModes(config);
+            baseConfig = ...
+                openmebius.domain.batch.BatchConfig ...
+                .migrateGridModes(baseConfig);
             config = openmebius.domain.batch.BatchConfig.fillMissingFields( ...
                 config, ...
                 baseConfig);
@@ -210,6 +216,94 @@ classdef BatchConfig
     end % methods
 
     methods (Static, Access = private)
+
+        function config = migrateGridModes(config)
+
+            if ~isstruct(config) || ~isscalar(config) || ...
+                    ~isfield(config, 'CIConf') || ...
+                    ~isstruct(config.CIConf) || ...
+                    ~isscalar(config.CIConf) || ...
+                    ~isfield(config.CIConf, 'grid') || ...
+                    ~isstruct(config.CIConf.grid) || ...
+                    ~isscalar(config.CIConf.grid)
+                return
+            end
+
+            grid = config.CIConf.grid;
+            hasLegacyMode = isfield(grid, 'isParallel');
+            hasIntervalMode = isfield(grid, 'intervalMode');
+
+            if ~hasIntervalMode && hasLegacyMode
+                automatic = openmebius.domain.batch.BatchConfig ...
+                    .legacyGridLogical( ...
+                    grid.isParallel, 'CIConf.grid.isParallel');
+
+                if automatic
+                    grid.intervalMode = 'automatic';
+                else
+                    grid.intervalMode = 'fixed-delta';
+                end
+
+            end
+
+            if ~isfield(grid, 'executionMode')
+
+                if hasIntervalMode && hasLegacyMode
+                    useParallel = openmebius.domain.batch.BatchConfig ...
+                        .legacyGridLogical( ...
+                        grid.isParallel, 'CIConf.grid.isParallel');
+
+                    if useParallel
+                        grid.executionMode = 'parallel';
+                    else
+                        grid.executionMode = 'serial';
+                    end
+
+                else
+                    grid.executionMode = 'parallel';
+                end
+
+            end
+
+            if hasLegacyMode
+                grid = rmfield(grid, 'isParallel');
+            end
+
+            config.CIConf.grid = grid;
+
+        end % migrateGridModes
+
+        function value = legacyGridLogical(rawValue, fieldPath)
+
+            if ischar(rawValue) || isstring(rawValue)
+                candidate = lower(strtrim(string(rawValue)));
+
+                if isscalar(candidate) && ...
+                        ismember(candidate, ["true", "1", "yes", "on"])
+                    value = true;
+                    return
+                end
+
+                if isscalar(candidate) && ...
+                        ismember(candidate, ["false", "0", "no", "off"])
+                    value = false;
+                    return
+                end
+
+            elseif isscalar(rawValue) && ...
+                    (islogical(rawValue) || isnumeric(rawValue)) && ...
+                    isfinite(double(rawValue)) && ...
+                    ismember(double(rawValue), [0, 1])
+                value = logical(rawValue);
+                return
+            end
+
+            error( ...
+                "OpenMebius2:BatchConfig:InvalidLogical", ...
+                "Batch config field %s must be a scalar logical value.", ...
+                fieldPath);
+
+        end % legacyGridLogical
 
         function validateFmincon(config)
 
@@ -306,7 +400,14 @@ classdef BatchConfig
             BatchConfig.mustBePositiveInteger(config, 'CIConf.grid.points');
             BatchConfig.mustBePositiveInteger(config, 'CIConf.grid.iteration');
             BatchConfig.mustBeProbability(config, 'CIConf.grid.alpha');
-            BatchConfig.mustBeLogical(config, 'CIConf.grid.isParallel');
+            BatchConfig.mustBeKnownMember( ...
+                config, ...
+                'CIConf.grid.intervalMode', ...
+                ["automatic", "fixed-delta"]);
+            BatchConfig.mustBeKnownMember( ...
+                config, ...
+                'CIConf.grid.executionMode', ...
+                ["serial", "parallel"]);
             BatchConfig.validateGridReactions(config.CIConf.grid);
 
             BatchConfig.mustBeStruct(config, 'CIConf.MC');
