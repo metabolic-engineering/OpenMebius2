@@ -310,6 +310,7 @@ classdef ConfidenceIntervalWorkflow
             output = struct;
             output.profile = solverResult.ProfileData;
             output.time = solverResult.ElapsedTime;
+            output.objectiveThreshold = objectiveThreshold;
 
             if solverResult.IsCanceled
                 report( ...

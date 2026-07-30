@@ -65,6 +65,12 @@ classdef MFAResultSessionStub < handle
 
         end
 
+        function writeGridSearchConfidenceInterval(obj, varargin)
+
+            obj.record("grid-search");
+
+        end
+
         function writeSuggestionTable(obj, varargin)
 
             obj.record("suggestion");

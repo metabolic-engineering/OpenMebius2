@@ -226,6 +226,116 @@ classdef ResultTableBuilder
 
         end
 
+        function [value, message] = gridSearch(~, data)
+
+            value = table();
+            message = "";
+
+            if ~isfield(data, "CI") || ...
+                    ~isstruct(data.CI) || ...
+                    ~isfield(data.CI, "algorithm") || ...
+                    string(data.CI.algorithm) ~= "Grid search"
+                return
+            end
+
+            if ~isfield(data.CI, "gridSearch") || ...
+                    ~isstruct(data.CI.gridSearch)
+                message = "Grid-search result data is incomplete.";
+                return
+            end
+
+            try
+                gridSearch = data.CI.gridSearch;
+                fluxIndices = double(gridSearch.fluxIndices(:));
+                reactionIDs = string(gridSearch.reactionIDs(:));
+                fixedFlux = double(gridSearch.fixedFlux);
+                rss = double(gridSearch.RSS);
+                minimumRSS = double(gridSearch.minimumRSS);
+                objectiveThreshold = double( ...
+                    gridSearch.objectiveThreshold);
+                profileCount = numel(fluxIndices);
+                pointCount = size(fixedFlux, 2);
+                trialCount = size(rss, 3);
+
+                if profileCount == 0 || ...
+                        numel(reactionIDs) ~= profileCount || ...
+                        size(fixedFlux, 1) ~= profileCount || ...
+                        size(rss, 1) ~= profileCount || ...
+                        size(rss, 2) ~= pointCount || ...
+                        ~isequal(size(minimumRSS), ...
+                        [profileCount, pointCount]) || ...
+                        ~isscalar(objectiveThreshold)
+                    error("invalid grid-search dimensions");
+                end
+
+                modelIDs = [string(data.model.modelID(:)); "biomass"];
+                reactionNames = [ ...
+                                     string(data.model.modelReaction(:)); "biomass"];
+                rowCount = profileCount * pointCount * trialCount;
+                outputReactionIDs = strings(rowCount, 1);
+                outputReactionNames = strings(rowCount, 1);
+                outputFluxIndices = zeros(rowCount, 1);
+                outputGridPoints = zeros(rowCount, 1);
+                outputTrials = zeros(rowCount, 1);
+                outputFixedFlux = nan(rowCount, 1);
+                outputRSS = nan(rowCount, 1);
+                outputMinimumRSS = nan(rowCount, 1);
+                cursor = 0;
+
+                for profileIndex = 1:profileCount
+                    rows = cursor + (1:(pointCount * trialCount));
+                    pointIndices = repelem( ...
+                        (1:pointCount).', trialCount);
+                    trialIndices = repmat( ...
+                        (1:trialCount).', pointCount, 1);
+                    reactionName = "";
+                    modelIndex = find( ...
+                        modelIDs == reactionIDs(profileIndex), 1);
+
+                    if ~isempty(modelIndex)
+                        reactionName = reactionNames(modelIndex);
+                    end
+
+                    rssMatrix = reshape( ...
+                        rss(profileIndex, :, :), ...
+                        pointCount, trialCount);
+                    outputReactionIDs(rows) = ...
+                        reactionIDs(profileIndex);
+                    outputReactionNames(rows) = reactionName;
+                    outputFluxIndices(rows) = ...
+                        fluxIndices(profileIndex);
+                    outputGridPoints(rows) = pointIndices;
+                    outputTrials(rows) = trialIndices;
+                    outputFixedFlux(rows) = repelem( ...
+                        fixedFlux(profileIndex, :).', trialCount);
+                    outputRSS(rows) = reshape(rssMatrix.', [], 1);
+                    outputMinimumRSS(rows) = repelem( ...
+                        minimumRSS(profileIndex, :).', trialCount);
+                    cursor = cursor + pointCount * trialCount;
+                end
+
+                value = table( ...
+                    outputReactionIDs, ...
+                    outputReactionNames, ...
+                    outputFluxIndices, ...
+                    outputGridPoints, ...
+                    outputTrials, ...
+                    outputFixedFlux, ...
+                    outputRSS, ...
+                    outputMinimumRSS, ...
+                    repmat(objectiveThreshold, rowCount, 1), ...
+                    'VariableNames', { ...
+                       'ReactionID', 'Reaction', 'FluxIndex', ...
+                       'GridPoint', 'Trial', 'FixedFlux', ...
+                       'RSS', 'MinimumRSS', 'ObjectiveThreshold'});
+
+            catch
+                value = table();
+                message = "Grid-search result data is incomplete.";
+            end
+
+        end % gridSearch
+
     end
 
     methods (Static, Access = private)

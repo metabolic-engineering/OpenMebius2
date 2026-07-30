@@ -72,6 +72,24 @@ classdef Hdf5ResultRepository < handle
             if enabledStatus(3)
                 data.fluxLB = h5read(filePath, "/fluxLB");
                 data.fluxUB = h5read(filePath, "/fluxUB");
+
+                try
+                    data.CI.algorithm = string( ...
+                        h5read(filePath, "/CI/algorithm"));
+
+                    if data.CI.algorithm == "Grid search"
+                        data.CI.fluxLB = h5read( ...
+                            filePath, "/CI/fluxLB");
+                        data.CI.fluxUB = h5read( ...
+                            filePath, "/CI/fluxUB");
+                        data.CI.gridSearch = ...
+                            obj.readGridSearchData(filePath);
+                    end
+
+                catch
+                    % CI metadata is optional for legacy result files.
+                end
+
             end
 
         end % readResultData
@@ -117,6 +135,10 @@ classdef Hdf5ResultRepository < handle
                 data.CI.flux = h5read(filePath, "/CI/fluxes");
                 data.CI.fluxLB = h5read(filePath, "/CI/fluxLB");
                 data.CI.fluxUB = h5read(filePath, "/CI/fluxUB");
+            elseif data.CI.algorithm == "Grid search"
+                data.CI.fluxLB = h5read(filePath, "/CI/fluxLB");
+                data.CI.fluxUB = h5read(filePath, "/CI/fluxUB");
+                data.CI.gridSearch = obj.readGridSearchData(filePath);
             end
 
         end % readConfidenceInterval
@@ -332,6 +354,38 @@ classdef Hdf5ResultRepository < handle
     end % methods
 
     methods (Access = private)
+
+        function data = readGridSearchData(~, filePath)
+
+            basePath = "/CI/gridSearch";
+            data = struct;
+            data.fluxIndices = double(h5read( ...
+                filePath, basePath + "/fluxIndices"));
+            data.reactionIDs = string(h5read( ...
+                filePath, basePath + "/reactionIDs"));
+            data.fixedFlux = h5read( ...
+                filePath, basePath + "/fixedFlux");
+            data.RSS = h5read(filePath, basePath + "/RSS");
+            data.minimumRSS = h5read( ...
+                filePath, basePath + "/minimumRSS");
+            data.objectiveThreshold = h5read( ...
+                filePath, basePath + "/objectiveThreshold");
+            data.pointCount = double(h5read( ...
+                filePath, basePath + "/pointCount"));
+            data.trialCount = double(h5read( ...
+                filePath, basePath + "/trialCount"));
+            data.alpha = h5read(filePath, basePath + "/alpha");
+            data.thresholdType = string(h5read( ...
+                filePath, basePath + "/thresholdType"));
+            data.intervalMode = string(h5read( ...
+                filePath, basePath + "/intervalMode"));
+            data.executionMode = string(h5read( ...
+                filePath, basePath + "/executionMode"));
+            data.delta = h5read(filePath, basePath + "/delta");
+            data.elapsedTime = h5read( ...
+                filePath, basePath + "/elapsedTime");
+
+        end % readGridSearchData
 
         function pathFile = requireResultFile(~, resultLocation, id)
 

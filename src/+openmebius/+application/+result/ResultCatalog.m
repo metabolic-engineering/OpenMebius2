@@ -46,21 +46,23 @@ classdef ResultCatalog < handle
 
             obj.ResultLocation = resultLocation;
             obj.ResultRepository = options.ResultRepository;
+
             if isempty(options.QueryService)
                 obj.QueryService = openmebius.application.result ...
                     .ResultQueryService( ...
-                        resultLocation, ...
-                        ResultRepository = obj.ResultRepository, ...
-                        Hdf5ResultRepository = ...
-                            options.Hdf5ResultRepository);
+                    resultLocation, ...
+                    ResultRepository = obj.ResultRepository, ...
+                    Hdf5ResultRepository = ...
+                    options.Hdf5ResultRepository);
             else
                 obj.QueryService = options.QueryService;
             end
+
             obj.TableBuilder = options.TableBuilder;
             obj.NotificationEmitter = openmebius.application.notification ...
                 .NotificationEmitter( ...
-                    Publisher = options.NotificationReporter, ...
-                    Source = "ResultCatalog");
+                Publisher = options.NotificationReporter, ...
+                Source = "ResultCatalog");
 
             obj.ResultRepository.assertResultDirectory(resultLocation);
 
@@ -87,8 +89,8 @@ classdef ResultCatalog < handle
 
             obj.NotificationEmitter = openmebius.application.notification ...
                 .NotificationEmitter( ...
-                    Publisher = reporter, ...
-                    Source = "ResultCatalog");
+                Publisher = reporter, ...
+                Source = "ResultCatalog");
 
         end % setNotificationReporter
 
@@ -109,6 +111,7 @@ classdef ResultCatalog < handle
             end
 
             data = obj.loadResultFile(id);
+
             if isempty(data)
                 tableRtn = table();
                 obj.notifyGeneralMessage( ...
@@ -120,6 +123,7 @@ classdef ResultCatalog < handle
                 data, ...
                 Relative = options.relative, ...
                 RelativeTo = options.relativeTo);
+
             if message ~= ""
                 obj.notifyGeneralMessage("error", message);
             end
@@ -134,6 +138,7 @@ classdef ResultCatalog < handle
             end
 
             data = obj.loadResultFile(batchID);
+
             if isempty(data)
                 tableRtn = table();
                 obj.notifyGeneralMessage( ...
@@ -142,6 +147,7 @@ classdef ResultCatalog < handle
             end
 
             [tableRtn, message] = obj.TableBuilder.fluxDetailed(data);
+
             if message ~= ""
                 obj.notifyGeneralMessage("error", message);
             end
@@ -172,6 +178,7 @@ classdef ResultCatalog < handle
                 string(names), ...
                 Relative = options.relative, ...
                 RelativeTo = options.relativeTo);
+
             if message ~= ""
                 obj.notifyGeneralMessage("error", message);
             end
@@ -296,6 +303,7 @@ classdef ResultCatalog < handle
             end % arguments
 
             obj.IDs = ids;
+
             try
                 [data, dataMask] = obj.QueryService.readMany( ...
                     ids, ReadStatus = options.readstatus);
@@ -304,6 +312,7 @@ classdef ResultCatalog < handle
                 data = cell(1, numel(ids));
                 dataMask = false(1, numel(ids));
             end
+
             obj.dataMask = dataMask;
 
         end % loadResultFiles
@@ -418,7 +427,7 @@ classdef ResultCatalog < handle
                     exportItem.BatchID, ...
                     exportItem.BatchName, ...
                     iLocation, ...
-                    "xlsx");
+                "xlsx");
 
             end % for iBatch
 
@@ -507,6 +516,32 @@ classdef ResultCatalog < handle
                 return;
             end % if ~isSuccess
 
+            [gridSearch, gridSearchMessage] = ...
+                obj.TableBuilder.gridSearch(data);
+
+            if gridSearchMessage ~= ""
+                notifyGeneralMessage( ...
+                    obj, "error", gridSearchMessage);
+                return;
+            end
+
+            if ~isempty(gridSearch)
+                [isSuccess, msg] = obj.exportExcelFile( ...
+                    filePath, ...
+                    gridSearch, ...
+                    "GridSearch", ...
+                    WriteRowNames = false);
+
+                if ~isSuccess
+                    notifyGeneralMessage( ...
+                        obj, ...
+                        "error", ...
+                        "Failed to save the grid-search data: " + msg);
+                    return;
+                end
+
+            end
+
             if ~status(2)
                 return;
             end
@@ -583,6 +618,7 @@ classdef ResultCatalog < handle
                 data = [];
                 return
             end
+
             if isempty(data)
                 notifyGeneralMessage(obj, "error", "Result file does not exist.");
             end
@@ -677,6 +713,32 @@ classdef ResultCatalog < handle
             if ~isSuccess
                 notifyGeneralMessage(obj, "error", "Failed to save the information data: " + msg);
                 return;
+            end
+
+            [gridSearch, gridSearchMessage] = ...
+                obj.TableBuilder.gridSearch(data);
+
+            if gridSearchMessage ~= ""
+                notifyGeneralMessage( ...
+                    obj, "error", gridSearchMessage);
+                return;
+            end
+
+            if ~isempty(gridSearch)
+                [isSuccess, msg] = obj.exportCsvTable( ...
+                    outputLocation.artifactFile( ...
+                    baseName + "_grid_search.csv"), ...
+                    gridSearch, ...
+                    WriteRowNames = false);
+
+                if ~isSuccess
+                    notifyGeneralMessage( ...
+                        obj, ...
+                        "error", ...
+                        "Failed to save the grid-search data: " + msg);
+                    return;
+                end
+
             end
 
             if ~status(2)

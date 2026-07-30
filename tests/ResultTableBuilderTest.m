@@ -81,6 +81,34 @@ classdef ResultTableBuilderTest < matlab.unittest.TestCase
             testCase.verifyEqual(value.sample_2, [30; 40]);
         end
 
+        function buildsGridSearchLongTable(testCase)
+
+            builder = openmebius.application.result.ResultTableBuilder();
+            data = ResultTableBuilderTest.resultData([10; 20]);
+            data.CI.algorithm = "Grid search";
+            data.CI.gridSearch = struct( ...
+                fluxIndices = 1, ...
+                reactionIDs = "R1", ...
+                fixedFlux = [0.5, 1.0], ...
+                RSS = cat(3, [6, 4], [5, 3]), ...
+                minimumRSS = [5, 3], ...
+                objectiveThreshold = 5.5);
+
+            [value, message] = builder.gridSearch(data);
+
+            testCase.verifyEqual(message, "");
+            testCase.verifyEqual(height(value), 4);
+            testCase.verifyEqual(value.ReactionID, repmat("R1", 4, 1));
+            testCase.verifyEqual(value.GridPoint, [1; 1; 2; 2]);
+            testCase.verifyEqual(value.Trial, [1; 2; 1; 2]);
+            testCase.verifyEqual(value.FixedFlux, [0.5; 0.5; 1; 1]);
+            testCase.verifyEqual(value.RSS, [6; 5; 4; 3]);
+            testCase.verifyEqual(value.MinimumRSS, [5; 5; 3; 3]);
+            testCase.verifyEqual( ...
+                value.ObjectiveThreshold, 5.5 * ones(4, 1));
+
+        end
+
     end
 
     methods (Static, Access = private)

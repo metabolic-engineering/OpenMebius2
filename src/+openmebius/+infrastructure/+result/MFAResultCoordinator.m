@@ -191,6 +191,53 @@ classdef MFAResultCoordinator
 
         end % writeMonteCarloConfidenceInterval
 
+        function [result, progress, isSuccess, message] = ...
+                writeGridSearchConfidenceInterval( ...
+                obj, result, progress, lowerBounds, upperBounds, ...
+                confidenceIntervalConfig, output, reactionIDs)
+
+            arguments
+                obj (1, 1) openmebius.infrastructure.result ...
+                    .MFAResultCoordinator
+                result
+                progress (1, 1) openmebius.application.analysis ...
+                    .AnalysisProgress
+                lowerBounds (:, 1) double
+                upperBounds (:, 1) double
+                confidenceIntervalConfig (1, 1) openmebius.mfa ...
+                    .ConfidenceIntervalSettings
+                output (1, 1) struct
+                reactionIDs (:, 1) string
+            end
+
+            result = obj.normalizeResult(result);
+            [isSuccess, message] = obj.noWriteResult();
+            progress.markConfidenceIntervalCompleted();
+            status = progress.toStorageVector();
+
+            if ~obj.IsExport
+                return;
+            end
+
+            checkpoint = obj.ResultCheckpointWriter ...
+                .createGridSearchConfidenceIntervalCheckpoint( ...
+                lowerBounds, upperBounds, confidenceIntervalConfig, ...
+                output, reactionIDs);
+            result.status = status;
+            result.CI = checkpoint.Value;
+            result.fluxLB = checkpoint.FinalFluxLB;
+            result.fluxUB = checkpoint.FinalFluxUB;
+
+            if string(checkpoint.Value.algorithm) ~= "Grid search"
+                return;
+            end
+
+            [isSuccess, message] = obj.ResultCheckpointWriter ...
+                .writeGridSearchConfidenceInterval( ...
+                obj.HDF5FilePath, checkpoint, status);
+
+        end % writeGridSearchConfidenceInterval
+
         function [result, progress, isSuccess, message] = writeIteration( ...
                 obj, result, progress, iteration, iterationResult, ...
                 reversibleReactionIndices)
