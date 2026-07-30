@@ -161,6 +161,61 @@ classdef ConfidenceIntervalSettingsMapperTest < matlab.unittest.TestCase
 
         end
 
+        function runSettingsMapSelectedGridReactions(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.grid.reactions.select = [false; true];
+            config.CIConf.grid.reactions.id = ["r1"; "r2"];
+            config.CIConf.grid.reactions.reaction = ...
+                ["A -> B"; "B -> C"];
+            settings = openmebius.application.analysis ...
+                .MFAConfidenceIntervalRunSettingsMapper ...
+                .fromBatchConfig(config);
+
+            testCase.verifyFalse( ...
+                settings.UseAllGridSearchReactions);
+            testCase.verifyEqual( ...
+                settings.GridSearchSelectedReactionIDs, "r2");
+
+        end
+
+        function enabledGridSearchRequiresSelectedReaction(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.isCalcCI = true;
+            config.CIConf.algorithm = "Grid search";
+            config.CIConf.grid.reactions.select = false;
+            config.CIConf.grid.reactions.id = "r1";
+            config.CIConf.grid.reactions.reaction = "A -> B";
+
+            testCase.verifyError( ...
+                @() openmebius.application.analysis ...
+                .MFAConfidenceIntervalRunSettingsMapper ...
+                .fromBatchConfig(config), ...
+                "OpenMebius2:" + ...
+                "MFAConfidenceIntervalRunSettings:" + ...
+                "MissingGridReactions");
+
+        end
+
+        function disabledGridSearchAllowsNoSelectedReaction(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.algorithm = "Grid search";
+            config.CIConf.grid.reactions.select = false;
+            config.CIConf.grid.reactions.id = "r1";
+            config.CIConf.grid.reactions.reaction = "A -> B";
+
+            settings = openmebius.application.analysis ...
+                .MFAConfidenceIntervalRunSettingsMapper ...
+                .fromBatchConfig(config);
+
+            testCase.verifyTrue(settings.UseAllGridSearchReactions);
+            testCase.verifyEmpty( ...
+                settings.GridSearchSelectedReactionIDs);
+
+        end
+
     end
 
     methods (Static, Access = private)

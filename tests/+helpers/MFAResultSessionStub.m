@@ -12,6 +12,13 @@ classdef MFAResultSessionStub < handle
 
     methods
 
+        function obj = MFAResultSessionStub()
+
+            obj.Progress = ...
+                openmebius.application.analysis.AnalysisProgress();
+
+        end
+
         function writeGeneral(obj, varargin)
 
             obj.record("general");

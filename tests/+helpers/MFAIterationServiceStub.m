@@ -7,13 +7,20 @@ classdef MFAIterationServiceStub < handle
         LastInitialIndependentValues double = []
         LastLinearEqualityMatrix double = zeros(0, 0)
         LastLinearEqualityRightHandSide double = zeros(0, 1)
+        ReportOnRun (1, 1) logical = false
     end
 
     methods
 
-        function obj = MFAIterationServiceStub(result)
+        function obj = MFAIterationServiceStub(result, options)
+
+            arguments
+                result
+                options.ReportOnRun (1, 1) logical = false
+            end
 
             obj.Result = result;
+            obj.ReportOnRun = options.ReportOnRun;
 
         end
 
@@ -36,6 +43,12 @@ classdef MFAIterationServiceStub < handle
                 options.LinearEqualityMatrix;
             obj.LastLinearEqualityRightHandSide = ...
                 options.LinearEqualityRightHandSide;
+
+            if obj.ReportOnRun
+                options.MessageReporter( ...
+                    "info", "MFA iteration service invoked.");
+            end
+
             result = obj.Result;
 
         end

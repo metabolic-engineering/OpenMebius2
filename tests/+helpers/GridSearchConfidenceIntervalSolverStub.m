@@ -7,18 +7,46 @@ classdef GridSearchConfidenceIntervalSolverStub < handle
         LastEqualityMatrix double = zeros(0, 0)
         LastEqualityRightHandSide double = zeros(0, 1)
         LastInitialIndependentValues double = []
+        LastProfileFluxIndices double = zeros(0, 1)
+        LastObjectiveThreshold double = NaN
     end
 
     methods
 
         function result = solve( ...
                 obj, problem, bestFlux, baseRightHandSide, ~, ...
-                evaluationFunction, ~, varargin)
+                evaluationFunction, ~, options)
+
+            arguments
+                obj
+                problem
+                bestFlux
+                baseRightHandSide
+                ~
+                evaluationFunction
+                ~
+                options.ProfileFluxIndices double = zeros(0, 1)
+                options.ObjectiveThreshold double = NaN
+                options.InitialIndependentValues double = []
+                options.MessageReporter function_handle = @(~, ~) []
+                options.CancellationRequested function_handle = @() false
+            end
 
             obj.CallCount = obj.CallCount + 1;
             obj.LastBaseRightHandSide = baseRightHandSide;
-            obj.LastInitialIndependentValues = ...
-                problem.extractIndependentValues(baseRightHandSide);
+            obj.LastProfileFluxIndices = ...
+                options.ProfileFluxIndices;
+            obj.LastObjectiveThreshold = ...
+                options.ObjectiveThreshold;
+
+            if isempty(options.InitialIndependentValues)
+                obj.LastInitialIndependentValues = ...
+                    problem.extractIndependentValues(baseRightHandSide);
+            else
+                obj.LastInitialIndependentValues = ...
+                    options.InitialIndependentValues(:, 1);
+            end
+
             obj.LastEqualityMatrix = ...
                 ones(1, numel(obj.LastInitialIndependentValues));
             obj.LastEqualityRightHandSide = ...

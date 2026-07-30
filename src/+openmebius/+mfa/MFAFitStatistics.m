@@ -169,9 +169,11 @@ classdef MFAFitStatistics
         end % chiSquareThreshold
 
         function threshold = gridSearchObjectiveThreshold( ...
-                settings, minimumObjective, residualDegreesOfFreedom)
+                ~, settings, minimumObjective, ...
+                residualDegreesOfFreedom)
 
             arguments
+                ~
                 settings (1, 1) openmebius.mfa ...
                     .GridSearchConfidenceIntervalSettings
                 minimumObjective (1, 1) double {mustBeFinite, mustBeNonnegative}
