@@ -354,9 +354,10 @@ classdef ResultPlotPresenter < handle
 
             valid = isfinite(rawX) & isfinite(rawY);
 
+            objectiveDelta = objectiveThreshold - bestObjective;
             yLimits = [ ...
                            bestObjective - alpha, ...
-                           objectiveThreshold + alpha];
+                           objectiveThreshold + 0.5 * objectiveDelta];
 
             if ~any(valid) || ...
                     ~isscalar(bestObjective) || ...
@@ -382,6 +383,13 @@ classdef ResultPlotPresenter < handle
                 validX(:), "sorted");
             profileRSS = accumarray( ...
                 groups, validY(:), [], @min);
+            xLimits = [min(profileX), max(profileX)];
+
+            if xLimits(1) == xLimits(2)
+                xMargin = 0.05 * max(abs(xLimits(1)), 1);
+                xLimits = xLimits + [-xMargin, xMargin];
+            end
+
             plotData.Kind = "grid-search-profile";
             plotData.X = profileX;
             plotData.Y = profileRSS;
@@ -390,6 +398,7 @@ classdef ResultPlotPresenter < handle
             plotData.BestObjective = bestObjective;
             plotData.ObjectiveThreshold = objectiveThreshold;
             plotData.Alpha = alpha;
+            plotData.XLimits = xLimits;
             plotData.YLimits = yLimits;
             plotData.FVALowerBound = fvaLowerBound;
             plotData.FVAUpperBound = fvaUpperBound;

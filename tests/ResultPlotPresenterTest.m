@@ -104,7 +104,9 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(viewModel.SubPlot.BestObjective, 2);
             testCase.verifyEqual(viewModel.SubPlot.Alpha, 0.05);
             testCase.verifyEqual( ...
-                viewModel.SubPlot.YLimits, [1.95, 5.55]);
+                viewModel.SubPlot.XLimits, [0.5, 1.5]);
+            testCase.verifyEqual( ...
+                viewModel.SubPlot.YLimits, [1.95, 7.25]);
             testCase.verifyEqual(viewModel.SubPlot.FVALowerBound, 0);
             testCase.verifyEqual(viewModel.SubPlot.FVAUpperBound, 2);
             testCase.verifyEqual(viewModel.SubPlot.LowerBound, 0.6);
