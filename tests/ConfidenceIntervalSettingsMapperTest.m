@@ -39,6 +39,8 @@ classdef ConfidenceIntervalSettingsMapperTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 settings.GridSearchSettings.ExecutionMode, ...
                 openmebius.mfa.GridSearchExecutionMode.Parallel);
+            testCase.verifyEqual( ...
+                settings.GridSearchSettings.MaximumTrial, 10);
 
         end
 
@@ -53,6 +55,8 @@ classdef ConfidenceIntervalSettingsMapperTest < matlab.unittest.TestCase
                 settings.MonteCarloSettings.IterationCount, 500);
             testCase.verifyEqual( ...
                 settings.GridSearchSettings.PointCount, 10);
+            testCase.verifyEqual( ...
+                settings.GridSearchSettings.MaximumTrial, 10);
 
         end
 

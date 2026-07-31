@@ -101,6 +101,12 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(viewModel.SubPlot.Y, [5; 2; 6]);
             testCase.verifyEqual( ...
                 viewModel.SubPlot.ObjectiveThreshold, 5.5);
+            testCase.verifyEqual(viewModel.SubPlot.BestObjective, 2);
+            testCase.verifyEqual(viewModel.SubPlot.Alpha, 0.05);
+            testCase.verifyEqual( ...
+                viewModel.SubPlot.YLimits, [1.95, 5.55]);
+            testCase.verifyEqual(viewModel.SubPlot.FVALowerBound, 0);
+            testCase.verifyEqual(viewModel.SubPlot.FVAUpperBound, 2);
             testCase.verifyEqual(viewModel.SubPlot.LowerBound, 0.6);
             testCase.verifyEqual(viewModel.SubPlot.UpperBound, 1.4);
             testCase.verifyEqual(viewModel.SubPlot.Title, "First reaction");
@@ -206,10 +212,14 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
                 3, ...
                 [6, 4, 3, 7], ...
                 [5, 3, 2, 6]);
+            value.CI.gridSearch.bestObjective = 2;
             value.CI.gridSearch.objectiveThreshold = 5.5;
+            value.CI.gridSearch.alpha = 0.05;
             value.fluxFwd = 1;
             value.fluxLB = 0.6;
             value.fluxUB = 1.4;
+            value.fluxVariability.fluxLBFwd = 0;
+            value.fluxVariability.fluxUBFwd = 2;
             value.model.modelID = "R1";
             value.model.modelReaction = "First reaction";
 

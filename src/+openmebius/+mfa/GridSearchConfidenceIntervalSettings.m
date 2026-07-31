@@ -8,6 +8,7 @@ classdef GridSearchConfidenceIntervalSettings
         Threshold (1, 1) string
         PointCount (1, 1) double
         IterationCount (1, 1) double
+        MaximumTrial (1, 1) double
         Alpha (1, 1) double
     end
 
@@ -26,6 +27,7 @@ classdef GridSearchConfidenceIntervalSettings
                 options.Threshold (1, 1) string = "chi-sq"
                 options.PointCount (1, 1) double = 10
                 options.IterationCount (1, 1) double = 30
+                options.MaximumTrial (1, 1) double = 10
                 options.Alpha (1, 1) double = 0.05
             end
 
@@ -47,6 +49,17 @@ classdef GridSearchConfidenceIntervalSettings
             obj.validatePositiveInteger(options.PointCount, "PointCount");
             obj.validatePositiveInteger( ...
                 options.IterationCount, "IterationCount");
+            obj.validatePositiveInteger( ...
+                options.MaximumTrial, "MaximumTrial");
+
+            if options.IntervalMode.isAutomatic() && ...
+                    mod(options.PointCount, 2) ~= 0
+                error( ...
+                    "OpenMebius2:GridSearchConfidenceIntervalSettings:" + ...
+                    "AutomaticPointCountMustBeEven", ...
+                    "The grid-search point count must be even in " + ...
+                "automatic interval mode.");
+            end
 
             if ~isfinite(options.Alpha) || ...
                     options.Alpha < 0 || options.Alpha > 1
@@ -62,6 +75,7 @@ classdef GridSearchConfidenceIntervalSettings
             obj.Threshold = options.Threshold;
             obj.PointCount = options.PointCount;
             obj.IterationCount = options.IterationCount;
+            obj.MaximumTrial = options.MaximumTrial;
             obj.Alpha = options.Alpha;
 
         end

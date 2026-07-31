@@ -9,6 +9,7 @@ classdef GridSearchConfidenceIntervalSolverStub < handle
         LastInitialIndependentValues double = []
         LastProfileFluxIndices double = zeros(0, 1)
         LastObjectiveThreshold double = NaN
+        LastBestObjective double = NaN
     end
 
     methods
@@ -27,6 +28,7 @@ classdef GridSearchConfidenceIntervalSolverStub < handle
                 ~
                 options.ProfileFluxIndices double = zeros(0, 1)
                 options.ObjectiveThreshold double = NaN
+                options.BestObjective double = NaN
                 options.InitialIndependentValues double = []
                 options.MessageReporter function_handle = @(~, ~) []
                 options.CancellationRequested function_handle = @() false
@@ -38,6 +40,7 @@ classdef GridSearchConfidenceIntervalSolverStub < handle
                 options.ProfileFluxIndices;
             obj.LastObjectiveThreshold = ...
                 options.ObjectiveThreshold;
+            obj.LastBestObjective = options.BestObjective;
 
             if isempty(options.InitialIndependentValues)
                 obj.LastInitialIndependentValues = ...

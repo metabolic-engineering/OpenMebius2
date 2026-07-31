@@ -31,6 +31,8 @@ classdef BatchConfigTest < matlab.unittest.TestCase
                 config.CIConf.grid.intervalMode, 'automatic');
             testCase.verifyEqual( ...
                 config.CIConf.grid.executionMode, 'parallel');
+            testCase.verifyEqual( ...
+                config.CIConf.grid.maximumTrial, 10);
             testCase.verifyTrue(isfield(config, 'INSTMFA'));
 
         end % normalizeFillsMissingFieldsAndValidates
@@ -131,6 +133,29 @@ classdef BatchConfigTest < matlab.unittest.TestCase
             'OpenMebius2:BatchConfig:InvalidMember');
 
         end % validateRejectsUnknownGridExecutionMode
+
+        function validateRejectsInvalidGridMaximumTrial(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.grid.maximumTrial = 0;
+
+            testCase.verifyError( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config), ...
+            'OpenMebius2:BatchConfig:InvalidPositiveInteger');
+
+        end % validateRejectsInvalidGridMaximumTrial
+
+        function validateRejectsOddAutomaticGridPointCount(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.grid.points = 9;
+
+            testCase.verifyError( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config), ...
+                'OpenMebius2:BatchConfig:' + ...
+            "AutomaticGridPointCountMustBeEven");
+
+        end % validateRejectsOddAutomaticGridPointCount
 
         function validateRejectsMismatchedGridReactionValues(testCase)
 
