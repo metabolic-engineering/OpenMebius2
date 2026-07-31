@@ -52,7 +52,7 @@ classdef TemplateModelLoadService < handle
             if modelDirectory == ""
                 error( ...
                     "OpenMebius2:TemplateModel:EmptyDirectory", ...
-                    "Template model directory is empty.");
+                "Template model directory is empty.");
             end
 
             if ~isfolder(modelDirectory)

@@ -85,6 +85,7 @@ classdef NotificationDispatcher < handle
                     obj.reportSinkFailure(sinkName, message, cause);
                     obj.DisabledSinkNames(end + 1, 1) = sinkName;
                 end
+
             end
 
         end % publish
@@ -130,7 +131,7 @@ classdef NotificationDispatcher < handle
                     ~ismethod(sink, "write")
                 error( ...
                     "OpenMebius2:Notification:InvalidSink", ...
-                    "A notification sink must expose Name and write(message).");
+                "A notification sink must expose Name and write(message).");
             end
 
             name = lower(strtrim(string(sink.Name)));
@@ -138,7 +139,7 @@ classdef NotificationDispatcher < handle
             if name == ""
                 error( ...
                     "OpenMebius2:Notification:InvalidSinkName", ...
-                    "A notification sink must have a non-empty name.");
+                "A notification sink must have a non-empty name.");
             end
 
         end % sinkName

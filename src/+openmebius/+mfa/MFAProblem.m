@@ -31,7 +31,7 @@ classdef MFAProblem
             if rowCount ~= fluxCount
                 error( ...
                     "OpenMebius2:MFAProblem:NonSquareStoichiometry", ...
-                    "The MFA stoichiometry matrix must be square.");
+                "The MFA stoichiometry matrix must be square.");
             end
 
             if numel(options.RightHandSide) ~= rowCount || ...
@@ -41,13 +41,13 @@ classdef MFAProblem
                     numel(options.BoundaryReactionMask) ~= fluxCount
                 error( ...
                     "OpenMebius2:MFAProblem:DimensionMismatch", ...
-                    "MFA problem vectors must match the flux system.");
+                "MFA problem vectors must match the flux system.");
             end
 
             if any(options.LowerBounds > options.UpperBounds)
                 error( ...
                     "OpenMebius2:MFAProblem:InvalidBounds", ...
-                    "Flux lower bounds must not exceed upper bounds.");
+                "Flux lower bounds must not exceed upper bounds.");
             end
 
             independentCount = nnz(options.IndependentMask);
@@ -56,13 +56,13 @@ classdef MFAProblem
             if independentCount == 0
                 error( ...
                     "OpenMebius2:MFAProblem:MissingIndependentVariables", ...
-                    "The MFA problem must define independent variables.");
+                "The MFA problem must define independent variables.");
             end
 
             if independentCount ~= boundaryReactionCount
                 error( ...
                     "OpenMebius2:MFAProblem:IndependentMappingMismatch", ...
-                    "Independent RHS values must map one-to-one to reaction bounds.");
+                "Independent RHS values must map one-to-one to reaction bounds.");
             end
 
             obj.Stoichiometry = options.Stoichiometry;
@@ -101,7 +101,7 @@ classdef MFAProblem
             if size(independentValues, 1) ~= independentCount
                 error( ...
                     "OpenMebius2:MFAProblem:IndependentValueDimensionMismatch", ...
-                    "Independent values must match the independent variable count.");
+                "Independent values must match the independent variable count.");
             end
 
             obj.validateRightHandSide(options.BaseRightHandSide);
@@ -116,7 +116,7 @@ classdef MFAProblem
             else
                 error( ...
                     "OpenMebius2:MFAProblem:RightHandSideColumnMismatch", ...
-                    "Base RHS columns must be one or match independent values.");
+                "Base RHS columns must be one or match independent values.");
             end
 
             rightHandSide(obj.IndependentMask, :) = independentValues;
@@ -160,6 +160,44 @@ classdef MFAProblem
 
         end % nonnegativeFluxInequalities
 
+        function [equalityMatrix, equalityRightHandSide] = ...
+                fixedFluxEqualities(obj, fluxWeights, targetValue, options)
+
+            arguments
+                obj (1, 1) openmebius.mfa.MFAProblem
+                fluxWeights (:, 1) double
+                targetValue (1, 1) double
+                options.BaseRightHandSide (:, 1) double = ...
+                    obj.RightHandSide
+            end
+
+            fluxCount = size(obj.Stoichiometry, 2);
+
+            if numel(fluxWeights) ~= fluxCount
+                error( ...
+                    "OpenMebius2:MFAProblem:FluxWeightDimensionMismatch", ...
+                "Flux weights must match the flux system.");
+            end
+
+            independentCount = nnz(obj.IndependentMask);
+
+            % E maps independent variables to the RHS vector.
+            selector = zeros(numel(obj.RightHandSide), independentCount);
+            selector(obj.IndependentMask, :) = eye(independentCount);
+
+            % Remove the current independent-variable values from the base RHS.
+            fixedRightHandSide = options.BaseRightHandSide;
+            fixedRightHandSide(obj.IndependentMask) = 0;
+
+            fluxOffset = obj.Stoichiometry \ fixedRightHandSide;
+            fluxCoefficient = obj.Stoichiometry \ selector;
+
+            equalityMatrix = fluxWeights.' * fluxCoefficient;
+            equalityRightHandSide = ...
+                targetValue - fluxWeights.' * fluxOffset;
+
+        end % method fixedFluxEqualities
+
     end % methods
 
     methods (Access = private)
@@ -169,7 +207,7 @@ classdef MFAProblem
             if size(rightHandSide, 1) ~= size(obj.Stoichiometry, 1)
                 error( ...
                     "OpenMebius2:MFAProblem:RightHandSideDimensionMismatch", ...
-                    "The RHS must match the stoichiometry row count.");
+                "The RHS must match the stoichiometry row count.");
             end
 
         end % validateRightHandSide

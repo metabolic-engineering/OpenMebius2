@@ -113,7 +113,7 @@ classdef BatchJsonMigration
                     fix(schemaVersion) ~= schemaVersion
                 error( ...
                     "OpenMebius2:BatchJsonMigration:InvalidSchemaVersion", ...
-                    "Batch JSON schemaVersion must be a nonnegative integer.");
+                "Batch JSON schemaVersion must be a nonnegative integer.");
             end
 
         end % parseSchemaVersion
@@ -133,6 +133,7 @@ classdef BatchJsonMigration
             batchData = document.batches;
 
             for i = 1:numel(batchData)
+
                 if ~isfield(batchData(i), 'id') || ...
                         strlength(string(batchData(i).id)) == 0
                     batchData(i).id = ...

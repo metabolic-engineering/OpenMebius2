@@ -75,19 +75,19 @@ classdef ResultExportService < handle
             if isempty(result)
                 error( ...
                     "OpenMebius2:ResultExport:ResultUnavailable", ...
-                    "Result data is not available.");
+                "Result data is not available.");
             end
 
             if isstruct(result) && isfield(result, "isError") && result.isError
                 error( ...
                     "OpenMebius2:ResultExport:ResultUnavailable", ...
-                    "Result data is not available.");
+                "Result data is not available.");
             end
 
             if isobject(result) && isprop(result, "isError") && result.isError
                 error( ...
                     "OpenMebius2:ResultExport:ResultUnavailable", ...
-                    "Result data is not available.");
+                "Result data is not available.");
             end
 
         end
@@ -97,13 +97,13 @@ classdef ResultExportService < handle
             if isempty(batchIDs)
                 error( ...
                     "OpenMebius2:ResultExport:EmptySelection", ...
-                    "Please select a result to save.");
+                "Please select a result to save.");
             end
 
             if numel(batchIDs) ~= numel(batchNames)
                 error( ...
                     "OpenMebius2:ResultExport:SelectionMismatch", ...
-                    "Batch ID and names must have the same length.");
+                "Batch ID and names must have the same length.");
             end
 
         end
@@ -113,7 +113,7 @@ classdef ResultExportService < handle
             if ~outputLocation.hasDirectory()
                 error( ...
                     "OpenMebius2:ResultExport:OutputDirectoryUnavailable", ...
-                    "Output directory is not available.");
+                "Output directory is not available.");
             end
 
             if ~outputLocation.directoryExists()
@@ -131,7 +131,7 @@ classdef ResultExportService < handle
                         "Result export completed successfully."
                         "Exported result count: " + string(exportPlan.count())
                         "Export directory: " + exportPlan.OutputLocation.Directory
-                       ];
+                        ];
 
         end
 

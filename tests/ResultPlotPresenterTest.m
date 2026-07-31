@@ -84,13 +84,45 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsGridSearchProfile(testCase)
+
+            presenter = openmebius.presentation.result ...
+                .ResultPlotPresenter();
+            result = helpers.ResultPlotWorkspaceStub();
+            data = testCase.gridSearchData();
+            result.ConfidenceIntervalData = data;
+
+            viewModel = presenter.present( ...
+                testCase.model(), result, testCase.context());
+
+            testCase.verifyEqual( ...
+                viewModel.SubPlot.Kind, "grid-search-profile");
+            testCase.verifyEqual(viewModel.SubPlot.X, [0.5; 1; 1.5]);
+            testCase.verifyEqual(viewModel.SubPlot.Y, [5; 2; 6]);
+            testCase.verifyEqual( ...
+                viewModel.SubPlot.ObjectiveThreshold, 5.5);
+            testCase.verifyEqual(viewModel.SubPlot.BestObjective, 2);
+            testCase.verifyEqual(viewModel.SubPlot.Alpha, 0.05);
+            testCase.verifyEqual( ...
+                viewModel.SubPlot.XLimits, [0.5, 1.5]);
+            testCase.verifyEqual( ...
+                viewModel.SubPlot.YLimits, [1.95, 7.25]);
+            testCase.verifyEqual(viewModel.SubPlot.FVALowerBound, 0);
+            testCase.verifyEqual(viewModel.SubPlot.FVAUpperBound, 2);
+            testCase.verifyEqual(viewModel.SubPlot.LowerBound, 0.6);
+            testCase.verifyEqual(viewModel.SubPlot.UpperBound, 1.4);
+            testCase.verifyEqual(viewModel.SubPlot.Title, "First reaction");
+            testCase.verifyEmpty(viewModel.Notification);
+
+        end
+
         function warnsForUnsupportedConfidenceInterval(testCase)
 
             presenter = openmebius.presentation.result ...
                 .ResultPlotPresenter();
             result = helpers.ResultPlotWorkspaceStub();
             data = testCase.ciData();
-            data.CI.algorithm = "Grid Search";
+            data.CI.algorithm = "Unknown";
             result.ConfidenceIntervalData = data;
 
             viewModel = presenter.present( ...
@@ -165,6 +197,31 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
             value.CI.fluxLB = [0.8 0.9];
             value.CI.fluxUB = [1.6 1.5];
             value.fluxFwd = 1.25;
+            value.model.modelID = "R1";
+            value.model.modelReaction = "First reaction";
+
+        end
+
+        function value = gridSearchData()
+
+            value = struct();
+            value.CI.algorithm = "Grid search";
+            value.CI.gridSearch.fluxIndices = 1;
+            value.CI.gridSearch.reactionIDs = "R1";
+            value.CI.gridSearch.fixedFlux = [0.5, 1, 1, 1.5];
+            value.CI.gridSearch.minimumRSS = [5, 3, 2, 6];
+            value.CI.gridSearch.RSS = cat( ...
+                3, ...
+                [6, 4, 3, 7], ...
+                [5, 3, 2, 6]);
+            value.CI.gridSearch.bestObjective = 2;
+            value.CI.gridSearch.objectiveThreshold = 5.5;
+            value.CI.gridSearch.alpha = 0.05;
+            value.fluxFwd = 1;
+            value.fluxLB = 0.6;
+            value.fluxUB = 1.4;
+            value.fluxVariability.fluxLBFwd = 0;
+            value.fluxVariability.fluxUBFwd = 2;
             value.model.modelID = "R1";
             value.model.modelReaction = "First reaction";
 

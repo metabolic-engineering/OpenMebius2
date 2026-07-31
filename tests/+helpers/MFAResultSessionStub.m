@@ -12,6 +12,13 @@ classdef MFAResultSessionStub < handle
 
     methods
 
+        function obj = MFAResultSessionStub()
+
+            obj.Progress = ...
+                openmebius.application.analysis.AnalysisProgress();
+
+        end
+
         function writeGeneral(obj, varargin)
 
             obj.record("general");
@@ -55,6 +62,12 @@ classdef MFAResultSessionStub < handle
         function writeMonteCarloConfidenceInterval(obj, varargin)
 
             obj.record("monte-carlo");
+
+        end
+
+        function writeGridSearchConfidenceInterval(obj, varargin)
+
+            obj.record("grid-search");
 
         end
 

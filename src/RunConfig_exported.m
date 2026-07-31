@@ -42,6 +42,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         maximumnumberoftrialsLsubmaxsubLabel matlab.ui.control.Label
         GridsearchTab matlab.ui.container.Tab
         GridLayout11 matlab.ui.container.GridLayout
+        CheckBox matlab.ui.control.CheckBox
         GridLayout12_4 matlab.ui.container.GridLayout
         ThresholdDropDown matlab.ui.control.DropDown
         ThresholdDropDownLabel matlab.ui.control.Label
@@ -55,6 +56,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
         ThenumberofgridpointsEditField matlab.ui.control.NumericEditField
         ThenumberofgridpointsEditFieldLabel matlab.ui.control.Label
         DeterminegridintervalautomaticallyCheckBox matlab.ui.control.CheckBox
+        GridreactionTab matlab.ui.container.Tab
+        GridLayout23 matlab.ui.container.GridLayout
+        GridReactionUITable matlab.ui.control.Table
         GridLayout8 matlab.ui.container.GridLayout
         INSTMFACheckBox matlab.ui.control.CheckBox
         DeleteResultButton matlab.ui.control.CheckBox
@@ -176,6 +180,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.MSFragmentTableMetadata = editor.MSFragmentTable.Metadata;
             app.renderTableViewModel(app.MSTable, editor.MSFragmentTable);
             app.renderTableViewModel( ...
+                app.GridReactionUITable, editor.GridReactionTable);
+            app.renderTableViewModel( ...
                 app.EffluxUITable, editor.EffluxTable);
             app.renderTableViewModel( ...
                 app.LabelTable, editor.SuggestionTable);
@@ -265,6 +271,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             app.DeterminegridintervalautomaticallyCheckBox.Value = ...
                 viewModel.GridAutomaticInterval;
+            app.CheckBox.Value = viewModel.GridParallelExecution;
             app.ThenumberofgridpointsEditField.Value = ...
                 viewModel.GridPoints;
             app.GridintervalDeltaixiEditField.Value = viewModel.GridDelta;
@@ -334,12 +341,17 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             grid = app.onOff(state.GridEnabled);
             app.DeterminegridintervalautomaticallyCheckBox.Enable = grid;
+            app.CheckBox.Enable = ...
+                app.onOff(state.GridExecutionModeEnabled);
             app.IterationtimesforgridsearchEditField.Enable = grid;
             app.ThresholdDropDown.Enable = grid;
             app.ThenumberofgridpointsEditField.Enable = ...
                 app.onOff(state.GridPointsEnabled);
             app.GridintervalDeltaixiEditField.Enable = ...
                 app.onOff(state.GridDeltaEnabled);
+            app.GridReactionUITable.Enable = grid;
+            app.renderGridReactionVisibility( ...
+                state.GridReactionVisible);
 
             app.EffluxUITable.Enable = app.onOff(state.EffluxEnabled);
             app.LabelTable.Enable = app.onOff(state.SuggestionEnabled);
@@ -348,6 +360,30 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.INSTMFATimeCourseUITable.Enable = instMFA;
 
         end % renderControlState
+
+        function renderGridReactionVisibility(app, isVisible)
+
+            if isVisible
+
+                if isempty(app.GridreactionTab.Parent)
+                    app.GridreactionTab.Parent = app.TabGroup2;
+                end
+
+                return
+            end
+
+            if isempty(app.GridreactionTab.Parent)
+                return
+            end
+
+            if isequal(app.TabGroup2.SelectedTab, ...
+                    app.GridreactionTab)
+                app.TabGroup2.SelectedTab = app.GridsearchTab;
+            end
+
+            app.GridreactionTab.Parent = [];
+
+        end % renderGridReactionVisibility
 
         function value = onOff(~, enabled)
 
@@ -607,6 +643,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             viewModel.GridAutomaticInterval = ...
                 app.DeterminegridintervalautomaticallyCheckBox.Value;
+            viewModel.GridParallelExecution = app.CheckBox.Value;
             viewModel.GridPoints = ...
                 app.ThenumberofgridpointsEditField.Value;
             viewModel.GridDelta = app.GridintervalDeltaixiEditField.Value;
@@ -614,6 +651,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 app.IterationtimesforgridsearchEditField.Value;
             viewModel.GridThreshold = app.ThresholdDropDown.Value;
             viewModel.IsINSTMFA = app.INSTMFACheckBox.Value;
+
+            if istable(app.GridReactionUITable.Data)
+                viewModel.GridReactionTable = ...
+                    app.GridReactionUITable.Data;
+            end
 
             if istable(app.EffluxUITable.Data)
                 viewModel.EffluxTable = app.EffluxUITable.Data;
@@ -666,6 +708,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function restoreDefaultValues(app)
 
             effluxData = app.EffluxUITable.Data;
+            gridReactionData = app.GridReactionUITable.Data;
             instPoolData = app.INSTMFAPoolUITable.Data;
             instTimeCourseData = app.INSTMFATimeCourseUITable.Data;
             viewModel = app.Presenter.presentDefaults();
@@ -680,6 +723,16 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             app.enabledisableCIUI(app.CalcCICheckBox.Value);
             app.enabledisableSuggestion();
+
+            if istable(gridReactionData) && ...
+                    ismember('Select', ...
+                    gridReactionData.Properties.VariableNames)
+                gridReactionData.Select(:) = true;
+            end
+
+            app.GridReactionUITable.Data = gridReactionData;
+            app.GridReactionUITable.ColumnEditable = ...
+                [true, false, false];
 
             app.EffluxUITable.Data = effluxData;
             app.EffluxUITable.Enable = 'off';
@@ -1314,7 +1367,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Create GridLayout11
             app.GridLayout11 = uigridlayout(app.GridsearchTab);
             app.GridLayout11.ColumnWidth = {'1x'};
-            app.GridLayout11.RowHeight = {'fit', 'fit', 'fit', 'fit', '1x', '1x'};
+            app.GridLayout11.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
             app.GridLayout11.Padding = [5 5 5 5];
 
             % Create DeterminegridintervalautomaticallyCheckBox
@@ -1330,7 +1383,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12.ColumnWidth = {'7x', '3x'};
             app.GridLayout12.RowHeight = {'1x'};
             app.GridLayout12.Padding = [0 0 0 0];
-            app.GridLayout12.Layout.Row = 2;
+            app.GridLayout12.Layout.Row = 3;
             app.GridLayout12.Layout.Column = 1;
 
             % Create ThenumberofgridpointsEditFieldLabel
@@ -1351,7 +1404,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12_2.ColumnWidth = {'7x', '3x'};
             app.GridLayout12_2.RowHeight = {'1x'};
             app.GridLayout12_2.Padding = [0 0 0 0];
-            app.GridLayout12_2.Layout.Row = 3;
+            app.GridLayout12_2.Layout.Row = 4;
             app.GridLayout12_2.Layout.Column = 1;
 
             % Create GridintervalDeltaixiEditFieldLabel
@@ -1373,7 +1426,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12_3.ColumnWidth = {'7x', '3x'};
             app.GridLayout12_3.RowHeight = {'1x'};
             app.GridLayout12_3.Padding = [0 0 0 0];
-            app.GridLayout12_3.Layout.Row = 4;
+            app.GridLayout12_3.Layout.Row = 5;
             app.GridLayout12_3.Layout.Column = 1;
 
             % Create IterationtimesforgridsearchEditFieldLabel
@@ -1394,7 +1447,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12_4.ColumnWidth = {'6x', '4x'};
             app.GridLayout12_4.RowHeight = {'fit'};
             app.GridLayout12_4.Padding = [0 0 0 0];
-            app.GridLayout12_4.Layout.Row = 5;
+            app.GridLayout12_4.Layout.Row = 6;
             app.GridLayout12_4.Layout.Column = 1;
 
             % Create ThresholdDropDownLabel
@@ -1409,6 +1462,30 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.ThresholdDropDown.Layout.Row = 1;
             app.ThresholdDropDown.Layout.Column = 2;
             app.ThresholdDropDown.Value = 'F-distribution';
+
+            % Create CheckBox
+            app.CheckBox = uicheckbox(app.GridLayout11);
+            app.CheckBox.Text = 'Execute grid search in parallel';
+            app.CheckBox.Layout.Row = 2;
+            app.CheckBox.Layout.Column = 1;
+            app.CheckBox.Value = true;
+
+            % Create GridreactionTab
+            app.GridreactionTab = uitab(app.TabGroup2);
+            app.GridreactionTab.Title = 'Grid reaction';
+
+            % Create GridLayout23
+            app.GridLayout23 = uigridlayout(app.GridreactionTab);
+            app.GridLayout23.ColumnWidth = {'1x'};
+            app.GridLayout23.RowHeight = {'1x'};
+            app.GridLayout23.Padding = [5 5 5 5];
+
+            % Create GridReactionUITable
+            app.GridReactionUITable = uitable(app.GridLayout23);
+            app.GridReactionUITable.ColumnName = '';
+            app.GridReactionUITable.RowName = {};
+            app.GridReactionUITable.Layout.Row = 1;
+            app.GridReactionUITable.Layout.Column = 1;
 
             % Create GridLayout7_2
             app.GridLayout7_2 = uigridlayout(app.GridLayout5_2);
@@ -1725,10 +1802,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         % Code that executes before app deletion
         function delete(app)
-
-            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
-                app.ChildAppHost.closeAll();
-            end
 
             % Delete UIFigure when app is deleted
             delete(app.BatchconfigUIFigure)

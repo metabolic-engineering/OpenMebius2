@@ -17,7 +17,7 @@ classdef FluxBoundNormalizer
             if numel(lowerBounds) ~= numel(upperBounds)
                 error( ...
                     "OpenMebius2:FluxBoundNormalizer:DimensionMismatch", ...
-                    "Lower and upper flux bounds must have the same size.");
+                "Lower and upper flux bounds must have the same size.");
             end
 
             if options.AbsoluteTolerance < 0 || ...
@@ -26,7 +26,7 @@ classdef FluxBoundNormalizer
                     ~isfinite(options.RelativeTolerance)
                 error( ...
                     "OpenMebius2:FluxBoundNormalizer:InvalidTolerance", ...
-                    "Flux bound tolerances must be finite and nonnegative.");
+                "Flux bound tolerances must be finite and nonnegative.");
             end
 
             scale = max( ...
@@ -42,7 +42,7 @@ classdef FluxBoundNormalizer
                 inversion <= tolerance;
             midpoint = ...
                 (lowerBounds(adjustedMask) + ...
-                 upperBounds(adjustedMask)) ./ 2;
+                upperBounds(adjustedMask)) ./ 2;
             lowerBounds(adjustedMask) = midpoint;
             upperBounds(adjustedMask) = midpoint;
 

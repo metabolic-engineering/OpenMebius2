@@ -50,6 +50,21 @@ classdef MFAProblemTest < matlab.unittest.TestCase
 
         end
 
+        function createsFixedFluxEquality(testCase)
+
+            problem = MFAProblemTest.createProblem();
+            [matrix, rightHandSide] = ...
+                problem.fixedFluxEqualities([0; 1], 0.25);
+
+            testCase.verifyEqual(matrix, 1, 'AbsTol', 1e-12);
+            testCase.verifyEqual( ...
+                rightHandSide, 0.25, 'AbsTol', 1e-12);
+            testCase.verifyEqual( ...
+                matrix * 0.25, rightHandSide, ...
+                'AbsTol', 1e-12);
+
+        end
+
         function rejectsMismatchedIndependentMapping(testCase)
 
             testCase.verifyError( ...
@@ -60,7 +75,7 @@ classdef MFAProblemTest < matlab.unittest.TestCase
                 UpperBounds = ones(2, 1), ...
                 IndependentMask = [false; true], ...
                 BoundaryReactionMask = [true; true]), ...
-                "OpenMebius2:MFAProblem:IndependentMappingMismatch");
+            "OpenMebius2:MFAProblem:IndependentMappingMismatch");
 
         end
 
@@ -74,7 +89,7 @@ classdef MFAProblemTest < matlab.unittest.TestCase
                 UpperBounds = ones(2, 1), ...
                 IndependentMask = [false; true], ...
                 BoundaryReactionMask = [false; true]), ...
-                "OpenMebius2:MFAProblem:InvalidBounds");
+            "OpenMebius2:MFAProblem:InvalidBounds");
 
         end
 
@@ -98,7 +113,7 @@ classdef MFAProblemTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-                'src');
+            'src');
 
         end
 

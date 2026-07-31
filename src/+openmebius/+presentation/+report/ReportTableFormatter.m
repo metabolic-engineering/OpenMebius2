@@ -87,25 +87,31 @@ classdef ReportTableFormatter
                     isdatetime(value) || isduration(value)
                 textValue = char(strjoin(string(value(:)), ', '));
             elseif islogical(value) && isscalar(value)
+
                 if value
                     textValue = 'true';
                 else
                     textValue = 'false';
                 end
+
             elseif isnumeric(value) && isscalar(value)
+
                 if isfloat(value)
                     textValue = sprintf('%.8g', value);
                 else
                     textValue = char(string(value));
                 end
+
             elseif isnumeric(value) || islogical(value)
                 textValue = mat2str(value, 8);
             else
+
                 try
                     textValue = char(string(jsonencode(value)));
                 catch
                     textValue = ['<', class(value), '>'];
                 end
+
             end
 
         end % formatScalar

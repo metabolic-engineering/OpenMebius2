@@ -14,7 +14,7 @@ classdef SectionStatusState < handle
         function rows = update(obj, section, status)
             [obj.Values, rows] = ...
                 openmebius.presentation.status.StatusPresenter.update( ...
-                    obj.Values, section, status);
+                obj.Values, section, status);
         end
 
         function rows = reset(obj)

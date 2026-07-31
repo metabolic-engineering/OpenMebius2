@@ -61,13 +61,14 @@ classdef CreateProjectUseCase < handle
                 [ok, msg] = copyfile( ...
                     templateModelDirectory, ...
                     paths.ModelDirectory, ...
-                    "f");
+                "f");
 
                 if ~ok
                     error( ...
                         "OpenMebius2:ProjectCreate:TemplateCopyFailed", ...
                         "Failed to copy template model: %s", string(msg));
                 end
+
             catch ME
                 openmebius.application.project.CreateProjectUseCase ...
                     .cleanupIncompleteProject(projectDirectory);
@@ -77,7 +78,7 @@ classdef CreateProjectUseCase < handle
             messages = [
                         "New project directory created: " + projectDirectory
                         "Project setting saved to " + paths.SettingFile + ...
-                        " and " + paths.LegacySettingFile
+                            " and " + paths.LegacySettingFile
                         "Template model copied to " + paths.ModelDirectory
                         ];
 
@@ -99,7 +100,7 @@ classdef CreateProjectUseCase < handle
             if parentDirectory == ""
                 error( ...
                     "OpenMebius2:ProjectCreate:EmptyParentDirectory", ...
-                    "Project parent directory is empty.");
+                "Project parent directory is empty.");
             end
 
             if ~isfolder(parentDirectory)
@@ -112,7 +113,7 @@ classdef CreateProjectUseCase < handle
             if projectDirectoryName == ""
                 error( ...
                     "OpenMebius2:ProjectCreate:EmptyProjectDirectoryName", ...
-                    "Project directory name cannot be empty.");
+                "Project directory name cannot be empty.");
             end
 
             [projectParent, projectName, projectExt] = ...
@@ -121,7 +122,7 @@ classdef CreateProjectUseCase < handle
             if projectParent ~= "" || projectName + projectExt ~= projectDirectoryName
                 error( ...
                     "OpenMebius2:ProjectCreate:InvalidProjectDirectoryName", ...
-                    "Project directory name must not contain path separators.");
+                "Project directory name must not contain path separators.");
             end
 
             if templateModelDirectory == "" || ~isfolder(templateModelDirectory)

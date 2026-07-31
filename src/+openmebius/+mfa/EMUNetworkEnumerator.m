@@ -63,12 +63,13 @@ classdef EMUNetworkEnumerator < handle
                 products = msReactions.Products{row};
                 isInvalid = size(products, 2) > 1 || ...
                     ~strcmp(products{1}, ...
-                        msReactions.Properties.RowNames{row});
+                    msReactions.Properties.RowNames{row});
 
                 if isInvalid
                     errorMessages(end + 1, 1) = ...
                         "EMU network: More than one product or no reactant."; %#ok<AGROW>
                 end
+
             end
 
         end % validateMSReactions
@@ -105,7 +106,7 @@ classdef EMUNetworkEnumerator < handle
                     reactantNumAtoms = strlength(reactantAtomString);
                     reactantPosition = ...
                         openmebius.mfa.EMUNetworkEnumerator.atomPosition( ...
-                            reactantAtomString, targetAtomString);
+                        reactantAtomString, targetAtomString);
                     arrangedReactantAtoms = ...
                         obj.CharList(1:reactantNumAtoms);
                     arrangedPosition = ...
@@ -151,6 +152,7 @@ classdef EMUNetworkEnumerator < handle
                         obj.TableEMU.EMU == reactantEMU, :);
                     searchEMU(obj, source, reactantEMU, false, emuRow);
                 end
+
             end
 
         end % enumerateIntermediates
@@ -160,10 +162,12 @@ classdef EMUNetworkEnumerator < handle
             isSearched = false;
 
             for index = 1:length(obj.SearchedProducts)
+
                 if isequal(obj.SearchedProducts{index}, productEMU)
                     isSearched = true;
                     break
                 end
+
             end
 
             if ~isSearched
@@ -198,6 +202,7 @@ classdef EMUNetworkEnumerator < handle
             transitions = source.Transitions(reactionRows, :);
 
             for reactionIndex = 1:height(reactions)
+
                 for productIndex = 1:length( ...
                         transitions.Products{reactionIndex})
                     coefficient = 1;
@@ -236,7 +241,7 @@ classdef EMUNetworkEnumerator < handle
                         symmetricPattern = flip(positionPattern);
                         symmetricProductAtoms = ...
                             transitions.Products{reactionIndex}{productIndex}( ...
-                                symmetricPattern);
+                            symmetricPattern);
                         symmetricReactants = parseReaction( ...
                             obj, source, emuName, symmetricProductAtoms, ...
                             reactions(reactionIndex, :), ...
@@ -247,8 +252,11 @@ classdef EMUNetworkEnumerator < handle
                                 obj, source, symmetricReactants.EMU{row}, ...
                                 true, symmetricReactants);
                         end
+
                     end
+
                 end
+
             end
 
         end % searchEMU
@@ -285,6 +293,7 @@ classdef EMUNetworkEnumerator < handle
                     if find(positionPattern) >= find(symmetricPattern)
                         position = find(symmetricPattern);
                     end
+
                 end
 
                 reactantLabel = obj.CharList(sort(position));
@@ -292,8 +301,8 @@ classdef EMUNetworkEnumerator < handle
                     .emuLabel(reactantMetabolite, reactantLabel);
                 reactantEMUs{end + 1} = reactantEMU; %#ok<AGROW>
                 reactantTable = [reactantTable; ...
-                    {reactantEMU, reactantMetabolite, position, ...
-                        numel(position), false}]; %#ok<AGROW>
+                                     {reactantEMU, reactantMetabolite, position, ...
+                                     numel(position), false}]; %#ok<AGROW>
             end
 
             addReaction( ...
@@ -310,7 +319,7 @@ classdef EMUNetworkEnumerator < handle
             end
 
             obj.TableEMU = [obj.TableEMU; ...
-                {emuName, metabolite, position, emuSize, isTarget}];
+                                {emuName, metabolite, position, emuSize, isTarget}];
 
         end % addEMU
 
@@ -319,12 +328,12 @@ classdef EMUNetworkEnumerator < handle
                 coefficient, emuSize, isTarget)
 
             row = { ...
-                reactionID, {reactants}, {products}, ...
-                coefficient, emuSize, isTarget};
+                       reactionID, {reactants}, {products}, ...
+                       coefficient, emuSize, isTarget};
             reaction = cell2table( ...
                 row, ...
                 VariableNames = ...
-                    obj.TableEMUReaction.Properties.VariableNames);
+                obj.TableEMUReaction.Properties.VariableNames);
             obj.TableEMUReaction = [obj.TableEMUReaction; reaction];
 
         end % addReaction
@@ -338,9 +347,9 @@ classdef EMUNetworkEnumerator < handle
             tableEMU = table( ...
                 Size = [0, 5], ...
                 VariableNames = ...
-                    ["EMU", "Metabolite", "Position", "Size", "Target"], ...
+                ["EMU", "Metabolite", "Position", "Size", "Target"], ...
                 VariableTypes = ...
-                    ["string", "string", "cell", "double", "logical"]);
+                ["string", "string", "cell", "double", "logical"]);
             tableEMU.Properties.Description = "EMU table";
 
         end % emptyEMUTable
@@ -350,11 +359,11 @@ classdef EMUNetworkEnumerator < handle
             reactions = table( ...
                 Size = [0, 6], ...
                 VariableNames = [ ...
-                    "RxnID", "Reactants", "Products", ...
-                    "Coefficient", "Size", "Target"], ...
+                                 "RxnID", "Reactants", "Products", ...
+                                 "Coefficient", "Size", "Target"], ...
                 VariableTypes = [ ...
-                    "string", "cell", "cell", ...
-                    "double", "double", "logical"]);
+                                 "string", "cell", "cell", ...
+                                 "double", "double", "logical"]);
             reactions.Properties.Description = "EMU reaction table";
 
         end % emptyEMUReactionTable
@@ -386,6 +395,7 @@ classdef EMUNetworkEnumerator < handle
                 if ~isempty(matchingPosition)
                     position = [position, matchingPosition]; %#ok<AGROW>
                 end
+
             end
 
         end % atomPosition
@@ -395,9 +405,11 @@ classdef EMUNetworkEnumerator < handle
             rows = [];
 
             for row = 1:height(reactions)
+
                 if ismember(metabolite, reactions.Products{row})
                     rows = [rows; row]; %#ok<AGROW>
                 end
+
             end
 
         end % findProductReactions

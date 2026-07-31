@@ -27,7 +27,7 @@ classdef ExperimentImportController < handle
             if isempty(rawMSImportService)
                 rawMSImportService = openmebius.application.experiment ...
                     .RawMSImportService( ...
-                        ExperimentImportService = experimentImportService);
+                    ExperimentImportService = experimentImportService);
             end
 
             obj.ExperimentImportService = experimentImportService;
@@ -47,7 +47,7 @@ classdef ExperimentImportController < handle
 
             outcome = obj.execute( ...
                 @() obj.ExperimentImportService.importFiles( ...
-                    experimentLocation, files, model));
+                experimentLocation, files, model));
 
         end % importFiles
 
@@ -61,7 +61,7 @@ classdef ExperimentImportController < handle
 
             outcome = obj.execute( ...
                 @() obj.ExperimentImportService.reload( ...
-                    experimentLocation, model));
+                experimentLocation, model));
 
         end % reload
 
@@ -77,7 +77,7 @@ classdef ExperimentImportController < handle
 
             outcome = obj.execute( ...
                 @() obj.RawMSImportService.importShimadzuASCII( ...
-                    rawInput, experimentLocation, model));
+                rawInput, experimentLocation, model));
 
         end % importShimadzuASCII
 
@@ -91,13 +91,13 @@ classdef ExperimentImportController < handle
                 result = command();
                 outcome = openmebius.application.experiment ...
                     .ExperimentImportOutcome( ...
-                        true, Result = result);
+                    true, Result = result);
             catch exception
                 outcome = openmebius.application.experiment ...
                     .ExperimentImportOutcome( ...
-                        false, ...
-                        ErrorMessage = string(exception.message), ...
-                        Exception = exception);
+                    false, ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
             end
 
         end % execute

@@ -22,10 +22,12 @@ classdef RunConfigViewModel
         MCCalculationMethod (1, 1) string = "Discarding"
 
         GridAutomaticInterval (1, 1) logical = true
+        GridParallelExecution (1, 1) logical = true
         GridPoints (1, 1) double = 10
         GridDelta (1, 1) double = 1
         GridIterations (1, 1) double = 30
         GridThreshold (1, 1) string = "Chi-squared"
+        GridReactionTable table = table()
 
         IsINSTMFA (1, 1) logical = false
         EffluxTable table = table()

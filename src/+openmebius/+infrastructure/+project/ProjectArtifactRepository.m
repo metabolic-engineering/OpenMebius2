@@ -53,10 +53,10 @@ classdef ProjectArtifactRepository
                 paths.experimentLocation(), experiments);
             result = obj.ResultRepository.open(paths.resultLocation());
             messages = [ ...
-                "Model loaded successfully."
-                "Experiment data loaded successfully."
-                "Batch session created successfully."
-                "Result session created successfully."];
+                            "Model loaded successfully."
+                        "Experiment data loaded successfully."
+                        "Batch session created successfully."
+                        "Result session created successfully."];
             artifacts = openmebius.application.project.ProjectArtifacts( ...
                 Model = model, ...
                 Experiments = experiments, ...

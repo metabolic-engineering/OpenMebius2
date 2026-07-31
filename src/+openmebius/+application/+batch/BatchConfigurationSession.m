@@ -26,13 +26,13 @@ classdef BatchConfigurationSession < handle
             if isempty(batchIds) || any(strlength(batchIds) == 0)
                 error( ...
                     "OpenMebius2:BatchConfigurationSession:InvalidBatchIds", ...
-                    "At least one nonempty batch ID is required.");
+                "At least one nonempty batch ID is required.");
             end
 
             if numel(unique(batchIds, "stable")) ~= numel(batchIds)
                 error( ...
                     "OpenMebius2:BatchConfigurationSession:DuplicateBatchIds", ...
-                    "Batch configuration selection contains duplicate IDs.");
+                "Batch configuration selection contains duplicate IDs.");
             end
 
             obj.BatchSource = batchSource;
@@ -84,6 +84,13 @@ classdef BatchConfigurationSession < handle
                 .getBatchEffluxSDTable(obj.BatchIds(1).');
 
         end % effluxTable
+
+        function tableData = gridReactionTable(obj)
+
+            tableData = obj.BatchSource ...
+                .getBatchGridReactionTable(obj.BatchIds(1).');
+
+        end % gridReactionTable
 
         function tableData = suggestionTable(obj)
 
@@ -147,6 +154,7 @@ classdef BatchConfigurationSession < handle
                     obj.BatchSource.updateBatchConfigSuggestionTable( ...
                         obj.BatchIds.', suggestionTable);
                 end
+
             catch exception
                 exception = obj.rollbackConfigs( ...
                     originalConfigs, exception);
@@ -163,11 +171,13 @@ classdef BatchConfigurationSession < handle
                 obj, originalConfigs, exception)
 
             try
+
                 for batchIndex = 1:numel(obj.BatchIds)
                     obj.BatchSource.updateBatchConfig( ...
                         obj.BatchIds(batchIndex), ...
                         originalConfigs(batchIndex));
                 end
+
             catch rollbackException
                 exception = addCause(exception, rollbackException);
             end

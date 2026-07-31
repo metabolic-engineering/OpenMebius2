@@ -7,6 +7,9 @@ classdef MFAIterationRunnerStub < handle
         LastRightHandSide double = []
         LastObjective = []
         LastOptions = []
+        LastInitialIndependentValues double = []
+        LastLinearEqualityMatrix double = zeros(0, 0)
+        LastLinearEqualityRightHandSide double = zeros(0, 1)
     end
 
     methods
@@ -18,13 +21,32 @@ classdef MFAIterationRunnerStub < handle
         end
 
         function result = run( ...
-                obj, problem, rightHandSide, objective, options, varargin)
+                obj, problem, rightHandSide, objective, solverOptions, ...
+                options)
+
+            arguments
+                obj
+                problem
+                rightHandSide
+                objective
+                solverOptions
+                options.InitialIndependentValues double = []
+                options.LinearEqualityMatrix double = zeros(0, 0)
+                options.LinearEqualityRightHandSide double = zeros(0, 1)
+                options.MessageReporter function_handle = @(~, ~) []
+            end
 
             obj.CallCount = obj.CallCount + 1;
             obj.LastProblem = problem;
             obj.LastRightHandSide = rightHandSide;
             obj.LastObjective = objective;
-            obj.LastOptions = options;
+            obj.LastOptions = solverOptions;
+            obj.LastInitialIndependentValues = ...
+                options.InitialIndependentValues;
+            obj.LastLinearEqualityMatrix = ...
+                options.LinearEqualityMatrix;
+            obj.LastLinearEqualityRightHandSide = ...
+                options.LinearEqualityRightHandSide;
             result = obj.Result;
 
         end

@@ -51,6 +51,13 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
 
         end
 
+        function viewSuggestionCodeMatchesExportedSource(testCase)
+
+            OpenMebius2SourceSyncTest.verifyAppSource( ...
+                testCase, "ViewSuggestion");
+
+        end
+
         function allMlappCodeStoresAreSynchronized(testCase)
 
             root = fileparts(fileparts(mfilename("fullpath")));

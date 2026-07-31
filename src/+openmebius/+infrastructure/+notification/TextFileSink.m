@@ -44,9 +44,9 @@ classdef TextFileSink < handle
 
             lines = openmebius.infrastructure.logging.Logger ...
                 .formatDatedLines( ...
-                    message.Text, ...
-                    message.Level, ...
-                    Timestamp = message.Timestamp);
+                message.Text, ...
+                message.Level, ...
+                Timestamp = message.Timestamp);
             obj.rotateIfNeeded(strlength(join(lines, newline)) + 1);
 
             fileId = fopen(char(obj.Path), "a");
@@ -89,6 +89,7 @@ classdef TextFileSink < handle
             end
 
             if obj.BackupCount == 0
+
                 try
                     delete(char(obj.Path));
                 catch
@@ -101,12 +102,14 @@ classdef TextFileSink < handle
             oldest = obj.Path + "." + string(obj.BackupCount);
 
             if isfile(oldest)
+
                 try
                     delete(char(oldest));
                 catch
                     obj.RotationDeferred = true;
                     return
                 end
+
             end
 
             for backupIndex = obj.BackupCount - 1:-1:1
@@ -118,6 +121,7 @@ classdef TextFileSink < handle
                     obj.RotationDeferred = true;
                     return
                 end
+
             end
 
             if ~obj.tryMove(obj.Path, obj.Path + ".1")

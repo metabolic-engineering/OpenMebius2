@@ -19,7 +19,7 @@ classdef DatasetWriteSequence
                 error( ...
                     "OpenMebius2:DatasetWriteSequence:SizeMismatch", ...
                     "Dataset paths, values, and data types must have " + ...
-                    "the same number of elements.");
+                "the same number of elements.");
             end
 
             isSuccess = true;
@@ -37,6 +37,7 @@ classdef DatasetWriteSequence
                         string(message);
                     return;
                 end
+
             end
 
         end % write

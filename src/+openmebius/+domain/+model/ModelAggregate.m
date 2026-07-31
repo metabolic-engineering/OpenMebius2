@@ -32,6 +32,7 @@ classdef ModelAggregate
             end
 
             names = string(fieldnames(options));
+
             for nameIndex = 1:numel(names)
                 obj.(names(nameIndex)) = options.(names(nameIndex));
             end

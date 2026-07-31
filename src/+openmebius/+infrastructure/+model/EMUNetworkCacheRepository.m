@@ -22,8 +22,8 @@ classdef EMUNetworkCacheRepository < handle
 
             if ~isfile(cacheFile) || ...
                     ~openmebius.infrastructure.model ...
-                        .EMUNetworkCacheRepository.isCurrent( ...
-                            modelFile, hashFile)
+                    .EMUNetworkCacheRepository.isCurrent( ...
+                    modelFile, hashFile)
                 return
             end
 
@@ -60,7 +60,7 @@ classdef EMUNetworkCacheRepository < handle
             temporaryFile = string(tempname(cacheDirectory)) + ".mat";
             cleanup = onCleanup(@() ...
                 openmebius.infrastructure.model ...
-                    .EMUNetworkCacheRepository.deleteIfExists(temporaryFile));
+                .EMUNetworkCacheRepository.deleteIfExists(temporaryFile));
             payload = snapshot.toStruct();
 
             try
@@ -75,6 +75,7 @@ classdef EMUNetworkCacheRepository < handle
                         "Failed to save the model hash: %s", ...
                         hashFile);
                 end
+
             catch ME
                 exception = MException( ...
                     "OpenMebius2:EMUNetworkCacheRepository:SaveFailed", ...
@@ -104,7 +105,7 @@ classdef EMUNetworkCacheRepository < handle
                 cachedHash = strtrim(string(fileread(hashFile)));
                 currentHash = ...
                     openmebius.infrastructure.filesystem.FileHasher ...
-                        .hashFile(modelFile);
+                    .hashFile(modelFile);
                 tf = strlength(cachedHash) > 0 && cachedHash == currentHash;
             catch
                 tf = false;

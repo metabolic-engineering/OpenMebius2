@@ -68,6 +68,27 @@ classdef RunConfigBatchStub < handle
 
         end
 
+        function tableData = getBatchGridReactionTable(obj, ~)
+
+            reactionIDs = ["R1"; "R2"];
+            reactions = ["A -> B"; "B -> C"];
+            selection = true(2, 1);
+            stored = obj.Config.CIConf.grid.reactions;
+            storedIDs = string(stored.id(:));
+            [isStored, storedIndex] = ismember(reactionIDs, storedIDs);
+
+            if any(isStored)
+                storedSelection = logical(stored.select(:));
+                selection(isStored) = ...
+                    storedSelection(storedIndex(isStored));
+            end
+
+            tableData = table( ...
+                selection, reactionIDs, reactions, ...
+                VariableNames = ["Select", "ID", "Reaction"]);
+
+        end
+
     end
 
 end % classdef

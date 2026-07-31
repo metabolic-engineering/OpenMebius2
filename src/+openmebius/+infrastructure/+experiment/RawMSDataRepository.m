@@ -63,6 +63,7 @@ classdef RawMSDataRepository < handle
                     failures(end + 1, 1) = ...
                         sourceName + ": " + string(exception.message); %#ok<AGROW>
                 end
+
             end
 
             if ~isempty(failures)
@@ -78,29 +79,34 @@ classdef RawMSDataRepository < handle
     methods (Static, Access = private)
 
         function validateInputs(rawLocation, experimentLocation, fragmentNames)
+
             if ~isfolder(rawLocation.Directory)
                 error( ...
                     "OpenMebius2:RawMSDataRepository:RawDirectoryNotFound", ...
                     "Raw MS data directory does not exist: %s", ...
                     rawLocation.Directory);
             end
+
             if ~isfolder(experimentLocation.Directory)
                 error( ...
                     "OpenMebius2:RawMSDataRepository:ExperimentDirectoryNotFound", ...
                     "Experiment directory does not exist: %s", ...
                     experimentLocation.Directory);
             end
+
             if isempty(rawLocation.textFiles())
                 error( ...
                     "OpenMebius2:RawMSDataRepository:NoTextFiles", ...
                     "No raw MS text files were found in: %s", ...
                     rawLocation.Directory);
             end
+
             if ~any(strlength(string(fragmentNames(:))) > 0)
                 error( ...
                     "OpenMebius2:RawMSDataRepository:NoFragments", ...
-                    "No MS fragment names were provided for raw MS import.");
+                "No MS fragment names were provided for raw MS import.");
             end
+
         end
 
     end

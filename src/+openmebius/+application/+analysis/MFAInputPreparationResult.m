@@ -22,7 +22,7 @@ classdef MFAInputPreparationResult
             arguments
                 options.IsValid (1, 1) logical
                 options.FailureStage (1, 1) string {mustBeMember( ...
-                    options.FailureStage, ["", "efflux", "mdv"])} = ""
+                                                        options.FailureStage, ["", "efflux", "mdv"])} = ""
                 options.ErrorMessage (1, 1) string = ""
                 options.GrowthRate (1, 1) double = NaN
                 options.SubstrateList = strings(0, 1)
@@ -42,7 +42,7 @@ classdef MFAInputPreparationResult
                     "OpenMebius2:MFAInputPreparation:" + ...
                     "InconsistentResult", ...
                     "Successful input preparation cannot contain a " + ...
-                    "failure, and failed preparation must describe one.");
+                "failure, and failed preparation must describe one.");
             end
 
             obj.IsValid = options.IsValid;

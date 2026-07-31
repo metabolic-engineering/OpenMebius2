@@ -1172,6 +1172,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     subPlot.Kind == "monte-carlo-ci"
                 app.renderMonteCarloConfidenceInterval(subPlot);
 
+            elseif isfield(subPlot, "Kind") && ...
+                    subPlot.Kind == "grid-search-profile"
+                app.renderGridSearchProfile(subPlot);
+
             else
                 cla(app.SubUIAxes);
             end
@@ -1325,6 +1329,146 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             hold(axes, 'off');
 
         end % renderMonteCarloConfidenceInterval
+
+        function renderGridSearchProfile(app, plotData)
+
+            profileX = double(plotData.X(:));
+            profileRSS = double(plotData.Y(:));
+            finiteProfile = isfinite(profileX) & isfinite(profileRSS);
+            axes = app.SubUIAxes;
+
+            if ~any(finiteProfile)
+                cla(axes);
+                return
+            end
+
+            profileX = profileX(finiteProfile);
+            profileRSS = profileRSS(finiteProfile);
+            cla(axes);
+            axes.Visible = 'on';
+            axes.FontSize = 16;
+            axes.FontName = 'Arial';
+            axes.XLabel.String = "Fixed flux";
+            axes.YLabel.String = "RSS";
+            axes.Title.String = plotData.Title;
+            axes.XGrid = 'on';
+            axes.YGrid = 'on';
+            yLimits = double(plotData.YLimits(:)).';
+            axes.YLim = yLimits;
+
+            fvaLowerBound = double(plotData.FVALowerBound);
+            fvaUpperBound = double(plotData.FVAUpperBound);
+            xLimits = double(plotData.XLimits(:)).';
+            axes.XLim = xLimits;
+            hold(axes, 'on');
+
+            hasFVALegendEntry = false;
+
+            if fvaLowerBound > xLimits(1)
+                lowerShadeUpper = min(fvaLowerBound, xLimits(2));
+                patch( ...
+                    axes, ...
+                    [xLimits(1), lowerShadeUpper, ...
+                     lowerShadeUpper, xLimits(1)], ...
+                    [yLimits(1), yLimits(1), ...
+                     yLimits(2), yLimits(2)], ...
+                    [0.85, 0.85, 0.85], ...
+                    'EdgeColor', 'none', ...
+                    'FaceAlpha', 0.65, ...
+                    'DisplayName', 'Outside FVA');
+                hasFVALegendEntry = true;
+            end
+
+            if fvaUpperBound < xLimits(2)
+                upperShadeLower = max(fvaUpperBound, xLimits(1));
+                visibility = 'off';
+
+                if ~hasFVALegendEntry
+                    visibility = 'on';
+                end
+
+                patch( ...
+                    axes, ...
+                    [upperShadeLower, xLimits(2), ...
+                     xLimits(2), upperShadeLower], ...
+                    [yLimits(1), yLimits(1), ...
+                     yLimits(2), yLimits(2)], ...
+                    [0.85, 0.85, 0.85], ...
+                    'EdgeColor', 'none', ...
+                    'FaceAlpha', 0.65, ...
+                    'HandleVisibility', visibility, ...
+                    'DisplayName', 'Outside FVA');
+            end
+
+            if isfield(plotData, "TrialX") && ...
+                    isfield(plotData, "TrialRSS")
+                trialX = double(plotData.TrialX(:));
+                trialRSS = double(plotData.TrialRSS(:));
+                finiteTrials = isfinite(trialX) & isfinite(trialRSS);
+
+                if any(finiteTrials)
+                    scatter( ...
+                        axes, ...
+                        trialX(finiteTrials), ...
+                        trialRSS(finiteTrials), ...
+                        18, ...
+                        [0.7 0.7 0.7], ...
+                        'filled', ...
+                        'DisplayName', 'Trials');
+                end
+
+            end
+
+            plot( ...
+                axes, ...
+                profileX, ...
+                profileRSS, ...
+                '-o', ...
+                'Color', "#0072B2", ...
+                'MarkerFaceColor', "#0072B2", ...
+                'LineWidth', 2.5, ...
+                'DisplayName', 'Minimum RSS');
+
+            if isfield(plotData, "ObjectiveThreshold") && ...
+                    isscalar(plotData.ObjectiveThreshold) && ...
+                    isfinite(plotData.ObjectiveThreshold)
+                yline( ...
+                    axes, ...
+                    double(plotData.ObjectiveThreshold), ...
+                    '--', ...
+                    'Color', "#D55E00", ...
+                    'LineWidth', 2, ...
+                    'DisplayName', 'Objective threshold');
+            end
+
+            if isfield(plotData, "LowerBound") && ...
+                    isscalar(plotData.LowerBound) && ...
+                    isfinite(plotData.LowerBound)
+                xline( ...
+                    axes, ...
+                    double(plotData.LowerBound), ...
+                    ':', ...
+                    'Color', "#009E73", ...
+                    'LineWidth', 1.5, ...
+                    'DisplayName', 'CI lower bound');
+            end
+
+            if isfield(plotData, "UpperBound") && ...
+                    isscalar(plotData.UpperBound) && ...
+                    isfinite(plotData.UpperBound)
+                xline( ...
+                    axes, ...
+                    double(plotData.UpperBound), ...
+                    ':', ...
+                    'Color', "#CC79A7", ...
+                    'LineWidth', 1.5, ...
+                    'DisplayName', 'CI upper bound');
+            end
+
+            legend(axes, 'show', 'Location', 'best');
+            hold(axes, 'off');
+
+        end % renderGridSearchProfile
 
         function clearResultPlots(app)
 
@@ -5061,7 +5205,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
             app.initializeMainApp(filepath);
-
         end
 
         % Close request function: OpenMebius2UIFigure
@@ -5076,7 +5219,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ProjectBrowseButtonPushed(app, event)
 
             app.browseProjectDirectory();
-
         end
 
         % Button pushed function: ProjectLoadButton
@@ -5090,7 +5232,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 string(app.ProjectDirectoryDropDown.Value));
             app.renderProjectOperationViewModel( ...
                 app.ProjectPresenter.presentOpenOutcome(outcome));
-
         end
 
         % Button pushed function: ProjectSaveButton
@@ -5103,28 +5244,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 string(app.OrganismEditField.Value));
             app.renderProjectOperationViewModel( ...
                 app.ProjectPresenter.presentSaveOutcome(outcome));
-
         end
 
         % Button pushed function: ProjectCreateButton
         function ProjectCreateButtonPushed(app, event)
 
             app.createProjectFromDialog();
-
         end
 
         % Value changed function: ProjectDirectoryDropDown
         function ProjectDirectoryDropDownValueChanged(app, event)
 
             app.acceptProjectDirectoryValue();
-
         end
 
         % Button pushed function: TemplateModelBrowseButton
         function TemplateModelBrowseButtonPushed(app, event)
 
             app.browseTemplateModelDirectory();
-
         end
 
         % Button pushed function: TemplateModelLoadButton
@@ -5138,7 +5275,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 string(app.TemplateModelDirectoryDropDown.Value));
             app.renderModelOperationViewModel( ...
                 app.ModelPresenter.presentTemplateLoadOutcome(outcome));
-
         end
 
         % Button pushed function: TemplateModelSaveButton
@@ -5150,14 +5286,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function TemplateModelDirectoryDropDownValueChanged(app, event)
 
             app.acceptTemplateModelDirectoryValue();
-
         end
 
         % Button pushed function: ModelReloadButton
         function ModelReloadButtonPushed(app, event)
 
             app.reloadModelView();
-
         end
 
         % Button pushed function: ModelEditButton
@@ -5168,7 +5302,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.beginPresentationEdit(EditTarget.Model);
 
             app.publishMessage("info", "Model table is now editable");
-
         end
 
         % Button pushed function: ModelSaveButton
@@ -5182,14 +5315,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.ModelTable.Data);
             app.renderModelOperationViewModel( ...
                 app.ModelPresenter.presentModelSaveOutcome(outcome));
-
         end
 
         % Cell selection callback: ModelTable
         function ModelTableCellSelection(app, event)
 
             app.showSelectedPathwayReaction(event.Indices);
-
         end
 
         % Menu selected function: AddLabelMenu
@@ -5203,7 +5334,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderModelPathwayEditViewModel( ...
                 app.ModelPresenter.presentPathwayEditOutcome( ...
                 outcome, IsDarkTheme = app.isDarkTheme()));
-
         end
 
         % Menu selected function: RemoveLabelMenu
@@ -5215,14 +5345,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderModelPathwayEditViewModel( ...
                 app.ModelPresenter.presentPathwayEditOutcome( ...
                 outcome, IsDarkTheme = app.isDarkTheme()));
-
         end
 
         % Button pushed function: MSReloadButton
         function MSReloadButtonPushed(app, event)
 
             app.reloadMassSpectrometryView();
-
         end
 
         % Button pushed function: MSEditButton
@@ -5233,28 +5361,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.beginPresentationEdit(EditTarget.MassSpectrometry);
 
             app.publishMessage("info", "MS table is now editable");
-
         end
 
         % Button pushed function: MSSaveButton
         function MSSaveButtonPushed(app, event)
 
             app.saveMassSpectrometryEdits();
-
         end
 
         % Button pushed function: ExpCalculationButton
         function ExpCalculationButtonPushed(app, event)
 
             app.calculateExperimentData();
-
         end
 
         % Button pushed function: ExpImportButton
         function ExpImportButtonPushed(app, event)
 
             app.importExperimentFilesFromDialog();
-
         end
 
         % Button pushed function: ExpReloadButton
@@ -5268,28 +5392,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.directoryExp);
             app.renderExperimentImportViewModel( ...
                 app.ExperimentPresenter.presentReloadOutcome(outcome));
-
         end
 
         % Button pushed function: ExpSaveButton
         function ExpSaveButtonPushed(app, event)
 
             app.saveExperimentInfo();
-
         end
 
         % Key press function: ExpTable
         function ExpTableKeyPress(app, event)
 
             app.handleTableClipboardShortcut(app.ExpTable, event);
-
         end
 
         % Menu selected function: ViewMStableMenu
         function ViewMStableMenuSelected(app, event)
 
             app.openSelectedMSView();
-
         end
 
         % Button pushed function: TracerConfigButton
@@ -5302,7 +5422,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             viewModel = app.LabelConfigPresenter ...
                 .presentLaunchOutcome(outcome);
             app.renderLabelConfigLaunchViewModel(viewModel);
-
         end
 
         % Button pushed function: TracerReloadButton
@@ -5310,28 +5429,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.loadTracerTable();
             app.publishMessage("info", "Tracer and uptake tables reloaded");
-
         end
 
         % Button pushed function: TracerSaveButton
         function TracerSaveButtonPushed(app, event)
 
             app.saveTracerEdits();
-
         end
 
         % Double-clicked callback: LabelTable
         function LabelTableDoubleClicked(app, event)
 
             app.openTracerFromInteraction(event.InteractionInformation);
-
         end
 
         % Key press function: UptakeTable
         function UptakeTableKeyPress(app, event)
 
             app.handleTableClipboardShortcut(app.UptakeTable, event);
-
         end
 
         % Button pushed function: RunAutoButton
@@ -5342,14 +5457,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentAutoFillOutcome( ...
                 outcome, batch));
-
         end
 
         % Button pushed function: RunConfigButton
         function RunConfigButtonPushed(app, event)
 
             app.openRunConfiguration();
-
         end
 
         % Button pushed function: RunReloadButton
@@ -5358,7 +5471,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentReloaded( ...
                 app.ApplicationController.batch()));
-
         end
 
         % Button pushed function: RunSaveButton
@@ -5369,28 +5481,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentSaveOutcome( ...
                 outcome, batch));
-
         end
 
         % Button pushed function: RunRunButton
         function RunRunButtonPushed(app, event)
 
             app.runOrCancelBatch();
-
         end
 
         % Menu selected function: AddbatchMenu
         function RunAddbatchMenuSelected(app, event)
 
             app.openParallelBatchEditor();
-
         end
 
         % Menu selected function: RemovethisbatchMenu
         function RunRemovethisbatchMenuSelected(app, event)
 
             app.removeSelectedBatches();
-
         end
 
         % Menu selected function: ParallellabelingMenu
@@ -5412,7 +5520,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadMainResultTable(app);
             updateResultPlot(app);
-
         end
 
         % Cell selection callback: ResultSubTable
@@ -5420,7 +5527,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             loadMainResultTable(app);
             updateResultPlot(app);
-
         end
 
         % Cell edit callback: ResultSubTable
@@ -5432,7 +5538,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ResultMainTableCellSelection(app, event)
 
             updateResultPlot(app);
-
         end
 
         % Button pushed function: ResultReportButton
@@ -5443,7 +5548,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 IsDeployed = isdeployed);
             app.renderResultOperationViewModel( ...
                 app.ResultPresenter.presentReportOutcome(outcome));
-
         end
 
         % Button pushed function: ResultReloadButton
@@ -5452,28 +5556,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.handleResultAvailable([]);
             app.renderResultOperationViewModel( ...
                 app.ResultPresenter.presentReloaded());
-
         end
 
         % Button pushed function: ResultSaveButton
         function ResultSaveButtonPushed(app, event)
 
             app.exportSelectedResults();
-
         end
 
         % Menu selected function: ReloadWindowMenu
         function ReloadWindowMenuSelected(app, event)
 
             app.reloadMainWindow();
-
         end
 
         % Menu selected function: PreferencesMenu
         function PreferencesMenuSelected(app, event)
 
             app.openPreferences();
-
         end
 
         % Menu selected function: RelativetoMenu
@@ -5486,35 +5586,30 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.ResultMainTable.RowName, ...
                 selectedRows);
             app.renderResultRelativeViewModel(viewModel);
-
         end
 
         % Menu selected function: RangeplotMenu
         function RangeplotMenuSelected(app, event)
 
             app.showRangePlot();
-
         end
 
         % Menu selected function: ViewsuggestionMenu
         function ViewsuggestionMenuSelected(app, event)
 
             app.showSuggestion();
-
         end
 
         % Menu selected function: CopythistracerforallentriesMenu
         function CopythistracerforallentriesMenuSelected(app, event)
 
             app.copySelectedTracer();
-
         end
 
         % Menu selected function: ImportMSdatafromtextfilesMenu
         function ImportMSdatafromtextfilesMenuSelected(app, event)
 
             app.importRawMSFromDirectory();
-
         end
 
         % Menu selected function: OpenMebius2manualMenu
@@ -5541,7 +5636,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 msg, ...
                 Title = "About OpenMebius2", ...
                 ShowAlert = true));
-
         end
 
         % Menu selected function: ClearcacheMenu
@@ -5549,28 +5643,24 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             % Clear cache directory
             app.clearHistory();
-
         end
 
         % Menu selected function: ExporttemplateExcelfileMenu
         function ExporttemplateExcelfileMenuSelected(app, event)
 
             app.exportTemplateWorkbook();
-
         end
 
         % Menu selected function: ViewlogsMenu
         function ViewlogsMenuSelected(app, event)
 
             app.LogApp = AppLogs();
-
         end
 
         % Key press function: OpenMebius2UIFigure
         function OpenMebius2UIFigureKeyPress(app, event)
 
             app.reloadSelectedTab(event);
-
         end
 
     end

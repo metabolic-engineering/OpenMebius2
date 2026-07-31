@@ -32,7 +32,7 @@ classdef PathwayPlotViewModel
                     numel(options.Highlight) ~= numberOfLabels
                 error( ...
                     "OpenMebius2:PathwayPlot:SizeMismatch", ...
-                    "Pathway labels, positions, and highlights must match.");
+                "Pathway labels, positions, and highlights must match.");
             end
 
             obj.Image = options.Image;

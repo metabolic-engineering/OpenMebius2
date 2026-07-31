@@ -9,23 +9,28 @@ classdef StoichiometricConstraintModel
     end
 
     methods
+
         function obj = StoichiometricConstraintModel( ...
                 constraintMatrix, systemMatrix, systemTypes)
+
             arguments
                 constraintMatrix table
                 systemMatrix table
                 systemTypes (:, 1) string
             end
+
             if height(systemMatrix) ~= width(systemMatrix)
                 error( ...
                     "OpenMebius2:StoichiometricConstraintModel:NonSquareSystem", ...
-                    "Stoichiometric system matrix must be square.");
+                "Stoichiometric system matrix must be square.");
             end
+
             if numel(systemTypes) ~= height(systemMatrix)
                 error( ...
                     "OpenMebius2:StoichiometricConstraintModel:TypeCountMismatch", ...
-                    "Every stoichiometric row must have a constraint type.");
+                "Every stoichiometric row must have a constraint type.");
             end
+
             obj.ConstraintMatrix = constraintMatrix;
             obj.SystemMatrix = systemMatrix;
             obj.ConstraintTypes = systemTypes(1:height(constraintMatrix));
@@ -35,5 +40,7 @@ classdef StoichiometricConstraintModel
         function value = degreeOfFreedom(obj)
             value = width(obj.ConstraintMatrix) - height(obj.ConstraintMatrix);
         end
+
     end
+
 end

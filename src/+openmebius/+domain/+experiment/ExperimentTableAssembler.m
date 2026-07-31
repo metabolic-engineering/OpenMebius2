@@ -77,6 +77,7 @@ classdef ExperimentTableAssembler
                     fullResult = obj.joinTableByRow( ...
                         fullResult, experimentTable);
                 end
+
             end
 
             substrates = collection.Model.getSubstrateTable();
