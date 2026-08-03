@@ -106,6 +106,12 @@ classdef MainApplicationController < handle
 
         end
 
+        function resetWorkspace(obj)
+
+            obj.Session.clear();
+
+        end
+
         function setNotificationReporter(obj, reporter)
 
             arguments

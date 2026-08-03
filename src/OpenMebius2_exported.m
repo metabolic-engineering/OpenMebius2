@@ -4004,76 +4004,56 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         %% Private reset function
         function resetAllComponents(app)
-            % RESETALLCOMPONENTS Reset all table data
+            % RESETALLCOMPONENTS Reset all transient table and plot state.
 
-            % Reset table data
-            app.ModelTable.Data = [];
-            app.MSTable.Data = [];
-            app.AtomTable.Data = [];
-            app.ExpTable.Data = [];
-            app.BiomassTable.Data = [];
-            app.UptakeTable.Data = [];
-            app.LabelTable.Data = [];
-            app.RunTable.Data = [];
-            app.ResultMainTable.Data = [];
-            app.ResultSubTable.Data = [];
+            tables = { ...
+                      app.ModelTable, app.MSTable, app.AtomTable, ...
+                      app.ExpTable, app.BiomassTable, ...
+                      app.UptakeTable, app.LabelTable, app.RunTable, ...
+                      app.ResultMainTable, app.ResultSubTable};
 
-            % Reset table column names
-            app.ModelTable.ColumnName = [];
-            app.MSTable.ColumnName = [];
-            app.AtomTable.ColumnName = [];
-            app.ExpTable.ColumnName = [];
-            app.BiomassTable.ColumnName = [];
-            app.UptakeTable.ColumnName = [];
-            app.LabelTable.ColumnName = [];
-            app.RunTable.ColumnName = [];
-            app.ResultMainTable.ColumnName = [];
-            app.ResultSubTable.ColumnName = [];
+            for tableIndex = 1:numel(tables)
+                tableObject = tables{tableIndex};
+                tableObject.Data = [];
+                tableObject.ColumnName = [];
+                tableObject.RowName = [];
+                tableObject.ColumnEditable = false;
 
-            % Reset table row names
-            app.ModelTable.RowName = [];
-            app.MSTable.RowName = [];
-            app.AtomTable.RowName = [];
-            app.ExpTable.RowName = [];
-            app.BiomassTable.RowName = [];
-            app.UptakeTable.RowName = [];
-            app.LabelTable.RowName = [];
-            app.RunTable.RowName = [];
-            app.ResultMainTable.RowName = [];
-            app.ResultSubTable.RowName = [];
+                try
+                    tableObject.Selection = [];
+                catch
+                    % Selection is unavailable on older MATLAB releases.
+                end
 
-            % Reset figure and plot
-            cla(app.MainUIAxes);
-            app.MainUIAxes.XLim = [0 1];
-            app.MainUIAxes.YLim = [0 1];
-            app.MainUIAxes.XTick = [];
-            app.MainUIAxes.YTick = [];
-            app.MainUIAxes.XLabel.String = "";
-            app.MainUIAxes.YLabel.String = "";
-            app.MainUIAxes.Title.String = "";
-            app.MainUIAxes.XLabel.Visible = 'off';
-            app.MainUIAxes.YLabel.Visible = 'off';
-            app.MainUIAxes.Title.Visible = 'off';
-            app.MainUIAxes.XColor = 'none';
-            app.MainUIAxes.YColor = 'none';
-            app.MainUIAxes.XGrid = 'off';
-            app.MainUIAxes.YGrid = 'off';
+                try
+                    tableObject.UserData = [];
+                catch
+                    % UserData is unavailable on older MATLAB releases.
+                end
 
-            % Reset subplot
-            app.SubUIAxes.XLim = [0 1];
-            app.SubUIAxes.YLim = [0 1];
-            app.SubUIAxes.XTick = [];
-            app.SubUIAxes.YTick = [];
-            app.SubUIAxes.XLabel.String = "";
-            app.SubUIAxes.YLabel.String = "";
-            app.SubUIAxes.Title.String = "";
-            app.SubUIAxes.XLabel.Visible = 'off';
-            app.SubUIAxes.YLabel.Visible = 'off';
-            app.SubUIAxes.Title.Visible = 'off';
-            app.SubUIAxes.XColor = 'none';
-            app.SubUIAxes.YColor = 'none';
-            app.SubUIAxes.XGrid = 'off';
-            app.SubUIAxes.YGrid = 'off';
+                removeStyle(tableObject);
+            end
+
+            axesObjects = {app.MainUIAxes, app.SubUIAxes};
+
+            for axesIndex = 1:numel(axesObjects)
+                axes = axesObjects{axesIndex};
+                cla(axes);
+                axes.XLim = [0 1];
+                axes.YLim = [0 1];
+                axes.XTick = [];
+                axes.YTick = [];
+                axes.XLabel.String = "";
+                axes.YLabel.String = "";
+                axes.Title.String = "";
+                axes.XLabel.Visible = 'off';
+                axes.YLabel.Visible = 'off';
+                axes.Title.Visible = 'off';
+                axes.XColor = 'none';
+                axes.YColor = 'none';
+                axes.XGrid = 'off';
+                axes.YGrid = 'off';
+            end
 
         end % method resetAllComponents
 
@@ -4899,17 +4879,81 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function reloadMainWindow(app)
 
-            app.loadHistory();
-            app.initializeLogView();
-            cleanupPresentation = ...
-                app.beginPresentationOperation(); %#ok<NASGU>
-            app.resetAllComponents();
+            app.restoreMainInteraction();
+            app.closeReloadWindowChildren();
+            app.ApplicationController.resetWorkspace();
 
-            for section = ["model", "experiment", "batch", "result"]
-                app.updateStatus(section, "init");
-            end
+            app.loadHistory();
+            app.ProjectDirectoryDropDown.Value = "";
+            app.TemplateModelDirectoryDropDown.Value = "";
+            app.ProjectNameEditField.Value = "";
+            app.ProjectAuthorEditField.Value = "";
+            app.OrganismEditField.Value = "";
+            app.directoryModel = "";
+            app.directoryExp = "";
+            app.directoryResult = "";
+            app.typeSimulation = "Flux";
+            app.report = [];
+
+            app.initializeLogView();
+            app.resetAllComponents();
+            app.ResultDropDown.Value = 'Overview';
+            app.TabGroup.SelectedTab = app.StoichiometryTab;
+            app.RunTableEditable = [];
+            app.initStatusTable();
+            app.resetPresentation();
 
         end % reloadMainWindow
+
+        function closeReloadWindowChildren(app)
+
+            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
+                app.ChildAppHost.closeAll();
+            end
+
+            app.PreferencesApp = [];
+            app.LabelConfigApp = [];
+            app.TracerConfigApp = [];
+            app.RunConfigApp = [];
+            app.MSViewApp = [];
+            app.ComparisonViewApp = [];
+            app.RunAddBatchApp = [];
+
+            app.deleteIfValid(app.ViewSuggestionApp);
+            app.deleteIfValid(app.RangePlotFigure);
+            app.deleteIfValid(app.LogApp);
+
+            try
+                if ~isempty(app.ProgressBar) && isvalid(app.ProgressBar)
+                    app.ProgressBar.close();
+                    delete(app.ProgressBar);
+                end
+            catch
+                % Reload must tolerate an already-closed progress bar.
+            end
+
+            app.ViewSuggestionApp = [];
+            app.RangePlotFigure = [];
+            app.LogApp = [];
+            app.ProgressBar = CustomProgressBar.empty;
+
+        end % closeReloadWindowChildren
+
+        function deleteIfValid(~, value)
+
+            if isempty(value)
+                return
+            end
+
+            try
+                if isvalid(value)
+                    delete(value);
+                end
+            catch
+                % Reload must tolerate already-closed transient windows.
+            end
+
+        end % deleteIfValid
 
         function openPreferences(app)
 

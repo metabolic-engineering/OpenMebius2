@@ -85,6 +85,27 @@ classdef MainApplicationControllerTest < matlab.unittest.TestCase
 
         end
 
+        function resetsWorkspaceSession(testCase)
+
+            fixture = MainApplicationControllerTest.fixture();
+            fixture.Session.replaceProject( ...
+                fixture.Project, ...
+                fixture.Artifacts.Model, ...
+                fixture.Artifacts.Experiments, ...
+                fixture.Artifacts.Batch, ...
+                fixture.Artifacts.Result);
+            controller = MainApplicationControllerTest.controller(fixture);
+
+            controller.resetWorkspace();
+
+            testCase.verifyEmpty(controller.project());
+            testCase.verifyEmpty(controller.model());
+            testCase.verifyEmpty(controller.experiments());
+            testCase.verifyEmpty(controller.batch());
+            testCase.verifyEmpty(controller.result());
+
+        end
+
     end
 
     methods (Static, Access = private)

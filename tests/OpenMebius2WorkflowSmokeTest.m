@@ -109,6 +109,57 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
 
         end
 
+        function reloadsWindowToInitialState(testCase)
+
+            app = testCase.App;
+            analysisProject = ...
+                OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                    testCase.TemporaryRoot, ...
+                    "ecoli_monte-carlo");
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, analysisProject);
+            testCase.press(app.ProjectLoadButton);
+            testCase.press(app.ModelEditButton);
+            testCase.choose(app.TabGroup, "Result");
+            app.ResultDropDown.Value = "Details";
+            app.ModelTable.Selection = [1, 1];
+            app.RunTable.Selection = [1, 1];
+            plot(app.MainUIAxes, 1:3, 1:3);
+            plot(app.SubUIAxes, 1:3, 3:-1:1);
+
+            callback = app.ReloadWindowMenu.MenuSelectedFcn;
+            callback(app.ReloadWindowMenu, []);
+
+            testCase.verifyEqual( ...
+                string(app.ProjectDirectoryDropDown.Value), "");
+            testCase.verifyEqual( ...
+                string(app.TemplateModelDirectoryDropDown.Value), "");
+            testCase.verifyEqual(string(app.ProjectNameEditField.Value), "");
+            testCase.verifyEqual(string(app.ProjectAuthorEditField.Value), "");
+            testCase.verifyEqual(string(app.OrganismEditField.Value), "");
+            testCase.verifyEmpty(app.ModelTable.Data);
+            testCase.verifyEmpty(app.RunTable.Data);
+            testCase.verifyEmpty(app.ResultSubTable.Data);
+            testCase.verifyEmpty(app.ModelTable.Selection);
+            testCase.verifyEmpty(app.RunTable.Selection);
+            testCase.verifyEmpty(app.MainUIAxes.Children);
+            testCase.verifyEmpty(app.SubUIAxes.Children);
+            testCase.verifyEqual(string(app.ResultDropDown.Value), "Overview");
+            testCase.verifySameHandle( ...
+                app.TabGroup.SelectedTab, app.StoichiometryTab);
+            testCase.verifyEqual(string(app.RunRunButton.Text), "Run");
+            testCase.verifyEqual(string(app.ProjectLoadButton.Enable), "on");
+            testCase.verifyEqual(string(app.ModelTable.Enable), "off");
+            testCase.verifyEqual(string(app.ResultSubTable.Enable), "off");
+
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, analysisProject);
+            testCase.press(app.ProjectLoadButton);
+            testCase.verifyNotEmpty(app.ModelTable.Data);
+            testCase.verifyEmpty(app.Test_Alerts);
+
+        end
+
     end
 
     methods (Static, Access = private)
