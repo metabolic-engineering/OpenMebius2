@@ -2,12 +2,13 @@ classdef AppLogs_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        LogsUIFigure matlab.ui.Figure
-        FilesMenu matlab.ui.container.Menu
-        SaveAsCtrlSMenu matlab.ui.container.Menu
-        GridLayout matlab.ui.container.GridLayout
-        TextArea matlab.ui.control.TextArea
+        LogsUIFigure     matlab.ui.Figure
+        FilesMenu        matlab.ui.container.Menu
+        SaveAsCtrlSMenu  matlab.ui.container.Menu
+        GridLayout       matlab.ui.container.GridLayout
+        TextArea         matlab.ui.control.TextArea
     end
+
 
     properties (Access = private)
         NotificationPublisher (1, 1) function_handle = @(~) []
@@ -81,6 +82,7 @@ classdef AppLogs_exported < matlab.apps.AppBase
 
     end
 
+
     % Callbacks that handle component events
     methods (Access = private)
 
@@ -118,7 +120,6 @@ classdef AppLogs_exported < matlab.apps.AppBase
                 msg = "Failed to save log file: " + ME.message;
                 app.publishNotification("error", msg);
             end
-
         end
 
         % Key press function: LogsUIFigure
@@ -131,9 +132,7 @@ classdef AppLogs_exported < matlab.apps.AppBase
             elseif strcmp(key, "escape")
                 delete(app);
             end
-
         end
-
     end
 
     % Component initialization
@@ -174,7 +173,6 @@ classdef AppLogs_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.LogsUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -195,7 +193,6 @@ classdef AppLogs_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -204,7 +201,5 @@ classdef AppLogs_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.LogsUIFigure)
         end
-
     end
-
 end

@@ -49,9 +49,10 @@ are not required.
 4. Report messages through a callback accepting
    `openmebius.core.notification.Message`. Application and numerical code must
    not publish App Designer events.
-5. Change `.mlapp` files in App Designer and update the corresponding exported
-   source in the same change. The synchronization utility is a repair tool and
-   overwrites the code store inside the `.mlapp` file.
+5. Change `.mlapp` files in App Designer, save them there, and run
+   `synchronizeExportedSource` to update the corresponding review sources.
+   Reverse synchronization from `*_exported.m` is unsupported because it can
+   desynchronize generated code from the App Designer component model.
 6. Add a boundary test when introducing a new architectural constraint.
 
 # Verification

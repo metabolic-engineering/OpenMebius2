@@ -20,16 +20,18 @@ results = runtests("tests/OpenMebius2SourceSyncTest.m");
 assertSuccess(results);
 ```
 
-When an exported file intentionally contains the newer code and the `.mlapp`
-code store must be repaired, run:
+After editing and saving an App in App Designer, refresh the review artifact:
 
 ```matlab
 addpath("tools");
-synchronizeMlappSource("OpenMebius2");
+synchronizeExportedSource("OpenMebius2");
 ```
 
-This command replaces the App's internal code store. Reopen the App in App
-Designer and inspect the diff afterward. It does not recreate UI layout.
+Synchronization is intentionally one-way from `.mlapp` to `*_exported.m`.
+Do not copy exported source back into `.mlapp`: exported source includes
+generated regions whose formatting is not the App Designer component model.
+Reverse replacement can make an App open as modified and can lose edits in
+read-only generated methods.
 
 # Test profiles
 

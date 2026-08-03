@@ -2,19 +2,20 @@ classdef Preferences_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        PreferencesUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        GridLayout4 matlab.ui.container.GridLayout
-        CancelButton matlab.ui.control.Button
-        CloseButton matlab.ui.control.Button
-        TabGroup matlab.ui.container.TabGroup
-        NotificationTab matlab.ui.container.Tab
-        GridLayout2 matlab.ui.container.GridLayout
-        GridLayout3 matlab.ui.container.GridLayout
-        SlackWebhookEditField matlab.ui.control.EditField
-        WebhookEditFieldLabel matlab.ui.control.Label
-        SlacknotificationCheckBox matlab.ui.control.CheckBox
+        PreferencesUIFigure        matlab.ui.Figure
+        GridLayout                 matlab.ui.container.GridLayout
+        GridLayout4                matlab.ui.container.GridLayout
+        CancelButton               matlab.ui.control.Button
+        CloseButton                matlab.ui.control.Button
+        TabGroup                   matlab.ui.container.TabGroup
+        NotificationTab            matlab.ui.container.Tab
+        GridLayout2                matlab.ui.container.GridLayout
+        GridLayout3                matlab.ui.container.GridLayout
+        SlackWebhookEditField      matlab.ui.control.EditField
+        WebhookEditFieldLabel      matlab.ui.control.Label
+        SlacknotificationCheckBox  matlab.ui.control.CheckBox
     end
+
 
     properties (Access = private)
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
@@ -155,6 +156,7 @@ classdef Preferences_exported < matlab.apps.AppBase
 
     end % methods (Access = private)
 
+
     % Callbacks that handle component events
     methods (Access = private)
 
@@ -206,7 +208,6 @@ classdef Preferences_exported < matlab.apps.AppBase
                     Title = "Preferences", ...
                     ShowAlert = true));
             end
-
         end
 
         % Close request function: PreferencesUIFigure
@@ -214,7 +215,6 @@ classdef Preferences_exported < matlab.apps.AppBase
 
             delete(app);
         end
-
     end
 
     % Component initialization
@@ -302,7 +302,6 @@ classdef Preferences_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.PreferencesUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -323,7 +322,6 @@ classdef Preferences_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -332,7 +330,5 @@ classdef Preferences_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.PreferencesUIFigure)
         end
-
     end
-
 end
