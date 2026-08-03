@@ -383,7 +383,8 @@ classdef ResultPlotPresenter < handle
                 validX(:), "sorted");
             profileRSS = accumarray( ...
                 groups, validY(:), [], @min);
-            xLimits = [min(profileX), max(profileX)];
+            xMargin = 0.1 * abs(max(profileX) - min(profileX));
+            xLimits = [min(profileX) - xMargin, max(profileX) + xMargin];
 
             if xLimits(1) == xLimits(2)
                 xMargin = 0.05 * max(abs(xLimits(1)), 1);

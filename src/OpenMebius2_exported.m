@@ -1295,7 +1295,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             axes = app.SubUIAxes;
 
             cla(axes);
-            axes.Visible = 'on';
+            app.prepareCartesianResultAxes(axes);
             axes.FontSize = 16;
             axes.FontName = 'Arial';
             axes.XLim = [0 iterationCount + 1];
@@ -1346,7 +1346,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             profileX = profileX(finiteProfile);
             profileRSS = profileRSS(finiteProfile);
             cla(axes);
-            axes.Visible = 'on';
+            app.prepareCartesianResultAxes(axes);
             axes.FontSize = 16;
             axes.FontName = 'Arial';
             axes.XLabel.String = "Fixed flux";
@@ -1470,6 +1470,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             hold(axes, 'off');
 
         end % renderGridSearchProfile
+
+        function prepareCartesianResultAxes(~, axes)
+
+            axes.Visible = 'on';
+            axes.XColorMode = 'auto';
+            axes.YColorMode = 'auto';
+            axes.XTickMode = 'auto';
+            axes.YTickMode = 'auto';
+            axes.XTickLabelMode = 'auto';
+            axes.YTickLabelMode = 'auto';
+            axes.XLabel.Visible = 'on';
+            axes.YLabel.Visible = 'on';
+            axes.Title.Visible = 'on';
+
+        end % prepareCartesianResultAxes
 
         function clearResultPlots(app)
 

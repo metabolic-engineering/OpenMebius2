@@ -160,6 +160,50 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
 
         end
 
+        function rendersGridSearchAxesAfterWindowReload(testCase)
+
+            app = testCase.App;
+            reloadCallback = app.ReloadWindowMenu.MenuSelectedFcn;
+            reloadCallback(app.ReloadWindowMenu, []);
+            gridSearchProject = ...
+                OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                    testCase.TemporaryRoot, "ecoli_grid_search");
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, gridSearchProject);
+            testCase.press(app.ProjectLoadButton);
+            testCase.choose(app.TabGroup, "Result");
+            testCase.verifyNotEmpty(app.ResultSubTable.Data);
+
+            app.ResultSubTable.Selection = [1, 1];
+            app.testResultSubTableCellSelection();
+            testCase.verifyNotEmpty(app.ResultMainTable.Data);
+            gridSearchRow = find( ...
+                string(app.ResultMainTable.RowName) == "r2", 1);
+            testCase.assertNotEmpty(gridSearchRow);
+            app.ResultMainTable.Selection = [gridSearchRow, 1];
+            app.testResultMainTableCellSelection();
+
+            testCase.verifyNotEmpty(app.SubUIAxes.Children);
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.XLabel.String), "Fixed flux");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.YLabel.String), "RSS");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.XLabel.Visible), "on");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.YLabel.Visible), "on");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.XColorMode), "auto");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.YColorMode), "auto");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.XTickMode), "auto");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.YTickMode), "auto");
+            testCase.verifyEmpty(app.Test_Alerts);
+
+        end
+
     end
 
     methods (Static, Access = private)
