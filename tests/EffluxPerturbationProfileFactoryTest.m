@@ -30,6 +30,7 @@ classdef EffluxPerturbationProfileFactoryTest < ...
                 [0.5; 2], ...
                 [true; false]);
 
+            testCase.verifyEqual(profile.ReactionIDs, "R1");
             testCase.verifyEqual(profile.ReactionIndices, 2);
             testCase.verifyEqual(profile.ExperimentalValues, 3);
             testCase.verifyEqual(profile.StandardDeviations, 0.5);
@@ -51,6 +52,7 @@ classdef EffluxPerturbationProfileFactoryTest < ...
                 [true; true]);
 
             testCase.verifyEqual(profile.ReactionIndices, [2; 1]);
+            testCase.verifyEqual(profile.ReactionIDs, ["R1"; "R2"]);
             testCase.verifyEqual(profile.ExperimentalValues, [3; 5]);
             testCase.verifyEqual( ...
                 profile.StandardDeviations, [0.5; 2]);

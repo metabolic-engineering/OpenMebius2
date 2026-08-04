@@ -74,6 +74,7 @@ classdef EffluxPerturbationProfileFactory
             reactionNames = ...
                 string(stoichiometry.Properties.VariableNames);
             reactionIndices = nan(numel(selectedIndices), 1);
+            selectedReactionIDs = strings(numel(selectedIndices), 1);
 
             for i = 1:numel(selectedIndices)
                 substrate = substrateList(selectedIndices(i));
@@ -105,9 +106,11 @@ classdef EffluxPerturbationProfileFactory
                 end
 
                 reactionIndices(i) = reactionIndex;
+                selectedReactionIDs(i) = reactionID;
             end
 
             profile = openmebius.mfa.EffluxPerturbationProfile( ...
+                ReactionIDs = selectedReactionIDs, ...
                 ReactionIndices = reactionIndices, ...
                 ExperimentalValues = ...
                 experimentalValues(selectedIndices), ...
