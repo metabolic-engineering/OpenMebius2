@@ -1222,7 +1222,6 @@ classdef BatchSession < handle
             end % if isImportError
 
             obj.tableBatch = batchLoaded;
-            updateContentHash(obj, obj.tableBatch.id);
 
         end % loadBatchFile
 
