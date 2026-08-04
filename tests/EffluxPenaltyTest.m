@@ -33,6 +33,21 @@ classdef EffluxPenaltyTest < matlab.unittest.TestCase
 
         end
 
+        function evaluatesUsingIndependentProfile(testCase)
+
+            profile = openmebius.mfa.EffluxPerturbationProfile( ...
+                ReactionIndices = 2, ...
+                ExperimentalValues = 4, ...
+                StandardDeviations = 2);
+            penalty = openmebius.mfa.EffluxPenalty( ...
+                Profile = profile);
+
+            testCase.verifyEqual(penalty.evaluate([0; 6]), 1);
+            testCase.verifyEqual(penalty.Profile, profile);
+            testCase.verifyEqual(penalty.ReactionIndices, 2);
+
+        end
+
         function rejectsNonpositiveStandardDeviation(testCase)
 
             testCase.verifyError( ...
@@ -40,7 +55,7 @@ classdef EffluxPenaltyTest < matlab.unittest.TestCase
                 ReactionIndices = 1, ...
                 ExperimentalValues = 1, ...
                 StandardDeviations = 0), ...
-                "OpenMebius2:EffluxPenalty:InvalidStandardDeviation");
+            "OpenMebius2:EffluxPenalty:InvalidStandardDeviation");
 
         end
 
@@ -52,7 +67,7 @@ classdef EffluxPenaltyTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-                'src');
+            'src');
 
         end
 
