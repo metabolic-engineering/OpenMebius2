@@ -540,6 +540,30 @@ classdef ResultCatalog < handle
                     return;
                 end
 
+                profiles = obj.TableBuilder ...
+                    .gridSearchProfiles(gridSearch);
+
+                for profileIndex = 1:numel(profiles)
+                    sheetName = obj.gridSearchProfileSheetName( ...
+                        profiles(profileIndex).ReactionID, ...
+                        profileIndex);
+                    [isSuccess, msg] = obj.exportExcelFile( ...
+                        filePath, ...
+                        profiles(profileIndex).Data, ...
+                        sheetName, ...
+                        WriteRowNames = false);
+
+                    if ~isSuccess
+                        notifyGeneralMessage( ...
+                            obj, ...
+                            "error", ...
+                            "Failed to save grid-search profile " + ...
+                            profiles(profileIndex).ReactionID + ...
+                            ": " + msg);
+                        return;
+                    end
+                end
+
             end
 
             if ~status(2)
@@ -773,6 +797,37 @@ classdef ResultCatalog < handle
                 WriteVariableNames = options.WriteVariableNames);
 
         end % exportCsvTable
+
+        function sheetName = gridSearchProfileSheetName( ...
+                ~, reactionID, profileIndex)
+
+            safeReactionID = strip(string(reactionID));
+            invalidCharacters = [ ...
+                ":", string(char(92)), "/", "?", "*", ...
+                "[", "]", "'"];
+
+            for characterIndex = 1:numel(invalidCharacters)
+                safeReactionID = replace( ...
+                    safeReactionID, ...
+                    invalidCharacters(characterIndex), ...
+                    "_");
+            end
+
+            if ismissing(safeReactionID) || safeReactionID == ""
+                safeReactionID = "Flux";
+            end
+
+            prefix = "GS_" + compose("%03d", profileIndex) + "_";
+            maximumIDLength = 31 - strlength(prefix);
+
+            if strlength(safeReactionID) > maximumIDLength
+                safeReactionID = extractBetween( ...
+                    safeReactionID, 1, maximumIDLength);
+            end
+
+            sheetName = prefix + safeReactionID;
+
+        end % gridSearchProfileSheetName
 
         function tableRtn = getInformationTable(~, data)
             % GETINFORMATIONTABLE Get the information table from the result file.

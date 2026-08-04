@@ -342,6 +342,67 @@ classdef ResultTableBuilder
 
         end % gridSearch
 
+        function profiles = gridSearchProfiles(~, gridSearch)
+
+            profiles = repmat( ...
+                struct( ...
+                    "ReactionID", "", ...
+                    "FluxIndex", NaN, ...
+                    "Data", table()), ...
+                0, 1);
+
+            requiredVariables = [ ...
+                "ReactionID", "FluxIndex", "Trial", ...
+                "FixedFlux", "MinimumRSS"];
+
+            if isempty(gridSearch) || ~istable(gridSearch) || ...
+                    ~all(ismember( ...
+                    requiredVariables, ...
+                    string(gridSearch.Properties.VariableNames)))
+                return
+            end
+
+            fluxIndices = unique(gridSearch.FluxIndex, "stable");
+
+            for profileIndex = 1:numel(fluxIndices)
+                fluxIndex = fluxIndices(profileIndex);
+                rows = gridSearch.FluxIndex == fluxIndex & ...
+                    gridSearch.Trial == 1;
+
+                if ~any(rows)
+                    continue
+                end
+
+                reactionIDs = string(gridSearch.ReactionID(rows));
+                rawFixedFlux = double(gridSearch.FixedFlux(rows));
+                rawRSS = double(gridSearch.MinimumRSS(rows));
+                validFixedFlux = isfinite(rawFixedFlux);
+                rawFixedFlux = rawFixedFlux(validFixedFlux);
+                rawRSS = rawRSS(validFixedFlux);
+                [fixedFlux, ~, groups] = unique( ...
+                    rawFixedFlux(:), "sorted");
+                rss = nan(size(fixedFlux));
+
+                for groupIndex = 1:numel(fixedFlux)
+                    values = rawRSS(groups == groupIndex);
+                    values = values(isfinite(values));
+
+                    if ~isempty(values)
+                        rss(groupIndex) = min(values);
+                    end
+                end
+
+                profileData = table( ...
+                    fixedFlux, rss, ...
+                    'VariableNames', {'FixedFlux', 'RSS'});
+                profiles(end + 1, 1) = struct( ... %#ok<AGROW>
+                    "ReactionID", reactionIDs(1), ...
+                    "FluxIndex", double(fluxIndex), ...
+                    "Data", profileData);
+            end
+
+        end % gridSearchProfiles
+
     end
 
     methods (Static, Access = private)

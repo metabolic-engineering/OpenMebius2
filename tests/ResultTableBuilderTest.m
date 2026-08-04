@@ -109,6 +109,41 @@ classdef ResultTableBuilderTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 value.ObjectiveThreshold, 5.5 * ones(4, 1));
 
+            profiles = builder.gridSearchProfiles(value);
+            testCase.verifyNumElements(profiles, 1);
+            testCase.verifyEqual(profiles.ReactionID, "R1");
+            testCase.verifyEqual(profiles.FluxIndex, 1);
+            testCase.verifyEqual( ...
+                string(profiles.Data.Properties.VariableNames), ...
+                ["FixedFlux", "RSS"]);
+            testCase.verifyEqual(profiles.Data.FixedFlux, [0.5; 1]);
+            testCase.verifyEqual(profiles.Data.RSS, [5; 3]);
+
+        end
+
+        function gridSearchProfilesCollapseDuplicateFixedFlux(testCase)
+
+            builder = openmebius.application.result.ResultTableBuilder();
+            data = ResultTableBuilderTest.resultData([10; 20]);
+            data.CI.algorithm = "Grid search";
+            data.CI.gridSearch = struct( ...
+                fluxIndices = 1, ...
+                reactionIDs = "R1", ...
+                fixedFlux = [0.5, 1.0, 1.0], ...
+                RSS = cat(3, [6, 5, 4], [5, 4, 3]), ...
+                minimumRSS = [5, 4, 3], ...
+                bestObjective = 2, ...
+                objectiveThreshold = 5.5);
+
+            [longTable, message] = builder.gridSearch(data);
+            profiles = builder.gridSearchProfiles(longTable);
+
+            testCase.verifyEqual(message, "");
+            testCase.verifyNumElements(profiles, 1);
+            testCase.verifyEqual( ...
+                profiles.Data.FixedFlux, [0.5; 1]);
+            testCase.verifyEqual(profiles.Data.RSS, [5; 3]);
+
         end
 
     end
