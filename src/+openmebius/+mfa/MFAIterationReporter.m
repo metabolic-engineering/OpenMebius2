@@ -84,7 +84,7 @@ classdef MFAIterationReporter
 
             if isfinite(options.ElapsedSeconds)
                 elapsedText = compose( ...
-                    "%.2f s", options.ElapsedSeconds);
+                    "%.2f sec", options.ElapsedSeconds);
                 elapsedMessage = " Elapsed: " + elapsedText + ".";
             end
 
