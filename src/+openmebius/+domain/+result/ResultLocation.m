@@ -24,11 +24,41 @@ classdef ResultLocation
 
         end % resultFile
 
+        function path = manifestFile(obj, id)
+
+            path = fullfile(obj.Directory, string(id) + ".manifest.json");
+
+        end % manifestFile
+
+        function paths = resultArtifactFiles(obj, id)
+
+            paths = [obj.resultFile(id); obj.manifestFile(id)];
+
+        end % resultArtifactFiles
+
         function path = reportFile(obj, fileName)
 
             path = obj.artifactFile(fileName);
 
         end % reportFile
+
+        function path = summaryReportFile(obj)
+
+            path = obj.reportFile("summary.html");
+
+        end % summaryReportFile
+
+        function tf = hasDirectory(obj)
+
+            tf = obj.Directory ~= "";
+
+        end % hasDirectory
+
+        function tf = directoryExists(obj)
+
+            tf = obj.hasDirectory() && isfolder(obj.Directory);
+
+        end % directoryExists
 
         function path = artifactFile(obj, fileName)
 
@@ -48,6 +78,12 @@ classdef ResultLocation
             tf = isfile(obj.resultFile(id));
 
         end % hasResultFile
+
+        function tf = hasManifestFile(obj, id)
+
+            tf = isfile(obj.manifestFile(id));
+
+        end % hasManifestFile
 
         function files = resultFiles(obj)
 

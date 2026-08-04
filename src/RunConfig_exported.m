@@ -2,149 +2,159 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        BatchconfigUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        TabGroup matlab.ui.container.TabGroup
-        GeneralTab matlab.ui.container.Tab
-        GridLayout5_2 matlab.ui.container.GridLayout
-        GridLayout7_2 matlab.ui.container.GridLayout
-        GeneralDefaultButton matlab.ui.control.Button
-        GeneralApplyButton matlab.ui.control.Button
-        GeneralApplyAllButton matlab.ui.control.Button
-        GeneralCloseButton matlab.ui.control.Button
-        GridLayout6_2 matlab.ui.container.GridLayout
-        TabGroup2 matlab.ui.container.TabGroup
-        MonteCarloTab matlab.ui.container.Tab
-        GridLayout9 matlab.ui.container.GridLayout
-        GridLayout10_8 matlab.ui.container.GridLayout
-        MCMethodDropDown matlab.ui.control.DropDown
-        CalculationmethodsDropDownLabel matlab.ui.control.Label
-        GridLayout10_7 matlab.ui.container.GridLayout
-        MCKNREditField matlab.ui.control.NumericEditField
-        ThenumberofrunsiKisubNRsubEditFieldLabel matlab.ui.control.Label
-        GridLayout10_6 matlab.ui.container.GridLayout
-        MCNasEditField matlab.ui.control.NumericEditField
-        CertainthresholdiNisubASsubEditFieldLabel matlab.ui.control.Label
-        GridLayout10_5 matlab.ui.container.GridLayout
-        MCProximityEditField matlab.ui.control.NumericEditField
-        ProximitythresholdepsilonLabel matlab.ui.control.Label
-        GridLayout10_4 matlab.ui.container.GridLayout
-        MCTTEditField matlab.ui.control.NumericEditField
-        TerminationtoleranceTTEditFieldLabel matlab.ui.control.Label
-        GridLayout10_3 matlab.ui.container.GridLayout
-        MCProcedureDropDown matlab.ui.control.DropDown
-        OptimizationprocedureDropDownLabel matlab.ui.control.Label
-        GridLayout10_2 matlab.ui.container.GridLayout
-        MCMIDSDEditField matlab.ui.control.NumericEditField
-        VariationsforMIDserrorLabel matlab.ui.control.Label
-        MCFixMIDCheckBox matlab.ui.control.CheckBox
-        GridLayout10 matlab.ui.container.GridLayout
-        MCLmaxEditField matlab.ui.control.NumericEditField
-        maximumnumberoftrialsLsubmaxsubLabel matlab.ui.control.Label
-        GridsearchTab matlab.ui.container.Tab
-        GridLayout11 matlab.ui.container.GridLayout
-        GridLayout12_4 matlab.ui.container.GridLayout
-        ThresholdDropDown matlab.ui.control.DropDown
-        ThresholdDropDownLabel matlab.ui.control.Label
-        GridLayout12_3 matlab.ui.container.GridLayout
-        IterationtimesforgridsearchEditField matlab.ui.control.NumericEditField
-        IterationtimesforgridsearchEditFieldLabel matlab.ui.control.Label
-        GridLayout12_2 matlab.ui.container.GridLayout
-        GridintervalDeltaixiEditField matlab.ui.control.NumericEditField
-        GridintervalDeltaixiEditFieldLabel matlab.ui.control.Label
-        GridLayout12 matlab.ui.container.GridLayout
-        ThenumberofgridpointsEditField matlab.ui.control.NumericEditField
-        ThenumberofgridpointsEditFieldLabel matlab.ui.control.Label
-        DeterminegridintervalautomaticallyCheckBox matlab.ui.control.CheckBox
-        GridLayout8 matlab.ui.container.GridLayout
-        INSTMFACheckBox matlab.ui.control.CheckBox
-        DeleteResultButton matlab.ui.control.CheckBox
-        GridLayoutAlgorithm_2 matlab.ui.container.GridLayout
-        AlgorithmCIDropDown matlab.ui.control.DropDown
-        AlgorithmforCIcalculationDropDownLabel matlab.ui.control.Label
-        CalcCICheckBox matlab.ui.control.CheckBox
-        PerturbateEffluxCheckBox matlab.ui.control.CheckBox
-        SuggestionCheckBox matlab.ui.control.CheckBox
-        LargeScaleCheckBox matlab.ui.control.CheckBox
-        GridLayoutAlgorithm matlab.ui.container.GridLayout
-        AlgorithmDropDown matlab.ui.control.DropDown
-        CalculationalgorithmDropDownLabel matlab.ui.control.Label
-        GridLayoutIteration matlab.ui.container.GridLayout
-        IterationSpinner matlab.ui.control.Spinner
-        IterationtimesforcalculationSpinnerLabel matlab.ui.control.Label
-        MSfragmentTab matlab.ui.container.Tab
-        GridLayout5 matlab.ui.container.GridLayout
-        MSTable matlab.ui.control.Table
-        GridLayout7 matlab.ui.container.GridLayout
-        MSDefaultButton matlab.ui.control.Button
-        MSApplyButton matlab.ui.control.Button
-        MSApplyAllButton matlab.ui.control.Button
-        MSCloseButton matlab.ui.control.Button
-        EffluxperturbationTab matlab.ui.container.Tab
-        GridLayout13 matlab.ui.container.GridLayout
-        GridLayout22 matlab.ui.container.GridLayout
-        EffluxUITable matlab.ui.control.Table
-        GridLayout15 matlab.ui.container.GridLayout
-        EffluxApplyButton matlab.ui.control.Button
-        EffluxApplyAllButton matlab.ui.control.Button
-        EffluxCloseButton matlab.ui.control.Button
-        TracersuggestionTab matlab.ui.container.Tab
-        GridLayout14 matlab.ui.container.GridLayout
-        GridLayout17 matlab.ui.container.GridLayout
-        GridLayout18 matlab.ui.container.GridLayout
-        LabelTable matlab.ui.control.Table
-        GridLayout16 matlab.ui.container.GridLayout
-        SuggestionApplyButton matlab.ui.control.Button
-        SuggestionApplyForAllButton matlab.ui.control.Button
-        SuggestionCloseButton matlab.ui.control.Button
-        INSTMFATab matlab.ui.container.Tab
-        GridLayout13_2 matlab.ui.container.GridLayout
-        GridLayout20 matlab.ui.container.GridLayout
-        INSTMFATimeCourseUITable matlab.ui.control.Table
-        GridLayout21 matlab.ui.container.GridLayout
-        INSTMFAPoolUITable matlab.ui.control.Table
-        GridLayout15_2 matlab.ui.container.GridLayout
-        INSTMFAReloadButton matlab.ui.control.Button
-        INSTMFAApplyButton matlab.ui.control.Button
-        INSTMFACloseButton matlab.ui.control.Button
-        ContextMenu matlab.ui.container.ContextMenu
-        AddnewpatternMenu matlab.ui.container.Menu
-        AddnewpatternsMenu matlab.ui.container.Menu
-        CopythistracerforallentriesMenu matlab.ui.container.Menu
-        ContextMenuINST matlab.ui.container.ContextMenu
-        AddexperimentsMenu matlab.ui.container.Menu
-        RemoveselectedexperimentMenu matlab.ui.container.Menu
+        BatchconfigUIFigure             matlab.ui.Figure
+        GridLayout                      matlab.ui.container.GridLayout
+        TabGroup                        matlab.ui.container.TabGroup
+        GeneralTab                      matlab.ui.container.Tab
+        GridLayout5_2                   matlab.ui.container.GridLayout
+        GridLayout7_2                   matlab.ui.container.GridLayout
+        GeneralRestoreDefaultButton     matlab.ui.control.Button
+        GeneralApplyButton              matlab.ui.control.Button
+        GeneralCancelButton             matlab.ui.control.Button
+        GridLayout6_2                   matlab.ui.container.GridLayout
+        TabGroup2                       matlab.ui.container.TabGroup
+        MonteCarloTab                   matlab.ui.container.Tab
+        GridLayout9                     matlab.ui.container.GridLayout
+        GridLayout10_8                  matlab.ui.container.GridLayout
+        MCMethodDropDown                matlab.ui.control.DropDown
+        CalculationmethodsDropDownLabel  matlab.ui.control.Label
+        GridLayout10_7                  matlab.ui.container.GridLayout
+        MCKNREditField                  matlab.ui.control.NumericEditField
+        ThenumberofrunsiKisubNRsubEditFieldLabel  matlab.ui.control.Label
+        GridLayout10_6                  matlab.ui.container.GridLayout
+        MCNasEditField                  matlab.ui.control.NumericEditField
+        CertainthresholdiNisubASsubEditFieldLabel  matlab.ui.control.Label
+        GridLayout10_5                  matlab.ui.container.GridLayout
+        MCProximityEditField            matlab.ui.control.NumericEditField
+        ProximitythresholdepsilonLabel  matlab.ui.control.Label
+        GridLayout10_4                  matlab.ui.container.GridLayout
+        MCTTEditField                   matlab.ui.control.NumericEditField
+        TerminationtoleranceTTEditFieldLabel  matlab.ui.control.Label
+        GridLayout10_3                  matlab.ui.container.GridLayout
+        MCProcedureDropDown             matlab.ui.control.DropDown
+        OptimizationprocedureDropDownLabel  matlab.ui.control.Label
+        GridLayout10_2                  matlab.ui.container.GridLayout
+        MCMIDSDEditField                matlab.ui.control.NumericEditField
+        VariationsforMIDserrorLabel     matlab.ui.control.Label
+        MCFixMIDCheckBox                matlab.ui.control.CheckBox
+        GridLayout10                    matlab.ui.container.GridLayout
+        MCLmaxEditField                 matlab.ui.control.NumericEditField
+        maximumnumberoftrialsLsubmaxsubLabel  matlab.ui.control.Label
+        GridsearchTab                   matlab.ui.container.Tab
+        GridLayout11                    matlab.ui.container.GridLayout
+        CheckBox                        matlab.ui.control.CheckBox
+        GridLayout12_4                  matlab.ui.container.GridLayout
+        ThresholdDropDown               matlab.ui.control.DropDown
+        ThresholdDropDownLabel          matlab.ui.control.Label
+        GridLayout12_3                  matlab.ui.container.GridLayout
+        IterationtimesforgridsearchEditField  matlab.ui.control.NumericEditField
+        IterationtimesforgridsearchEditFieldLabel  matlab.ui.control.Label
+        GridLayout12_2                  matlab.ui.container.GridLayout
+        GridintervalDeltaixiEditField   matlab.ui.control.NumericEditField
+        GridintervalDeltaixiEditFieldLabel  matlab.ui.control.Label
+        GridLayout12                    matlab.ui.container.GridLayout
+        ThenumberofgridpointsEditField  matlab.ui.control.NumericEditField
+        ThenumberofgridpointsEditFieldLabel  matlab.ui.control.Label
+        DeterminegridintervalautomaticallyCheckBox  matlab.ui.control.CheckBox
+        GridreactionTab                 matlab.ui.container.Tab
+        GridLayout23                    matlab.ui.container.GridLayout
+        GridReactionUITable             matlab.ui.control.Table
+        GridLayout8                     matlab.ui.container.GridLayout
+        INSTMFACheckBox                 matlab.ui.control.CheckBox
+        DeleteResultButton              matlab.ui.control.CheckBox
+        GridLayoutAlgorithm_2           matlab.ui.container.GridLayout
+        AlgorithmCIDropDown             matlab.ui.control.DropDown
+        AlgorithmforCIcalculationDropDownLabel  matlab.ui.control.Label
+        CalcCICheckBox                  matlab.ui.control.CheckBox
+        PerturbateEffluxCheckBox        matlab.ui.control.CheckBox
+        SuggestionCheckBox              matlab.ui.control.CheckBox
+        LargeScaleCheckBox              matlab.ui.control.CheckBox
+        GridLayoutAlgorithm             matlab.ui.container.GridLayout
+        AlgorithmDropDown               matlab.ui.control.DropDown
+        CalculationalgorithmDropDownLabel  matlab.ui.control.Label
+        GridLayoutIteration             matlab.ui.container.GridLayout
+        IterationSpinner                matlab.ui.control.Spinner
+        IterationtimesforcalculationSpinnerLabel  matlab.ui.control.Label
+        MSfragmentTab                   matlab.ui.container.Tab
+        GridLayout5                     matlab.ui.container.GridLayout
+        MSTable                         matlab.ui.control.Table
+        GridLayout7                     matlab.ui.container.GridLayout
+        MSRestoreDefaultButton          matlab.ui.control.Button
+        MSApplyAllButton                matlab.ui.control.Button
+        MSCancelButton                  matlab.ui.control.Button
+        EffluxperturbationTab           matlab.ui.container.Tab
+        GridLayout13                    matlab.ui.container.GridLayout
+        GridLayout22                    matlab.ui.container.GridLayout
+        EffluxUITable                   matlab.ui.control.Table
+        GridLayout15                    matlab.ui.container.GridLayout
+        EffluxRestoreDefaultButton      matlab.ui.control.Button
+        EffluxApplyButton               matlab.ui.control.Button
+        EffluxCancelButton              matlab.ui.control.Button
+        TracersuggestionTab             matlab.ui.container.Tab
+        GridLayout14                    matlab.ui.container.GridLayout
+        GridLayout17                    matlab.ui.container.GridLayout
+        GridLayout18                    matlab.ui.container.GridLayout
+        LabelTable                      matlab.ui.control.Table
+        GridLayout16                    matlab.ui.container.GridLayout
+        SuggestionApplyButton           matlab.ui.control.Button
+        SuggestionRestoreDefaultButton  matlab.ui.control.Button
+        SuggestionCancelButton          matlab.ui.control.Button
+        INSTMFATab                      matlab.ui.container.Tab
+        GridLayout13_2                  matlab.ui.container.GridLayout
+        GridLayout20                    matlab.ui.container.GridLayout
+        INSTMFATimeCourseUITable        matlab.ui.control.Table
+        GridLayout21                    matlab.ui.container.GridLayout
+        INSTMFAPoolUITable              matlab.ui.control.Table
+        GridLayout15_2                  matlab.ui.container.GridLayout
+        INSTMFAApplyButton              matlab.ui.control.Button
+        INSTMFARestoreDefaultButton     matlab.ui.control.Button
+        INSTMFACancelButton             matlab.ui.control.Button
+        ContextMenu                     matlab.ui.container.ContextMenu
+        AddnewpatternMenu               matlab.ui.container.Menu
+        AddnewpatternsMenu              matlab.ui.container.Menu
+        CopythistracerforallentriesMenu  matlab.ui.container.Menu
+        ContextMenuINST                 matlab.ui.container.ContextMenu
+        AddexperimentsMenu              matlab.ui.container.Menu
+        RemoveselectedexperimentMenu    matlab.ui.container.Menu
     end
+
 
     %% Private properties
     properties (Access = private)
-        MainApp
+        Session openmebius.application.batch.BatchConfigurationSession
+        Presenter openmebius.presentation.batch.RunConfigPresenter
+        Controller openmebius.application.batch.BatchConfigurationController
+        BatchExperimentSelectionEditorController openmebius.application.batch.BatchExperimentSelectionEditorController
+        BatchExperimentSelectionEditorPresenter openmebius.presentation.batch.BatchExperimentSelectionEditorPresenter
         RunAddBatchApp
-        selection
-        selectedConfig
+        TracerConfigApp
+        ChildAppHost openmebius.presentation.lifecycle.ChildAppHost
+        ExperimentEditController openmebius.application.experiment.ExperimentEditController
+        ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
+        MSFragmentTableMetadata
     end
 
-    %% Public methods
-    properties (Access = public)
-        exp
-    end
+    events
+        Applied
+        Closed
+        NotificationRequested
+        BatchExperimentSelectionApplied
+    end % events
 
     methods (Access = protected)
 
         function updateINSTMFATimeCourseTable(app)
 
-            [currentID, isSingle] = app.getCurrentIDs();
+            viewModel = app.Presenter.presentINSTMFATables(app.Session);
+            app.requestNotifications(viewModel.Notifications);
 
-            if ~isSingle
+            if ~viewModel.IsAvailable
                 return;
             end
 
-            [timePointTable, timePointTableColumnEditable] = app.MainApp.batch.getBatchINSTMFATimePoints(currentID);
-
-            app.INSTMFATimeCourseUITable.Data = timePointTable;
-            app.INSTMFATimeCourseUITable.ColumnName = timePointTable.Properties.VariableNames;
-            app.INSTMFATimeCourseUITable.RowName = {};
-            app.INSTMFATimeCourseUITable.ColumnEditable = timePointTableColumnEditable;
+            app.renderTableViewModel( ...
+                app.INSTMFATimeCourseUITable, ...
+                viewModel.TimePointTable);
 
         end % updateINSTMFATimeCourseTable
 
@@ -153,303 +163,252 @@ classdef RunConfig_exported < matlab.apps.AppBase
     %% Private methods
     methods (Access = private)
 
-        function setConfigValue(app)
-            % SETCONFIGVALUE Set the configuration values in the app
-            % based on the selected batch row
+        function initializeView(app, context)
 
-            batch = app.MainApp.batch.getBatchForGUI();
-            numSelected = size(app.selection, 1);
+            app.Session = context.Session;
+            app.Presenter = context.Presenter;
+            app.Controller = context.ConfigurationController;
+            app.ExperimentEditController = ...
+                context.ExperimentEditController;
+            app.ExperimentPresenter = context.ExperimentPresenter;
+            app.BatchExperimentSelectionEditorController = ...
+                context.ExperimentSelectionController;
+            app.BatchExperimentSelectionEditorPresenter = ...
+                context.ExperimentSelectionPresenter;
+            app.ChildAppHost = context.ChildAppHost;
+            editor = context.Editor;
+            app.renderRunConfigViewModel(editor.Config);
+            app.MSFragmentTableMetadata = editor.MSFragmentTable.Metadata;
+            app.renderTableViewModel(app.MSTable, editor.MSFragmentTable);
+            app.renderTableViewModel( ...
+                app.GridReactionUITable, editor.GridReactionTable);
+            app.renderTableViewModel( ...
+                app.EffluxUITable, editor.EffluxTable);
+            app.renderTableViewModel( ...
+                app.LabelTable, editor.SuggestionTable);
+            app.renderTableViewModel( ...
+                app.INSTMFAPoolUITable, ...
+                editor.INSTMFATables.PoolTable);
+            app.renderTableViewModel( ...
+                app.INSTMFATimeCourseUITable, ...
+                editor.INSTMFATables.TimePointTable);
+            app.renderControlState(editor.ControlState);
+            app.wireActionButtons();
 
-            for i = 1:numSelected
+        end % initializeView
 
-                iId = batch.ID(app.selection(i));
-                iConfig = app.MainApp.batch.getBatchConfig(iId);
-                app.selectedConfig = [app.selectedConfig; iConfig];
+        function copySelectedTracerColumn(app)
 
+            selection = app.LabelTable.Selection;
+
+            if isempty(selection)
+                return
             end
 
-        end % setConfigValue
+            column = selection(1, 2);
+            selectedLabel = app.LabelTable.Data{selection(1, 1), column};
+            tableData = app.LabelTable.Data;
 
-        function [currentID, isSingle] = getCurrentIDs(app)
-
-            batch = app.MainApp.batch.getBatchForGUI();
-            currentID = batch.ID(app.selection);
-
-            if isscalar(currentID)
-                isSingle = true;
-            else
-                isSingle = false;
+            for row = 1:size(tableData, 1)
+                tableData{row, column} = selectedLabel;
             end
 
-        end % getCurrentIDs
+            app.LabelTable.Data = tableData;
 
-        function fillConfigValueToUI(app)
-            % FILLCONFIGVALUETOUTI Fill the configuration values into the UI components
+        end % copySelectedTracerColumn
 
-            % Iteration times
-            iterationTimes = arrayfun(@(x) x.iteration, app.selectedConfig);
-            app.IterationSpinner.Value = iterationTimes(1);
-            clear iterationTimes
+        function addPatternRows(app)
 
-            % Algorithm
-            algorithm = arrayfun(@(x) x.algorithm, app.selectedConfig, "UniformOutput", false);
-            algorithm = algorithm{1};
+            answer = inputdlg( ...
+                'Enter the number of new patterns to add:', ...
+                'Add New Patterns', [1, 50], {'1'});
 
-            switch lower(string(algorithm))
-                case {"interior-point", "ipms"}
-                    app.AlgorithmDropDown.Value = 'IPMs';
-                case {"sqp", "sqp-legacy"}
-                    app.AlgorithmDropDown.Value = 'SQP';
+            if isempty(answer)
+                return
             end
 
-            clear algorithm
+            numberOfRows = str2double(answer{1});
 
-            % Large scale problem
-            largeScale = arrayfun(@(x) x.largeScale, app.selectedConfig);
-            app.LargeScaleCheckBox.Value = largeScale(1);
-            clear largeScale
-
-            % Suggest next flux
-            suggestNextFlux = arrayfun(@(x) x.suggestNextFlux, app.selectedConfig);
-            app.SuggestionCheckBox.Value = suggestNextFlux(1);
-            clear suggestNextFlux
-
-            % Perturbate efflux
-            perturbateEfflux = arrayfun(@(x) x.perturbateEfflux, app.selectedConfig);
-            app.PerturbateEffluxCheckBox.Value = perturbateEfflux(1);
-            clear perturbateEfflux
-
-            % Calculate confidence intervals
-            isCalcCI = arrayfun(@(x) x.isCalcCI, app.selectedConfig);
-            app.CalcCICheckBox.Value = isCalcCI(1);
-            clear isCalcCI
-
-            % CI Calculation Algorithm
-            ciAlgorithm = arrayfun(@(x) x.CIConf.algorithm, app.selectedConfig, "UniformOutput", false);
-            ciAlgorithm = ciAlgorithm{1};
-
-            app.AlgorithmCIDropDown.Value = ciAlgorithm;
-
-            clear ciAlgorithm
-
-            isDeleteResultFile = arrayfun(@(x) x.deleteResultFile, app.selectedConfig);
-            app.DeleteResultButton.Value = isDeleteResultFile(1);
-            clear isDeleteResultFile
-
-            % Monte Carlo-specific settings
-            if strcmp(app.AlgorithmCIDropDown.Value, 'Monte Carlo')
-                mcConfig = app.selectedConfig(1).CIConf.MC;
-
-                app.MCLmaxEditField.Value = mcConfig.iteration;
-                app.MCFixMIDCheckBox.Value = mcConfig.fixMID;
-                app.MCMIDSDEditField.Value = mcConfig.MIDSD;
-
-                switch mcConfig.optimizationProcedure
-                    case 'single'
-                        app.MCProcedureDropDown.Value = 'Single run';
-                    case 'multiple'
-                        app.MCProcedureDropDown.Value = 'Multiple run';
-                end
-
-                app.MCTTEditField.Value = mcConfig.terminationTolerance;
-                app.MCProximityEditField.Value = mcConfig.proximityThreshold;
-                app.MCNasEditField.Value = mcConfig.certainThreshold;
-                app.MCKNREditField.Value = mcConfig.theNumberOfRuns;
-
-                switch mcConfig.calculationMethod
-                    case 'discarding'
-                        app.MCMethodDropDown.Value = 'Discarding';
-                    case 'mean-varianced'
-                        app.MCMethodDropDown.Value = 'Mean-varianced';
-                end
-
+            if ~isfinite(numberOfRows) || numberOfRows <= 0 || ...
+                    numberOfRows ~= fix(numberOfRows)
+                return
             end
 
-            % Grid search-specific settings
-            if strcmp(app.AlgorithmCIDropDown.Value, 'Grid search')
-                gridConfig = app.selectedConfig(1).CIConf.grid;
+            tableData = app.LabelTable.Data;
+            newRows = strings(numberOfRows, width(tableData));
+            tableData = [tableData; array2table( ...
+                             newRows, VariableNames = app.LabelTable.ColumnName.')];
+            app.LabelTable.Data = tableData;
 
-                app.DeterminegridintervalautomaticallyCheckBox.Value = gridConfig.isParallel;
-                app.ThenumberofgridpointsEditField.Value = gridConfig.points;
-                app.GridintervalDeltaixiEditField.Value = gridConfig.delta;
-                app.IterationtimesforgridsearchEditField.Value = gridConfig.iteration;
+        end % addPatternRows
 
-                switch gridConfig.threshold
-                    case 'chi-sq'
-                        app.ThresholdDropDown.Value = 'Chi-squared';
-                    case 'F-dist'
-                        app.ThresholdDropDown.Value = 'F-distribution';
-                end
+        function renderRunConfigViewModel(app, viewModel)
+            % RENDERRUNCONFIGVIEWMODEL Render typed configuration values.
 
+            app.IterationSpinner.Value = viewModel.Iteration;
+            app.AlgorithmDropDown.Value = viewModel.Algorithm;
+            app.LargeScaleCheckBox.Value = viewModel.LargeScale;
+            app.SuggestionCheckBox.Value = viewModel.SuggestNextFlux;
+            app.PerturbateEffluxCheckBox.Value = ...
+                viewModel.PerturbateEfflux;
+            app.CalcCICheckBox.Value = viewModel.CalculateCI;
+            app.AlgorithmCIDropDown.Value = viewModel.CIAlgorithm;
+            app.DeleteResultButton.Value = viewModel.DeleteResultFile;
+
+            app.MCLmaxEditField.Value = viewModel.MCIterations;
+            app.MCFixMIDCheckBox.Value = viewModel.MCFixMID;
+            app.MCMIDSDEditField.Value = ...
+                viewModel.MCMIDStandardDeviation;
+            app.MCProcedureDropDown.Value = ...
+                viewModel.MCOptimizationProcedure;
+            app.MCTTEditField.Value = ...
+                viewModel.MCTerminationTolerance;
+            app.MCProximityEditField.Value = ...
+                viewModel.MCProximityThreshold;
+            app.MCNasEditField.Value = viewModel.MCCertainThreshold;
+            app.MCKNREditField.Value = viewModel.MCNumberOfRuns;
+            app.MCMethodDropDown.Value = ...
+                viewModel.MCCalculationMethod;
+
+            app.DeterminegridintervalautomaticallyCheckBox.Value = ...
+                viewModel.GridAutomaticInterval;
+            app.CheckBox.Value = viewModel.GridParallelExecution;
+            app.ThenumberofgridpointsEditField.Value = ...
+                viewModel.GridPoints;
+            app.GridintervalDeltaixiEditField.Value = viewModel.GridDelta;
+            app.IterationtimesforgridsearchEditField.Value = ...
+                viewModel.GridIterations;
+            app.ThresholdDropDown.Value = viewModel.GridThreshold;
+
+            app.INSTMFACheckBox.Value = viewModel.IsINSTMFA;
+            app.INSTMFAPoolUITable.Data = viewModel.INSTMFAPoolTable;
+            app.INSTMFATimeCourseUITable.Data = ...
+                viewModel.INSTMFATimePointTable;
+
+        end % renderRunConfigViewModel
+
+        function renderTableViewModel(~, component, viewModel)
+
+            component.Data = viewModel.Data;
+            component.ColumnName = viewModel.ColumnName;
+            component.RowName = viewModel.RowName;
+            component.ColumnEditable = viewModel.ColumnEditable;
+
+        end % renderTableViewModel
+
+        function requestNotifications(app, notifications)
+
+            for notificationIndex = 1:numel(notifications)
+                eventData = openmebius.presentation.notification ...
+                    .NotificationEventData( ...
+                    notifications{notificationIndex});
+                notify(app, "NotificationRequested", eventData);
             end
 
-            app.INSTMFACheckBox.Value = app.selectedConfig(1).isINSTMFA;
+        end % requestNotifications
 
-            if app.INSTMFACheckBox.Value
-
-                INSTMFA = app.selectedConfig(1).INSTMFA;
-
-                if isempty(INSTMFA)
-                    return
-                end
-
-                % Pool size
-                app.INSTMFAPoolUITable.Data = table( ...
-                    string(INSTMFA.poolMetabolite(:)), ...
-                    double(INSTMFA.poolSize(:)), ...
-                    'VariableNames', {'Metabolite', 'PoolSize'} ...
-                );
-                app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
-                app.INSTMFAPoolUITable.RowName = {};
-                app.INSTMFAPoolUITable.ColumnEditable = [false, true];
-                % Time course
-                app.INSTMFATimeCourseUITable.Data = table( ...
-                    string(INSTMFA.timePointsExpName(:)), ...
-                    double(INSTMFA.timePoints(:)), ...
-                    'VariableNames', {'TimePointExpName', 'TimePoint'} ...
-                );
-                app.INSTMFATimeCourseUITable.ColumnName = {'TimePointExpName', 'TimePoint'};
-                app.INSTMFATimeCourseUITable.RowName = {};
-                app.INSTMFATimeCourseUITable.ColumnEditable = [false, true];
-
-            end % if app.INSTMFACheckBox.Value
-
-        end % fillConfigValueToUI
-
-        function enabledisableCIUI(app, isCalcCI)
-            % ENABLEDISABLECIUI Enable or disable CI-related UI components
-            % based on the isCalcCI flag
-
-            if isCalcCI
-                % Enable CI-related components
-                app.AlgorithmCIDropDown.Enable = 'on';
-
-                % Check the selected algorithm and enable/disable components accordingly
-                selectedAlgorithm = app.AlgorithmCIDropDown.Value;
-
-                switch selectedAlgorithm
-                    case 'Monte Carlo'
-                        % Enable Monte Carlo-specific components
-                        app.MCLmaxEditField.Enable = 'on';
-                        app.MCFixMIDCheckBox.Enable = 'on';
-                        app.MCMIDSDEditField.Enable = 'on';
-                        app.MCProcedureDropDown.Enable = 'on';
-                        app.MCTTEditField.Enable = 'on';
-                        app.MCProximityEditField.Enable = 'on';
-                        app.MCNasEditField.Enable = 'on';
-                        app.MCKNREditField.Enable = 'on';
-                        app.MCMethodDropDown.Enable = 'on';
-
-                        % Disable Grid Search-specific components
-                        app.DeterminegridintervalautomaticallyCheckBox.Enable = 'off';
-                        app.ThenumberofgridpointsEditField.Enable = 'off';
-                        app.GridintervalDeltaixiEditField.Enable = 'off';
-                        app.IterationtimesforgridsearchEditField.Enable = 'off';
-                        app.ThresholdDropDown.Enable = 'off';
-
-                    case 'Grid search'
-                        % Enable Grid Search-specific components
-                        app.DeterminegridintervalautomaticallyCheckBox.Enable = 'on';
-                        app.ThenumberofgridpointsEditField.Enable = 'on';
-                        app.GridintervalDeltaixiEditField.Enable = 'on';
-                        app.IterationtimesforgridsearchEditField.Enable = 'on';
-                        app.ThresholdDropDown.Enable = 'on';
-
-                        % Disable Monte Carlo-specific components
-                        app.MCLmaxEditField.Enable = 'off';
-                        app.MCFixMIDCheckBox.Enable = 'off';
-                        app.MCMIDSDEditField.Enable = 'off';
-                        app.MCProcedureDropDown.Enable = 'off';
-                        app.MCTTEditField.Enable = 'off';
-                        app.MCProximityEditField.Enable = 'off';
-                        app.MCNasEditField.Enable = 'off';
-                        app.MCKNREditField.Enable = 'off';
-                        app.MCMethodDropDown.Enable = 'off';
-                end
-
-            else
-                % Disable all CI-related components
-                app.AlgorithmCIDropDown.Enable = 'off';
-                app.MCLmaxEditField.Enable = 'off';
-                app.MCFixMIDCheckBox.Enable = 'off';
-                app.MCMIDSDEditField.Enable = 'off';
-                app.MCProcedureDropDown.Enable = 'off';
-                app.MCTTEditField.Enable = 'off';
-                app.MCProximityEditField.Enable = 'off';
-                app.MCNasEditField.Enable = 'off';
-                app.MCKNREditField.Enable = 'off';
-                app.MCMethodDropDown.Enable = 'off';
-                app.DeterminegridintervalautomaticallyCheckBox.Enable = 'off';
-                app.ThenumberofgridpointsEditField.Enable = 'off';
-                app.GridintervalDeltaixiEditField.Enable = 'off';
-                app.IterationtimesforgridsearchEditField.Enable = 'off';
-                app.ThresholdDropDown.Enable = 'off';
-            end
-
-            enabledisableGridSetting(app)
+        function enabledisableCIUI(app, ~)
+            app.refreshControlState();
 
         end % enabledisableCIUI
 
         function enabledisableGridSetting(app)
-            % ENABLEDISABLEGRIDSETTING Enable or disable grid setting UI components
-            % based on the selected algorithm
-            % and the value of the DeterminegridintervalautomaticallyCheckBox
+            app.refreshControlState();
 
-            isCalcCI = app.CalcCICheckBox.Value;
-            isGridSearch = strcmp(app.AlgorithmCIDropDown.Value, 'Grid search');
-            isAutoGridInterval = app.DeterminegridintervalautomaticallyCheckBox.Value;
+        end % enabledisableGridSetting
 
-            if ~isCalcCI && ~isGridSearch
+        function refreshControlState(app)
+
+            viewModel = app.collectRunConfigViewModel();
+            state = app.Presenter.presentControlState(viewModel);
+            app.renderControlState(state);
+
+        end % refreshControlState
+
+        function renderControlState(app, state)
+
+            app.AlgorithmCIDropDown.Enable = ...
+                app.onOff(state.CIAlgorithmEnabled);
+            monteCarlo = app.onOff(state.MonteCarloEnabled);
+            app.MCLmaxEditField.Enable = monteCarlo;
+            app.MCFixMIDCheckBox.Enable = monteCarlo;
+            app.MCMIDSDEditField.Enable = monteCarlo;
+            app.MCProcedureDropDown.Enable = monteCarlo;
+            app.MCTTEditField.Enable = monteCarlo;
+            app.MCProximityEditField.Enable = monteCarlo;
+            app.MCNasEditField.Enable = monteCarlo;
+            app.MCKNREditField.Enable = monteCarlo;
+            app.MCMethodDropDown.Enable = monteCarlo;
+
+            grid = app.onOff(state.GridEnabled);
+            app.DeterminegridintervalautomaticallyCheckBox.Enable = grid;
+            app.CheckBox.Enable = ...
+                app.onOff(state.GridExecutionModeEnabled);
+            app.IterationtimesforgridsearchEditField.Enable = grid;
+            app.ThresholdDropDown.Enable = grid;
+            app.ThenumberofgridpointsEditField.Enable = ...
+                app.onOff(state.GridPointsEnabled);
+            app.GridintervalDeltaixiEditField.Enable = ...
+                app.onOff(state.GridDeltaEnabled);
+            app.GridReactionUITable.Enable = grid;
+            app.renderGridReactionVisibility( ...
+                state.GridReactionVisible);
+
+            app.EffluxUITable.Enable = app.onOff(state.EffluxEnabled);
+            app.LabelTable.Enable = app.onOff(state.SuggestionEnabled);
+            instMFA = app.onOff(state.INSTMFATablesEnabled);
+            app.INSTMFAPoolUITable.Enable = instMFA;
+            app.INSTMFATimeCourseUITable.Enable = instMFA;
+
+        end % renderControlState
+
+        function renderGridReactionVisibility(app, isVisible)
+
+            if isVisible
+
+                if isempty(app.GridreactionTab.Parent)
+                    app.GridreactionTab.Parent = app.TabGroup2;
+                end
+
                 return
             end
 
-            if isAutoGridInterval
-                % Enable grid setting components
-                app.ThenumberofgridpointsEditField.Enable = 'on';
-                app.GridintervalDeltaixiEditField.Enable = 'off';
-            else
-                % Disable grid setting components
-                app.ThenumberofgridpointsEditField.Enable = 'off';
-                app.GridintervalDeltaixiEditField.Enable = 'on';
+            if isempty(app.GridreactionTab.Parent)
+                return
             end
 
-        end % enabledisableGridSetting
+            if isequal(app.TabGroup2.SelectedTab, ...
+                    app.GridreactionTab)
+                app.TabGroup2.SelectedTab = app.GridsearchTab;
+            end
+
+            app.GridreactionTab.Parent = [];
+
+        end % renderGridReactionVisibility
+
+        function value = onOff(~, enabled)
+
+            if enabled
+                value = 'on';
+            else
+                value = 'off';
+            end
+
+        end % onOff
 
         function enabledisableEffluxPertubation(app)
 
             isEnable = app.PerturbateEffluxCheckBox.Value;
 
-            [currentID, ~] = app.getCurrentIDs();
-            currentID = currentID(1);
-
             if isEnable
-
-                % Enable efflux perturbation components
-                app.EffluxUITable.Enable = 'on';
-                app.EffluxApplyButton.Enable = 'on';
-                app.EffluxApplyAllButton.Enable = 'on';
-
-                [tableEffluxPerturbation, editable] = app.MainApp.batch.getBatchEffluxSDTable(currentID);
-
-                tableData = tableEffluxPerturbation;
-                app.EffluxUITable.Data = tableData;
-                app.EffluxUITable.ColumnName = tableData.Properties.VariableNames;
-                app.EffluxUITable.ColumnEditable = editable;
-                app.EffluxUITable.RowName = tableData.Properties.RowNames;
-
+                viewModel = app.Presenter.presentEffluxTable(app.Session);
             else
-
-                app.EffluxUITable.Data = [];
-                app.EffluxUITable.ColumnName = {};
-                app.EffluxUITable.ColumnEditable = [];
-                app.EffluxUITable.RowName = {};
-
-                % Disable efflux perturbation components
-                app.EffluxUITable.Enable = 'off';
-                app.EffluxApplyButton.Enable = 'off';
-                app.EffluxApplyAllButton.Enable = 'off';
-
+                viewModel = openmebius.presentation.batch ...
+                    .RunConfigTableViewModel();
             end
+
+            app.renderTableViewModel(app.EffluxUITable, viewModel);
+            app.refreshControlState();
 
         end % enabledisableEffluxPertubation
 
@@ -460,30 +419,15 @@ classdef RunConfig_exported < matlab.apps.AppBase
             isSuggestLabel = app.SuggestionCheckBox.Value;
 
             if isSuggestLabel
-
-                % Enable suggestion-related components
-                app.LabelTable.Enable = 'on';
-
-                batch = app.MainApp.batch.getBatchForGUI();
-                batchID = batch.ID(app.selection);
-                batchIDUnique = unique(batchID);
-                tableSuggestion = getBatchSuggestionTable(app.MainApp.batch, batchIDUnique);
-
-                app.LabelTable.Data = tableSuggestion;
-                app.LabelTable.ColumnName = tableSuggestion.Properties.VariableNames;
-                app.LabelTable.RowName = tableSuggestion.Properties.RowNames;
-
+                viewModel = app.Presenter ...
+                    .presentSuggestionTable(app.Session);
             else
-
-                % Disable suggestion-related components
-                app.LabelTable.Enable = 'off';
-
-                % cleanup suggestion table
-                app.LabelTable.Data = [];
-                app.LabelTable.ColumnName = {};
-                app.LabelTable.RowName = {};
-
+                viewModel = openmebius.presentation.batch ...
+                    .RunConfigTableViewModel();
             end
+
+            app.renderTableViewModel(app.LabelTable, viewModel);
+            app.refreshControlState();
 
         end % enabledisableSuggestion
 
@@ -492,368 +436,415 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % based on the isINSTMFA flag
 
             if isINSTMFA
+                viewModel = app.Presenter ...
+                    .presentINSTMFATables(app.Session);
+                app.requestNotifications(viewModel.Notifications);
 
-                batch = app.MainApp.batch.getBatchForGUI();
-                batchID = batch.ID(app.selection);
-                batchIDUnique = unique(batchID);
-
-                if length(batchIDUnique) ~= 1
-                    uialert(app.BatchconfigUIFigure, ...
-                        'INST-MFA settings can only be configured when a single batch is selected.', ...
-                        'Error', ...
-                        'Icon', 'error');
+                if ~viewModel.IsAvailable
                     app.INSTMFACheckBox.Value = false;
+                    app.renderTableViewModel( ...
+                        app.INSTMFAPoolUITable, viewModel.PoolTable);
+                    app.renderTableViewModel( ...
+                        app.INSTMFATimeCourseUITable, ...
+                        viewModel.TimePointTable);
+                    app.refreshControlState();
                     return;
                 end
 
-                tablePoolSize = app.MainApp.batch.getBatchINSTMFAPoolTable(batchIDUnique);
-                [tableTimePoints, timePointColumnEditable] = ...
-                    app.MainApp.batch.getBatchINSTMFATimePoints(batchIDUnique);
-
-                app.INSTMFAPoolUITable.Data = tablePoolSize;
-                app.INSTMFAPoolUITable.ColumnName = {'Metabolite', 'PoolSize'};
-                app.INSTMFAPoolUITable.RowName = {};
-                app.INSTMFAPoolUITable.ColumnEditable = [false, true];
-
-                app.INSTMFATimeCourseUITable.Data = tableTimePoints;
-                app.INSTMFATimeCourseUITable.ColumnName = {'TimePointExpName', 'TimePoint'};
-                app.INSTMFATimeCourseUITable.RowName = {};
-                app.INSTMFATimeCourseUITable.ColumnEditable = timePointColumnEditable;
-
-                app.INSTMFAApplyButton.Enable = 'on';
-                app.INSTMFAPoolUITable.Enable = 'on';
-                app.INSTMFATimeCourseUITable.Enable = 'on';
-
+                poolTable = viewModel.PoolTable;
+                timePointTable = viewModel.TimePointTable;
             else
-                app.INSTMFAPoolUITable.Data = [];
-                app.INSTMFAPoolUITable.ColumnName = {};
-                app.INSTMFAPoolUITable.RowName = {};
-                app.INSTMFATimeCourseUITable.Data = [];
-                app.INSTMFATimeCourseUITable.ColumnName = {};
-                app.INSTMFATimeCourseUITable.RowName = {};
-
-                % Disable INST-MFA-related components
-                app.INSTMFAApplyButton.Enable = 'off';
-                app.INSTMFAPoolUITable.Enable = 'off';
-                app.INSTMFATimeCourseUITable.Enable = 'off';
+                poolTable = openmebius.presentation.batch ...
+                    .RunConfigTableViewModel();
+                timePointTable = openmebius.presentation.batch ...
+                    .RunConfigTableViewModel();
             end
+
+            app.renderTableViewModel( ...
+                app.INSTMFAPoolUITable, poolTable);
+            app.renderTableViewModel( ...
+                app.INSTMFATimeCourseUITable, timePointTable);
+            app.refreshControlState();
 
         end % enabledisableINSTMFA
-
-        function loadMSFragmentTable(app)
-            % LOADMSFRAGMENTTABLE Load the MS fragment table for
-            % the selected batch and display it in the MSTable
-            % component
-
-            % Get the selected batch ID
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID(app.selection);
-            batchIDUnique = unique(batchID);
-
-            if length(batchID) ~= length(batchIDUnique)
-                error('Duplicate batch IDs found in the selection.')
-            end
-
-            clear batchIDUnique
-
-            tableSelected = app.MainApp.batch.getBatchCustomFragment(batchID);
-
-            % Fill the MSTable with the selected and available tables
-            app.MSTable.Data = tableSelected;
-            app.MSTable.ColumnName = tableSelected.Properties.VariableNames;
-            app.MSTable.RowName = tableSelected.Properties.RowNames;
-            app.MSTable.ColumnEditable = true(1, size(tableSelected, 2));
-
-        end % loadMSFragmentTable
 
         function editTimeCourse(app)
             % EDITTIMECOURSE Edit the time course table for INST-MFA
 
-            batchIDs = app.MainApp.batch.getBatchForGUI().ID(app.selection);
+            outcome = app.BatchExperimentSelectionEditorController ...
+                .prepareINSTMFA(app.Session);
+            viewModel = app.BatchExperimentSelectionEditorPresenter ...
+                .presentINSTMFAEditor(outcome);
+            app.requestNotifications(viewModel.Notifications);
 
-            if length(batchIDs) ~= 1
+            if ~viewModel.IsAvailable
                 return;
             end
 
-            app.RunAddBatchApp = RunAddBatch(app.MainApp, 'inst-mfa', batchIDs(1));
+            app.closeRunAddBatchApp();
+            context = openmebius.presentation.batch ...
+                .RunAddBatchContext(Editor = viewModel);
+            app.RunAddBatchApp = RunAddBatch(context);
+            app.attachRunAddBatchListeners(app.RunAddBatchApp);
 
         end % editTimeCourse
 
-        function applyGeneral(app)
-            % APPLYGENERAL Apply the general settings to the selected batch
+        function forwardBatchExperimentSelection(app, ~, event)
 
-            % Get the current configuration for the selected batch
-            [batchID, ] = app.getCurrentIDs();
-            config = app.MainApp.batch.getBatchConfig(batchID(1));
+            eventData = openmebius.presentation.batch ...
+                .BatchExperimentSelectionEventData(event.Selection);
+            notify( ...
+                app, ...
+                "BatchExperimentSelectionApplied", ...
+                eventData);
 
-            % Update the configuration with values from the UI
-            config.iteration = app.IterationSpinner.Value;
+        end % forwardBatchExperimentSelection
 
-            switch app.AlgorithmDropDown.Value
-                case 'IPMs'
-                    config.algorithm = 'interior-point';
-                case 'SQP'
-                    config.algorithm = 'sqp';
-            end
+        function attachRunAddBatchListeners(app, runAddBatchApp)
 
-            config.largeScale = app.LargeScaleCheckBox.Value;
-            config.suggestNextFlux = app.SuggestionCheckBox.Value;
-            config.perturbateEfflux = app.PerturbateEffluxCheckBox.Value;
+            app.ChildAppHost.attach( ...
+                "RunAddBatch", ...
+                runAddBatchApp, ...
+                {"Applied", ...
+                 @(source, event) app.forwardBatchExperimentSelection(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onRunAddBatchClosed(source, event)});
 
-            if config.perturbateEfflux
-                % Update efflux perturbation settings only when the UI table
-                % contains the table data. When the efflux panel has not been
-                % opened yet, UITable.Data can still be the default [] double.
-                % In that case, preserve the existing batch configuration.
-                tableEffluxPerturbation = app.EffluxUITable.Data;
+        end % attachRunAddBatchListeners
 
-                if istable(tableEffluxPerturbation) && ...
-                        all(ismember(["Selection", "SD"], string(tableEffluxPerturbation.Properties.VariableNames)))
-                    config.efflux.selection = logical(tableEffluxPerturbation.Selection(:));
-                    config.efflux.substrate = string(tableEffluxPerturbation.Properties.RowNames(:));
-                    config.efflux.substrateSD = double(tableEffluxPerturbation.SD(:));
-                end
+        function onRunAddBatchClosed(app, ~, ~)
 
-            end
+            app.detachRunAddBatchListeners();
+            app.RunAddBatchApp = [];
 
-            % Update the confidence interval calculation settings
-            config.isCalcCI = app.CalcCICheckBox.Value;
-            config.CIConf.algorithm = app.AlgorithmCIDropDown.Value;
+        end % onRunAddBatchClosed
 
-            config.deleteResultFile = app.DeleteResultButton.Value;
+        function closeRunAddBatchApp(app)
 
-            % Monte Carlo-specific settings
-            if strcmp(config.CIConf.algorithm, 'Monte Carlo')
-                config.CIConf.MC.iteration = app.MCLmaxEditField.Value;
-                config.CIConf.MC.fixMID = app.MCFixMIDCheckBox.Value;
-                config.CIConf.MC.MIDSD = app.MCMIDSDEditField.Value;
-                config.CIConf.MC.procedure = app.MCProcedureDropDown.Value;
-                config.CIConf.MC.terminationTolerance = app.MCTTEditField.Value;
-                config.CIConf.MC.proximityThreshold = app.MCProximityEditField.Value;
-                config.CIConf.MC.certainThreshold = app.MCNasEditField.Value;
-                config.CIConf.MC.theNumberOfRuns = app.MCKNREditField.Value;
-                config.CIConf.MC.method = app.MCMethodDropDown.Value;
+            app.ChildAppHost.close("RunAddBatch");
+            app.RunAddBatchApp = [];
 
-                switch config.CIConf.MC.procedure
-                    case 'Single run'
-                        config.CIConf.MC.optimizationProcedure = 'single';
-                    case 'Multiple run'
-                        config.CIConf.MC.optimizationProcedure = 'multiple';
-                end
+        end % closeRunAddBatchApp
 
-                switch config.CIConf.MC.method
-                    case 'Discarding'
-                        config.CIConf.MC.calculationMethod = 'discarding';
-                    case 'Mean-varianced'
-                        config.CIConf.MC.calculationMethod = 'mean-varianced';
-                end
+        function detachRunAddBatchListeners(app)
 
-            end
+            app.ChildAppHost.detach("RunAddBatch");
 
-            % Grid search-specific settings
-            if strcmp(config.CIConf.algorithm, 'Grid search')
-                config.CIConf.grid.isParallel = app.DeterminegridintervalautomaticallyCheckBox.Value;
-                config.CIConf.grid.points = app.ThenumberofgridpointsEditField.Value;
-                config.CIConf.grid.delta = app.GridintervalDeltaixiEditField.Value;
-                config.CIConf.grid.iteration = app.IterationtimesforgridsearchEditField.Value;
-                config.CIConf.grid.threshold = app.ThresholdDropDown.Value;
-            end
+        end % detachRunAddBatchListeners
 
-            config.isINSTMFA = app.INSTMFACheckBox.Value;
+        function attachTracerConfigListeners(app, tracerConfigApp)
 
-            if config.isINSTMFA
+            app.ChildAppHost.attach( ...
+                "TracerConfig", ...
+                tracerConfigApp, ...
+                {"Applied", ...
+                 @(source, event) app.onTracerConfigurationApplied(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onTracerConfigurationClosed(source, event)});
 
-                % Get pool size table
-                tablePoolSize = app.INSTMFAPoolUITable.Data;
-                config.INSTMFA.poolMetabolite = string(tablePoolSize.Metabolite(:));
-                config.INSTMFA.poolSize = double(tablePoolSize.PoolSize(:));
+        end % attachTracerConfigListeners
 
-                % Get time course table
-                tableTimeCourse = app.INSTMFATimeCourseUITable.Data;
+        function detachTracerConfigListeners(app)
 
-                if isempty(tableTimeCourse)
-                    config.INSTMFA.timePointsExpName = string.empty(0, 1);
-                    config.INSTMFA.timePoints = double.empty(0, 1);
-                else
-                    config.INSTMFA.timePointsExpName = string(tableTimeCourse.TimePointExpName(:));
-                    config.INSTMFA.timePoints = double(tableTimeCourse.TimePoint(:));
-                end
+            app.ChildAppHost.detach("TracerConfig");
 
-            end % if config.isINSTMFA
+        end % detachTracerConfigListeners
 
-            % Save the updated configuration back to the batch
-            app.MainApp.batch.updateBatchConfig(batchID, config);
+        function closeTracerConfigApp(app)
 
-        end % applyGeneral
+            app.ChildAppHost.close("TracerConfig");
+            app.TracerConfigApp = [];
 
-        function applyMSFragment(app)
+        end % closeTracerConfigApp
 
-            data = app.MSTable.Data;
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID(app.selection);
+        function openTracerConfiguration(app, position)
 
-            batchIDUnique = unique(batchID);
+            outcome = app.Controller.loadTracerConfiguration( ...
+                app.Session, app.ExperimentEditController, position);
+            viewModel = app.ExperimentPresenter ...
+                .presentTracerConfigurationLoadOutcome(outcome);
+            app.renderTracerConfigurationViewModel(viewModel);
 
-            if length(batchID) ~= length(batchIDUnique)
-                error('Duplicate batch IDs found in the selection.')
-            end
-
-            clear batchIDUnique
-
-            app.MainApp.batch.updateBatchConfigFragment(batchID, data)
-
-        end % applyMSFragment
-
-        function applyEffluxPerturbation(app, batchID)
-            % APPLYEFFLUXPERTURBATION Save efflux-free Selection/SD table to batch config.
-
-            arguments
-                app
-                batchID (:, 1) string
-            end
-
-            tableEffluxPerturbation = app.EffluxUITable.Data;
-
-            if isempty(tableEffluxPerturbation)
+            if ~viewModel.IsSuccessful
                 return
             end
 
-            if ~istable(tableEffluxPerturbation)
-                error("Efflux perturbation table is invalid.");
+            app.closeTracerConfigApp();
+            context = openmebius.presentation.experiment ...
+                .TracerConfigContext( ...
+                EditorTable = viewModel.EditorTable, ...
+                Position = viewModel.Position);
+            app.TracerConfigApp = TracerConfig(context);
+            app.attachTracerConfigListeners(app.TracerConfigApp);
+
+        end % openTracerConfiguration
+
+        function onTracerConfigurationApplied(app, ~, event)
+
+            outcome = app.Controller.applyTracerConfiguration( ...
+                app.ExperimentEditController, ...
+                event.Position, ...
+                event.EditorTable);
+            viewModel = app.ExperimentPresenter ...
+                .presentTracerConfigurationApplyOutcome(outcome);
+            app.renderTracerConfigurationViewModel(viewModel);
+
+            if viewModel.IsSuccessful
+                position = viewModel.Position;
+                app.LabelTable.Data{position(1), position(2)} = ...
+                    {char(viewModel.Pattern)};
             end
 
-            if ~all(ismember(["Selection", "SD"], string(tableEffluxPerturbation.Properties.VariableNames)))
-                error("Efflux perturbation table must contain Selection and SD columns.");
+        end % onTracerConfigurationApplied
+
+        function onTracerConfigurationClosed(app, ~, ~)
+
+            app.detachTracerConfigListeners();
+            app.TracerConfigApp = [];
+
+        end % onTracerConfigurationClosed
+
+        function renderTracerConfigurationViewModel(app, viewModel)
+
+            for notificationIndex = 1:numel(viewModel.Notifications)
+                eventData = openmebius.presentation.notification ...
+                    .NotificationEventData( ...
+                    viewModel.Notifications{notificationIndex});
+                notify(app, "NotificationRequested", eventData);
             end
 
-            tableEffluxPerturbation.Selection = logical(tableEffluxPerturbation.Selection(:));
-            tableEffluxPerturbation.SD = double(tableEffluxPerturbation.SD(:));
+        end % renderTracerConfigurationViewModel
 
-            app.MainApp.batch.updateBatchConfigEffluxSD(batchID, tableEffluxPerturbation);
+        function viewModel = collectRunConfigViewModel(app)
 
-            % The efflux tab has its own Apply button. Therefore the
-            % enable/disable flag must be persisted here as well, not only
-            % when the General tab Apply button is pressed.
-            for i = 1:length(batchID)
-                config = app.MainApp.batch.getBatchConfig(batchID(i));
-                config.perturbateEfflux = app.PerturbateEffluxCheckBox.Value;
-                app.MainApp.batch.updateBatchConfig(batchID(i), config);
-            end % for i
+            viewModel = openmebius.presentation.batch ...
+                .RunConfigViewModel();
+            viewModel.Iteration = app.IterationSpinner.Value;
+            viewModel.Algorithm = app.AlgorithmDropDown.Value;
+            viewModel.LargeScale = app.LargeScaleCheckBox.Value;
+            viewModel.SuggestNextFlux = app.SuggestionCheckBox.Value;
+            viewModel.PerturbateEfflux = ...
+                app.PerturbateEffluxCheckBox.Value;
+            viewModel.CalculateCI = app.CalcCICheckBox.Value;
+            viewModel.CIAlgorithm = app.AlgorithmCIDropDown.Value;
+            viewModel.DeleteResultFile = app.DeleteResultButton.Value;
 
-        end % applyEffluxPerturbation
+            viewModel.MCIterations = app.MCLmaxEditField.Value;
+            viewModel.MCFixMID = app.MCFixMIDCheckBox.Value;
+            viewModel.MCMIDStandardDeviation = ...
+                app.MCMIDSDEditField.Value;
+            viewModel.MCOptimizationProcedure = ...
+                app.MCProcedureDropDown.Value;
+            viewModel.MCTerminationTolerance = app.MCTTEditField.Value;
+            viewModel.MCProximityThreshold = ...
+                app.MCProximityEditField.Value;
+            viewModel.MCCertainThreshold = app.MCNasEditField.Value;
+            viewModel.MCNumberOfRuns = app.MCKNREditField.Value;
+            viewModel.MCCalculationMethod = app.MCMethodDropDown.Value;
 
-        function applyINSTMFA(app)
+            viewModel.GridAutomaticInterval = ...
+                app.DeterminegridintervalautomaticallyCheckBox.Value;
+            viewModel.GridParallelExecution = app.CheckBox.Value;
+            viewModel.GridPoints = ...
+                app.ThenumberofgridpointsEditField.Value;
+            viewModel.GridDelta = app.GridintervalDeltaixiEditField.Value;
+            viewModel.GridIterations = ...
+                app.IterationtimesforgridsearchEditField.Value;
+            viewModel.GridThreshold = app.ThresholdDropDown.Value;
+            viewModel.IsINSTMFA = app.INSTMFACheckBox.Value;
 
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID(app.selection);
-            batchIDUnique = unique(batchID);
-            config = app.MainApp.batch.getBatchConfig(batchIDUnique);
+            if istable(app.GridReactionUITable.Data)
+                viewModel.GridReactionTable = ...
+                    app.GridReactionUITable.Data;
+            end
 
-            config.isINSTMFA = app.INSTMFACheckBox.Value;
+            if istable(app.EffluxUITable.Data)
+                viewModel.EffluxTable = app.EffluxUITable.Data;
+            end
 
-            if config.isINSTMFA
+            if istable(app.INSTMFAPoolUITable.Data)
+                viewModel.INSTMFAPoolTable = ...
+                    app.INSTMFAPoolUITable.Data;
+            end
 
-                % Get pool size table
-                tablePoolSize = app.INSTMFAPoolUITable.Data;
-                config.INSTMFA.poolMetabolite = string(tablePoolSize.Metabolite(:));
-                config.INSTMFA.poolSize = double(tablePoolSize.PoolSize(:));
+            if istable(app.INSTMFATimeCourseUITable.Data)
+                viewModel.INSTMFATimePointTable = ...
+                    app.INSTMFATimeCourseUITable.Data;
+            end
 
-                % Get time course table
-                tableTimeCourse = app.INSTMFATimeCourseUITable.Data;
+        end % collectRunConfigViewModel
 
-                if isempty(tableTimeCourse)
-                    config.INSTMFA.timePointsExpName = string.empty(0, 1);
-                    config.INSTMFA.timePoints = double.empty(0, 1);
-                else
-                    config.INSTMFA.timePointsExpName = string(tableTimeCourse.TimePointExpName(:));
-                    config.INSTMFA.timePoints = double(tableTimeCourse.TimePoint(:));
-                end
+        function wireActionButtons(app)
 
-            end % if config.isINSTMFA
+            restoreButtons = [ ...
+                                  app.GeneralRestoreDefaultButton
+                              app.MSRestoreDefaultButton
+                              app.EffluxRestoreDefaultButton
+                              app.SuggestionRestoreDefaultButton
+                              app.INSTMFARestoreDefaultButton];
+            applyButtons = [ ...
+                                app.GeneralApplyButton
+                            app.MSApplyAllButton
+                            app.EffluxApplyButton
+                            app.SuggestionApplyButton
+                            app.INSTMFAApplyButton];
+            cancelButtons = [ ...
+                                 app.GeneralCancelButton
+                             app.MSCancelButton
+                             app.EffluxCancelButton
+                             app.SuggestionCancelButton
+                             app.INSTMFACancelButton];
 
-            % Save the updated configuration back to the batch
-            app.MainApp.batch.updateBatchConfig(batchIDUnique, config);
+            for buttonIndex = 1:numel(restoreButtons)
+                restoreButtons(buttonIndex).ButtonPushedFcn = ...
+                    @(~, ~) app.restoreDefaultValues();
+                applyButtons(buttonIndex).ButtonPushedFcn = ...
+                    @(~, ~) app.applyCurrentSettings();
+                cancelButtons(buttonIndex).ButtonPushedFcn = ...
+                    @(~, ~) app.cancelChanges();
+            end
 
-        end % applyINSTMFA
+        end % wireActionButtons
+
+        function restoreDefaultValues(app)
+
+            effluxData = app.EffluxUITable.Data;
+            gridReactionData = app.GridReactionUITable.Data;
+            instPoolData = app.INSTMFAPoolUITable.Data;
+            instTimeCourseData = app.INSTMFATimeCourseUITable.Data;
+            viewModel = app.Presenter.presentDefaults();
+            app.renderRunConfigViewModel(viewModel);
+
+            msData = app.MSTable.Data;
+
+            if istable(msData) && ~isempty(msData)
+                msData{:, :} = true(height(msData), width(msData));
+                app.MSTable.Data = msData;
+            end
+
+            app.enabledisableCIUI(app.CalcCICheckBox.Value);
+            app.enabledisableSuggestion();
+
+            if istable(gridReactionData) && ...
+                    ismember('Select', ...
+                    gridReactionData.Properties.VariableNames)
+                gridReactionData.Select(:) = true;
+            end
+
+            app.GridReactionUITable.Data = gridReactionData;
+            app.GridReactionUITable.ColumnEditable = ...
+                [true, false, false];
+
+            app.EffluxUITable.Data = effluxData;
+            app.EffluxUITable.Enable = 'off';
+            app.EffluxUITable.ColumnEditable = ...
+                app.readOnlyColumns(effluxData);
+
+            app.INSTMFAPoolUITable.Data = instPoolData;
+            app.INSTMFAPoolUITable.Enable = 'off';
+            app.INSTMFAPoolUITable.ColumnEditable = ...
+                app.readOnlyColumns(instPoolData);
+
+            app.INSTMFATimeCourseUITable.Data = instTimeCourseData;
+            app.INSTMFATimeCourseUITable.Enable = 'off';
+            app.INSTMFATimeCourseUITable.ColumnEditable = ...
+                app.readOnlyColumns(instTimeCourseData);
+
+        end % restoreDefaultValues
+
+        function applyCurrentSettings(app)
+
+            requestFactory = @() app.Presenter.createApplyRequest( ...
+                app.Session, ...
+                app.collectRunConfigViewModel(), ...
+                app.MSTable.Data, ...
+                app.MSFragmentTableMetadata, ...
+                app.LabelTable.Data, ...
+                app.SuggestionCheckBox.Value);
+            outcome = app.Controller.apply( ...
+                app.Session, requestFactory);
+            viewModel = app.Presenter.presentApplyOutcome(outcome);
+            app.requestNotifications(viewModel.Notifications);
+
+            if viewModel.IsSuccessful
+                notify(app, "Applied");
+            end
+
+        end % applyCurrentSettings
+
+        function cancelChanges(app)
+
+            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
+                app.ChildAppHost.closeAll();
+            end
+
+            notify(app, "Closed");
+            delete(app);
+
+        end % cancelChanges
+
+        function editable = readOnlyColumns(~, data)
+
+            if istable(data)
+                editable = false(1, width(data));
+            else
+                editable = false(1, 0);
+            end
+
+        end % readOnlyColumns
 
     end % private methods
+
 
     % Callbacks that handle component events
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, MainApp, selection)
+        function startupFcn(app, context)
 
-            app.MainApp = MainApp;
-            app.exp = MainApp.exp;
-
-            selectionRow = selection(:, 1);
-            app.selection = unique(selectionRow);
-            app.setConfigValue()
-            app.fillConfigValueToUI()
-            app.enabledisableCIUI(app.CalcCICheckBox.Value)
-            app.enabledisableEffluxPertubation()
-            app.enabledisableSuggestion()
-            app.enabledisableINSTMFA(app.INSTMFACheckBox.Value)
-            app.loadMSFragmentTable()
-
+            app.initializeView(context);
         end
 
         % Close request function: BatchconfigUIFigure
         function BatchconfigUIFigureCloseRequest(app, event)
 
-            delete(app)
-
+            app.cancelChanges();
         end
 
-        % Button pushed function: GeneralDefaultButton
-        function GeneralDefaultButtonPushed(app, event)
+        % Callback function
+        function GeneralApplyButtonPushed(app, event)
 
+            app.applyCurrentSettings();
         end
 
         % Button pushed function: GeneralApplyButton
-        function GeneralApplyButtonPushed(app, event)
+        function GeneralApplyButtonPushed2(app, event)
 
-            applyGeneral(app)
-            app.MainApp.updateBatchTable();
-
+            app.applyCurrentSettings();
         end
 
-        % Button pushed function: GeneralApplyAllButton
-        function GeneralApplyAllButtonPushed(app, event)
+        % Button pushed function: GeneralCancelButton
+        function GeneralCancelButtonPushed(app, event)
 
+            app.cancelChanges();
         end
 
-        % Button pushed function: GeneralCloseButton
-        function GeneralCloseButtonPushed(app, event)
-
-            delete(app)
-
-        end
-
-        % Button pushed function: MSDefaultButton
-        function MSDefaultButtonPushed(app, event)
-
-        end
-
-        % Button pushed function: MSApplyButton
+        % Callback function
         function MSApplyButtonPushed(app, event)
 
-            applyMSFragment(app)
-            app.MainApp.updateBatchTable();
-
+            app.applyCurrentSettings();
         end
 
         % Button pushed function: MSApplyAllButton
         function MSApplyAllButtonPushed(app, event)
 
+            app.applyCurrentSettings();
         end
 
-        % Button pushed function: MSCloseButton
-        function MSCloseButtonPushed(app, event)
+        % Button pushed function: MSCancelButton
+        function MSCancelButtonPushed(app, event)
 
-            delete(app)
-
+            app.cancelChanges();
         end
 
         % Value changed function: PerturbateEffluxCheckBox
@@ -863,56 +854,34 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end
 
-        % Button pushed function: EffluxApplyButton
+        % Callback function
         function EffluxApplyButtonPushed(app, event)
 
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID;
-            applyEffluxPerturbation(app, batchID(:));
-            app.MainApp.updateBatchTable();
-
+            app.applyCurrentSettings();
         end
 
-        % Button pushed function: EffluxApplyAllButton
+        % Callback function
         function EffluxApplyAllButtonPushed(app, event)
 
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID;
-            applyEffluxPerturbation(app, batchID(:));
-            app.MainApp.updateBatchTable();
-
+            app.applyCurrentSettings();
         end
 
-        % Button pushed function: EffluxCloseButton
-        function EffluxCloseButtonPushed(app, event)
+        % Button pushed function: EffluxCancelButton
+        function EffluxCancelButtonPushed(app, event)
 
-            delete(app)
-
+            app.cancelChanges();
         end
 
-        % Button pushed function: SuggestionApplyButton
+        % Callback function
         function SuggestionApplyButtonPushed(app, event)
 
-            data = app.LabelTable.Data;
-            batch = app.MainApp.batch.getBatchForGUI();
-            batchID = batch.ID(app.selection);
-            batchIDUnique = unique(batchID);
-
-            updateBatchConfigSuggestionTable(app.MainApp.batch, batchIDUnique, data)
-            updateBatchTable(app.MainApp)
-
+            app.applyCurrentSettings();
         end
 
-        % Button pushed function: SuggestionApplyForAllButton
-        function SuggestionApplyForAllButtonPushed(app, event)
+        % Button pushed function: SuggestionCancelButton
+        function SuggestionCancelButtonPushed(app, event)
 
-        end
-
-        % Button pushed function: SuggestionCloseButton
-        function SuggestionCloseButtonPushed(app, event)
-
-            delete(app)
-
+            app.cancelChanges();
         end
 
         % Value changed function: CalcCICheckBox
@@ -951,7 +920,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function AddexperimentsMenuSelected(app, event)
 
             app.editTimeCourse();
-
         end
 
         % Menu selected function: RemoveselectedexperimentMenu
@@ -963,31 +931,22 @@ classdef RunConfig_exported < matlab.apps.AppBase
             if isempty(selectedRow)
                 return
             end
-
         end
 
         % Value changed function: SuggestionCheckBox
         function SuggestionCheckBoxValueChanged(app, event)
 
-            isSuggestLabel = app.SuggestionCheckBox.Value;
-
-            if isSuggestLabel
-
-                app.CalcCICheckBox.Value = true;
-                enabledisableCIUI(app, app.CalcCICheckBox.Value)
-                enabledisableSuggestion(app)
-
-            else
-
-                return;
-
+            if ~app.SuggestionCheckBox.Value
+                return
             end
 
+            app.CalcCICheckBox.Value = true;
+            app.enabledisableCIUI(app.CalcCICheckBox.Value);
+            app.enabledisableSuggestion();
         end
 
         % Double-clicked callback: LabelTable
         function LabelTableDoubleClicked(app, event)
-
             displayRow = event.InteractionInformation.DisplayRow;
             displayColumn = event.InteractionInformation.DisplayColumn;
 
@@ -995,12 +954,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 return
             end
 
-            app.MainApp.TracerConfigApp = ...
-                TracerConfig( ...
-                app, ...
-                [displayRow, displayColumn] ...
-            );
-
+            app.openTracerConfiguration( ...
+                [displayRow, displayColumn]);
         end
 
         % Menu selected function: AddnewpatternMenu
@@ -1013,50 +968,18 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             tableNow = [tableNow; tableNew];
             app.LabelTable.Data = tableNow;
-
         end
 
         % Menu selected function: AddnewpatternsMenu
         function AddnewpatternsMenuSelected(app, event)
 
-            n = inputdlg('Enter the number of new patterns to add:', 'Add New Patterns', [1 50], {'1'});
-            nNum = str2double(n{1});
-
-            if isnan(nNum) || nNum <= 0 || mod(nNum, 1) ~= 0
-                return;
-            end
-
-            tableNow = app.LabelTable.Data;
-            numCol = size(tableNow, 2);
-            newRows = strings(nNum, numCol);
-            tableNew = array2table(newRows, 'VariableNames', app.LabelTable.ColumnName');
-
-            tableNow = [tableNow; tableNew];
-            app.LabelTable.Data = tableNow;
-
+            app.addPatternRows();
         end
 
         % Menu selected function: CopythistracerforallentriesMenu
         function CopythistracerforallentriesMenuSelected(app, event)
 
-            idxSelection = app.LabelTable.Selection;
-
-            if isempty(idxSelection)
-                return;
-            end
-
-            selectedLabel = app.LabelTable.Data{idxSelection(1, 1), idxSelection(1, 2)};
-
-            % Replace all entries in the selected column with the selected label
-            tableNow = app.LabelTable.Data;
-            numRows = size(tableNow, 1);
-
-            for i = 1:numRows
-                tableNow{i, idxSelection(1, 2)} = selectedLabel;
-            end
-
-            app.LabelTable.Data = tableNow;
-
+            app.copySelectedTracerColumn();
         end
 
         % Key press function: BatchconfigUIFigure
@@ -1066,33 +989,27 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             % Esc
             if strcmp(key, 'escape')
-                delete(app)
+                app.cancelChanges();
             end
-
         end
 
-        % Button pushed function: INSTMFAApplyButton
+        % Callback function
         function INSTMFAApplyButtonPushed(app, event)
 
-            app.applyINSTMFA()
-            app.MainApp.updateBatchTable();
-
+            app.applyCurrentSettings();
         end
 
-        % Button pushed function: INSTMFAReloadButton
+        % Callback function
         function INSTMFAReloadButtonPushed(app, event)
 
-            app.updateINSTMFATimeCourseTable();
-
+            app.restoreDefaultValues();
         end
 
-        % Button pushed function: INSTMFACloseButton
-        function INSTMFACloseButtonPushed(app, event)
+        % Button pushed function: INSTMFACancelButton
+        function INSTMFACancelButtonPushed(app, event)
 
-            delete(app)
-
+            app.cancelChanges();
         end
-
     end
 
     % Component initialization
@@ -1193,7 +1110,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.LargeScaleCheckBox.Text = 'Large scale problem';
             app.LargeScaleCheckBox.Layout.Row = 3;
             app.LargeScaleCheckBox.Layout.Column = 1;
-            app.LargeScaleCheckBox.Value = false;
 
             % Create SuggestionCheckBox
             app.SuggestionCheckBox = uicheckbox(app.GridLayout8);
@@ -1215,7 +1131,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.CalcCICheckBox.Text = 'Calculate confidence intervals of fluxes';
             app.CalcCICheckBox.Layout.Row = 7;
             app.CalcCICheckBox.Layout.Column = 1;
-            app.CalcCICheckBox.Value = true;
 
             % Create GridLayoutAlgorithm_2
             app.GridLayoutAlgorithm_2 = uigridlayout(app.GridLayout8);
@@ -1455,7 +1370,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Create GridLayout11
             app.GridLayout11 = uigridlayout(app.GridsearchTab);
             app.GridLayout11.ColumnWidth = {'1x'};
-            app.GridLayout11.RowHeight = {'fit', 'fit', 'fit', 'fit', '1x', '1x'};
+            app.GridLayout11.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
             app.GridLayout11.Padding = [5 5 5 5];
 
             % Create DeterminegridintervalautomaticallyCheckBox
@@ -1471,7 +1386,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12.ColumnWidth = {'7x', '3x'};
             app.GridLayout12.RowHeight = {'1x'};
             app.GridLayout12.Padding = [0 0 0 0];
-            app.GridLayout12.Layout.Row = 2;
+            app.GridLayout12.Layout.Row = 3;
             app.GridLayout12.Layout.Column = 1;
 
             % Create ThenumberofgridpointsEditFieldLabel
@@ -1492,7 +1407,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12_2.ColumnWidth = {'7x', '3x'};
             app.GridLayout12_2.RowHeight = {'1x'};
             app.GridLayout12_2.Padding = [0 0 0 0];
-            app.GridLayout12_2.Layout.Row = 3;
+            app.GridLayout12_2.Layout.Row = 4;
             app.GridLayout12_2.Layout.Column = 1;
 
             % Create GridintervalDeltaixiEditFieldLabel
@@ -1514,7 +1429,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12_3.ColumnWidth = {'7x', '3x'};
             app.GridLayout12_3.RowHeight = {'1x'};
             app.GridLayout12_3.Padding = [0 0 0 0];
-            app.GridLayout12_3.Layout.Row = 4;
+            app.GridLayout12_3.Layout.Row = 5;
             app.GridLayout12_3.Layout.Column = 1;
 
             % Create IterationtimesforgridsearchEditFieldLabel
@@ -1535,7 +1450,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12_4.ColumnWidth = {'6x', '4x'};
             app.GridLayout12_4.RowHeight = {'fit'};
             app.GridLayout12_4.Padding = [0 0 0 0];
-            app.GridLayout12_4.Layout.Row = 5;
+            app.GridLayout12_4.Layout.Row = 6;
             app.GridLayout12_4.Layout.Column = 1;
 
             % Create ThresholdDropDownLabel
@@ -1551,6 +1466,30 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.ThresholdDropDown.Layout.Column = 2;
             app.ThresholdDropDown.Value = 'F-distribution';
 
+            % Create CheckBox
+            app.CheckBox = uicheckbox(app.GridLayout11);
+            app.CheckBox.Text = 'Execute grid search in parallel';
+            app.CheckBox.Layout.Row = 2;
+            app.CheckBox.Layout.Column = 1;
+            app.CheckBox.Value = true;
+
+            % Create GridreactionTab
+            app.GridreactionTab = uitab(app.TabGroup2);
+            app.GridreactionTab.Title = 'Grid reaction';
+
+            % Create GridLayout23
+            app.GridLayout23 = uigridlayout(app.GridreactionTab);
+            app.GridLayout23.ColumnWidth = {'1x'};
+            app.GridLayout23.RowHeight = {'1x'};
+            app.GridLayout23.Padding = [5 5 5 5];
+
+            % Create GridReactionUITable
+            app.GridReactionUITable = uitable(app.GridLayout23);
+            app.GridReactionUITable.ColumnName = '';
+            app.GridReactionUITable.RowName = {};
+            app.GridReactionUITable.Layout.Row = 1;
+            app.GridReactionUITable.Layout.Column = 1;
+
             % Create GridLayout7_2
             app.GridLayout7_2 = uigridlayout(app.GridLayout5_2);
             app.GridLayout7_2.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
@@ -1559,33 +1498,25 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout7_2.Layout.Row = 2;
             app.GridLayout7_2.Layout.Column = 1;
 
-            % Create GeneralCloseButton
-            app.GeneralCloseButton = uibutton(app.GridLayout7_2, 'push');
-            app.GeneralCloseButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralCloseButtonPushed, true);
-            app.GeneralCloseButton.Layout.Row = 1;
-            app.GeneralCloseButton.Layout.Column = 5;
-            app.GeneralCloseButton.Text = 'Close';
-
-            % Create GeneralApplyAllButton
-            app.GeneralApplyAllButton = uibutton(app.GridLayout7_2, 'push');
-            app.GeneralApplyAllButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralApplyAllButtonPushed, true);
-            app.GeneralApplyAllButton.Layout.Row = 1;
-            app.GeneralApplyAllButton.Layout.Column = 4;
-            app.GeneralApplyAllButton.Text = 'Apply for all';
+            % Create GeneralCancelButton
+            app.GeneralCancelButton = uibutton(app.GridLayout7_2, 'push');
+            app.GeneralCancelButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralCancelButtonPushed, true);
+            app.GeneralCancelButton.Layout.Row = 1;
+            app.GeneralCancelButton.Layout.Column = 5;
+            app.GeneralCancelButton.Text = 'Cancel';
 
             % Create GeneralApplyButton
             app.GeneralApplyButton = uibutton(app.GridLayout7_2, 'push');
-            app.GeneralApplyButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralApplyButtonPushed, true);
+            app.GeneralApplyButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralApplyButtonPushed2, true);
             app.GeneralApplyButton.Layout.Row = 1;
-            app.GeneralApplyButton.Layout.Column = 3;
+            app.GeneralApplyButton.Layout.Column = 4;
             app.GeneralApplyButton.Text = 'Apply';
 
-            % Create GeneralDefaultButton
-            app.GeneralDefaultButton = uibutton(app.GridLayout7_2, 'push');
-            app.GeneralDefaultButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralDefaultButtonPushed, true);
-            app.GeneralDefaultButton.Layout.Row = 1;
-            app.GeneralDefaultButton.Layout.Column = 2;
-            app.GeneralDefaultButton.Text = 'Set as default';
+            % Create GeneralRestoreDefaultButton
+            app.GeneralRestoreDefaultButton = uibutton(app.GridLayout7_2, 'push');
+            app.GeneralRestoreDefaultButton.Layout.Row = 1;
+            app.GeneralRestoreDefaultButton.Layout.Column = 3;
+            app.GeneralRestoreDefaultButton.Text = 'Restore default';
 
             % Create MSfragmentTab
             app.MSfragmentTab = uitab(app.TabGroup);
@@ -1604,33 +1535,25 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout7.Layout.Row = 2;
             app.GridLayout7.Layout.Column = 1;
 
-            % Create MSCloseButton
-            app.MSCloseButton = uibutton(app.GridLayout7, 'push');
-            app.MSCloseButton.ButtonPushedFcn = createCallbackFcn(app, @MSCloseButtonPushed, true);
-            app.MSCloseButton.Layout.Row = 1;
-            app.MSCloseButton.Layout.Column = 5;
-            app.MSCloseButton.Text = 'Close';
+            % Create MSCancelButton
+            app.MSCancelButton = uibutton(app.GridLayout7, 'push');
+            app.MSCancelButton.ButtonPushedFcn = createCallbackFcn(app, @MSCancelButtonPushed, true);
+            app.MSCancelButton.Layout.Row = 1;
+            app.MSCancelButton.Layout.Column = 5;
+            app.MSCancelButton.Text = 'Cancel';
 
             % Create MSApplyAllButton
             app.MSApplyAllButton = uibutton(app.GridLayout7, 'push');
             app.MSApplyAllButton.ButtonPushedFcn = createCallbackFcn(app, @MSApplyAllButtonPushed, true);
             app.MSApplyAllButton.Layout.Row = 1;
             app.MSApplyAllButton.Layout.Column = 4;
-            app.MSApplyAllButton.Text = 'Apply for all';
+            app.MSApplyAllButton.Text = 'Apply';
 
-            % Create MSApplyButton
-            app.MSApplyButton = uibutton(app.GridLayout7, 'push');
-            app.MSApplyButton.ButtonPushedFcn = createCallbackFcn(app, @MSApplyButtonPushed, true);
-            app.MSApplyButton.Layout.Row = 1;
-            app.MSApplyButton.Layout.Column = 3;
-            app.MSApplyButton.Text = 'Apply';
-
-            % Create MSDefaultButton
-            app.MSDefaultButton = uibutton(app.GridLayout7, 'push');
-            app.MSDefaultButton.ButtonPushedFcn = createCallbackFcn(app, @MSDefaultButtonPushed, true);
-            app.MSDefaultButton.Layout.Row = 1;
-            app.MSDefaultButton.Layout.Column = 2;
-            app.MSDefaultButton.Text = 'Set as default';
+            % Create MSRestoreDefaultButton
+            app.MSRestoreDefaultButton = uibutton(app.GridLayout7, 'push');
+            app.MSRestoreDefaultButton.Layout.Row = 1;
+            app.MSRestoreDefaultButton.Layout.Column = 3;
+            app.MSRestoreDefaultButton.Text = 'Restore default';
 
             % Create MSTable
             app.MSTable = uitable(app.GridLayout5);
@@ -1656,26 +1579,24 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout15.Layout.Row = 2;
             app.GridLayout15.Layout.Column = 1;
 
-            % Create EffluxCloseButton
-            app.EffluxCloseButton = uibutton(app.GridLayout15, 'push');
-            app.EffluxCloseButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxCloseButtonPushed, true);
-            app.EffluxCloseButton.Layout.Row = 1;
-            app.EffluxCloseButton.Layout.Column = 5;
-            app.EffluxCloseButton.Text = 'Close';
-
-            % Create EffluxApplyAllButton
-            app.EffluxApplyAllButton = uibutton(app.GridLayout15, 'push');
-            app.EffluxApplyAllButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxApplyAllButtonPushed, true);
-            app.EffluxApplyAllButton.Layout.Row = 1;
-            app.EffluxApplyAllButton.Layout.Column = 4;
-            app.EffluxApplyAllButton.Text = 'Apply for all';
+            % Create EffluxCancelButton
+            app.EffluxCancelButton = uibutton(app.GridLayout15, 'push');
+            app.EffluxCancelButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxCancelButtonPushed, true);
+            app.EffluxCancelButton.Layout.Row = 1;
+            app.EffluxCancelButton.Layout.Column = 5;
+            app.EffluxCancelButton.Text = 'Cancel';
 
             % Create EffluxApplyButton
             app.EffluxApplyButton = uibutton(app.GridLayout15, 'push');
-            app.EffluxApplyButton.ButtonPushedFcn = createCallbackFcn(app, @EffluxApplyButtonPushed, true);
             app.EffluxApplyButton.Layout.Row = 1;
-            app.EffluxApplyButton.Layout.Column = 3;
+            app.EffluxApplyButton.Layout.Column = 4;
             app.EffluxApplyButton.Text = 'Apply';
+
+            % Create EffluxRestoreDefaultButton
+            app.EffluxRestoreDefaultButton = uibutton(app.GridLayout15, 'push');
+            app.EffluxRestoreDefaultButton.Layout.Row = 1;
+            app.EffluxRestoreDefaultButton.Layout.Column = 3;
+            app.EffluxRestoreDefaultButton.Text = 'Restore default';
 
             % Create GridLayout22
             app.GridLayout22 = uigridlayout(app.GridLayout13);
@@ -1709,25 +1630,23 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout16.Layout.Row = 2;
             app.GridLayout16.Layout.Column = 1;
 
-            % Create SuggestionCloseButton
-            app.SuggestionCloseButton = uibutton(app.GridLayout16, 'push');
-            app.SuggestionCloseButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionCloseButtonPushed, true);
-            app.SuggestionCloseButton.Layout.Row = 1;
-            app.SuggestionCloseButton.Layout.Column = 5;
-            app.SuggestionCloseButton.Text = 'Close';
+            % Create SuggestionCancelButton
+            app.SuggestionCancelButton = uibutton(app.GridLayout16, 'push');
+            app.SuggestionCancelButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionCancelButtonPushed, true);
+            app.SuggestionCancelButton.Layout.Row = 1;
+            app.SuggestionCancelButton.Layout.Column = 5;
+            app.SuggestionCancelButton.Text = 'Cancel';
 
-            % Create SuggestionApplyForAllButton
-            app.SuggestionApplyForAllButton = uibutton(app.GridLayout16, 'push');
-            app.SuggestionApplyForAllButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionApplyForAllButtonPushed, true);
-            app.SuggestionApplyForAllButton.Layout.Row = 1;
-            app.SuggestionApplyForAllButton.Layout.Column = 4;
-            app.SuggestionApplyForAllButton.Text = 'Apply for all';
+            % Create SuggestionRestoreDefaultButton
+            app.SuggestionRestoreDefaultButton = uibutton(app.GridLayout16, 'push');
+            app.SuggestionRestoreDefaultButton.Layout.Row = 1;
+            app.SuggestionRestoreDefaultButton.Layout.Column = 3;
+            app.SuggestionRestoreDefaultButton.Text = 'Restore default';
 
             % Create SuggestionApplyButton
             app.SuggestionApplyButton = uibutton(app.GridLayout16, 'push');
-            app.SuggestionApplyButton.ButtonPushedFcn = createCallbackFcn(app, @SuggestionApplyButtonPushed, true);
             app.SuggestionApplyButton.Layout.Row = 1;
-            app.SuggestionApplyButton.Layout.Column = 3;
+            app.SuggestionApplyButton.Layout.Column = 4;
             app.SuggestionApplyButton.Text = 'Apply';
 
             % Create GridLayout17
@@ -1771,27 +1690,24 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout15_2.Layout.Row = 2;
             app.GridLayout15_2.Layout.Column = 1;
 
-            % Create INSTMFACloseButton
-            app.INSTMFACloseButton = uibutton(app.GridLayout15_2, 'push');
-            app.INSTMFACloseButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFACloseButtonPushed, true);
-            app.INSTMFACloseButton.Layout.Row = 1;
-            app.INSTMFACloseButton.Layout.Column = 5;
-            app.INSTMFACloseButton.Text = 'Close';
+            % Create INSTMFACancelButton
+            app.INSTMFACancelButton = uibutton(app.GridLayout15_2, 'push');
+            app.INSTMFACancelButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFACancelButtonPushed, true);
+            app.INSTMFACancelButton.Layout.Row = 1;
+            app.INSTMFACancelButton.Layout.Column = 5;
+            app.INSTMFACancelButton.Text = 'Cancel';
+
+            % Create INSTMFARestoreDefaultButton
+            app.INSTMFARestoreDefaultButton = uibutton(app.GridLayout15_2, 'push');
+            app.INSTMFARestoreDefaultButton.Layout.Row = 1;
+            app.INSTMFARestoreDefaultButton.Layout.Column = 3;
+            app.INSTMFARestoreDefaultButton.Text = 'Restore default';
 
             % Create INSTMFAApplyButton
             app.INSTMFAApplyButton = uibutton(app.GridLayout15_2, 'push');
-            app.INSTMFAApplyButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFAApplyButtonPushed, true);
-            app.INSTMFAApplyButton.Enable = 'off';
             app.INSTMFAApplyButton.Layout.Row = 1;
-            app.INSTMFAApplyButton.Layout.Column = 3;
+            app.INSTMFAApplyButton.Layout.Column = 4;
             app.INSTMFAApplyButton.Text = 'Apply';
-
-            % Create INSTMFAReloadButton
-            app.INSTMFAReloadButton = uibutton(app.GridLayout15_2, 'push');
-            app.INSTMFAReloadButton.ButtonPushedFcn = createCallbackFcn(app, @INSTMFAReloadButtonPushed, true);
-            app.INSTMFAReloadButton.Layout.Row = 1;
-            app.INSTMFAReloadButton.Layout.Column = 4;
-            app.INSTMFAReloadButton.Text = 'Reload';
 
             % Create GridLayout20
             app.GridLayout20 = uigridlayout(app.GridLayout13_2);
@@ -1863,7 +1779,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.BatchconfigUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -1884,7 +1799,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -1893,7 +1807,5 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.BatchconfigUIFigure)
         end
-
     end
-
 end

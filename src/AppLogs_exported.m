@@ -2,11 +2,16 @@ classdef AppLogs_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        LogsUIFigure matlab.ui.Figure
-        FilesMenu matlab.ui.container.Menu
-        SaveAsCtrlSMenu matlab.ui.container.Menu
-        GridLayout matlab.ui.container.GridLayout
-        TextArea matlab.ui.control.TextArea
+        LogsUIFigure     matlab.ui.Figure
+        FilesMenu        matlab.ui.container.Menu
+        SaveAsCtrlSMenu  matlab.ui.container.Menu
+        GridLayout       matlab.ui.container.GridLayout
+        TextArea         matlab.ui.control.TextArea
+    end
+
+
+    properties (Access = private)
+        NotificationPublisher (1, 1) function_handle = @(~) []
     end
 
     methods (Access = protected)
@@ -53,62 +58,47 @@ classdef AppLogs_exported < matlab.apps.AppBase
 
         function loadLogs(app)
 
-            system = System();
-            filepath = system.getCacheDirectory();
-            filename = fullfile(filepath, "openmebius2.log");
+            filename = openmebius.infrastructure.logging.Logger ...
+                .defaultLogFile();
+            logLines = openmebius.infrastructure.logging.Logger ...
+                .readTail(filename, MaxLines = 5000);
 
-            maxLines = 5000;
-            nLines = 0;
-            fid = fopen(filename, 'r');
-
-            if fid == -1
-                app.TextArea.Value = {"Log file not found."};
-                return;
-            end
-
-            while ~feof(fid)
-                fgetl(fid);
-                nLines = nLines + 1;
-            end
-
-            startLine = max(1, nLines - maxLines + 1);
-
-            fid = fopen(filename, 'r');
-
-            if fid == -1
-                app.TextArea.Value = {"Log file not found."};
-                return;
-            end
-
-            currentLine = 0;
-            logLines = {};
-
-            while ~feof(fid)
-                line = fgetl(fid);
-                currentLine = currentLine + 1;
-
-                if currentLine >= startLine
-                    logLines{end + 1} = line; %#ok<AGROW>
-                end
-
-            end
-
-            fclose(fid);
-
-            app.TextArea.Value = logLines;
+            app.TextArea.Value = cellstr(logLines);
 
         end % function loadLogs
 
+        function publishNotification(app, level, text)
+
+            emitter = openmebius.application.notification ...
+                .NotificationEmitter( ...
+                Publisher = app.NotificationPublisher, ...
+                Source = "AppLogs");
+            emitter.report( ...
+                level, ...
+                text, ...
+                Code = "log.export");
+
+        end % publishNotification
+
     end
+
 
     % Callbacks that handle component events
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app)
+        function startupFcn(app, notificationPublisher)
+
+            if nargin >= 2 && ~isempty(notificationPublisher)
+                app.NotificationPublisher = notificationPublisher;
+            else
+                consoleSink = openmebius.infrastructure.notification ...
+                    .ConsoleSink();
+                app.NotificationPublisher = ...
+                    @(message) consoleSink.write(message);
+            end
 
             app.loadLogs();
-
         end
 
         % Menu selected function: SaveAsCtrlSMenu
@@ -120,20 +110,16 @@ classdef AppLogs_exported < matlab.apps.AppBase
                 return;
             end
 
-            system = System();
-            filepath = system.getCacheDirectory();
-            sourceFile = fullfile(filepath, "openmebius2.log");
-            destFile = fullfile(folder, "openmebius2.log");
-
             try
-                copyfile(sourceFile, destFile);
-                msg = "Log file saved to: " + destFile;
-                disp(msg);
+                openmebius.infrastructure.logging.Logger ...
+                    .copyDefaultLogTo(folder);
+                msg = "Log file saved to: " + ...
+                    fullfile(folder, "openmebius2.log");
+                app.publishNotification("success", msg);
             catch ME
                 msg = "Failed to save log file: " + ME.message;
-                disp(msg);
+                app.publishNotification("error", msg);
             end
-
         end
 
         % Key press function: LogsUIFigure
@@ -146,9 +132,7 @@ classdef AppLogs_exported < matlab.apps.AppBase
             elseif strcmp(key, "escape")
                 delete(app);
             end
-
         end
-
     end
 
     % Component initialization
@@ -189,14 +173,13 @@ classdef AppLogs_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.LogsUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
     methods (Access = public)
 
         % Construct app
-        function app = AppLogs_exported
+        function app = AppLogs_exported(varargin)
 
             % Create UIFigure and components
             createComponents(app)
@@ -205,12 +188,11 @@ classdef AppLogs_exported < matlab.apps.AppBase
             registerApp(app, app.LogsUIFigure)
 
             % Execute the startup function
-            runStartupFcn(app, @startupFcn)
+            runStartupFcn(app, @(app)startupFcn(app, varargin{:}))
 
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -219,7 +201,5 @@ classdef AppLogs_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.LogsUIFigure)
         end
-
     end
-
 end

@@ -1,0 +1,40 @@
+classdef MFAAnalysisRunFactory
+    % MFAANALYSISRUNFACTORY Creates one configured MFA analysis run.
+
+    methods
+
+        function analysis = create( ...
+                ~, model, experiments, experimentNames, config, ...
+                resultInput, batchId, controller, options)
+
+            arguments
+                ~
+                model
+                experiments
+                experimentNames
+                config (1, 1) struct
+                resultInput
+                batchId
+                controller = []
+                options.Provenance (1, 1) struct = struct
+                options.MessageReporter (1, 1) function_handle = @(~) []
+                options.ResultReporter (1, 1) function_handle = @(~) []
+            end
+
+            analysis = openmebius.application.analysis.MFAAnalysisRun( ...
+                model, ...
+                experiments, ...
+                experimentNames, ...
+                config, ...
+                resultInput, ...
+                batchId, ...
+                controller, ...
+                Provenance = options.Provenance, ...
+                MessageReporter = options.MessageReporter, ...
+                ResultReporter = options.ResultReporter);
+
+        end % create
+
+    end % methods
+
+end % classdef

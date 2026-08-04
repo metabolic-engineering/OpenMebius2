@@ -1,0 +1,55 @@
+name: MATLAB extended tests
+
+on:
+  schedule:
+    - cron: "0 18 * * 6"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Test profile to run
+        required: true
+        default: numerical
+        type: choice
+        options:
+          - domain
+          - numerical
+          - integration
+          - all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: matlab-extended-tests-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  extended-tests:
+    runs-on: windows-latest
+    timeout-minutes: 240
+    env:
+      TEST_PROFILE: ${{ github.event_name == 'schedule' && 'numerical' || inputs.profile }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          release: R2026a
+
+      - name: Run extended test profile
+        uses: matlab-actions/run-command@v2
+        with:
+          command: >-
+            addpath("tests");
+            runTestProfile(getenv("TEST_PROFILE"),
+            ReportDirectory="test-results", Coverage=true)
+
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: matlab-${{ env.TEST_PROFILE }}-test-results
+          path: test-results
+          if-no-files-found: warn

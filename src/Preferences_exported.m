@@ -2,23 +2,29 @@ classdef Preferences_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        PreferencesUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        GridLayout4 matlab.ui.container.GridLayout
-        CancelButton matlab.ui.control.Button
-        CloseButton matlab.ui.control.Button
-        TabGroup matlab.ui.container.TabGroup
-        NotificationTab matlab.ui.container.Tab
-        GridLayout2 matlab.ui.container.GridLayout
-        GridLayout3 matlab.ui.container.GridLayout
-        SlackWebhookEditField matlab.ui.control.EditField
-        WebhookEditFieldLabel matlab.ui.control.Label
-        SlacknotificationCheckBox matlab.ui.control.CheckBox
+        PreferencesUIFigure        matlab.ui.Figure
+        GridLayout                 matlab.ui.container.GridLayout
+        GridLayout4                matlab.ui.container.GridLayout
+        CancelButton               matlab.ui.control.Button
+        CloseButton                matlab.ui.control.Button
+        TabGroup                   matlab.ui.container.TabGroup
+        NotificationTab            matlab.ui.container.Tab
+        GridLayout2                matlab.ui.container.GridLayout
+        GridLayout3                matlab.ui.container.GridLayout
+        SlackWebhookEditField      matlab.ui.control.EditField
+        WebhookEditFieldLabel      matlab.ui.control.Label
+        SlacknotificationCheckBox  matlab.ui.control.CheckBox
     end
 
+
     properties (Access = private)
-        MainApp
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
+        PreferencesClosedNotified (1, 1) logical = false
+        NotificationPublisher (1, 1) function_handle = @(~) []
+    end
+
+    events
+        PreferencesClosed
     end
 
     methods (Access = private)
@@ -97,18 +103,28 @@ classdef Preferences_exported < matlab.apps.AppBase
                     string(notification));
             end
 
-            try
-                uialert( ...
-                    app.PreferencesUIFigure, ...
-                    char(notification.Message), ...
-                    char(notification.Title), ...
-                    "Icon", char(notification.alertIcon()), ...
-                    "Interpreter", "none");
-            catch
-                warning("%s", notification.toLogText());
-            end
+            app.NotificationPublisher( ...
+                notification.toMessage( ...
+                Code = "preferences.operation", ...
+                Source = "Preferences"));
 
         end % method showPreferenceNotification
+
+        function renderLocalNotification(app, message)
+
+            notification = openmebius.presentation.notification ...
+                .Notification.fromMessage( ...
+                message, ...
+                Title = message.Title, ...
+                ShowAlert = true);
+            uialert( ...
+                app.PreferencesUIFigure, ...
+                char(notification.Message), ...
+                char(notification.Title), ...
+                "Icon", char(notification.alertIcon()), ...
+                "Interpreter", "none");
+
+        end % method renderLocalNotification
 
         function showLocalWarning(app, ME)
 
@@ -122,42 +138,46 @@ classdef Preferences_exported < matlab.apps.AppBase
 
         end % method showLocalWarning
 
-        function notifyMainPreferencesClosed(app)
+        function notifyPreferencesClosed(app)
+
+            if app.PreferencesClosedNotified
+                return
+            end
+
+            app.PreferencesClosedNotified = true;
 
             try
-
-                if ~isempty(app.MainApp) && isvalid(app.MainApp)
-                    app.MainApp.onPreferencesClosed();
-                end
-
+                notify(app, 'PreferencesClosed');
             catch
                 % Main app may have already been deleted.
             end
 
-        end % method notifyMainPreferencesClosed
+        end % method notifyPreferencesClosed
 
     end % methods (Access = private)
+
 
     % Callbacks that handle component events
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, mainApp, slackNotifier)
+        function startupFcn(app, slackNotifier, notificationPublisher)
 
-            if nargin < 2
-                mainApp = [];
-            end
-
-            if nargin < 3 || isempty(slackNotifier)
+            if nargin < 2 || isempty(slackNotifier)
                 slackNotifier = ...
                     openmebius.infrastructure.notification.SlackWebhookNotifier();
             end
 
-            app.MainApp = mainApp;
             app.SlackNotifier = slackNotifier;
 
-            app.loadSlackPreferences();
+            if nargin >= 3 && ~isempty(notificationPublisher)
+                app.NotificationPublisher = notificationPublisher;
+            else
+                app.NotificationPublisher = ...
+                    @(message) app.renderLocalNotification(message);
+            end
 
+            app.loadSlackPreferences();
         end
 
         % Value changed function: SlacknotificationCheckBox
@@ -166,26 +186,12 @@ classdef Preferences_exported < matlab.apps.AppBase
             enabled = logical(app.SlacknotificationCheckBox.Value);
 
             app.SlackWebhookEditField.Enable = app.onOff(enabled);
-
-        end
-
-        % Value changed function: SlackWebhookEditField
-        function SlackWebhookEditFieldValueChanged(app, event)
-
-            try
-                app.saveSlackPreferences();
-            catch ME
-                app.showLocalWarning(ME);
-            end
-
         end
 
         % Button pushed function: CancelButton
         function CancelButtonPushed(app, event)
 
-            app.notifyMainPreferencesClosed();
             delete(app);
-
         end
 
         % Button pushed function: CloseButton
@@ -193,7 +199,6 @@ classdef Preferences_exported < matlab.apps.AppBase
 
             try
                 app.saveSlackPreferences();
-                app.notifyMainPreferencesClosed();
                 delete(app);
 
             catch ME
@@ -203,17 +208,13 @@ classdef Preferences_exported < matlab.apps.AppBase
                     Title = "Preferences", ...
                     ShowAlert = true));
             end
-
         end
 
         % Close request function: PreferencesUIFigure
         function PreferencesUIFigureCloseRequest(app, event)
 
-            app.notifyMainPreferencesClosed();
             delete(app);
-
         end
-
     end
 
     % Component initialization
@@ -274,7 +275,6 @@ classdef Preferences_exported < matlab.apps.AppBase
 
             % Create SlackWebhookEditField
             app.SlackWebhookEditField = uieditfield(app.GridLayout3, 'text');
-            app.SlackWebhookEditField.ValueChangedFcn = createCallbackFcn(app, @SlackWebhookEditFieldValueChanged, true);
             app.SlackWebhookEditField.Layout.Row = 1;
             app.SlackWebhookEditField.Layout.Column = 2;
 
@@ -302,7 +302,6 @@ classdef Preferences_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.PreferencesUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -323,7 +322,6 @@ classdef Preferences_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -332,7 +330,5 @@ classdef Preferences_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.PreferencesUIFigure)
         end
-
     end
-
 end

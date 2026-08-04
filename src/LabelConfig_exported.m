@@ -2,33 +2,28 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        LabelconfigUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        GridLayout3 matlab.ui.container.GridLayout
-        GridLayout7 matlab.ui.container.GridLayout
-        SaveButton matlab.ui.control.Button
-        LoadButton matlab.ui.control.Button
-        GridLayout5 matlab.ui.container.GridLayout
-        RemoveRatioButton matlab.ui.control.Button
-        AddRatioButton matlab.ui.control.Button
-        RatioTable matlab.ui.control.Table
-        GridLayout2 matlab.ui.container.GridLayout
-        LabelTable matlab.ui.control.Table
-        GridLayout4 matlab.ui.container.GridLayout
-        GridLayout6 matlab.ui.container.GridLayout
-        RemoveLabelButton matlab.ui.control.Button
-        AddLabelButton matlab.ui.control.Button
+        LabelconfigUIFigure  matlab.ui.Figure
+        GridLayout           matlab.ui.container.GridLayout
+        GridLayout3          matlab.ui.container.GridLayout
+        GridLayout7          matlab.ui.container.GridLayout
+        SaveButton           matlab.ui.control.Button
+        LoadButton           matlab.ui.control.Button
+        GridLayout5          matlab.ui.container.GridLayout
+        RemoveRatioButton    matlab.ui.control.Button
+        AddRatioButton       matlab.ui.control.Button
+        RatioTable           matlab.ui.control.Table
+        GridLayout2          matlab.ui.container.GridLayout
+        LabelTable           matlab.ui.control.Table
+        GridLayout4          matlab.ui.container.GridLayout
+        GridLayout6          matlab.ui.container.GridLayout
+        RemoveLabelButton    matlab.ui.control.Button
+        AddLabelButton       matlab.ui.control.Button
     end
+
 
     properties (Access = private)
 
-        MainApp
-        initStructLabel struct
-        initTableLabel table
-        initFieldNames cell
-        structLabel struct
-        tableLabel table
-        fieldNames cell
+        Action openmebius.presentation.model.LabelConfigAction
         idxLabel double
 
     end
@@ -37,24 +32,66 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
         function initLabelTable(app)
 
-            app.LabelTable.Data = app.initTableLabel;
-            app.structLabel = app.initStructLabel;
+            app.Action.restore();
+            app.LabelTable.Data = app.Action.LabelTable;
+            app.lockRatioTable();
 
         end
+
+        function selectLabel(app, indices)
+
+            if isempty(indices)
+                app.lockRatioTable();
+                return
+            end
+
+            app.idxLabel = indices(1, 1);
+            app.RatioTable.Data = ...
+                app.Action.selectLabel(app.idxLabel);
+            app.unlockRatioTable();
+
+        end % selectLabel
+
+        function removeSelectedRatio(app)
+
+            ratioSelection = app.RatioTable.Selection;
+            labelSelection = app.LabelTable.Selection;
+
+            if isempty(ratioSelection) || isempty(labelSelection)
+                return
+            end
+
+            [app.RatioTable.Data, message] = app.Action.removeRatio( ...
+                labelSelection(1, 1), ratioSelection(1, 1));
+            app.requestInfo(message);
+
+        end % removeSelectedRatio
+
+        function removeSelectedLabels(app)
+
+            selection = app.LabelTable.Selection;
+
+            if isempty(selection)
+                return
+            end
+
+            message = app.Action.removeLabels(selection(:, 1));
+            app.LabelTable.Data = app.Action.LabelTable;
+            app.lockRatioTable();
+            app.requestInfo(message);
+
+        end % removeSelectedLabels
 
         function updateRatioTable(app)
 
             idx = app.idxLabel;
-            field = app.fieldNames(idx);
-            field = field{:};
-            ratioTable = app.MainApp.model.convertLabelCellToTable(app.RatioTable.Data);
-            app.structLabel.(field) = ratioTable;
+            app.Action.updateRatioTable(idx, app.RatioTable.Data);
 
         end
 
         function updateLabelTable(app)
 
-            app.tableLabel = app.LabelTable.Data;
+            app.Action.updateLabelTable(app.LabelTable.Data);
 
         end
 
@@ -77,100 +114,49 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
         end
 
-        function label = makeStructLabel(~, input)
+        function requestInfo(app, message)
 
-            label = matlab.lang.makeValidName(input);
-            label = matlab.lang.makeUniqueStrings(label);
+            notification = openmebius.presentation.notification ...
+                .Notification.info(string(message));
+            eventData = openmebius.presentation.notification ...
+                .NotificationEventData(notification);
+            notify(app, "NotificationRequested", eventData);
 
-        end
+        end % requestInfo
 
     end
+
 
     % Callbacks that handle component events
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, MainApp, tableLavelView, structLabelView)
+        function startupFcn(app, context)
 
-            app.MainApp = MainApp;
-            app.initStructLabel = structLabelView;
-            app.initTableLabel = tableLavelView;
-            app.initFieldNames = fieldnames(structLabelView);
-
-            app.structLabel = structLabelView;
-            app.tableLabel = tableLavelView;
-            app.fieldNames = fieldnames(structLabelView);
-
-            app.LabelTable.Data = tableLavelView;
-            app.LabelTable.ColumnName = tableLavelView.Properties.VariableNames;
-
+            app.Action = context.Action;
+            app.LabelTable.Data = app.Action.LabelTable;
+            app.LabelTable.ColumnName = ...
+                app.Action.LabelTable.Properties.VariableNames;
         end
 
         % Cell selection callback: LabelTable
         function LabelTableCellSelection(app, event)
 
-            indices = event.Indices;
-
-            % 選択された列に対応したRatioTableを表示
-            if ~isempty(indices)
-
-                idx = indices(1, 1);
-                app.idxLabel = idx;
-
-                % 選択されたラベル名を取得
-                % ラベル名は1列目をfieldName用に変換したもの
-                fieldName = app.fieldNames{idx};
-
-                % ラベル名に対応したRatioTableを表示
-                app.RatioTable.Data = app.structLabel.(fieldName);
-
-                % unlock ratio table
-                app.unlockRatioTable();
-
-            else
-
-                % 選択された列がない場合はRatioTableをロック
-                app.lockRatioTable();
-
-            end
-
+            app.selectLabel(event.Indices);
         end
 
         % Button pushed function: AddLabelButton
         function AddLabelButtonPushed(app, event)
 
-            % Add new Label pattern to the end of the seleceted row
-            app.LabelTable.Data = [app.LabelTable.Data; {'New label', 1}];
-            app.fieldNames = [app.fieldNames; 'New label'];
-            app.fieldNames = app.makeStructLabel(app.fieldNames);
-            app.structLabel.(app.fieldNames{end}) = {};
-
-            app.MainApp.LogTextDate("New label added", "Info");
-
+            message = app.Action.addLabel();
+            app.LabelTable.Data = app.Action.LabelTable;
+            app.requestInfo(message);
         end
 
         % Button pushed function: RemoveLabelButton
         function RemoveLabelButtonPushed(app, event)
 
-            % 選択されている行を削除する
-            indices = app.LabelTable.Selection;
-
-            if ~isempty(indices)
-
-                idx = transpose(indices(:, 1));
-                fieldName = app.fieldNames{idx};
-                label = app.LabelTable.Data{idx, 1};
-
-                % 削除する行を取得
-                app.LabelTable.Data(idx, :) = [];
-                app.structLabel = rmfield(app.structLabel, fieldName);
-                app.fieldNames(idx) = [];
-
-                text = "Label pattern [" + label + "] removed from the list";
-                app.MainApp.LogTextDate(text, "Info");
-
-            end
-
+            app.removeSelectedLabels();
         end
 
         % Button pushed function: AddRatioButton
@@ -179,42 +165,14 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             % Add new ratio pattern to the end of the seleceted row
             indices = app.LabelTable.Selection;
             idx = indices(1, 1);
-            fieldName = app.fieldNames{idx};
-            label = app.LabelTable.Data{idx, 1};
-            numC = app.LabelTable.Data{idx, 2};
-
-            app.RatioTable.Data = [app.RatioTable.Data; {'pattern', 1}];
-
-            app.structLabel.(fieldName) = app.RatioTable.Data;
-
-            app.MainApp.LogTextDate("New ratio added to [" + label + "]", "Info");
-
+            [app.RatioTable.Data, message] = app.Action.addRatio(idx);
+            app.requestInfo(message);
         end
 
         % Button pushed function: RemoveRatioButton
         function RemoveRatioButtonPushed(app, event)
 
-            % 選択されている行を削除する
-            indicesRatio = app.RatioTable.Selection;
-            indicesLabel = app.LabelTable.Selection;
-
-            if ~isempty(indicesRatio)
-
-                idxRatio = indicesRatio(1, 1);
-                idxLabel = indicesLabel(1, 1);
-
-                fieldName = app.fieldNames{idxLabel};
-                label = app.LabelTable.Data{idxLabel, 1};
-
-                % 削除する行を取得
-                app.RatioTable.Data(idxRatio, :) = [];
-                app.structLabel.(fieldName) = app.RatioTable.Data;
-
-                text = "Ratio pattern removed from [" + label + "]";
-                app.MainApp.LogTextDate(text, "Info");
-
-            end
-
+            app.removeSelectedRatio();
         end
 
         % Button pushed function: LoadButton
@@ -222,51 +180,37 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
             lockRatioTable(app);
 
-            % Reload the label pattern
-            app.LabelTable.Data = app.initTableLabel;
-            app.structLabel = app.initStructLabel;
-            app.fieldNames = app.initFieldNames;
-
+            app.initLabelTable();
         end
 
         % Button pushed function: SaveButton
         function SaveButtonPushed(app, event)
 
-            app.MainApp.model.tableLabelView = app.LabelTable.Data;
-            app.MainApp.model.structLabelView = app.structLabel;
-
-            app.MainApp.model.exportLabel()
-
-            app.initTableLabel = app.LabelTable.Data;
-            app.initStructLabel = app.structLabel;
-            app.initFieldNames = app.fieldNames;
-
-            app.MainApp.updateModel()
-
-            delete(app)
-
+            app.updateLabelTable();
+            eventData = openmebius.presentation.model ...
+                .LabelConfigurationAppliedEventData( ...
+                app.Action.LabelTable, app.Action.RatioTables);
+            notify(app, "Applied", eventData);
+            close(app.LabelconfigUIFigure);
         end
 
         % Display data changed function: RatioTable
         function RatioTableDisplayDataChanged(app, event)
 
             updateRatioTable(app);
-
         end
 
         % Cell edit callback: RatioTable
         function RatioTableCellEdit(app, event)
 
             updateRatioTable(app);
-
         end
 
         % Close request function: LabelconfigUIFigure
         function LabelconfigUIFigureCloseRequest(app, event)
 
-            app.MainApp.unlockAllFeature()
-            delete(app)
-
+            notify(app, "Closed");
+            delete(app);
         end
 
         % Key press function: LabelconfigUIFigure
@@ -274,12 +218,10 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
             if strcmp(event.Key, 'escape')
 
-                delete(app)
+                close(app.LabelconfigUIFigure);
 
             end
-
         end
-
     end
 
     % Component initialization
@@ -418,7 +360,6 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.LabelconfigUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -439,7 +380,6 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -448,7 +388,5 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.LabelconfigUIFigure)
         end
-
     end
-
 end

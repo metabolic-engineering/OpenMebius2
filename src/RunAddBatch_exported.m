@@ -2,22 +2,28 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        AddbatchUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        AddAsParallel matlab.ui.control.CheckBox
-        UITable matlab.ui.control.Table
-        GridLayout2 matlab.ui.container.GridLayout
-        AddButton matlab.ui.control.Button
-        CloseButton matlab.ui.control.Button
+        AddbatchUIFigure  matlab.ui.Figure
+        GridLayout        matlab.ui.container.GridLayout
+        GridLayout2       matlab.ui.container.GridLayout
+        CloseButton       matlab.ui.control.Button
+        AddButton         matlab.ui.control.Button
+        UITable           matlab.ui.control.Table
+        AddAsParallel     matlab.ui.control.CheckBox
     end
+
 
     properties (Access = private)
 
-        MainApp % Reference to the main app
-        type % Type of experiments to add
-        batchID % Batch ID for INST-MFA
+        Action openmebius.presentation.batch.RunAddBatchAction
 
     end % private properties
+
+    events
+
+        Applied
+        Closed
+
+    end % events
 
     methods (Access = private)
 
@@ -25,119 +31,51 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
         function initTable(app)
             % INITTABLE Initialize the UITable with default properties
 
-            expList = getExpList(app.MainApp.exp);
-
-            dataTable = table( ...
-                false(length(expList), 1), ... % Add column initialized to false
-                expList', ... % Experiment names
-                'VariableNames', {'Add', 'Experiment'} ...
-            );
-
-            app.UITable.Data = dataTable;
+            app.UITable.Data = app.Action.initialTable();
             app.UITable.ColumnWidth = {50, '1x'};
             app.UITable.ColumnEditable = [true, false]; % Make only the Add column editable
 
         end % method initTable
 
+        function applySelection(app)
+
+            selection = app.Action.createSelection( ...
+                app.UITable.Data, ...
+                logical(app.AddAsParallel.Value));
+
+            if isempty(selection)
+                return
+            end
+
+            eventData = openmebius.presentation.batch ...
+                .BatchExperimentSelectionEventData(selection);
+            notify(app, "Applied", eventData);
+
+        end % applySelection
+
     end % private methods
+
 
     % Callbacks that handle component events
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, MainApp, type, batchID)
+        function startupFcn(app, context)
 
-            app.MainApp = MainApp;
-            app.type = type;
+            editor = context.Editor;
+            app.Action = context.Action;
 
-            if strcmp(type, 'inst-mfa')
+            if editor.Mode == "inst-mfa"
                 app.AddAsParallel.Visible = 'off';
-                app.batchID = batchID;
             end
 
             initTable(app);
-
         end
 
         % Button pushed function: AddButton
         function AddButtonPushed(app, event)
 
-            data = app.UITable.Data;
-            % Get Add column
-            addColumn = data{:, 1};
-            expList = data{:, 2};
-
-            % Get selected experiments
-            selectedExps = expList(addColumn);
-
-            if isempty(selectedExps)
-                return;
-            end
-
-            switch app.type
-
-                case 'parallel'
-
-                    isParallel = app.AddAsParallel.Value;
-
-                    if isParallel
-
-                        % Combine selected experiments into a single entry for parallel labeling
-                        combinedExpName = strjoin(selectedExps, ', ');
-
-                        % Edit config for parallel labeling
-                        config = struct();
-                        config.numExperiments = length(selectedExps);
-                        config.isParallel = true;
-
-                        app.MainApp.batch.addBatch( ...
-                            combinedExpName, ...
-                            {selectedExps'}, ...
-                            "Added parallel item", ...
-                            config ...
-                        )
-
-                    else
-
-                        for i = 1:length(selectedExps)
-
-                            app.MainApp.batch.addBatch( ...
-                                selectedExps{i}, ...
-                                {selectedExps{i}}, ...
-                                "Added item", ...
-                                struct() ...
-                            )
-
-                        end % for i = 1:length(selectedExps)
-
-                    end % if isParallel
-
-                case 'inst-mfa'
-
-                    % Combine selected experiments into a single entry for parallel labeling
-                    combinedExpName = strjoin(selectedExps, ', ');
-
-                    % Edit config for parallel labeling
-                    config = struct();
-                    config.numExperiments = length(selectedExps);
-                    config.isParallel = false;
-                    config.isINSTMFA = true;
-
-                    app.MainApp.batch.editBatch( ...
-                        app.batchID, ...
-                        combinedExpName, ...
-                        {selectedExps'}, ...
-                        "Added INST-MFA item", ...
-                        config ...
-                    )
-
-            end % switch app.type
-
-            updateBatchTable(app.MainApp);
-
-            % Close the app after adding the batch items
-            % close(app.AddbatchUIFigure);
-
+            app.applySelection();
         end
 
         % Button pushed function: CloseButton
@@ -145,7 +83,6 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
 
             % Close the app when the Close button is pressed
             close(app.AddbatchUIFigure);
-
         end
 
         % Key press function: AddbatchUIFigure
@@ -158,15 +95,14 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
                 close(app.AddbatchUIFigure);
 
             end
-
         end
 
         % Close request function: AddbatchUIFigure
         function AddbatchUIFigureCloseRequest(app, event)
             uiresume(app.AddbatchUIFigure);
+            notify(app, "Closed");
             delete(app);
         end
-
     end
 
     % Component initialization
@@ -191,26 +127,12 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             app.GridLayout.ColumnWidth = {'1x'};
             app.GridLayout.RowHeight = {'1x', 'fit', 'fit'};
 
-            % Create GridLayout2
-            app.GridLayout2 = uigridlayout(app.GridLayout);
-            app.GridLayout2.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
-            app.GridLayout2.RowHeight = {'1x'};
-            app.GridLayout2.Layout.Row = 3;
-            app.GridLayout2.Layout.Column = 1;
-
-            % Create CloseButton
-            app.CloseButton = uibutton(app.GridLayout2, 'push');
-            app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
-            app.CloseButton.Layout.Row = 1;
-            app.CloseButton.Layout.Column = 5;
-            app.CloseButton.Text = 'Close';
-
-            % Create AddButton
-            app.AddButton = uibutton(app.GridLayout2, 'push');
-            app.AddButton.ButtonPushedFcn = createCallbackFcn(app, @AddButtonPushed, true);
-            app.AddButton.Layout.Row = 1;
-            app.AddButton.Layout.Column = 4;
-            app.AddButton.Text = 'Add';
+            % Create AddAsParallel
+            app.AddAsParallel = uicheckbox(app.GridLayout);
+            app.AddAsParallel.Text = 'Add batch row as parallel labeling';
+            app.AddAsParallel.Layout.Row = 2;
+            app.AddAsParallel.Layout.Column = 1;
+            app.AddAsParallel.Value = true;
 
             % Create UITable
             app.UITable = uitable(app.GridLayout);
@@ -220,17 +142,30 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             app.UITable.Layout.Row = 1;
             app.UITable.Layout.Column = 1;
 
-            % Create AddAsParallel
-            app.AddAsParallel = uicheckbox(app.GridLayout);
-            app.AddAsParallel.Text = 'Add batch row as parallel labeling';
-            app.AddAsParallel.Layout.Row = 2;
-            app.AddAsParallel.Layout.Column = 1;
-            app.AddAsParallel.Value = true;
+            % Create GridLayout2
+            app.GridLayout2 = uigridlayout(app.GridLayout);
+            app.GridLayout2.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout2.RowHeight = {'1x'};
+            app.GridLayout2.Layout.Row = 3;
+            app.GridLayout2.Layout.Column = 1;
+
+            % Create AddButton
+            app.AddButton = uibutton(app.GridLayout2, 'push');
+            app.AddButton.ButtonPushedFcn = createCallbackFcn(app, @AddButtonPushed, true);
+            app.AddButton.Layout.Row = 1;
+            app.AddButton.Layout.Column = 4;
+            app.AddButton.Text = 'Add';
+
+            % Create CloseButton
+            app.CloseButton = uibutton(app.GridLayout2, 'push');
+            app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
+            app.CloseButton.Layout.Row = 1;
+            app.CloseButton.Layout.Column = 5;
+            app.CloseButton.Text = 'Close';
 
             % Show the figure after all components are created
             app.AddbatchUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -251,7 +186,6 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -260,7 +194,5 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.AddbatchUIFigure)
         end
-
     end
-
 end

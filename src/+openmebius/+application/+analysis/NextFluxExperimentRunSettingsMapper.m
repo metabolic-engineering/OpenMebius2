@@ -1,0 +1,26 @@
+classdef NextFluxExperimentRunSettingsMapper
+    % NEXTFLUXEXPERIMENTRUNSETTINGSMAPPER Maps Batch config at the facade.
+
+    methods (Static)
+
+        function settings = fromBatchConfig(config)
+
+            arguments
+                config (1, 1) struct
+            end
+
+            settings = openmebius.application.analysis ...
+                .NextFluxExperimentRunSettings( ...
+                ConfidenceIntervalRunSettings = ...
+                openmebius.application.analysis ...
+                .MFAConfidenceIntervalRunSettingsMapper ...
+                .fromBatchConfig(config), ...
+                NextLabelSettings = openmebius.application.analysis ...
+                .NextLabelExperimentSettingsMapper ...
+                .fromBatchConfig(config));
+
+        end
+
+    end
+
+end

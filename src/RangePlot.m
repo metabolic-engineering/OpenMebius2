@@ -17,12 +17,22 @@ function RangePlot(ax, UB, LB, options)
         options.ReactionNames = []
         options.threshold double = 1e-6
         options.Debug logical = false
+        options.NotificationReporter (1, 1) function_handle = @(~) []
     end
 
     dbg = options.Debug;
 
     if isempty(UB) || isempty(LB) || height(UB) == 0 || width(UB) == 0
-        if dbg; disp("---- RangePlot: guard return ----"); end
+        if dbg
+            options.NotificationReporter( ...
+                openmebius.core.notification.Message( ...
+                    "RangePlot guard returned for empty bounds.", ...
+                    "debug", ...
+                    Code = "range-plot.empty-bounds", ...
+                    Source = "RangePlot", ...
+                    Audience = "developer", ...
+                    Kind = "diagnostic"));
+        end
         return;
     end
 

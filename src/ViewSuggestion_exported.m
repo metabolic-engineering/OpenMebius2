@@ -2,18 +2,19 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        RangePlotViewerUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        GridLayout5 matlab.ui.container.GridLayout
-        UITableRank matlab.ui.control.Table
-        UITableFlux matlab.ui.control.Table
-        GridLayout4 matlab.ui.container.GridLayout
-        RangeAxes matlab.ui.control.UIAxes
-        GridLayout2 matlab.ui.container.GridLayout
-        GridLayout3 matlab.ui.container.GridLayout
-        SaveButton matlab.ui.control.Button
-        UITable matlab.ui.control.Table
+        RangePlotViewerUIFigure  matlab.ui.Figure
+        GridLayout               matlab.ui.container.GridLayout
+        GridLayout2              matlab.ui.container.GridLayout
+        UITable                  matlab.ui.control.Table
+        GridLayout3              matlab.ui.container.GridLayout
+        SaveButton               matlab.ui.control.Button
+        GridLayout4              matlab.ui.container.GridLayout
+        RangeAxes                matlab.ui.control.UIAxes
+        GridLayout5              matlab.ui.container.GridLayout
+        UITableFlux              matlab.ui.control.Table
+        UITableRank              matlab.ui.control.Table
     end
+
 
     %% Public properties
     properties (Access = public)
@@ -33,6 +34,10 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
         sampleName (1, 1) string = "sample"
         batchID (1, 1) string = "ID"
 
+    end
+
+    properties (Access = private)
+        NotificationPublisher (1, 1) function_handle = @(~) []
     end
 
     % Private methods
@@ -99,9 +104,15 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
                 % Flip reactions if they are negative fluxes
                 negativeFluxIdx = app.initialBestfit < 0;
                 app.initialBestfit(negativeFluxIdx) = -app.initialBestfit(negativeFluxIdx);
-                app.initialReactionName(negativeFluxIdx) = ModelUtility.flipReversibleReaction( ...
-                    app.initialReactionName(negativeFluxIdx) ...
-                );
+                reactionsToReverse = ...
+                    string(app.initialReactionName(negativeFluxIdx));
+                [reversedReactions, isReversible] = ...
+                    openmebius.domain.model.ReactionExpression ...
+                    .reverseReversible(reactionsToReverse);
+                app.initialReactionName(negativeFluxIdx) = ...
+                    reversedReactions;
+                app.reportNonReversibleReactions( ...
+                    reactionsToReverse(~isReversible));
                 tmpUB = app.initialUB(negativeFluxIdx, :);
                 app.initialUB(negativeFluxIdx, :) = -app.initialLB(negativeFluxIdx, :);
                 app.initialLB(negativeFluxIdx, :) = -tmpUB;
@@ -142,11 +153,13 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
                 app.dataLabel = labelAll;
 
                 if any(~isValidColor)
-                    uialert( ...
-                        app.RangePlotViewerUIFigure, ...
-                        'One or more color codes are invalid. Please check the "Color" column.', ...
-                        'Invalid Color Code' ...
-                    );
+                    app.publishNotification( ...
+                        "error", ...
+                        "One or more color codes are invalid. " + ...
+                        "Please check the Color column.", ...
+                        "view-suggestion.invalid-color", ...
+                        "Invalid Color Code", ...
+                    "action-required");
                     return;
                 end
 
@@ -591,19 +604,78 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             writetable(T_ci, excelPath, 'Sheet', 'CI_Summary');
         end % exportExcelFile
 
+        function publishNotification( ...
+                app, level, text, code, title, attention)
+
+            emitter = openmebius.application.notification ...
+                .NotificationEmitter( ...
+                Publisher = app.NotificationPublisher, ...
+                Source = "ViewSuggestion");
+            emitter.report( ...
+                level, ...
+                text, ...
+                Code = code, ...
+                Title = title, ...
+                Attention = attention);
+
+        end % publishNotification
+
+        function reportNonReversibleReactions(app, reactions)
+
+            emitter = openmebius.application.notification ...
+                .NotificationEmitter( ...
+                Publisher = app.NotificationPublisher, ...
+                Source = "ViewSuggestion");
+
+            for reaction = reactions(:)'
+                emitter.report( ...
+                    "warning", ...
+                    "The provided reaction is not reversible: " + ...
+                    reaction, ...
+                    Code = "model.reaction.not-reversible", ...
+                    Audience = "developer", ...
+                    Kind = "diagnostic");
+            end
+
+        end % reportNonReversibleReactions
+
+        function renderLocalNotification(app, message)
+
+            notification = openmebius.presentation.notification ...
+                .Notification.fromMessage( ...
+                message, ...
+                Title = message.Title, ...
+                ShowAlert = true);
+            uialert( ...
+                app.RangePlotViewerUIFigure, ...
+                char(notification.Message), ...
+                char(notification.Title), ...
+                "Icon", char(notification.alertIcon()), ...
+                "Interpreter", "none");
+
+        end % renderLocalNotification
+
     end % private methods
+
 
     % Callbacks that handle component events
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, data)
+        function startupFcn(app, data, notificationPublisher)
 
             app.sampleName = string(data.sampleName);
             app.batchID = string(data.batchID);
             app.data = data;
-            updateTable(app, isUpdate = false);
 
+            if nargin >= 3 && ~isempty(notificationPublisher)
+                app.NotificationPublisher = notificationPublisher;
+            else
+                app.NotificationPublisher = ...
+                    @(message) app.renderLocalNotification(message);
+            end
+
+            updateTable(app, isUpdate = false);
         end
 
         % Key press function: RangePlotViewerUIFigure
@@ -615,7 +687,6 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             if strcmp(key, 'escape')
                 delete(app)
             end
-
         end
 
         % Close request function: RangePlotViewerUIFigure
@@ -661,11 +732,12 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             app.exportExcelFile(outDir);
 
             % ---- 完了通知 ----
-            uialert(app.RangePlotViewerUIFigure, ...
+            app.publishNotification( ...
+                "success", ...
                 "Saved to:" + newline + outDir, ...
+                "view-suggestion.saved", ...
                 "Saved", ...
-                "Icon", "success");
-
+            "action-required");
         end
 
         % Selection changed function: UITable
@@ -678,28 +750,24 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             end
 
             updateTable(app, isUpdate = true);
-
         end
 
         % Display data changed function: UITable
         function UITableDisplayDataChanged(app, event)
 
             updateTable(app, isUpdate = true);
-
         end
 
         % Cell edit callback: UITable
         function UITableCellEdit(app, event)
 
             updateTable(app, isUpdate = true);
-
         end
 
         % Cell edit callback: UITableFlux
         function UITableFluxCellEdit(app, event)
 
             updateTable(app, isUpdate = true);
-
         end
 
         % Window key press function: RangePlotViewerUIFigure
@@ -711,9 +779,7 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             if strcmp(key, 'escape')
                 delete(app)
             end
-
         end
-
     end
 
     % Component initialization
@@ -739,22 +805,47 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             app.GridLayout.ColumnWidth = {'1x', '1x', '1.5x'};
             app.GridLayout.RowHeight = {'1x'};
 
+            % Create GridLayout5
+            app.GridLayout5 = uigridlayout(app.GridLayout);
+            app.GridLayout5.ColumnWidth = {'1x'};
+            app.GridLayout5.Layout.Row = 1;
+            app.GridLayout5.Layout.Column = 2;
+
+            % Create UITableRank
+            app.UITableRank = uitable(app.GridLayout5);
+            app.UITableRank.ColumnName = '';
+            app.UITableRank.RowName = {};
+            app.UITableRank.Layout.Row = 2;
+            app.UITableRank.Layout.Column = 1;
+
+            % Create UITableFlux
+            app.UITableFlux = uitable(app.GridLayout5);
+            app.UITableFlux.ColumnName = '';
+            app.UITableFlux.RowName = {};
+            app.UITableFlux.CellEditCallback = createCallbackFcn(app, @UITableFluxCellEdit, true);
+            app.UITableFlux.Layout.Row = 1;
+            app.UITableFlux.Layout.Column = 1;
+
+            % Create GridLayout4
+            app.GridLayout4 = uigridlayout(app.GridLayout);
+            app.GridLayout4.ColumnWidth = {'1x'};
+            app.GridLayout4.RowHeight = {'1x'};
+            app.GridLayout4.Padding = [0 0 0 0];
+            app.GridLayout4.Layout.Row = 1;
+            app.GridLayout4.Layout.Column = 3;
+
+            % Create RangeAxes
+            app.RangeAxes = uiaxes(app.GridLayout4);
+            app.RangeAxes.TickLabelInterpreter = 'none';
+            app.RangeAxes.Layout.Row = 1;
+            app.RangeAxes.Layout.Column = 1;
+
             % Create GridLayout2
             app.GridLayout2 = uigridlayout(app.GridLayout);
             app.GridLayout2.ColumnWidth = {'1x'};
             app.GridLayout2.RowHeight = {'1x', 'fit'};
             app.GridLayout2.Layout.Row = 1;
             app.GridLayout2.Layout.Column = 1;
-
-            % Create UITable
-            app.UITable = uitable(app.GridLayout2);
-            app.UITable.ColumnName = '';
-            app.UITable.RowName = {};
-            app.UITable.CellEditCallback = createCallbackFcn(app, @UITableCellEdit, true);
-            app.UITable.DisplayDataChangedFcn = createCallbackFcn(app, @UITableDisplayDataChanged, true);
-            app.UITable.SelectionChangedFcn = createCallbackFcn(app, @UITableSelectionChanged, true);
-            app.UITable.Layout.Row = 1;
-            app.UITable.Layout.Column = 1;
 
             % Create GridLayout3
             app.GridLayout3 = uigridlayout(app.GridLayout2);
@@ -771,45 +862,19 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             app.SaveButton.Layout.Column = 4;
             app.SaveButton.Text = 'Save';
 
-            % Create GridLayout4
-            app.GridLayout4 = uigridlayout(app.GridLayout);
-            app.GridLayout4.ColumnWidth = {'1x'};
-            app.GridLayout4.RowHeight = {'1x'};
-            app.GridLayout4.Padding = [0 0 0 0];
-            app.GridLayout4.Layout.Row = 1;
-            app.GridLayout4.Layout.Column = 3;
-
-            % Create RangeAxes
-            app.RangeAxes = uiaxes(app.GridLayout4);
-            app.RangeAxes.TickLabelInterpreter = 'none';
-            app.RangeAxes.Layout.Row = 1;
-            app.RangeAxes.Layout.Column = 1;
-
-            % Create GridLayout5
-            app.GridLayout5 = uigridlayout(app.GridLayout);
-            app.GridLayout5.ColumnWidth = {'1x'};
-            app.GridLayout5.Layout.Row = 1;
-            app.GridLayout5.Layout.Column = 2;
-
-            % Create UITableFlux
-            app.UITableFlux = uitable(app.GridLayout5);
-            app.UITableFlux.ColumnName = '';
-            app.UITableFlux.RowName = {};
-            app.UITableFlux.CellEditCallback = createCallbackFcn(app, @UITableFluxCellEdit, true);
-            app.UITableFlux.Layout.Row = 1;
-            app.UITableFlux.Layout.Column = 1;
-
-            % Create UITableRank
-            app.UITableRank = uitable(app.GridLayout5);
-            app.UITableRank.ColumnName = '';
-            app.UITableRank.RowName = {};
-            app.UITableRank.Layout.Row = 2;
-            app.UITableRank.Layout.Column = 1;
+            % Create UITable
+            app.UITable = uitable(app.GridLayout2);
+            app.UITable.ColumnName = '';
+            app.UITable.RowName = {};
+            app.UITable.CellEditCallback = createCallbackFcn(app, @UITableCellEdit, true);
+            app.UITable.DisplayDataChangedFcn = createCallbackFcn(app, @UITableDisplayDataChanged, true);
+            app.UITable.SelectionChangedFcn = createCallbackFcn(app, @UITableSelectionChanged, true);
+            app.UITable.Layout.Row = 1;
+            app.UITable.Layout.Column = 1;
 
             % Show the figure after all components are created
             app.RangePlotViewerUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -830,7 +895,6 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -839,7 +903,5 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.RangePlotViewerUIFigure)
         end
-
     end
-
 end

@@ -2,61 +2,68 @@ classdef TracerConfig_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        TracerselectionconfigUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        AllowmultipletracerpatternforonesubstrateCheckBox matlab.ui.control.CheckBox
-        GridLayout2 matlab.ui.container.GridLayout
-        SaveButton matlab.ui.control.Button
-        ReloadButton matlab.ui.control.Button
-        UITable matlab.ui.control.Table
+        TracerselectionconfigUIFigure  matlab.ui.Figure
+        GridLayout                     matlab.ui.container.GridLayout
+        AllowmultipletracerpatternforonesubstrateCheckBox  matlab.ui.control.CheckBox
+        GridLayout2                    matlab.ui.container.GridLayout
+        SaveButton                     matlab.ui.control.Button
+        ReloadButton                   matlab.ui.control.Button
+        UITable                        matlab.ui.control.Table
     end
 
+
     properties (Access = private)
-        MainApp
-        xy
-        tableSubstrate
+        Position (1, 2) double
+        InitialTable table
     end
+
+    methods (Access = private)
+
+        function reloadEditorTable(app)
+
+            app.UITable.Data = app.InitialTable;
+            app.UITable.ColumnName = ...
+                app.InitialTable.Properties.VariableNames;
+            app.UITable.ColumnEditable = [true, false, true];
+
+        end % reloadEditorTable
+
+    end % methods (Access = private)
+
 
     % Callbacks that handle component events
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, MainApp, xy)
+        function startupFcn(app, context)
 
-            app.MainApp = MainApp;
-            app.xy = xy;
+            app.InitialTable = context.EditorTable;
+            app.Position = context.Position;
 
-            ReloadButtonPushed(app)
-
+            app.reloadEditorTable();
         end
 
         % Button pushed function: ReloadButton
         function ReloadButtonPushed(app, event)
 
-            app.tableSubstrate = ...
-                app.MainApp.exp.createTableTracerConfig(app.xy);
-
-            app.UITable.Data = app.tableSubstrate;
-            app.UITable.ColumnName = app.tableSubstrate.Properties.VariableNames;
-            app.UITable.ColumnEditable = [true, false, true];
-
+            app.reloadEditorTable();
         end
 
         % Button pushed function: SaveButton
         function SaveButtonPushed(app, event)
 
-            text = app.MainApp.exp.disparseLabelPattern(app.UITable.Data);
-            app.MainApp.LabelTable.Data{app.xy(1), app.xy(2)} = {text};
-
-            delete(app)
-
+            eventData = openmebius.presentation.experiment ...
+                .TracerConfigurationAppliedEventData( ...
+                app.Position, app.UITable.Data);
+            notify(app, "Applied", eventData);
+            close(app.TracerselectionconfigUIFigure);
         end
 
         % Close request function: TracerselectionconfigUIFigure
         function TracerselectionconfigUIFigureCloseRequest(app, event)
 
-            delete(app)
-
+            notify(app, "Closed");
+            delete(app);
         end
 
         % Key press function: TracerselectionconfigUIFigure
@@ -66,11 +73,9 @@ classdef TracerConfig_exported < matlab.apps.AppBase
             key = event.Key;
 
             if strcmp(key, 'escape')
-                TracerselectionconfigUIFigureCloseRequest(app, [])
+                close(app.TracerselectionconfigUIFigure);
             end
-
         end
-
     end
 
     % Component initialization
@@ -134,7 +139,6 @@ classdef TracerConfig_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.TracerselectionconfigUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -155,7 +159,6 @@ classdef TracerConfig_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -164,7 +167,5 @@ classdef TracerConfig_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.TracerselectionconfigUIFigure)
         end
-
     end
-
 end

@@ -1,0 +1,48 @@
+{
+  "batch": {
+    "id": "legacy-result",
+    "contentHash": "",
+    "contentHashVersion": 0
+  },
+  "result": {
+    "file": "legacy-result.h5",
+    "sha256": "",
+    "sizeBytes": 0,
+    "status": "finished"
+  },
+  "software": {
+    "openMebius2Version": "2.3.0",
+    "matlabRelease": "R2024b",
+    "matlabVersion": "24.2",
+    "toolboxes": []
+  },
+  "model": {
+    "fileName": "metabolic_network.xlsx",
+    "sha256": ""
+  },
+  "experiments": [
+    {
+      "name": "WT_ecoli",
+      "fileName": "WT_ecoli.xlsx",
+      "sha256": ""
+    }
+  ],
+  "analysis": {
+    "metadataSchemaVersion": 0,
+    "config": {
+      "iteration": 30,
+      "algorithm": "interior-point"
+    }
+  },
+  "random": {
+    "type": "twister",
+    "seed": 0,
+    "state": []
+  },
+  "run": {
+    "startedAtUtc": "",
+    "finishedAtUtc": "",
+    "isError": false,
+    "isCanceled": false
+  }
+}

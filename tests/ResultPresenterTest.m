@@ -1,0 +1,313 @@
+classdef ResultPresenterTest < matlab.unittest.TestCase
+
+    methods (TestMethodSetup)
+
+        function addSourcePath(~)
+
+            root = fileparts(fileparts(mfilename("fullpath")));
+            addpath(fullfile(root, "src"));
+
+        end
+
+    end
+
+    methods (Test)
+
+        function abbreviatesResultIdAndPreservesRawId(testCase)
+
+            batch = helpers.BatchOperationStub();
+            batch.Data.ID = "bat_dd0eff6798474f24b58b6657e5dd0354";
+            batch.Status = "finished";
+            presenter = openmebius.presentation.result.ResultPresenter();
+
+            viewModel = presenter.presentIndex( ...
+                helpers.ResultIndexStub(), batch);
+
+            testCase.verifyEqual(viewModel.Data.ID, "bat_dd0eff");
+            testCase.verifyEqual( ...
+                viewModel.RawData.ID, ...
+                "bat_dd0eff6798474f24b58b6657e5dd0354");
+
+        end
+
+        function presentsGeneratedReport(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            report = struct("Created", true);
+            operationResult = struct( ...
+                "Report", report, ...
+                "Messages", ["Generated."; "Opened."]);
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    true, Result = operationResult);
+
+            viewModel = presenter.presentReportOutcome(outcome);
+            messages = cellfun( ...
+                @(notification) notification.Message, ...
+                viewModel.Notifications);
+
+            testCase.verifyEqual(viewModel.Report, report);
+            testCase.verifyEqual(messages, ["Generated."; "Opened."]);
+
+        end
+
+        function presentsUnavailableDeployedReportAsWarning(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:Report:UnavailableInDeployed", ...
+                "Report generation is unavailable.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    false, ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentReportOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "warning");
+            testCase.verifyFalse(notification.ShowAlert);
+
+        end
+
+        function presentsUnexpectedReportFailureAsAlert(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:Test:Unexpected", ...
+                "Unexpected failure.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    false, ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentReportOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyEqual( ...
+                notification.Title, "Report generation failed");
+            testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
+        function presentsKnownExportFailureWithoutAlert(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:ResultExport:EmptySelection", ...
+                "Please select a result to save.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    false, ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentExportOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyFalse(notification.ShowAlert);
+
+        end
+
+        function presentsReloadAndMissingSelection(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+
+            reloadViewModel = presenter.presentReloaded();
+            selectionViewModel = ...
+                presenter.presentExportSelectionRequired();
+
+            testCase.verifyEqual( ...
+                reloadViewModel.Notifications{1}.Message, ...
+                "Result data reloaded");
+            testCase.verifyEqual( ...
+                selectionViewModel.Notifications{1}.Level, ...
+                "warning");
+
+        end
+
+        function presentsResultSuggestion(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            suggestion = struct("Value", 1);
+            result = openmebius.application.result ...
+                .ResultSuggestionResult( ...
+                    Suggestion = suggestion, ...
+                    BatchID = "batch-1", ...
+                    BatchName = "First");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome(true, Result = result);
+
+            viewModel = presenter.presentSuggestionOutcome(outcome);
+
+            testCase.verifyEqual(viewModel.Suggestion, suggestion);
+            testCase.verifyEmpty(viewModel.Notifications);
+
+        end
+
+        function presentsSuggestionSelectionErrorAsWarning(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:ResultSuggestion:SelectionRequired", ...
+                "Please select one result.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    false, ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentSuggestionOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "warning");
+            testCase.verifyFalse(notification.ShowAlert);
+
+        end
+
+        function presentsUnexpectedSuggestionFailureAsAlert(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:Test:Unexpected", ...
+                "Unexpected failure.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    false, ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentSuggestionOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyEqual( ...
+                notification.Title, "Suggestion load failed");
+            testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
+        function presentsRelativeFluxSelection(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+
+            viewModel = presenter.presentRelativeSelection( ...
+                ["R1"; "R2"], 2);
+
+            testCase.verifyEqual(viewModel.RelativeTo, "R2");
+            testCase.verifyEmpty(viewModel.Notifications);
+
+        end
+
+        function presentsMissingRelativeFluxSelection(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+
+            viewModel = presenter.presentRelativeSelection( ...
+                ["R1"; "R2"], zeros(0, 1));
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(viewModel.RelativeTo, "");
+            testCase.verifyEqual(notification.Level, "warning");
+            testCase.verifyEqual( ...
+                notification.Message, ...
+                "Please select a flux to set relative values.");
+
+        end
+
+        function rejectsUnavailableRelativeReactionName(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+
+            viewModel = presenter.presentRelativeSelection( ...
+                strings(0, 1), 1);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(viewModel.RelativeTo, "");
+            testCase.verifyEqual(notification.Level, "warning");
+            testCase.verifyThat( ...
+                notification.Message, ...
+                matlab.unittest.constraints.ContainsSubstring( ...
+                    "Reaction identifiers"));
+
+        end
+
+        function presentsPreparedRangePlot(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            upper = array2table(2, ...
+                'VariableNames', {'Batch'}, 'RowNames', {'r1'});
+            lower = array2table(0, ...
+                'VariableNames', {'Batch'}, 'RowNames', {'r1'});
+            bestFit = array2table(1, ...
+                'VariableNames', {'Batch'}, 'RowNames', {'r1'});
+            result = openmebius.application.result ...
+                .ResultRangePlotResult( ...
+                    UpperBounds = upper, ...
+                    LowerBounds = lower, ...
+                    BestFits = bestFit, ...
+                    ReactionNames = "r1 : First", ...
+                    Messages = "FVA bounds were used.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome(true, Result = result);
+
+            viewModel = presenter.presentRangePlotOutcome(outcome);
+
+            testCase.verifyEqual(viewModel.UpperBounds, upper);
+            testCase.verifyEqual(viewModel.LowerBounds, lower);
+            testCase.verifyEqual(viewModel.BestFits, bestFit);
+            testCase.verifyEqual( ...
+                viewModel.Notifications{1}.Message, ...
+                "FVA bounds were used.");
+
+        end
+
+        function presentsRangePlotSelectionErrorAsWarning(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:ResultRangePlot:SelectionRequired", ...
+                "Please select a result.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    false, ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentRangePlotOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEmpty(viewModel.UpperBounds);
+            testCase.verifyEqual(notification.Level, "warning");
+            testCase.verifyFalse(notification.ShowAlert);
+
+        end
+
+        function presentsUnexpectedRangePlotFailureAsAlert(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            exception = MException( ...
+                "OpenMebius2:Test:Unexpected", ...
+                "Unexpected failure.");
+            outcome = openmebius.application.result ...
+                .ResultOperationOutcome( ...
+                    false, ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
+
+            viewModel = presenter.presentRangePlotOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual(notification.Level, "error");
+            testCase.verifyEqual(notification.Title, "Range plot failed");
+            testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
+    end % methods (Test)
+
+end % classdef

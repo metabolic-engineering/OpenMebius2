@@ -1,0 +1,119 @@
+classdef EffluxPerturbationProfileTest < matlab.unittest.TestCase
+
+    methods (TestMethodSetup)
+
+        function addSourcePath(~)
+
+            addpath(EffluxPerturbationProfileTest.sourcePath());
+
+        end
+
+    end
+
+    methods (Test)
+
+        function storesMappedFreeEffluxMeasurements(testCase)
+
+            profile = openmebius.mfa.EffluxPerturbationProfile( ...
+                ReactionIDs = ["R1"; "R3"], ...
+                ReactionIndices = [1; 3], ...
+                ExperimentalValues = [10; 20], ...
+                StandardDeviations = [0.5; 2]);
+
+            testCase.verifyEqual(profile.ReactionIDs, ["R1"; "R3"]);
+            testCase.verifyEqual(profile.ReactionIndices, [1; 3]);
+            testCase.verifyEqual( ...
+                profile.ExperimentalValues, [10; 20]);
+            testCase.verifyEqual( ...
+                profile.StandardDeviations, [0.5; 2]);
+            testCase.verifyEqual(profile.MeasurementCount, 2);
+
+        end
+
+        function createsEmptyProfileByDefault(testCase)
+
+            profile = openmebius.mfa.EffluxPerturbationProfile();
+
+            testCase.verifyEmpty(profile.ReactionIndices);
+            testCase.verifyEmpty(profile.ReactionIDs);
+            testCase.verifyEmpty(profile.ExperimentalValues);
+            testCase.verifyEmpty(profile.StandardDeviations);
+            testCase.verifyEqual(profile.MeasurementCount, 0);
+
+        end
+
+        function suppliesBlankIDsForLegacyConstruction(testCase)
+
+            profile = openmebius.mfa.EffluxPerturbationProfile( ...
+                ReactionIndices = [1; 2], ...
+                ExperimentalValues = [3; 4], ...
+                StandardDeviations = [1; 1]);
+
+            testCase.verifyEqual(profile.ReactionIDs, [""; ""]);
+
+        end
+
+        function rejectsMismatchedReactionIDs(testCase)
+
+            testCase.verifyError( ...
+                @() openmebius.mfa.EffluxPerturbationProfile( ...
+                ReactionIDs = "R1", ...
+                ReactionIndices = [1; 2], ...
+                ExperimentalValues = [3; 4], ...
+                StandardDeviations = [1; 1]), ...
+                "OpenMebius2:EffluxPerturbationProfile:" + ...
+            "ReactionIDDimensionMismatch");
+
+        end
+
+        function rejectsDimensionMismatch(testCase)
+
+            testCase.verifyError( ...
+                @() openmebius.mfa.EffluxPerturbationProfile( ...
+                ReactionIndices = [1; 2], ...
+                ExperimentalValues = 1, ...
+                StandardDeviations = [1; 1]), ...
+                "OpenMebius2:EffluxPerturbationProfile:" + ...
+            "DimensionMismatch");
+
+        end
+
+        function rejectsDuplicateReactionIndices(testCase)
+
+            testCase.verifyError( ...
+                @() openmebius.mfa.EffluxPerturbationProfile( ...
+                ReactionIndices = [1; 1], ...
+                ExperimentalValues = [1; 2], ...
+                StandardDeviations = [1; 1]), ...
+                "OpenMebius2:EffluxPerturbationProfile:" + ...
+            "DuplicateReactionIndex");
+
+        end
+
+        function rejectsInvalidStandardDeviation(testCase)
+
+            testCase.verifyError( ...
+                @() openmebius.mfa.EffluxPerturbationProfile( ...
+                ReactionIndices = 1, ...
+                ExperimentalValues = 1, ...
+                StandardDeviations = 0), ...
+                "OpenMebius2:EffluxPerturbationProfile:" + ...
+            "InvalidStandardDeviation");
+
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function path = sourcePath()
+
+            path = fullfile( ...
+                fileparts(fileparts(mfilename('fullpath'))), ...
+            'src');
+
+        end
+
+    end
+
+end

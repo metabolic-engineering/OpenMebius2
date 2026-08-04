@@ -4,7 +4,7 @@ classdef ResultPresenter < handle
 
         function viewModel = presentIndex(obj, result, batch)
 
-            obj.mustBeValidHandle(result, "IOResult");
+            obj.mustBeValidHandle(result, "Result");
             obj.mustBeValidHandle(batch, "Batch");
 
             batchGUI = getBatchForGUI(batch);
@@ -37,12 +37,16 @@ classdef ResultPresenter < handle
                 batchNames(:), ...
                 rss(:), ...
                 'VariableNames', ["ID", "Name", "RSS"]);
+            rawData = tableData;
+            tableData.ID = openmebius.presentation ...
+                .IdentifierFormatter.short(tableData.ID);
 
             styleRules = obj.chi2StyleRules(isPassed);
 
             viewModel = ...
                 openmebius.presentation.result.ResultTableViewModel( ...
                 Data = tableData, ...
+                RawData = rawData, ...
                 ColumnEditable = false(1, width(tableData)), ...
                 StyleRules = styleRules);
 
@@ -61,7 +65,7 @@ classdef ResultPresenter < handle
                 options.IsDarkTheme (1, 1) logical = false
             end
 
-            obj.mustBeValidHandle(result, "IOResult");
+            obj.mustBeValidHandle(result, "Result");
 
             mode = ...
                 openmebius.presentation.result.ResultViewMode.normalize(mode);
@@ -96,6 +100,268 @@ classdef ResultPresenter < handle
             end
 
         end
+
+        function viewModel = presentReportOutcome(obj, outcome)
+
+            arguments
+                obj
+                outcome (1, 1) openmebius.application.result ...
+                    .ResultOperationOutcome
+            end
+
+            report = [];
+
+            if outcome.isSuccess()
+                report = outcome.Result.Report;
+                notifications = obj.operationNotifications( ...
+                    outcome.Result, "Report generated successfully.");
+            else
+                identifier = obj.outcomeIdentifier(outcome);
+
+                switch identifier
+                    case "OpenMebius2:Report:UnavailableInDeployed"
+                        notification = ...
+                            openmebius.presentation.notification ...
+                            .Notification.warning( ...
+                            obj.outcomeMessage( ...
+                            outcome, ...
+                        "Report generation is unavailable."));
+
+                    case "OpenMebius2:Report:DataUnavailable"
+                        notification = ...
+                            openmebius.presentation.notification ...
+                            .Notification.error( ...
+                            obj.outcomeMessage( ...
+                            outcome, ...
+                        "Report data is unavailable."));
+
+                    otherwise
+                        notification = ...
+                            openmebius.presentation.notification ...
+                            .Notification.error( ...
+                            obj.outcomeMessage( ...
+                            outcome, ...
+                        "Report generation failed."), ...
+                            Title = "Report generation failed", ...
+                            ShowAlert = true);
+                end
+
+                notifications = {notification};
+            end
+
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                Report = report, ...
+                Notifications = notifications);
+
+        end % presentReportOutcome
+
+        function viewModel = presentExportOutcome(obj, outcome)
+
+            arguments
+                obj
+                outcome (1, 1) openmebius.application.result ...
+                    .ResultOperationOutcome
+            end
+
+            if outcome.isSuccess()
+                notifications = obj.operationNotifications( ...
+                    outcome.Result, ...
+                "Result export completed successfully.");
+            else
+                identifier = obj.outcomeIdentifier(outcome);
+                knownIdentifiers = [ ...
+                                        "OpenMebius2:ResultExport:ResultUnavailable"
+                                    "OpenMebius2:ResultExport:EmptySelection"
+                                    "OpenMebius2:ResultExport:SelectionMismatch"
+                                    "OpenMebius2:ResultExport:OutputDirectoryUnavailable"
+                                    "OpenMebius2:ResultExport:OutputDirectoryNotFound"
+                                    "OpenMebius2:ResultExport:OutputDirectoryExists"
+                                    "OpenMebius2:ResultExport:CreateDirectoryFailed"];
+                isKnownError = any(identifier == knownIdentifiers);
+                notification = ...
+                    openmebius.presentation.notification ...
+                    .Notification.error( ...
+                    obj.outcomeMessage( ...
+                    outcome, "Result export failed."), ...
+                    Title = "Result export failed", ...
+                    ShowAlert = ~isKnownError);
+                notifications = {notification};
+            end
+
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                Notifications = notifications);
+
+        end % presentExportOutcome
+
+        function viewModel = presentReloaded(~)
+
+            notification = openmebius.presentation.notification ...
+                .Notification.info("Result data reloaded");
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                Notifications = {notification});
+
+        end % presentReloaded
+
+        function viewModel = presentExportSelectionRequired(~)
+
+            notification = openmebius.presentation.notification ...
+                .Notification.warning( ...
+            "Please select a result to save.");
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                Notifications = {notification});
+
+        end % presentExportSelectionRequired
+
+        function viewModel = presentSuggestionOutcome(obj, outcome)
+
+            arguments
+                obj
+                outcome (1, 1) openmebius.application.result ...
+                    .ResultOperationOutcome
+            end
+
+            if outcome.isSuccess()
+                viewModel = openmebius.presentation.result ...
+                    .ResultOperationViewModel( ...
+                    Suggestion = outcome.Result.Suggestion);
+                return
+            end
+
+            identifier = obj.outcomeIdentifier(outcome);
+            message = obj.outcomeMessage( ...
+                outcome, "Failed to load labeling suggestion.");
+            knownIdentifiers = [ ...
+                                    "OpenMebius2:ResultSuggestion:SelectionRequired"
+                                "OpenMebius2:ResultSuggestion:NotAvailable"
+                                "OpenMebius2:ResultSuggestion:ResultUnavailable"];
+
+            if any(identifier == knownIdentifiers)
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning(message);
+            else
+                notification = openmebius.presentation.notification ...
+                    .Notification.error( ...
+                    message, ...
+                    Title = "Suggestion load failed", ...
+                    ShowAlert = true);
+            end
+
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                Notifications = {notification});
+
+        end % presentSuggestionOutcome
+
+        function viewModel = presentRelativeSelection( ...
+                ~, rowNames, selectedRows)
+
+            arguments
+                ~
+                rowNames
+                selectedRows (:, 1) double
+            end
+
+            if isempty(selectedRows)
+                viewModel = openmebius.presentation.result ...
+                    .ResultRelativeViewModel( ...
+                    Notifications = { ...
+                                     openmebius.presentation.notification ...
+                                     .Notification.warning( ...
+                                     "Please select a flux to set " + ...
+                                 "relative values.")});
+                return
+            end
+
+            rowNames = string(rowNames);
+            rowNames = rowNames(:);
+            selectedRow = selectedRows(1);
+
+            if isempty(rowNames) || ...
+                    selectedRow < 1 || ...
+                    selectedRow > numel(rowNames) || ...
+                    selectedRow ~= fix(selectedRow) || ...
+                    strlength(rowNames(selectedRow)) == 0
+                viewModel = openmebius.presentation.result ...
+                    .ResultRelativeViewModel( ...
+                    Notifications = { ...
+                                     openmebius.presentation.notification ...
+                                     .Notification.warning( ...
+                                     "Reaction identifiers are not available " + ...
+                                 "for relative values.")});
+                return
+            end
+
+            viewModel = openmebius.presentation.result ...
+                .ResultRelativeViewModel( ...
+                RelativeTo = rowNames(selectedRow));
+
+        end % presentRelativeSelection
+
+        function viewModel = presentRangePlotOutcome(obj, outcome)
+
+            arguments
+                obj
+                outcome (1, 1) openmebius.application.result ...
+                    .ResultOperationOutcome
+            end
+
+            if outcome.isSuccess()
+                result = outcome.Result;
+                messages = string(result.Messages);
+                messages = messages(:);
+                notifications = cell(numel(messages), 1);
+
+                for messageIndex = 1:numel(messages)
+                    notifications{messageIndex} = ...
+                        openmebius.presentation.notification ...
+                        .Notification.info(messages(messageIndex));
+                end
+
+                viewModel = openmebius.presentation.result ...
+                    .ResultRangePlotViewModel( ...
+                    UpperBounds = result.UpperBounds, ...
+                    LowerBounds = result.LowerBounds, ...
+                    BestFits = result.BestFits, ...
+                    ReactionNames = result.ReactionNames, ...
+                    Notifications = notifications);
+                return
+            end
+
+            identifier = obj.outcomeIdentifier(outcome);
+            message = obj.outcomeMessage( ...
+                outcome, "Failed to prepare the range plot.");
+            warningIdentifiers = [ ...
+                                      "OpenMebius2:ResultRangePlot:SelectionRequired"
+                                  "OpenMebius2:ResultRangePlot:SelectionMismatch"
+                                  "OpenMebius2:ResultRangePlot:DuplicateSelection"
+                                  "OpenMebius2:ResultRangePlot:ResultUnavailable"
+                                  "OpenMebius2:ResultRangePlot:DataUnavailable"];
+            knownErrorIdentifiers = [ ...
+                                         "OpenMebius2:ResultRangePlot:ReactionMismatch"
+                                     "OpenMebius2:ResultRangePlot:InvalidBounds"
+                                     "OpenMebius2:ResultRangePlot:InvalidData"];
+
+            if any(identifier == warningIdentifiers)
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning(message);
+            else
+                notification = openmebius.presentation.notification ...
+                    .Notification.error( ...
+                    message, ...
+                    Title = "Range plot failed", ...
+                    ShowAlert = ...
+                    ~any(identifier == knownErrorIdentifiers));
+            end
+
+            viewModel = openmebius.presentation.result ...
+                .ResultRangePlotViewModel( ...
+                Notifications = {notification});
+
+        end % presentRangePlotOutcome
 
     end
 
@@ -373,6 +639,46 @@ classdef ResultPresenter < handle
             end
 
         end % method mustBeValidHandle
+
+        function notifications = operationNotifications( ...
+                ~, result, fallbackMessage)
+
+            messages = string(result.Messages);
+            messages = messages(:);
+
+            if isempty(messages)
+                messages = fallbackMessage;
+            end
+
+            notifications = cell(numel(messages), 1);
+
+            for messageIndex = 1:numel(messages)
+                notifications{messageIndex} = ...
+                    openmebius.presentation.notification ...
+                    .Notification.info(messages(messageIndex));
+            end
+
+        end % operationNotifications
+
+        function identifier = outcomeIdentifier(~, outcome)
+
+            identifier = "";
+
+            if ~isempty(outcome.Exception)
+                identifier = string(outcome.Exception.identifier);
+            end
+
+        end % outcomeIdentifier
+
+        function message = outcomeMessage(~, outcome, fallbackMessage)
+
+            message = outcome.ErrorMessage;
+
+            if message == ""
+                message = fallbackMessage;
+            end
+
+        end % outcomeMessage
 
     end
 

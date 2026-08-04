@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "description": "Deterministic steady-state MFA characterization baseline",
+  "flux": [0.25, 0.75],
+  "rss": 2.0,
+  "mdv": [0.25, 0.75],
+  "ciLower": [0.24, 0.74],
+  "ciUpper": [0.26, 0.76],
+  "tolerance": {
+    "flux": 0.00001,
+    "rss": 0.001,
+    "mdv": 0.00001,
+    "ci": 0.000000000001
+  }
+}

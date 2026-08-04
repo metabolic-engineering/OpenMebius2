@@ -40,12 +40,54 @@ classdef Notification
 
         end % method Notification
 
+        function message = toMessage(obj, options)
+
+            arguments
+                obj (1, 1) openmebius.presentation.notification.Notification
+                options.Code (1, 1) string = "presentation.notification"
+                options.Source (1, 1) string = "presentation"
+                options.Context (1, 1) struct = struct()
+                options.Kind (1, 1) string = "notification"
+                options.Audience (1, 1) string = "user"
+                options.CorrelationId (1, 1) string = ""
+            end
+
+            attention = "passive";
+
+            if obj.ShowAlert
+                attention = "action-required";
+            end
+
+            message = openmebius.core.notification.Message( ...
+                obj.Message, ...
+                obj.Level, ...
+                Timestamp = obj.Timestamp, ...
+                Code = options.Code, ...
+                Title = obj.Title, ...
+                Source = options.Source, ...
+                Context = options.Context, ...
+                Kind = options.Kind, ...
+                Audience = options.Audience, ...
+                Attention = attention, ...
+                CorrelationId = options.CorrelationId);
+
+        end % method toMessage
+
         function text = toLogText(obj)
 
-            stamp = string(datestr(obj.Timestamp, "yyyy-mm-dd HH:MM:SS"));
-            text = "[" + stamp + "] [" + upper(obj.Level) + "] " + obj.Message;
+            text = join(obj.toLogLines(), newline);
 
         end % method toLogText
+
+        function lines = toLogLines(obj)
+
+            lines = openmebius.infrastructure.logging.Logger ...
+                .formatDatedLines( ...
+                obj.Message, ...
+                obj.Level, ...
+                Timestamp = obj.Timestamp);
+
+        end % method toLogLines
 
         function icon = alertIcon(obj)
 
@@ -73,6 +115,29 @@ classdef Notification
     end % methods
 
     methods (Static)
+
+        function obj = fromMessage(message, options)
+
+            arguments
+                message (1, 1) openmebius.core.notification.Message
+                options.Title (1, 1) string = ""
+                options.ShowAlert (1, 1) logical = false
+            end
+
+            title = options.Title;
+
+            if title == ""
+                title = message.Title;
+            end
+
+            obj = openmebius.presentation.notification.Notification( ...
+                message.Text, ...
+                message.Level, ...
+                Title = title, ...
+                Timestamp = message.Timestamp, ...
+                ShowAlert = options.ShowAlert);
+
+        end
 
         function obj = info(message, options)
 
@@ -185,24 +250,13 @@ classdef Notification
 
         function level = normalizeLevel(level)
 
-            level = lower(strtrim(string(level)));
-
-            if any(level == ["info", "information"])
-                level = "info";
-
-            elseif any(level == ["warn", "warning"])
-                level = "warning";
-
-            elseif any(level == ["err", "error", "exception"])
-                level = "error";
-
-            elseif any(level == ["ok", "success", "finished", "complete", "completed"])
-                level = "success";
-
-            else
+            try
+                level = openmebius.core.notification.Severity ...
+                    .normalize(level);
+            catch
                 error( ...
                     "OpenMebius2:Notification:InvalidLevel", ...
-                "Notification level must be info, warning, error, or success.");
+                "Notification level must be supported.");
             end
 
         end % method normalizeLevel
@@ -222,6 +276,15 @@ classdef Notification
 
                 case "success"
                     title = "Success";
+
+                case "debug"
+                    title = "Debug";
+
+                case "notice"
+                    title = "Notice";
+
+                case "fatal"
+                    title = "Fatal Error";
 
                 otherwise
                     title = "Notification";

@@ -51,6 +51,7 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
             app.Test_File = [
                              fullfile("../dataset/WT_ecoli.xlsx")
                              ];
+            app.Test_Files = app.Test_File;
 
             testCase.verifyTrue(app.ExpImportButton.Enable);
 
@@ -72,6 +73,10 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
             app.LabelTable.Data{1, 3} = "[1]Glc~1";
             app.LabelTable.Data{1, 4} = "12C1~1";
             testCase.press(app.TracerSaveButton);
+
+            testCase.choose(app.TabGroup, "Experiment");
+            testCase.press(app.ExpCalculationButton);
+            testCase.verifyTrue(app.exp.hasCalculatedMDV());
 
             testCase.choose(app.TabGroup, "Run");
             testCase.press(app.RunAutoButton);
@@ -116,6 +121,7 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
                              fullfile("../dataset/Δpgi_ecoli.xlsx")
                              fullfile("../dataset/Δzwf_ecoli.xlsx")
                              ];
+            app.Test_Files = app.Test_File;
 
             testCase.verifyTrue(app.ExpImportButton.Enable);
 
@@ -163,6 +169,10 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
             testCase.press(app.TracerSaveButton);
 
             pause(3);
+
+            testCase.choose(app.TabGroup, "Experiment");
+            testCase.press(app.ExpCalculationButton);
+            testCase.verifyTrue(app.exp.hasCalculatedMDV());
 
             testCase.choose(app.TabGroup, "Run");
             testCase.press(app.RunAutoButton);
@@ -213,6 +223,7 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
                              fullfile("../dataset/Δpgi_ecoli.xlsx")
                              fullfile("../dataset/Δzwf_ecoli.xlsx")
                              ];
+            app.Test_Files = app.Test_File;
 
             testCase.verifyTrue(app.ExpImportButton.Enable);
 
@@ -260,6 +271,10 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
             testCase.press(app.TracerSaveButton);
 
             pause(3);
+
+            testCase.choose(app.TabGroup, "Experiment");
+            testCase.press(app.ExpCalculationButton);
+            testCase.verifyTrue(app.exp.hasCalculatedMDV());
 
             testCase.choose(app.TabGroup, "Run");
             testCase.press(app.RunAutoButton);
