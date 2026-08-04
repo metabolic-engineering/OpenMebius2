@@ -3360,10 +3360,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     return
                 end
 
-                if isvector(selection)
-                    rows = selection(:);
-                else
-                    rows = selection(:, 1);
+                selectionType = "cell";
+
+                if isprop(tableObject, 'SelectionType')
+                    selectionType = lower(string(tableObject.SelectionType));
+                end
+
+                switch selectionType
+                    case "row"
+                        rows = selection(:);
+
+                    case "cell"
+                        rows = selection(:, 1);
+
+                    otherwise
+                        return
                 end
 
                 rows = double(rows(:));

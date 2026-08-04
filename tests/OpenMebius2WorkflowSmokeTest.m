@@ -160,6 +160,46 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
 
         end
 
+        function removesOnlyTheCellSelectedBatch(testCase)
+
+            app = testCase.App;
+            projectDirectory = ...
+                OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                    testCase.TemporaryRoot, "ecoli");
+            experimentLocation = openmebius.domain.experiment ...
+                .ExperimentLocation.fromDirectory( ...
+                    fullfile(projectDirectory, "experiments"));
+            repository = ...
+                openmebius.infrastructure.batch.BatchJsonRepository();
+            [batchTable, isError, message] = repository.load( ...
+                experimentLocation, "batch.json");
+            testCase.assertFalse(isError, string(message));
+
+            for batchIndex = 1:height(batchTable)
+                batchTable.config(batchIndex).status = 'ready';
+            end
+
+            repository.save( ...
+                experimentLocation, "batch.json", batchTable);
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, projectDirectory);
+            testCase.press(app.ProjectLoadButton);
+            rawDataBefore = app.RunTable.UserData.RawData;
+            selectedId = rawDataBefore.ID(2);
+            firstId = rawDataBefore.ID(1);
+            app.RunTable.Selection = [2, 1];
+
+            callback = app.RemovethisbatchMenu.MenuSelectedFcn;
+            callback(app.RemovethisbatchMenu, []);
+
+            rawDataAfter = app.RunTable.UserData.RawData;
+            testCase.verifyEqual(height(rawDataAfter), 2);
+            testCase.verifyTrue(any(rawDataAfter.ID == firstId));
+            testCase.verifyFalse(any(rawDataAfter.ID == selectedId));
+            testCase.verifyEmpty(app.Test_Alerts);
+
+        end
+
         function rendersGridSearchAxesAfterWindowReload(testCase)
 
             app = testCase.App;

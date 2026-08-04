@@ -14,6 +14,9 @@ classdef OpenMebius2TestMock < OpenMebius2
                              ]
         Test_GetFileOK (1, 1) logical = true
 
+        Test_ConfirmAnswer (1, 1) string = "Yes"
+        Test_ConfirmOK (1, 1) logical = true
+
         Test_TriggerCancelDuringRun (1, 1) logical = false
         Test_RunInvoked (1, 1) logical = false
         Test_CancelInvoked (1, 1) logical = false
@@ -144,6 +147,13 @@ classdef OpenMebius2TestMock < OpenMebius2
         function uiAlertWrap(app, message, varargin)
 
             app.Test_Alerts(end + 1, 1) = string(message);
+
+        end
+
+        function [answer, isOK] = uiConfirmWrap(app, varargin)
+
+            answer = app.Test_ConfirmAnswer;
+            isOK = app.Test_ConfirmOK;
 
         end
 
