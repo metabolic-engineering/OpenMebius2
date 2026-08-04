@@ -83,13 +83,16 @@ classdef MFAIterationReporter
             elapsedMessage = "";
 
             if isfinite(options.ElapsedSeconds)
-                elapsedText = string( ...
-                    seconds(options.ElapsedSeconds), ...
-                "hh:mm:ss.SSS");
+                elapsedText = compose( ...
+                    "%.2f s", options.ElapsedSeconds);
                 elapsedMessage = " Elapsed: " + elapsedText + ".";
             end
 
-            formattedFval = compose("%.4f", fval);
+            formattedFval = compose("%8.2f", fval);
+
+            if abs(fval) > 99999.99
+                formattedFval = compose("%8s", "Inf");
+            end
 
             obj.report( ...
                 "info", ...
