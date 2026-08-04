@@ -54,6 +54,7 @@ classdef InitialPointGenerator
                 if generatedCount >= requiredCount
                     break
                 end
+
             end
 
             result = openmebius.mfa.InitialPointResult( ...
@@ -105,7 +106,7 @@ classdef InitialPointGenerator
             if minimumCount > requiredCount
                 error( ...
                     "OpenMebius2:InitialPoint:InvalidSampleCount", ...
-                    "The minimum sample count must not exceed the target count.");
+                "The minimum sample count must not exceed the target count.");
             end
 
             stoichiometry = problem.Stoichiometry;
@@ -137,8 +138,8 @@ classdef InitialPointGenerator
                 lowerBounds(fixedFluxMask) - baseFlux(fixedFluxMask);
             inequalityMatrix = [fluxBasis; -fluxBasis];
             inequalityRightHandSide = [ ...
-                upperBounds - baseFlux
-                -(lowerBounds - baseFlux)];
+                                           upperBounds - baseFlux
+                                       - (lowerBounds - baseFlux)];
             linearOptions = optimoptions( ...
                 @linprog, ...
                 "Display", "off", ...
@@ -213,7 +214,7 @@ classdef InitialPointGenerator
                 options.ProgressReporter( ...
                     "warning", ...
                     "Hit-and-Run: z-space dimension is zero. " + ...
-                    "Reusing the feasible point.");
+                "Reusing the feasible point.");
                 fluxes = repmat(initialFlux, 1, requiredCount);
                 rightHandSides = repmat(rightHandSide, 1, requiredCount);
                 rightHandSides(independentIndices, :) = ...
@@ -387,19 +388,20 @@ classdef InitialPointGenerator
                 candidateRightHandSide(independentIndices) = ...
                     independentFlux;
                 rightHandSides = [ ...
-                    rightHandSides, candidateRightHandSide]; %#ok<AGROW>
+                                      rightHandSides, candidateRightHandSide]; %#ok<AGROW>
                 fluxes = [fluxes, candidateFlux]; %#ok<AGROW>
                 savedCount = savedCount + 1;
 
                 if savedCount == 1 || mod(savedCount, 10) == 0
                     options.ProgressReporter( ...
-                        "info", ...
+                        "debug", ...
                         "Hit-and-Run: saved " + string(savedCount) + ...
                         "/" + string(requiredCount) + ...
                         " (step=" + string(step) + ...
                         ", elapsed=" + ...
                         string(seconds(toc(startedAt)), "hh:mm:ss") + ")");
                 end
+
             end
 
             if options.CancellationRequested()
@@ -474,11 +476,11 @@ classdef InitialPointGenerator
 
             movableCount = size(movableGenerator, 1);
             inequalityMatrix = [ ...
-                movableGenerator, ones(movableCount, 1)
-                -movableGenerator, ones(movableCount, 1)];
+                                    movableGenerator, ones(movableCount, 1)
+                                -movableGenerator, ones(movableCount, 1)];
             inequalityRightHandSide = [ ...
-                movableUpperBounds - movableBaseFlux
-                -(movableLowerBounds - movableBaseFlux)];
+                                           movableUpperBounds - movableBaseFlux
+                                       - (movableLowerBounds - movableBaseFlux)];
             objective = [zeros(dimension, 1); -1];
             lowerVariableBounds = [-inf(dimension, 1); 0];
             upperVariableBounds = [inf(dimension, 1); inf];
@@ -560,7 +562,9 @@ classdef InitialPointGenerator
             maximumStep = inf;
 
             for iFlux = 1:numel(currentFlux)
+
                 if abs(fluxDirection(iFlux)) <= options.DirectionTolerance
+
                     if currentFlux(iFlux) < ...
                             lowerBounds(iFlux) - options.FeasibilityTolerance || ...
                             currentFlux(iFlux) > ...
@@ -593,6 +597,7 @@ classdef InitialPointGenerator
                     maximumStep = NaN;
                     return
                 end
+
             end
 
             if ~isfinite(minimumStep) || ~isfinite(maximumStep)
@@ -647,8 +652,9 @@ classdef InitialPointGenerator
                         candidateFlux <= problem.UpperBounds + epsilon)
                     fluxes = [fluxes, candidateFlux]; %#ok<AGROW>
                     rightHandSides = [ ...
-                        rightHandSides, candidateRightHandSide]; %#ok<AGROW>
+                                          rightHandSides, candidateRightHandSide]; %#ok<AGROW>
                 end
+
             end
 
         end % generateRandomBatch

@@ -15,7 +15,7 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
         function coordinatesRunnableEntriesAndCheckpoints(testCase)
 
             batchTable = BatchExecutionCoordinatorTest.batchTable( ...
-                ["finished", "warning", "ready", "ready"]);
+                ["finished", "error", "warning", "ready", "ready"]);
             [coordinator, runService] = ...
                 BatchExecutionCoordinatorTest.createCoordinator( ...
                 ["error", "finished"]);
@@ -33,22 +33,26 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
                 @(tableValue) recorder.writeCheckpoint(tableValue));
 
             testCase.verifyTrue(result.isFailure());
-            testCase.verifyEqual(runService.BatchIds, ["bat_3"; "bat_4"]);
+            testCase.verifyEqual(runService.BatchIds, ["bat_4"; "bat_5"]);
             provenanceIds = cellfun( ...
                 @(value) string(value.batchId), runService.Provenances);
-            testCase.verifyEqual(provenanceIds, ["bat_3"; "bat_4"]);
+            testCase.verifyEqual(provenanceIds, ["bat_4"; "bat_5"]);
             progressStatuses = cellfun( ...
                 @(value) string(value.status), recorder.Progress);
             progressRates = cellfun( ...
                 @(value) value.rate, recorder.Progress);
             testCase.verifyEqual( ...
                 progressStatuses, ...
-                ["finished"; "question"; "error"; "finished"]);
-            testCase.verifyEqual(progressRates, [0.25; 0.5; 0.75; 1]);
+                ["question"; "error"; "finished"]);
+            testCase.verifyEqual(progressRates, [0.6; 0.8; 1]);
             testCase.verifyEqual( ...
-                string(updatedTable.config(3).status), "error");
+                string(updatedTable.config(1).status), "finished");
             testCase.verifyEqual( ...
-                string(updatedTable.config(4).status), "finished");
+                string(updatedTable.config(2).status), "error");
+            testCase.verifyEqual( ...
+                string(updatedTable.config(4).status), "error");
+            testCase.verifyEqual( ...
+                string(updatedTable.config(5).status), "finished");
             testCase.verifyEqual(numel(recorder.Checkpoints), 2);
 
         end
@@ -164,7 +168,7 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
                 BatchExecutionCoordinatorTest.resultLocation(), ...
                 {[]}), ...
                 "OpenMebius2:BatchExecutionCoordinator:" + ...
-                "MissingProvenance");
+            "MissingProvenance");
 
         end
 
@@ -234,7 +238,7 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-                'src');
+            'src');
 
         end
 

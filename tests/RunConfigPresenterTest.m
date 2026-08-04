@@ -51,6 +51,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
              'BatchConfigurationLaunchRequest']);
             testCase.verifyEqual( ...
                 request.BatchIds, ["batch-b"; "batch-a"]);
+            testCase.verifyEqual(request.TableData, tableData);
 
         end
 

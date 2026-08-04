@@ -23,7 +23,7 @@ classdef BatchConfig
             % Status
             % ready: ready to run
             % finished: finished
-            % error: error
+            % error: failed
             % warning: warning
             config.status = 'ready';
             config.deleteResultFile = true;
@@ -193,6 +193,13 @@ classdef BatchConfig
             BatchConfig.validateINSTMFA(config);
 
         end % validate
+
+        function tf = isTerminalStatus(status)
+
+            status = lower(strtrim(string(status)));
+            tf = ismember(status, ["finished", "error", "failed"]);
+
+        end % isTerminalStatus
 
         function config = fillMissingFields(config, defaultConfig)
 

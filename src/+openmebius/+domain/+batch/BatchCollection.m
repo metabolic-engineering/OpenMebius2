@@ -117,7 +117,17 @@ classdef BatchCollection < handle
             config = openmebius.domain.batch.BatchConfig.normalize(config);
 
             for i = 1:numel(indices)
-                obj.TableData.config(indices(i)) = config;
+                index = indices(i);
+                updatedConfig = config;
+                currentStatus = ...
+                    string(obj.TableData.config(index).status);
+
+                if openmebius.domain.batch.BatchConfig ...
+                        .isTerminalStatus(currentStatus)
+                    updatedConfig.status = char(currentStatus);
+                end
+
+                obj.TableData.config(index) = updatedConfig;
             end
 
         end % replaceConfigs
@@ -131,7 +141,15 @@ classdef BatchCollection < handle
             end
 
             config = openmebius.domain.batch.BatchConfig.normalize(config);
-            obj.TableData.config(obj.indexOf(id)) = config;
+            index = obj.indexOf(id);
+            currentStatus = string(obj.TableData.config(index).status);
+
+            if openmebius.domain.batch.BatchConfig ...
+                    .isTerminalStatus(currentStatus)
+                config.status = char(currentStatus);
+            end
+
+            obj.TableData.config(index) = config;
 
         end % replaceConfig
 
@@ -193,6 +211,14 @@ classdef BatchCollection < handle
 
                                       openmebius.domain.batch.BatchConfig.validate(config);
                                       index = obj.indexOf(id);
+                                      currentStatus = string( ...
+                                          obj.TableData.config(index).status);
+
+                                      if openmebius.domain.batch.BatchConfig ...
+                                              .isTerminalStatus(currentStatus)
+                                      config.status = char(currentStatus);
+                                      end
+
                                       obj.TableData.name(index) = name;
                                       obj.TableData.exp(index) = experiments;
                                       obj.TableData.description(index) = description;
@@ -228,14 +254,16 @@ classdef BatchCollection < handle
 
                                       function clearUnfinished(obj)
 
-                                      finished = false(height(obj.TableData), 1);
+                                      terminal = false(height(obj.TableData), 1);
 
                                       for i = 1:height(obj.TableData)
-                                      finished(i) = ...
-                                          string(obj.TableData.config(i).status) == "finished";
+                                      terminal(i) = ...
+                                          openmebius.domain.batch.BatchConfig ...
+                                          .isTerminalStatus( ...
+                                          obj.TableData.config(i).status);
                                       end
 
-                                      obj.TableData = obj.TableData(finished, :);
+                                      obj.TableData = obj.TableData(terminal, :);
 
                                       end % clearUnfinished
 

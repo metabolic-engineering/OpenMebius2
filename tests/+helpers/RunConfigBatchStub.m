@@ -7,19 +7,30 @@ classdef RunConfigBatchStub < handle
         FragmentUpdateCount (1, 1) double = 0
         LastFragmentSelections = []
         FailFragmentUpdate (1, 1) logical = false
+        Name (1, 1) string = "Batch A"
+        Description (1, 1) string = ""
+        MetadataUpdateCount (1, 1) double = 0
     end
 
     methods
 
-        function tableData = getBatchForGUI(~)
+        function tableData = getBatchForGUI(obj)
 
             tableData = table( ...
                 "batch-a", ...
-                "Batch A", ...
+                obj.Name, ...
                 "exp-a", ...
-                "", ...
+                obj.Description, ...
                 VariableNames = ...
-                    ["ID", "Name", "Experiment", "Description"]);
+                ["ID", "Name", "Experiment", "Description"]);
+
+        end
+
+        function updateBatchFromGUI(obj, tableData)
+
+            obj.Name = string(tableData.Name(1));
+            obj.Description = string(tableData.Description(1));
+            obj.MetadataUpdateCount = obj.MetadataUpdateCount + 1;
 
         end
 
@@ -63,7 +74,7 @@ classdef RunConfigBatchStub < handle
             if obj.FailFragmentUpdate
                 error( ...
                     "OpenMebius2:Test:FragmentUpdateFailed", ...
-                    "Fragment update failed.");
+                "Fragment update failed.");
             end
 
         end

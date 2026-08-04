@@ -54,6 +54,28 @@ classdef BatchConfigurationLaunchControllerTest < ...
 
         end
 
+        function synchronizesPendingDescriptionBeforeLaunch(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            tableData = batch.getBatchForGUI();
+            tableData.Description = "Description edited in Run table";
+            request = openmebius.application.batch ...
+                .BatchConfigurationLaunchRequest( ...
+                "batch-a", TableData = tableData);
+            controller = openmebius.application.batch ...
+                .BatchConfigurationLaunchController();
+
+            outcome = controller.prepare( ...
+                batch, [], @() request);
+
+            testCase.verifyTrue(outcome.isSuccess());
+            testCase.verifyEqual( ...
+                batch.Description, ...
+            "Description edited in Run table");
+            testCase.verifyEqual(batch.MetadataUpdateCount, 1);
+
+        end
+
         function rejectsUnexpectedRequestType(testCase)
 
             controller = openmebius.application.batch ...

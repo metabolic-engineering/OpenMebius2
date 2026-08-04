@@ -50,7 +50,7 @@ classdef BatchExecutionCoordinator
                 error( ...
                     "OpenMebius2:BatchExecutionCoordinator:" + ...
                     "ProvenanceCountMismatch", ...
-                    "Each batch entry must have one prepared provenance value.");
+                "Each batch entry must have one prepared provenance value.");
             end
 
             for i = 1:numberOfBatches
@@ -60,8 +60,8 @@ classdef BatchExecutionCoordinator
                     'rate', i / numberOfBatches);
                 entryStatus = string(batchTable.config(i).status);
 
-                if entryStatus == "finished"
-                    options.ProgressReporter(progress);
+                if openmebius.domain.batch.BatchConfig ...
+                        .isTerminalStatus(entryStatus)
                     continue
                 end
 

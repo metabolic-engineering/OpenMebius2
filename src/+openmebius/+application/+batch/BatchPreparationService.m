@@ -57,12 +57,9 @@ classdef BatchPreparationService
                 changed(i) = previousHash ~= currentHash;
                 batchTable.contentHash(index) = currentHash;
 
-                % Migrated results with no stored hash remain usable. A
-                % known hash change invalidates a previously finished run.
-                if changed(i) && strlength(previousHash) > 0 && ...
-                        string(batchTable.config(index).status) == "finished"
-                    batchTable.config(index).status = 'ready';
-                end
+                % Hash refresh must not reopen terminal batches. Finished
+                % and failed results remain terminal until an explicit
+                % status operation changes them.
 
             end
 

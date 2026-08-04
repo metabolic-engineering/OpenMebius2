@@ -15,6 +15,15 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function identifiesFinishedAndFailedAsTerminal(testCase)
+
+            testCase.verifyEqual( ...
+                openmebius.domain.batch.BatchConfig.isTerminalStatus( ...
+                ["ready", "finished", "error", "failed"]), ...
+                [false, true, true, true]);
+
+        end
+
         function normalizeFillsMissingFieldsAndValidates(testCase)
 
             config = openmebius.domain.batch.BatchConfig.normalize( ...

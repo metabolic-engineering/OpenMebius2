@@ -91,12 +91,40 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
 
         end
 
-        function removeAndClearPreserveFinishedEntries(testCase)
+        function configReplacementPreservesTerminalStatuses(testCase)
 
             collection = BatchCollectionTest.emptyCollection();
             finishedId = BatchCollectionTest.addDefault(collection, "Done");
+            failedId = BatchCollectionTest.addDefault(collection, "Failed");
             readyId = BatchCollectionTest.addDefault(collection, "Ready");
             collection.setStatus(finishedId, "finished");
+            collection.setStatus(failedId, "error");
+            replacement = ...
+                openmebius.domain.batch.BatchConfig.defaultConfig();
+            replacement.iteration = 99;
+
+            collection.replaceConfigs( ...
+                [finishedId; failedId; readyId], replacement);
+
+            testCase.verifyEqual( ...
+                collection.statusesFor( ...
+                [finishedId; failedId; readyId]), ...
+                ["finished"; "error"; "ready"]);
+            testCase.verifyEqual( ...
+                collection.configFor(finishedId).iteration, 99);
+            testCase.verifyEqual( ...
+                collection.configFor(failedId).iteration, 99);
+
+        end
+
+        function removeAndClearPreserveTerminalEntries(testCase)
+
+            collection = BatchCollectionTest.emptyCollection();
+            finishedId = BatchCollectionTest.addDefault(collection, "Done");
+            failedId = BatchCollectionTest.addDefault(collection, "Failed");
+            readyId = BatchCollectionTest.addDefault(collection, "Ready");
+            collection.setStatus(finishedId, "finished");
+            collection.setStatus(failedId, "error");
 
             [removedFinished, finishedReason] = ...
                 collection.remove(finishedId);
@@ -108,7 +136,8 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
             testCase.verifyEqual(readyReason, "");
             BatchCollectionTest.addDefault(collection, "Another ready");
             collection.clearUnfinished();
-            testCase.verifyEqual(collection.toTable().id, finishedId);
+            testCase.verifyEqual( ...
+                collection.toTable().id, [finishedId; failedId]);
 
         end
 

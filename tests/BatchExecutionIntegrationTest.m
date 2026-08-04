@@ -12,17 +12,20 @@ classdef BatchExecutionIntegrationTest < matlab.unittest.TestCase
 
     methods (Test)
 
-        function reopeningPreservesPersistedFinishedStatus(testCase)
+        function runningSkipsReopenedFinishedBatch(testCase)
 
             experimentDirectory = string(tempname);
+            resultDirectory = string(tempname);
             mkdir(experimentDirectory);
+            mkdir(resultDirectory);
             cleanup = onCleanup(@() ...
                 BatchExecutionIntegrationTest.removeDirectories( ...
-                experimentDirectory));
+                [experimentDirectory; resultDirectory]));
             experiments = helpers.BatchExperimentRunStub( ...
                 experimentDirectory);
             provenanceBuilder = ...
                 helpers.AnalysisProvenanceBuilderStub();
+            runService = helpers.BatchRunServiceQueueStub("finished");
             batch = openmebius.application.batch.BatchSession( ...
                 experiments, ...
                 AnalysisProvenanceBuilder = provenanceBuilder);
@@ -49,13 +52,25 @@ classdef BatchExecutionIntegrationTest < matlab.unittest.TestCase
 
             reopenedBatch = openmebius.application.batch.BatchSession( ...
                 experiments, ...
-                AnalysisProvenanceBuilder = provenanceBuilder);
+                AnalysisProvenanceBuilder = provenanceBuilder, ...
+                BatchRunService = runService);
             reopenedTable = reopenedBatch.getBatch();
 
             testCase.verifyEqual( ...
                 string(reopenedTable.config.status), "finished");
             testCase.verifyEqual( ...
                 reopenedTable.contentHash, ...
+            "sha256:stored-before-upgrade");
+
+            result = reopenedBatch.runBatch(resultDirectory);
+            tableAfterRun = reopenedBatch.getBatch();
+
+            testCase.verifyTrue(result.isSuccess());
+            testCase.verifyEqual(runService.CallCount, 0);
+            testCase.verifyEqual( ...
+                string(tableAfterRun.config.status), "finished");
+            testCase.verifyEqual( ...
+                tableAfterRun.contentHash, ...
             "sha256:stored-before-upgrade");
 
         end
