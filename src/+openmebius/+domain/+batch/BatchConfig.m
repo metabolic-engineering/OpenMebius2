@@ -9,6 +9,8 @@ classdef BatchConfig
             % Flux calculation configuration
             config = struct;
             config.iteration = 30;
+            config.initialFlux.restrictFreeEffluxSeeds = true;
+            config.initialFlux.freeEffluxSeedSigmaMultiplier = 3;
             config.perturbateEfflux = false;
             config.algorithm = 'sqp';
             config.largeScale = false;
@@ -150,6 +152,7 @@ classdef BatchConfig
             end
 
             BatchConfig.mustBePositiveInteger(config, 'iteration');
+            BatchConfig.validateInitialFlux(config);
             BatchConfig.mustBeKnownMember( ...
                 config, ...
                 'algorithm', ...
@@ -217,6 +220,20 @@ classdef BatchConfig
     end % methods
 
     methods (Static, Access = private)
+
+        function validateInitialFlux(config)
+
+            import openmebius.domain.batch.BatchConfig
+
+            BatchConfig.mustBeStruct(config, 'initialFlux');
+            BatchConfig.mustBeLogical( ...
+                config, ...
+            'initialFlux.restrictFreeEffluxSeeds');
+            BatchConfig.mustBePositiveNumber( ...
+                config, ...
+            'initialFlux.freeEffluxSeedSigmaMultiplier');
+
+        end % validateInitialFlux
 
         function config = migrateGridModes(config)
 

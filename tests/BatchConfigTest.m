@@ -21,6 +21,10 @@ classdef BatchConfigTest < matlab.unittest.TestCase
                 struct('iteration', 7));
 
             testCase.verifyEqual(config.iteration, 7);
+            testCase.verifyTrue( ...
+                config.initialFlux.restrictFreeEffluxSeeds);
+            testCase.verifyEqual( ...
+                config.initialFlux.freeEffluxSeedSigmaMultiplier, 3);
             testCase.verifyEqual(config.status, 'ready');
             testCase.verifyTrue(isfield(config, 'fmincon'));
             testCase.verifyTrue(isfield(config, 'GA'));
@@ -66,6 +70,28 @@ classdef BatchConfigTest < matlab.unittest.TestCase
             'OpenMebius2:BatchConfig:InvalidPositiveInteger');
 
         end % validateRejectsInvalidIteration
+
+        function validateRejectsInvalidInitialFluxRestriction(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.initialFlux.restrictFreeEffluxSeeds = 2;
+
+            testCase.verifyError( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config), ...
+            'OpenMebius2:BatchConfig:InvalidLogical');
+
+        end
+
+        function validateRejectsInvalidInitialFluxSigma(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.initialFlux.freeEffluxSeedSigmaMultiplier = 0;
+
+            testCase.verifyError( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config), ...
+            'OpenMebius2:BatchConfig:InvalidPositiveNumber');
+
+        end
 
         function validateRejectsUnknownAlgorithm(testCase)
 
