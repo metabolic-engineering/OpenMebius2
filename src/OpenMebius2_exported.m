@@ -2,132 +2,133 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        OpenMebius2UIFigure matlab.ui.Figure
-        ApplicationMenu matlab.ui.container.Menu
-        ReloadWindowMenu matlab.ui.container.Menu
-        ClearcacheMenu matlab.ui.container.Menu
-        PreferencesMenu matlab.ui.container.Menu
-        ExperimentaldataMenu matlab.ui.container.Menu
-        ExporttemplateExcelfileMenu matlab.ui.container.Menu
-        FilesMenu matlab.ui.container.Menu
-        ImportMSdatafromtextfilesMenu matlab.ui.container.Menu
-        ModelMenu matlab.ui.container.Menu
-        BatchMenu matlab.ui.container.Menu
-        ViewMenu matlab.ui.container.Menu
-        ViewReportMenu matlab.ui.container.Menu
-        HelpMenu matlab.ui.container.Menu
-        ViewlogsMenu matlab.ui.container.Menu
-        OpenMebius2manualMenu matlab.ui.container.Menu
-        AboutOpenMebius2Menu matlab.ui.container.Menu
-        GridLayout matlab.ui.container.GridLayout
-        GridLayout10 matlab.ui.container.GridLayout
-        SubUIAxes matlab.ui.control.UIAxes
-        MainUIAxes matlab.ui.control.UIAxes
-        GridLayout9 matlab.ui.container.GridLayout
-        LogTextArea matlab.ui.control.TextArea
-        TabGroup matlab.ui.container.TabGroup
-        StoichiometryTab matlab.ui.container.Tab
-        GridLayout11 matlab.ui.container.GridLayout
-        GridLayout12 matlab.ui.container.GridLayout
-        ModelReloadButton matlab.ui.control.Button
-        ModelEditButton matlab.ui.control.Button
-        ModelSaveButton matlab.ui.control.Button
-        ModelTable matlab.ui.control.Table
-        MSTab matlab.ui.container.Tab
-        GridLayout11_2 matlab.ui.container.GridLayout
-        GridLayout13 matlab.ui.container.GridLayout
-        AtomTable matlab.ui.control.Table
-        MSTable matlab.ui.control.Table
-        GridLayout12_2 matlab.ui.container.GridLayout
-        MSReloadButton matlab.ui.control.Button
-        MSEditButton matlab.ui.control.Button
-        MSSaveButton matlab.ui.control.Button
-        ExperimentTab matlab.ui.container.Tab
-        GridLayout11_3 matlab.ui.container.GridLayout
-        GridLayout13_2 matlab.ui.container.GridLayout
-        ExpTable matlab.ui.control.Table
-        GridLayout14 matlab.ui.container.GridLayout
-        BiomassTable matlab.ui.control.Table
-        GridLayout12_3 matlab.ui.container.GridLayout
-        ExpCalculationButton matlab.ui.control.Button
-        ExpImportButton matlab.ui.control.Button
-        ExpReloadButton matlab.ui.control.Button
-        ExpSaveButton matlab.ui.control.Button
-        TracerTab matlab.ui.container.Tab
-        GridLayout11_4 matlab.ui.container.GridLayout
-        GridLayout15 matlab.ui.container.GridLayout
-        LabelTable matlab.ui.control.Table
-        UptakeTable matlab.ui.control.Table
-        GridLayout12_4 matlab.ui.container.GridLayout
-        TracerConfigButton matlab.ui.control.Button
-        TracerReloadButton matlab.ui.control.Button
-        TracerSaveButton matlab.ui.control.Button
-        RunTab matlab.ui.container.Tab
-        GridLayout11_5 matlab.ui.container.GridLayout
-        GridLayout12_5 matlab.ui.container.GridLayout
-        RunAutoButton matlab.ui.control.Button
-        RunConfigButton matlab.ui.control.Button
-        RunReloadButton matlab.ui.control.Button
-        RunSaveButton matlab.ui.control.Button
-        RunRunButton matlab.ui.control.Button
-        RunTable matlab.ui.control.Table
-        ResultTab matlab.ui.container.Tab
-        GridLayout11_6 matlab.ui.container.GridLayout
-        GridLayout15_2 matlab.ui.container.GridLayout
-        ResultSubTable matlab.ui.control.Table
-        ResultMainTable matlab.ui.control.Table
-        GridLayout12_7 matlab.ui.container.GridLayout
-        ResultDropDown matlab.ui.control.DropDown
-        GridLayout12_6 matlab.ui.container.GridLayout
-        ResultReportButton matlab.ui.control.Button
-        ResultReloadButton matlab.ui.control.Button
-        ResultSaveButton matlab.ui.control.Button
-        GridLayout2 matlab.ui.container.GridLayout
-        StatusHTML matlab.ui.control.HTML
-        ProjectPanel matlab.ui.container.Panel
-        GridLayout3 matlab.ui.container.GridLayout
-        GridLayout16_2 matlab.ui.container.GridLayout
-        TemplateModelBrowseButton matlab.ui.control.Button
-        TemplateModelDirectoryDropDown matlab.ui.control.DropDown
-        GridLayout16 matlab.ui.container.GridLayout
-        ProjectBrowseButton matlab.ui.control.Button
-        ProjectDirectoryDropDown matlab.ui.control.DropDown
-        ProjectCreateButton matlab.ui.control.Button
-        TemplateModelSaveButton matlab.ui.control.Button
-        GridLayout5_3 matlab.ui.container.GridLayout
-        TemplateModelLoadButton matlab.ui.control.Button
-        ProjectLabel_2 matlab.ui.control.Label
-        GridLayout5_2 matlab.ui.container.GridLayout
-        ProjectSaveButton matlab.ui.control.Button
-        GridLayout8 matlab.ui.container.GridLayout
-        OrganismEditField matlab.ui.control.EditField
-        OrganismEditFieldLabel matlab.ui.control.Label
-        GridLayout7 matlab.ui.container.GridLayout
-        ProjectAuthorEditField matlab.ui.control.EditField
-        ProjectauthorEditFieldLabel matlab.ui.control.Label
-        GridLayout5 matlab.ui.container.GridLayout
-        ProjectLoadButton matlab.ui.control.Button
-        GridLayout4 matlab.ui.container.GridLayout
-        ProjectNameEditField matlab.ui.control.EditField
-        ProjectnameEditFieldLabel matlab.ui.control.Label
-        ProjectLabel matlab.ui.control.Label
-        ContextMenu matlab.ui.container.ContextMenu
-        AddLabelMenu matlab.ui.container.Menu
-        RemoveLabelMenu matlab.ui.container.Menu
-        ExperimentContextMenu matlab.ui.container.ContextMenu
-        ViewMStableMenu matlab.ui.container.Menu
-        ContextMenuRun matlab.ui.container.ContextMenu
-        AddbatchMenu matlab.ui.container.Menu
-        RemovethisbatchMenu matlab.ui.container.Menu
-        ParallellabelingMenu matlab.ui.container.Menu
-        ContextMenu2 matlab.ui.container.ContextMenu
-        RelativetoMenu matlab.ui.container.Menu
-        ContextMenuResultSelect matlab.ui.container.ContextMenu
-        RangeplotMenu matlab.ui.container.Menu
-        ViewsuggestionMenu matlab.ui.container.Menu
-        ContextMenu3 matlab.ui.container.ContextMenu
-        CopythistracerforallentriesMenu matlab.ui.container.Menu
+        OpenMebius2UIFigure             matlab.ui.Figure
+        ApplicationMenu                 matlab.ui.container.Menu
+        ReloadWindowMenu                matlab.ui.container.Menu
+        ClearcacheMenu                  matlab.ui.container.Menu
+        PreferencesMenu                 matlab.ui.container.Menu
+        ExperimentaldataMenu            matlab.ui.container.Menu
+        ExporttemplateExcelfileMenu     matlab.ui.container.Menu
+        FilesMenu                       matlab.ui.container.Menu
+        ImportMSdatafromtextfilesMenu   matlab.ui.container.Menu
+        ModelMenu                       matlab.ui.container.Menu
+        BatchMenu                       matlab.ui.container.Menu
+        ViewMenu                        matlab.ui.container.Menu
+        ViewReportMenu                  matlab.ui.container.Menu
+        HelpMenu                        matlab.ui.container.Menu
+        ViewlogsMenu                    matlab.ui.container.Menu
+        OpenMebius2manualMenu           matlab.ui.container.Menu
+        AboutOpenMebius2Menu            matlab.ui.container.Menu
+        GridLayout                      matlab.ui.container.GridLayout
+        GridLayout10                    matlab.ui.container.GridLayout
+        SubUIAxes                       matlab.ui.control.UIAxes
+        MainUIAxes                      matlab.ui.control.UIAxes
+        GridLayout9                     matlab.ui.container.GridLayout
+        LogTextArea                     matlab.ui.control.TextArea
+        TabGroup                        matlab.ui.container.TabGroup
+        StoichiometryTab                matlab.ui.container.Tab
+        GridLayout11                    matlab.ui.container.GridLayout
+        GridLayout12                    matlab.ui.container.GridLayout
+        ModelReloadButton               matlab.ui.control.Button
+        ModelEditButton                 matlab.ui.control.Button
+        ModelSaveButton                 matlab.ui.control.Button
+        ModelTable                      matlab.ui.control.Table
+        MSTab                           matlab.ui.container.Tab
+        GridLayout11_2                  matlab.ui.container.GridLayout
+        GridLayout13                    matlab.ui.container.GridLayout
+        AtomTable                       matlab.ui.control.Table
+        MSTable                         matlab.ui.control.Table
+        GridLayout12_2                  matlab.ui.container.GridLayout
+        MSReloadButton                  matlab.ui.control.Button
+        MSEditButton                    matlab.ui.control.Button
+        MSSaveButton                    matlab.ui.control.Button
+        ExperimentTab                   matlab.ui.container.Tab
+        GridLayout11_3                  matlab.ui.container.GridLayout
+        GridLayout13_2                  matlab.ui.container.GridLayout
+        ExpTable                        matlab.ui.control.Table
+        GridLayout14                    matlab.ui.container.GridLayout
+        BiomassTable                    matlab.ui.control.Table
+        GridLayout12_3                  matlab.ui.container.GridLayout
+        ExpCalculationButton            matlab.ui.control.Button
+        ExpImportButton                 matlab.ui.control.Button
+        ExpReloadButton                 matlab.ui.control.Button
+        ExpSaveButton                   matlab.ui.control.Button
+        TracerTab                       matlab.ui.container.Tab
+        GridLayout11_4                  matlab.ui.container.GridLayout
+        GridLayout15                    matlab.ui.container.GridLayout
+        LabelTable                      matlab.ui.control.Table
+        UptakeTable                     matlab.ui.control.Table
+        GridLayout12_4                  matlab.ui.container.GridLayout
+        TracerConfigButton              matlab.ui.control.Button
+        TracerReloadButton              matlab.ui.control.Button
+        TracerSaveButton                matlab.ui.control.Button
+        RunTab                          matlab.ui.container.Tab
+        GridLayout11_5                  matlab.ui.container.GridLayout
+        GridLayout12_5                  matlab.ui.container.GridLayout
+        RunAutoButton                   matlab.ui.control.Button
+        RunConfigButton                 matlab.ui.control.Button
+        RunReloadButton                 matlab.ui.control.Button
+        RunSaveButton                   matlab.ui.control.Button
+        RunRunButton                    matlab.ui.control.Button
+        RunTable                        matlab.ui.control.Table
+        ResultTab                       matlab.ui.container.Tab
+        GridLayout11_6                  matlab.ui.container.GridLayout
+        GridLayout15_2                  matlab.ui.container.GridLayout
+        ResultSubTable                  matlab.ui.control.Table
+        ResultMainTable                 matlab.ui.control.Table
+        GridLayout12_7                  matlab.ui.container.GridLayout
+        ResultDropDown                  matlab.ui.control.DropDown
+        GridLayout12_6                  matlab.ui.container.GridLayout
+        ResultReportButton              matlab.ui.control.Button
+        ResultReloadButton              matlab.ui.control.Button
+        ResultSaveButton                matlab.ui.control.Button
+        GridLayout2                     matlab.ui.container.GridLayout
+        StatusHTML                      matlab.ui.control.HTML
+        ProjectPanel                    matlab.ui.container.Panel
+        GridLayout3                     matlab.ui.container.GridLayout
+        GridLayout16_2                  matlab.ui.container.GridLayout
+        TemplateModelBrowseButton       matlab.ui.control.Button
+        TemplateModelDirectoryDropDown  matlab.ui.control.DropDown
+        GridLayout16                    matlab.ui.container.GridLayout
+        ProjectBrowseButton             matlab.ui.control.Button
+        ProjectDirectoryDropDown        matlab.ui.control.DropDown
+        ProjectCreateButton             matlab.ui.control.Button
+        TemplateModelSaveButton         matlab.ui.control.Button
+        GridLayout5_3                   matlab.ui.container.GridLayout
+        TemplateModelLoadButton         matlab.ui.control.Button
+        ProjectLabel_2                  matlab.ui.control.Label
+        GridLayout5_2                   matlab.ui.container.GridLayout
+        ProjectSaveButton               matlab.ui.control.Button
+        GridLayout8                     matlab.ui.container.GridLayout
+        OrganismEditField               matlab.ui.control.EditField
+        OrganismEditFieldLabel          matlab.ui.control.Label
+        GridLayout7                     matlab.ui.container.GridLayout
+        ProjectAuthorEditField          matlab.ui.control.EditField
+        ProjectauthorEditFieldLabel     matlab.ui.control.Label
+        GridLayout5                     matlab.ui.container.GridLayout
+        ProjectLoadButton               matlab.ui.control.Button
+        GridLayout4                     matlab.ui.container.GridLayout
+        ProjectNameEditField            matlab.ui.control.EditField
+        ProjectnameEditFieldLabel       matlab.ui.control.Label
+        ProjectLabel                    matlab.ui.control.Label
+        ContextMenu                     matlab.ui.container.ContextMenu
+        AddLabelMenu                    matlab.ui.container.Menu
+        RemoveLabelMenu                 matlab.ui.container.Menu
+        ExperimentContextMenu           matlab.ui.container.ContextMenu
+        ViewMStableMenu                 matlab.ui.container.Menu
+        ContextMenuRun                  matlab.ui.container.ContextMenu
+        AddbatchMenu                    matlab.ui.container.Menu
+        RemovethisbatchMenu             matlab.ui.container.Menu
+        ParallellabelingMenu            matlab.ui.container.Menu
+        ContextMenu2                    matlab.ui.container.ContextMenu
+        RelativetoMenu                  matlab.ui.container.Menu
+        ContextMenuResultSelect         matlab.ui.container.ContextMenu
+        RangeplotMenu                   matlab.ui.container.Menu
+        ViewsuggestionMenu              matlab.ui.container.Menu
+        ContextMenu3                    matlab.ui.container.ContextMenu
+        CopythistracerforallentriesMenu  matlab.ui.container.Menu
     end
+
 
     properties (Access = public)
 
@@ -1294,7 +1295,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             axes = app.SubUIAxes;
 
             cla(axes);
-            axes.Visible = 'on';
+            app.prepareCartesianResultAxes(axes);
             axes.FontSize = 16;
             axes.FontName = 'Arial';
             axes.XLim = [0 iterationCount + 1];
@@ -1345,7 +1346,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             profileX = profileX(finiteProfile);
             profileRSS = profileRSS(finiteProfile);
             cla(axes);
-            axes.Visible = 'on';
+            app.prepareCartesianResultAxes(axes);
             axes.FontSize = 16;
             axes.FontName = 'Arial';
             axes.XLabel.String = "Fixed flux";
@@ -1469,6 +1470,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             hold(axes, 'off');
 
         end % renderGridSearchProfile
+
+        function prepareCartesianResultAxes(~, axes)
+
+            axes.Visible = 'on';
+            axes.XColorMode = 'auto';
+            axes.YColorMode = 'auto';
+            axes.XTickMode = 'auto';
+            axes.YTickMode = 'auto';
+            axes.XTickLabelMode = 'auto';
+            axes.YTickLabelMode = 'auto';
+            axes.XLabel.Visible = 'on';
+            axes.YLabel.Visible = 'on';
+            axes.Title.Visible = 'on';
+
+        end % prepareCartesianResultAxes
 
         function clearResultPlots(app)
 
@@ -3344,10 +3360,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     return
                 end
 
-                if isvector(selection)
-                    rows = selection(:);
-                else
-                    rows = selection(:, 1);
+                selectionType = "cell";
+
+                if isprop(tableObject, 'SelectionType')
+                    selectionType = lower(string(tableObject.SelectionType));
+                end
+
+                switch selectionType
+                    case "row"
+                        rows = selection(:);
+
+                    case "cell"
+                        rows = selection(:, 1);
+
+                    otherwise
+                        return
                 end
 
                 rows = double(rows(:));
@@ -4003,76 +4030,56 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         %% Private reset function
         function resetAllComponents(app)
-            % RESETALLCOMPONENTS Reset all table data
+            % RESETALLCOMPONENTS Reset all transient table and plot state.
 
-            % Reset table data
-            app.ModelTable.Data = [];
-            app.MSTable.Data = [];
-            app.AtomTable.Data = [];
-            app.ExpTable.Data = [];
-            app.BiomassTable.Data = [];
-            app.UptakeTable.Data = [];
-            app.LabelTable.Data = [];
-            app.RunTable.Data = [];
-            app.ResultMainTable.Data = [];
-            app.ResultSubTable.Data = [];
+            tables = { ...
+                      app.ModelTable, app.MSTable, app.AtomTable, ...
+                      app.ExpTable, app.BiomassTable, ...
+                      app.UptakeTable, app.LabelTable, app.RunTable, ...
+                      app.ResultMainTable, app.ResultSubTable};
 
-            % Reset table column names
-            app.ModelTable.ColumnName = [];
-            app.MSTable.ColumnName = [];
-            app.AtomTable.ColumnName = [];
-            app.ExpTable.ColumnName = [];
-            app.BiomassTable.ColumnName = [];
-            app.UptakeTable.ColumnName = [];
-            app.LabelTable.ColumnName = [];
-            app.RunTable.ColumnName = [];
-            app.ResultMainTable.ColumnName = [];
-            app.ResultSubTable.ColumnName = [];
+            for tableIndex = 1:numel(tables)
+                tableObject = tables{tableIndex};
+                tableObject.Data = [];
+                tableObject.ColumnName = [];
+                tableObject.RowName = [];
+                tableObject.ColumnEditable = false;
 
-            % Reset table row names
-            app.ModelTable.RowName = [];
-            app.MSTable.RowName = [];
-            app.AtomTable.RowName = [];
-            app.ExpTable.RowName = [];
-            app.BiomassTable.RowName = [];
-            app.UptakeTable.RowName = [];
-            app.LabelTable.RowName = [];
-            app.RunTable.RowName = [];
-            app.ResultMainTable.RowName = [];
-            app.ResultSubTable.RowName = [];
+                try
+                    tableObject.Selection = [];
+                catch
+                    % Selection is unavailable on older MATLAB releases.
+                end
 
-            % Reset figure and plot
-            cla(app.MainUIAxes);
-            app.MainUIAxes.XLim = [0 1];
-            app.MainUIAxes.YLim = [0 1];
-            app.MainUIAxes.XTick = [];
-            app.MainUIAxes.YTick = [];
-            app.MainUIAxes.XLabel.String = "";
-            app.MainUIAxes.YLabel.String = "";
-            app.MainUIAxes.Title.String = "";
-            app.MainUIAxes.XLabel.Visible = 'off';
-            app.MainUIAxes.YLabel.Visible = 'off';
-            app.MainUIAxes.Title.Visible = 'off';
-            app.MainUIAxes.XColor = 'none';
-            app.MainUIAxes.YColor = 'none';
-            app.MainUIAxes.XGrid = 'off';
-            app.MainUIAxes.YGrid = 'off';
+                try
+                    tableObject.UserData = [];
+                catch
+                    % UserData is unavailable on older MATLAB releases.
+                end
 
-            % Reset subplot
-            app.SubUIAxes.XLim = [0 1];
-            app.SubUIAxes.YLim = [0 1];
-            app.SubUIAxes.XTick = [];
-            app.SubUIAxes.YTick = [];
-            app.SubUIAxes.XLabel.String = "";
-            app.SubUIAxes.YLabel.String = "";
-            app.SubUIAxes.Title.String = "";
-            app.SubUIAxes.XLabel.Visible = 'off';
-            app.SubUIAxes.YLabel.Visible = 'off';
-            app.SubUIAxes.Title.Visible = 'off';
-            app.SubUIAxes.XColor = 'none';
-            app.SubUIAxes.YColor = 'none';
-            app.SubUIAxes.XGrid = 'off';
-            app.SubUIAxes.YGrid = 'off';
+                removeStyle(tableObject);
+            end
+
+            axesObjects = {app.MainUIAxes, app.SubUIAxes};
+
+            for axesIndex = 1:numel(axesObjects)
+                axes = axesObjects{axesIndex};
+                cla(axes);
+                axes.XLim = [0 1];
+                axes.YLim = [0 1];
+                axes.XTick = [];
+                axes.YTick = [];
+                axes.XLabel.String = "";
+                axes.YLabel.String = "";
+                axes.Title.String = "";
+                axes.XLabel.Visible = 'off';
+                axes.YLabel.Visible = 'off';
+                axes.Title.Visible = 'off';
+                axes.XColor = 'none';
+                axes.YColor = 'none';
+                axes.XGrid = 'off';
+                axes.YGrid = 'off';
+            end
 
         end % method resetAllComponents
 
@@ -4898,17 +4905,81 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function reloadMainWindow(app)
 
-            app.loadHistory();
-            app.initializeLogView();
-            cleanupPresentation = ...
-                app.beginPresentationOperation(); %#ok<NASGU>
-            app.resetAllComponents();
+            app.restoreMainInteraction();
+            app.closeReloadWindowChildren();
+            app.ApplicationController.resetWorkspace();
 
-            for section = ["model", "experiment", "batch", "result"]
-                app.updateStatus(section, "init");
-            end
+            app.loadHistory();
+            app.ProjectDirectoryDropDown.Value = "";
+            app.TemplateModelDirectoryDropDown.Value = "";
+            app.ProjectNameEditField.Value = "";
+            app.ProjectAuthorEditField.Value = "";
+            app.OrganismEditField.Value = "";
+            app.directoryModel = "";
+            app.directoryExp = "";
+            app.directoryResult = "";
+            app.typeSimulation = "Flux";
+            app.report = [];
+
+            app.initializeLogView();
+            app.resetAllComponents();
+            app.ResultDropDown.Value = 'Overview';
+            app.TabGroup.SelectedTab = app.StoichiometryTab;
+            app.RunTableEditable = [];
+            app.initStatusTable();
+            app.resetPresentation();
 
         end % reloadMainWindow
+
+        function closeReloadWindowChildren(app)
+
+            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
+                app.ChildAppHost.closeAll();
+            end
+
+            app.PreferencesApp = [];
+            app.LabelConfigApp = [];
+            app.TracerConfigApp = [];
+            app.RunConfigApp = [];
+            app.MSViewApp = [];
+            app.ComparisonViewApp = [];
+            app.RunAddBatchApp = [];
+
+            app.deleteIfValid(app.ViewSuggestionApp);
+            app.deleteIfValid(app.RangePlotFigure);
+            app.deleteIfValid(app.LogApp);
+
+            try
+                if ~isempty(app.ProgressBar) && isvalid(app.ProgressBar)
+                    app.ProgressBar.close();
+                    delete(app.ProgressBar);
+                end
+            catch
+                % Reload must tolerate an already-closed progress bar.
+            end
+
+            app.ViewSuggestionApp = [];
+            app.RangePlotFigure = [];
+            app.LogApp = [];
+            app.ProgressBar = CustomProgressBar.empty;
+
+        end % closeReloadWindowChildren
+
+        function deleteIfValid(~, value)
+
+            if isempty(value)
+                return
+            end
+
+            try
+                if isvalid(value)
+                    delete(value);
+                end
+            catch
+                % Reload must tolerate already-closed transient windows.
+            end
+
+        end % deleteIfValid
 
         function openPreferences(app)
 
@@ -5194,6 +5265,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
     end % methods (Access = private)
 
+
     % Callbacks that handle component events
     methods (Access = private)
 
@@ -5211,6 +5283,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function OpenMebius2UIFigureCloseRequest(app, event)
 
             saveHistory(app)
+
+            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
+                app.ChildAppHost.closeAll();
+            end
+
             delete(app)
 
         end
@@ -5512,7 +5589,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if strcmp(event.Key, 'delete')
                 app.removeSelectedBatches();
             end
-
         end
 
         % Value changed function: ResultDropDown
@@ -5623,7 +5699,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 msg = "Unable to open the OpenMebius2 manual. Please check your internet connection.";
                 app.publishMessage("error", msg);
             end
-
         end
 
         % Menu selected function: AboutOpenMebius2Menu
@@ -5662,7 +5737,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.reloadSelectedTab(event);
         end
-
     end
 
     % Component initialization
@@ -6516,7 +6590,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.OpenMebius2UIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -6537,7 +6610,6 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -6546,7 +6618,5 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.OpenMebius2UIFigure)
         end
-
     end
-
 end

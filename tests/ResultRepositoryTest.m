@@ -27,7 +27,7 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyClass( ...
                 result, ...
-                "openmebius.application.result.ResultCatalog");
+            "openmebius.application.result.ResultCatalog");
             testCase.verifyEqual( ...
                 result.getResultLocation().Directory, ...
                 resultDirectory);
@@ -44,7 +44,7 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() repository.open(resultLocation), ...
-                "OpenMebius2:ResultRepository:DirectoryNotFound");
+            "OpenMebius2:ResultRepository:DirectoryNotFound");
 
         end
 
@@ -110,7 +110,7 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
             result = openmebius.application.result.ResultCatalog( ...
                 resultDirectory, ...
                 NotificationReporter = ...
-                    @(message) observer.publish(message));
+                @(message) observer.publish(message));
             rmdir(resultDirectory, 's');
 
             data = result.loadResultFile("missing");
@@ -119,7 +119,7 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
             testCase.verifyEqual(observer.EventCount, 2);
             testCase.verifyClass( ...
                 observer.LastEvent, ...
-                'openmebius.core.notification.Message');
+            'openmebius.core.notification.Message');
             testCase.verifyEqual(observer.LastEvent.Level, "error");
 
         end
@@ -176,6 +176,48 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
             loaded = readtable(pathFile);
             testCase.verifyEqual(string(loaded.Reaction), sourceTable.Reaction);
             testCase.verifyEqual(loaded.Flux, sourceTable.Flux);
+
+            clear cleanup
+
+        end
+
+        function gridSearchExportContainsProfileSheets(testCase)
+
+            repositoryRoot = ResultRepositoryTest.repositoryRoot();
+            resultDirectory = fullfile( ...
+                repositoryRoot, "tutorial", ...
+                "ecoli_grid_search", "results");
+            outputDirectory = string(tempname);
+            mkdir(outputDirectory);
+            cleanup = onCleanup(@() ...
+                ResultRepositoryTest.removeDirectory(outputDirectory));
+            result = openmebius.application.result.ResultCatalog( ...
+                resultDirectory);
+            batchID = "bat_dd0eff6798474f24b58b6657e5dd0354";
+            batchName = "GridSearch";
+
+            result.saveResultData( ...
+                batchID, batchName, outputDirectory, "xlsx");
+
+            workbook = fullfile( ...
+                outputDirectory, ...
+                "result_" + batchName + "_" + batchID + ".xlsx");
+            testCase.assertTrue(isfile(workbook));
+            sheets = string(sheetnames(workbook));
+            testCase.verifyTrue(any(sheets == "GridSearch"));
+            testCase.verifyTrue(any(sheets == "GS_001_r2"));
+            profileSheets = sheets(startsWith(sheets, "GS_"));
+            testCase.verifyNumElements(profileSheets, 24);
+            testCase.verifyTrue(any(profileSheets == "GS_024_r25"));
+            profile = readtable( ...
+                workbook, Sheet = "GS_001_r2");
+            testCase.verifyEqual( ...
+                string(profile.Properties.VariableNames), ...
+                ["FixedFlux", "RSS"]);
+            testCase.verifyGreaterThan(height(profile), 0);
+            testCase.verifyTrue(issorted(profile.FixedFlux));
+            testCase.verifyEqual( ...
+                numel(unique(profile.FixedFlux)), height(profile));
 
             clear cleanup
 

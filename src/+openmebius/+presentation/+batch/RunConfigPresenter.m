@@ -9,7 +9,8 @@ classdef RunConfigPresenter < handle
                 .BatchTableSelectionMapper.selectedBatchIds( ...
                 tableData, selection);
             request = openmebius.application.batch ...
-                .BatchConfigurationLaunchRequest(batchIds);
+                .BatchConfigurationLaunchRequest( ...
+                batchIds, TableData = tableData);
 
         end % createLaunchRequest
 

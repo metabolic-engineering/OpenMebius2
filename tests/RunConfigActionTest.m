@@ -146,7 +146,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             batch = helpers.RunConfigBatchStub();
             batch.Config.CIConf.algorithm = 'Grid search';
             batch.Config.CIConf.MC.iteration = 222;
-            batch.Config.CIConf.grid.points = 17;
+            batch.Config.CIConf.grid.points = 18;
             batch.Config.CIConf.grid.intervalMode = 'automatic';
             batch.Config.CIConf.grid.executionMode = 'parallel';
             session = RunConfigActionTest.createSession(batch);
@@ -155,7 +155,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
             testCase.verifyEqual(app.MCLmaxEditField.Value, 222);
             testCase.verifyEqual( ...
-                app.ThenumberofgridpointsEditField.Value, 17);
+                app.ThenumberofgridpointsEditField.Value, 18);
             testCase.verifyTrue( ...
                 app.DeterminegridintervalautomaticallyCheckBox.Value);
             testCase.verifyTrue(app.CheckBox.Value);

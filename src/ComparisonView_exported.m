@@ -2,18 +2,19 @@ classdef ComparisonView_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        ComparisonviewUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        DataListBox matlab.ui.control.ListBox
-        ExpListBox matlab.ui.control.ListBox
-        GridLayout2 matlab.ui.container.GridLayout
-        GridLayout3 matlab.ui.container.GridLayout
-        CloseButton matlab.ui.control.Button
-        SaveButton matlab.ui.control.Button
-        ReloadButton matlab.ui.control.Button
-        ConfigButton matlab.ui.control.Button
-        GridAxes matlab.ui.container.GridLayout
+        ComparisonviewUIFigure  matlab.ui.Figure
+        GridLayout              matlab.ui.container.GridLayout
+        DataListBox             matlab.ui.control.ListBox
+        ExpListBox              matlab.ui.control.ListBox
+        GridLayout2             matlab.ui.container.GridLayout
+        GridLayout3             matlab.ui.container.GridLayout
+        CloseButton             matlab.ui.control.Button
+        SaveButton              matlab.ui.control.Button
+        ReloadButton            matlab.ui.control.Button
+        ConfigButton            matlab.ui.control.Button
+        GridAxes                matlab.ui.container.GridLayout
     end
+
 
     properties (Access = private)
         Presenter openmebius.presentation.experiment.ComparisonViewPresenter
@@ -197,6 +198,7 @@ classdef ComparisonView_exported < matlab.apps.AppBase
 
     end
 
+
     % Callbacks that handle component events
     methods (Access = private)
 
@@ -253,7 +255,6 @@ classdef ComparisonView_exported < matlab.apps.AppBase
             notify(app, "Closed");
             delete(app);
         end
-
     end
 
     % Component initialization
@@ -349,7 +350,6 @@ classdef ComparisonView_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.ComparisonviewUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -370,7 +370,6 @@ classdef ComparisonView_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -379,7 +378,5 @@ classdef ComparisonView_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.ComparisonviewUIFigure)
         end
-
     end
-
 end

@@ -2,14 +2,15 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        AddbatchUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        GridLayout2 matlab.ui.container.GridLayout
-        CloseButton matlab.ui.control.Button
-        AddButton matlab.ui.control.Button
-        UITable matlab.ui.control.Table
-        AddAsParallel matlab.ui.control.CheckBox
+        AddbatchUIFigure  matlab.ui.Figure
+        GridLayout        matlab.ui.container.GridLayout
+        GridLayout2       matlab.ui.container.GridLayout
+        CloseButton       matlab.ui.control.Button
+        AddButton         matlab.ui.control.Button
+        UITable           matlab.ui.control.Table
+        AddAsParallel     matlab.ui.control.CheckBox
     end
+
 
     properties (Access = private)
 
@@ -54,6 +55,7 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
 
     end % private methods
 
+
     % Callbacks that handle component events
     methods (Access = private)
 
@@ -93,7 +95,6 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
                 close(app.AddbatchUIFigure);
 
             end
-
         end
 
         % Close request function: AddbatchUIFigure
@@ -102,7 +103,6 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             notify(app, "Closed");
             delete(app);
         end
-
     end
 
     % Component initialization
@@ -166,7 +166,6 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.AddbatchUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -187,7 +186,6 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -196,7 +194,5 @@ classdef RunAddBatch_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.AddbatchUIFigure)
         end
-
     end
-
 end

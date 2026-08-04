@@ -106,8 +106,10 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
             for fieldIndex = 1:numel(fields)
                 field = fields(fieldIndex);
                 testCase.verifyEqual( ...
-                    appModelCode.(field), ...
-                    expectedCode.(field), ...
+                    OpenMebius2SourceSyncTest.normalizeCodeData( ...
+                        appModelCode.(field)), ...
+                    OpenMebius2SourceSyncTest.normalizeCodeData( ...
+                        expectedCode.(field)), ...
                     "appModel.mat mismatch in " + appName + ...
                     ": " + field);
             end
@@ -203,7 +205,56 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
 
             code = replace(string(code), compose("\r\n"), newline);
             code = replace(code, compose("\r"), newline);
+            code = regexprep(code, '[ \t]+(?=\n|$)', '');
             code = strip(code, "right");
+
+        end
+
+        function value = normalizeCodeData(value)
+
+            if ischar(value)
+                value = char( ...
+                    OpenMebius2SourceSyncTest.normalizeCode(value));
+                return
+            end
+
+            if isstring(value)
+                value = OpenMebius2SourceSyncTest.normalizeCode(value);
+                return
+            end
+
+            if iscell(value)
+                for valueIndex = 1:numel(value)
+                    value{valueIndex} = OpenMebius2SourceSyncTest ...
+                        .normalizeCodeData(value{valueIndex});
+                end
+
+                if isscalar(value) && ischar(value{1}) && ...
+                        isempty(value{1})
+                    value = '';
+                    return
+                end
+
+                if isvector(value)
+                    value = value(:);
+                end
+
+                return
+            end
+
+            if isstruct(value)
+                fields = fieldnames(value);
+
+                for valueIndex = 1:numel(value)
+                    for fieldIndex = 1:numel(fields)
+                        field = fields{fieldIndex};
+                        value(valueIndex).(field) = ...
+                            OpenMebius2SourceSyncTest ...
+                                .normalizeCodeData( ...
+                                    value(valueIndex).(field));
+                    end
+                end
+            end
 
         end
 

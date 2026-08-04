@@ -3,6 +3,10 @@ classdef EffluxPenalty
     % Evaluates the weighted residual of measured free effluxes.
 
     properties (SetAccess = private)
+        Profile (1, 1) openmebius.mfa.EffluxPerturbationProfile
+    end
+
+    properties (Dependent, SetAccess = private)
         ReactionIndices (:, 1) double
         ExperimentalValues (:, 1) double
         StandardDeviations (:, 1) double
@@ -13,46 +17,64 @@ classdef EffluxPenalty
         function obj = EffluxPenalty(options)
 
             arguments
+                options.Profile (1, 1) ...
+                    openmebius.mfa.EffluxPerturbationProfile = ...
+                    openmebius.mfa.EffluxPerturbationProfile()
                 options.ReactionIndices (:, 1) double = zeros(0, 1)
                 options.ExperimentalValues (:, 1) double = zeros(0, 1)
                 options.StandardDeviations (:, 1) double = zeros(0, 1)
             end
 
-            measurementCount = numel(options.ReactionIndices);
+            hasLegacyData = ...
+                ~isempty(options.ReactionIndices) || ...
+                ~isempty(options.ExperimentalValues) || ...
+                ~isempty(options.StandardDeviations);
 
-            if numel(options.ExperimentalValues) ~= measurementCount || ...
-                    numel(options.StandardDeviations) ~= measurementCount
+            if hasLegacyData && options.Profile.MeasurementCount > 0
                 error( ...
-                    "OpenMebius2:EffluxPenalty:DimensionMismatch", ...
-                "Efflux penalty vectors must have the same length.");
+                    "OpenMebius2:EffluxPenalty:ConflictingProfileInput", ...
+                    "Specify either an efflux perturbation profile or " + ...
+                "legacy efflux vectors, not both.");
             end
 
-            if any(~isfinite(options.ReactionIndices)) || ...
-                    any(options.ReactionIndices < 1) || ...
-                    any(options.ReactionIndices ~= fix(options.ReactionIndices))
-                error( ...
-                    "OpenMebius2:EffluxPenalty:InvalidReactionIndex", ...
-                "Efflux reaction indices must be positive integers.");
-            end
+            if hasLegacyData
 
-            if any(~isfinite(options.ExperimentalValues))
-                error( ...
-                    "OpenMebius2:EffluxPenalty:InvalidExperimentalValue", ...
-                "Efflux experimental values must be finite.");
-            end
+                try
+                    obj.Profile = ...
+                        openmebius.mfa.EffluxPerturbationProfile( ...
+                        ReactionIndices = options.ReactionIndices, ...
+                        ExperimentalValues = ...
+                        options.ExperimentalValues, ...
+                        StandardDeviations = ...
+                        options.StandardDeviations);
+                catch ME
+                    openmebius.mfa.EffluxPenalty ...
+                        .rethrowLegacyValidationError(ME);
+                end
 
-            if any(~isfinite(options.StandardDeviations)) || ...
-                    any(options.StandardDeviations <= 0)
-                error( ...
-                    "OpenMebius2:EffluxPenalty:InvalidStandardDeviation", ...
-                "Efflux standard deviations must be positive and finite.");
+            else
+                obj.Profile = options.Profile;
             end
-
-            obj.ReactionIndices = options.ReactionIndices;
-            obj.ExperimentalValues = options.ExperimentalValues;
-            obj.StandardDeviations = options.StandardDeviations;
 
         end % constructor
+
+        function value = get.ReactionIndices(obj)
+
+            value = obj.Profile.ReactionIndices;
+
+        end
+
+        function value = get.ExperimentalValues(obj)
+
+            value = obj.Profile.ExperimentalValues;
+
+        end
+
+        function value = get.StandardDeviations(obj)
+
+            value = obj.Profile.StandardDeviations;
+
+        end
 
         function rss = evaluate(obj, flux)
 
@@ -83,5 +105,26 @@ classdef EffluxPenalty
         end % evaluate
 
     end % methods
+
+    methods (Static, Access = private)
+
+        function rethrowLegacyValidationError(exception)
+
+            profilePrefix = ...
+                "OpenMebius2:EffluxPerturbationProfile:";
+            identifier = string(exception.identifier);
+
+            if startsWith(identifier, profilePrefix)
+                suffix = extractAfter(identifier, profilePrefix);
+                error( ...
+                    "OpenMebius2:EffluxPenalty:" + suffix, ...
+                    "%s", exception.message);
+            end
+
+            rethrow(exception);
+
+        end
+
+    end % methods (Static, Access = private)
 
 end % classdef

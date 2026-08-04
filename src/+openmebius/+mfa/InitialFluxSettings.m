@@ -4,6 +4,8 @@ classdef InitialFluxSettings
 
     properties (SetAccess = private)
         IterationCount (1, 1) double
+        RestrictFreeEffluxSeeds (1, 1) logical
+        FreeEffluxSeedSigmaMultiplier (1, 1) double
     end
 
     methods
@@ -12,6 +14,9 @@ classdef InitialFluxSettings
 
             arguments
                 options.IterationCount (1, 1) double = 30
+                options.RestrictFreeEffluxSeeds (1, 1) logical = true
+                options.FreeEffluxSeedSigmaMultiplier ...
+                    (1, 1) double = 3
             end
 
             if ~isfinite(options.IterationCount) || ...
@@ -24,7 +29,20 @@ classdef InitialFluxSettings
                 "positive integer.");
             end
 
+            if ~isfinite(options.FreeEffluxSeedSigmaMultiplier) || ...
+                    options.FreeEffluxSeedSigmaMultiplier <= 0
+                error( ...
+                    "OpenMebius2:InitialFluxSettings:" + ...
+                    "InvalidFreeEffluxSeedSigmaMultiplier", ...
+                    "The free-efflux seed sigma multiplier must be " + ...
+                "positive and finite.");
+            end
+
             obj.IterationCount = options.IterationCount;
+            obj.RestrictFreeEffluxSeeds = ...
+                options.RestrictFreeEffluxSeeds;
+            obj.FreeEffluxSeedSigmaMultiplier = ...
+                options.FreeEffluxSeedSigmaMultiplier;
 
         end
 

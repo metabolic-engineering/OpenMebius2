@@ -15,9 +15,14 @@ classdef InitialFluxSettingsTest < matlab.unittest.TestCase
         function storesPositiveIterationCount(testCase)
 
             settings = openmebius.mfa.InitialFluxSettings( ...
-                IterationCount = 30);
+                IterationCount = 30, ...
+                RestrictFreeEffluxSeeds = false, ...
+                FreeEffluxSeedSigmaMultiplier = 5);
 
             testCase.verifyEqual(settings.IterationCount, 30);
+            testCase.verifyFalse(settings.RestrictFreeEffluxSeeds);
+            testCase.verifyEqual( ...
+                settings.FreeEffluxSeedSigmaMultiplier, 5);
 
         end
 
@@ -26,6 +31,23 @@ classdef InitialFluxSettingsTest < matlab.unittest.TestCase
             settings = openmebius.mfa.InitialFluxSettings();
 
             testCase.verifyEqual(settings.IterationCount, 30);
+            testCase.verifyTrue(settings.RestrictFreeEffluxSeeds);
+            testCase.verifyEqual( ...
+                settings.FreeEffluxSeedSigmaMultiplier, 3);
+
+        end
+
+        function rejectsInvalidFreeEffluxSeedSigmaMultiplier(testCase)
+
+            errorID = "OpenMebius2:InitialFluxSettings:" + ...
+                "InvalidFreeEffluxSeedSigmaMultiplier";
+
+            for value = [0, -1, Inf, NaN]
+                testCase.verifyError( ...
+                    @() openmebius.mfa.InitialFluxSettings( ...
+                    FreeEffluxSeedSigmaMultiplier = value), ...
+                    errorID);
+            end
 
         end
 
@@ -51,7 +73,7 @@ classdef InitialFluxSettingsTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-                'src');
+            'src');
 
         end
 

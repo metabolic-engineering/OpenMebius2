@@ -2,18 +2,19 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        RangePlotViewerUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        GridLayout2 matlab.ui.container.GridLayout
-        UITable matlab.ui.control.Table
-        GridLayout3 matlab.ui.container.GridLayout
-        SaveButton matlab.ui.control.Button
-        GridLayout4 matlab.ui.container.GridLayout
-        RangeAxes matlab.ui.control.UIAxes
-        GridLayout5 matlab.ui.container.GridLayout
-        UITableFlux matlab.ui.control.Table
-        UITableRank matlab.ui.control.Table
+        RangePlotViewerUIFigure  matlab.ui.Figure
+        GridLayout               matlab.ui.container.GridLayout
+        GridLayout2              matlab.ui.container.GridLayout
+        UITable                  matlab.ui.control.Table
+        GridLayout3              matlab.ui.container.GridLayout
+        SaveButton               matlab.ui.control.Button
+        GridLayout4              matlab.ui.container.GridLayout
+        RangeAxes                matlab.ui.control.UIAxes
+        GridLayout5              matlab.ui.container.GridLayout
+        UITableFlux              matlab.ui.control.Table
+        UITableRank              matlab.ui.control.Table
     end
+
 
     %% Public properties
     properties (Access = public)
@@ -656,6 +657,7 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
 
     end % private methods
 
+
     % Callbacks that handle component events
     methods (Access = private)
 
@@ -685,7 +687,6 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             if strcmp(key, 'escape')
                 delete(app)
             end
-
         end
 
         % Close request function: RangePlotViewerUIFigure
@@ -778,9 +779,7 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             if strcmp(key, 'escape')
                 delete(app)
             end
-
         end
-
     end
 
     % Component initialization
@@ -876,7 +875,6 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.RangePlotViewerUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -897,7 +895,6 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -906,7 +903,5 @@ classdef ViewSuggestion_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.RangePlotViewerUIFigure)
         end
-
     end
-
 end

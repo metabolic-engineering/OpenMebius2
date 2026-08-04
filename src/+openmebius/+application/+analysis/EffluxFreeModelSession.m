@@ -51,6 +51,11 @@ classdef EffluxFreeModelSession < handle
                 return
             end
 
+            % Restoration is attempted at most once. In particular, the
+            % destructor must not retry after the model or reporter has
+            % already been destroyed during application shutdown.
+            obj.IsActive = false;
+
             try
 
                 for i = 1:numel(obj.ReactionIDs)
@@ -59,20 +64,36 @@ classdef EffluxFreeModelSession < handle
                         obj.OriginalIndependent(i));
                 end
 
-                obj.Model.buildModel();
-                obj.IsActive = false;
             catch ME
-                obj.MessageReporter( ...
-                    "warning", ...
-                    "Failed to restore efflux free model state: " + ...
-                    string(ME.message));
+                obj.reportRestoreFailure(ME);
             end
+
+            obj.Model = [];
+            obj.MessageReporter = @(~, ~) [];
 
         end
 
         function delete(obj)
 
             obj.restore();
+
+        end
+
+    end
+
+    methods (Access = private)
+
+        function reportRestoreFailure(obj, exception)
+
+            try
+                obj.MessageReporter( ...
+                    "warning", ...
+                    "Failed to restore efflux free model state: " + ...
+                    string(exception.message));
+            catch
+                % Destructors must not fail when the notification owner has
+                % already been deleted during application shutdown.
+            end
 
         end
 

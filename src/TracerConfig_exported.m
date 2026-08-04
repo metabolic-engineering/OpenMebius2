@@ -2,14 +2,15 @@ classdef TracerConfig_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        TracerselectionconfigUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        AllowmultipletracerpatternforonesubstrateCheckBox matlab.ui.control.CheckBox
-        GridLayout2 matlab.ui.container.GridLayout
-        SaveButton matlab.ui.control.Button
-        ReloadButton matlab.ui.control.Button
-        UITable matlab.ui.control.Table
+        TracerselectionconfigUIFigure  matlab.ui.Figure
+        GridLayout                     matlab.ui.container.GridLayout
+        AllowmultipletracerpatternforonesubstrateCheckBox  matlab.ui.control.CheckBox
+        GridLayout2                    matlab.ui.container.GridLayout
+        SaveButton                     matlab.ui.control.Button
+        ReloadButton                   matlab.ui.control.Button
+        UITable                        matlab.ui.control.Table
     end
+
 
     properties (Access = private)
         Position (1, 2) double
@@ -28,6 +29,7 @@ classdef TracerConfig_exported < matlab.apps.AppBase
         end % reloadEditorTable
 
     end % methods (Access = private)
+
 
     % Callbacks that handle component events
     methods (Access = private)
@@ -73,9 +75,7 @@ classdef TracerConfig_exported < matlab.apps.AppBase
             if strcmp(key, 'escape')
                 close(app.TracerselectionconfigUIFigure);
             end
-
         end
-
     end
 
     % Component initialization
@@ -139,7 +139,6 @@ classdef TracerConfig_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.TracerselectionconfigUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -160,7 +159,6 @@ classdef TracerConfig_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -169,7 +167,5 @@ classdef TracerConfig_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.TracerselectionconfigUIFigure)
         end
-
     end
-
 end

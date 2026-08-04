@@ -1,4 +1,4 @@
-classdef InitialPointGeneratorStub
+classdef InitialPointGeneratorStub < handle
 
     properties (SetAccess = private)
         Fluxes (:, :) double
@@ -6,6 +6,7 @@ classdef InitialPointGeneratorStub
         IsCanceled (1, 1) logical = false
         IsError (1, 1) logical = false
         ErrorMessage (1, 1) string = ""
+        LastProblem = []
     end
 
     methods
@@ -29,15 +30,17 @@ classdef InitialPointGeneratorStub
 
         end
 
-        function result = generateRandom(obj, ~, ~, varargin)
+        function result = generateRandom(obj, problem, ~, varargin)
 
+            obj.LastProblem = problem;
             result = obj.result();
 
         end
 
         function result = generateHitAndRun( ...
-                obj, ~, ~, ~, varargin)
+                obj, problem, ~, ~, varargin)
 
+            obj.LastProblem = problem;
             result = obj.result();
 
         end

@@ -1222,7 +1222,6 @@ classdef BatchSession < handle
             end % if isImportError
 
             obj.tableBatch = batchLoaded;
-            updateContentHash(obj, obj.tableBatch.id);
 
         end % loadBatchFile
 
@@ -1262,10 +1261,14 @@ classdef BatchSession < handle
                 return
             end
 
+            statuses = string({obj.tableBatch.config.status});
+            statuses = statuses(:);
+            runnableIds = obj.tableBatch.id(statuses == "ready");
+
             [obj.tableBatch, contentChanged, provenances] = ...
                 obj.BatchPreparationService.prepare( ...
                 obj.tableBatch, ...
-                obj.tableBatch.id, ...
+                runnableIds, ...
                 obj.model, ...
                 obj.exp);
 

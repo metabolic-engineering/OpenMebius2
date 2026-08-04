@@ -2,23 +2,24 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        LabelconfigUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        GridLayout3 matlab.ui.container.GridLayout
-        GridLayout7 matlab.ui.container.GridLayout
-        SaveButton matlab.ui.control.Button
-        LoadButton matlab.ui.control.Button
-        GridLayout5 matlab.ui.container.GridLayout
-        RemoveRatioButton matlab.ui.control.Button
-        AddRatioButton matlab.ui.control.Button
-        RatioTable matlab.ui.control.Table
-        GridLayout2 matlab.ui.container.GridLayout
-        LabelTable matlab.ui.control.Table
-        GridLayout4 matlab.ui.container.GridLayout
-        GridLayout6 matlab.ui.container.GridLayout
-        RemoveLabelButton matlab.ui.control.Button
-        AddLabelButton matlab.ui.control.Button
+        LabelconfigUIFigure  matlab.ui.Figure
+        GridLayout           matlab.ui.container.GridLayout
+        GridLayout3          matlab.ui.container.GridLayout
+        GridLayout7          matlab.ui.container.GridLayout
+        SaveButton           matlab.ui.control.Button
+        LoadButton           matlab.ui.control.Button
+        GridLayout5          matlab.ui.container.GridLayout
+        RemoveRatioButton    matlab.ui.control.Button
+        AddRatioButton       matlab.ui.control.Button
+        RatioTable           matlab.ui.control.Table
+        GridLayout2          matlab.ui.container.GridLayout
+        LabelTable           matlab.ui.control.Table
+        GridLayout4          matlab.ui.container.GridLayout
+        GridLayout6          matlab.ui.container.GridLayout
+        RemoveLabelButton    matlab.ui.control.Button
+        AddLabelButton       matlab.ui.control.Button
     end
+
 
     properties (Access = private)
 
@@ -125,6 +126,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
     end
 
+
     % Callbacks that handle component events
     methods (Access = private)
 
@@ -219,9 +221,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
                 close(app.LabelconfigUIFigure);
 
             end
-
         end
-
     end
 
     % Component initialization
@@ -360,7 +360,6 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.LabelconfigUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -381,7 +380,6 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -390,7 +388,5 @@ classdef LabelConfig_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.LabelconfigUIFigure)
         end
-
     end
-
 end

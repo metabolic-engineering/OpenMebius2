@@ -2,121 +2,122 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        BatchconfigUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        TabGroup matlab.ui.container.TabGroup
-        GeneralTab matlab.ui.container.Tab
-        GridLayout5_2 matlab.ui.container.GridLayout
-        GridLayout7_2 matlab.ui.container.GridLayout
-        GeneralRestoreDefaultButton matlab.ui.control.Button
-        GeneralApplyButton matlab.ui.control.Button
-        GeneralCancelButton matlab.ui.control.Button
-        GridLayout6_2 matlab.ui.container.GridLayout
-        TabGroup2 matlab.ui.container.TabGroup
-        MonteCarloTab matlab.ui.container.Tab
-        GridLayout9 matlab.ui.container.GridLayout
-        GridLayout10_8 matlab.ui.container.GridLayout
-        MCMethodDropDown matlab.ui.control.DropDown
-        CalculationmethodsDropDownLabel matlab.ui.control.Label
-        GridLayout10_7 matlab.ui.container.GridLayout
-        MCKNREditField matlab.ui.control.NumericEditField
-        ThenumberofrunsiKisubNRsubEditFieldLabel matlab.ui.control.Label
-        GridLayout10_6 matlab.ui.container.GridLayout
-        MCNasEditField matlab.ui.control.NumericEditField
-        CertainthresholdiNisubASsubEditFieldLabel matlab.ui.control.Label
-        GridLayout10_5 matlab.ui.container.GridLayout
-        MCProximityEditField matlab.ui.control.NumericEditField
-        ProximitythresholdepsilonLabel matlab.ui.control.Label
-        GridLayout10_4 matlab.ui.container.GridLayout
-        MCTTEditField matlab.ui.control.NumericEditField
-        TerminationtoleranceTTEditFieldLabel matlab.ui.control.Label
-        GridLayout10_3 matlab.ui.container.GridLayout
-        MCProcedureDropDown matlab.ui.control.DropDown
-        OptimizationprocedureDropDownLabel matlab.ui.control.Label
-        GridLayout10_2 matlab.ui.container.GridLayout
-        MCMIDSDEditField matlab.ui.control.NumericEditField
-        VariationsforMIDserrorLabel matlab.ui.control.Label
-        MCFixMIDCheckBox matlab.ui.control.CheckBox
-        GridLayout10 matlab.ui.container.GridLayout
-        MCLmaxEditField matlab.ui.control.NumericEditField
-        maximumnumberoftrialsLsubmaxsubLabel matlab.ui.control.Label
-        GridsearchTab matlab.ui.container.Tab
-        GridLayout11 matlab.ui.container.GridLayout
-        CheckBox matlab.ui.control.CheckBox
-        GridLayout12_4 matlab.ui.container.GridLayout
-        ThresholdDropDown matlab.ui.control.DropDown
-        ThresholdDropDownLabel matlab.ui.control.Label
-        GridLayout12_3 matlab.ui.container.GridLayout
-        IterationtimesforgridsearchEditField matlab.ui.control.NumericEditField
-        IterationtimesforgridsearchEditFieldLabel matlab.ui.control.Label
-        GridLayout12_2 matlab.ui.container.GridLayout
-        GridintervalDeltaixiEditField matlab.ui.control.NumericEditField
-        GridintervalDeltaixiEditFieldLabel matlab.ui.control.Label
-        GridLayout12 matlab.ui.container.GridLayout
-        ThenumberofgridpointsEditField matlab.ui.control.NumericEditField
-        ThenumberofgridpointsEditFieldLabel matlab.ui.control.Label
-        DeterminegridintervalautomaticallyCheckBox matlab.ui.control.CheckBox
-        GridreactionTab matlab.ui.container.Tab
-        GridLayout23 matlab.ui.container.GridLayout
-        GridReactionUITable matlab.ui.control.Table
-        GridLayout8 matlab.ui.container.GridLayout
-        INSTMFACheckBox matlab.ui.control.CheckBox
-        DeleteResultButton matlab.ui.control.CheckBox
-        GridLayoutAlgorithm_2 matlab.ui.container.GridLayout
-        AlgorithmCIDropDown matlab.ui.control.DropDown
-        AlgorithmforCIcalculationDropDownLabel matlab.ui.control.Label
-        CalcCICheckBox matlab.ui.control.CheckBox
-        PerturbateEffluxCheckBox matlab.ui.control.CheckBox
-        SuggestionCheckBox matlab.ui.control.CheckBox
-        LargeScaleCheckBox matlab.ui.control.CheckBox
-        GridLayoutAlgorithm matlab.ui.container.GridLayout
-        AlgorithmDropDown matlab.ui.control.DropDown
-        CalculationalgorithmDropDownLabel matlab.ui.control.Label
-        GridLayoutIteration matlab.ui.container.GridLayout
-        IterationSpinner matlab.ui.control.Spinner
-        IterationtimesforcalculationSpinnerLabel matlab.ui.control.Label
-        MSfragmentTab matlab.ui.container.Tab
-        GridLayout5 matlab.ui.container.GridLayout
-        MSTable matlab.ui.control.Table
-        GridLayout7 matlab.ui.container.GridLayout
-        MSRestoreDefaultButton matlab.ui.control.Button
-        MSApplyAllButton matlab.ui.control.Button
-        MSCancelButton matlab.ui.control.Button
-        EffluxperturbationTab matlab.ui.container.Tab
-        GridLayout13 matlab.ui.container.GridLayout
-        GridLayout22 matlab.ui.container.GridLayout
-        EffluxUITable matlab.ui.control.Table
-        GridLayout15 matlab.ui.container.GridLayout
-        EffluxRestoreDefaultButton matlab.ui.control.Button
-        EffluxApplyButton matlab.ui.control.Button
-        EffluxCancelButton matlab.ui.control.Button
-        TracersuggestionTab matlab.ui.container.Tab
-        GridLayout14 matlab.ui.container.GridLayout
-        GridLayout17 matlab.ui.container.GridLayout
-        GridLayout18 matlab.ui.container.GridLayout
-        LabelTable matlab.ui.control.Table
-        GridLayout16 matlab.ui.container.GridLayout
-        SuggestionApplyButton matlab.ui.control.Button
-        SuggestionRestoreDefaultButton matlab.ui.control.Button
-        SuggestionCancelButton matlab.ui.control.Button
-        INSTMFATab matlab.ui.container.Tab
-        GridLayout13_2 matlab.ui.container.GridLayout
-        GridLayout20 matlab.ui.container.GridLayout
-        INSTMFATimeCourseUITable matlab.ui.control.Table
-        GridLayout21 matlab.ui.container.GridLayout
-        INSTMFAPoolUITable matlab.ui.control.Table
-        GridLayout15_2 matlab.ui.container.GridLayout
-        INSTMFAApplyButton matlab.ui.control.Button
-        INSTMFARestoreDefaultButton matlab.ui.control.Button
-        INSTMFACancelButton matlab.ui.control.Button
-        ContextMenu matlab.ui.container.ContextMenu
-        AddnewpatternMenu matlab.ui.container.Menu
-        AddnewpatternsMenu matlab.ui.container.Menu
-        CopythistracerforallentriesMenu matlab.ui.container.Menu
-        ContextMenuINST matlab.ui.container.ContextMenu
-        AddexperimentsMenu matlab.ui.container.Menu
-        RemoveselectedexperimentMenu matlab.ui.container.Menu
+        BatchconfigUIFigure             matlab.ui.Figure
+        GridLayout                      matlab.ui.container.GridLayout
+        TabGroup                        matlab.ui.container.TabGroup
+        GeneralTab                      matlab.ui.container.Tab
+        GridLayout5_2                   matlab.ui.container.GridLayout
+        GridLayout7_2                   matlab.ui.container.GridLayout
+        GeneralRestoreDefaultButton     matlab.ui.control.Button
+        GeneralApplyButton              matlab.ui.control.Button
+        GeneralCancelButton             matlab.ui.control.Button
+        GridLayout6_2                   matlab.ui.container.GridLayout
+        TabGroup2                       matlab.ui.container.TabGroup
+        MonteCarloTab                   matlab.ui.container.Tab
+        GridLayout9                     matlab.ui.container.GridLayout
+        GridLayout10_8                  matlab.ui.container.GridLayout
+        MCMethodDropDown                matlab.ui.control.DropDown
+        CalculationmethodsDropDownLabel  matlab.ui.control.Label
+        GridLayout10_7                  matlab.ui.container.GridLayout
+        MCKNREditField                  matlab.ui.control.NumericEditField
+        ThenumberofrunsiKisubNRsubEditFieldLabel  matlab.ui.control.Label
+        GridLayout10_6                  matlab.ui.container.GridLayout
+        MCNasEditField                  matlab.ui.control.NumericEditField
+        CertainthresholdiNisubASsubEditFieldLabel  matlab.ui.control.Label
+        GridLayout10_5                  matlab.ui.container.GridLayout
+        MCProximityEditField            matlab.ui.control.NumericEditField
+        ProximitythresholdepsilonLabel  matlab.ui.control.Label
+        GridLayout10_4                  matlab.ui.container.GridLayout
+        MCTTEditField                   matlab.ui.control.NumericEditField
+        TerminationtoleranceTTEditFieldLabel  matlab.ui.control.Label
+        GridLayout10_3                  matlab.ui.container.GridLayout
+        MCProcedureDropDown             matlab.ui.control.DropDown
+        OptimizationprocedureDropDownLabel  matlab.ui.control.Label
+        GridLayout10_2                  matlab.ui.container.GridLayout
+        MCMIDSDEditField                matlab.ui.control.NumericEditField
+        VariationsforMIDserrorLabel     matlab.ui.control.Label
+        MCFixMIDCheckBox                matlab.ui.control.CheckBox
+        GridLayout10                    matlab.ui.container.GridLayout
+        MCLmaxEditField                 matlab.ui.control.NumericEditField
+        maximumnumberoftrialsLsubmaxsubLabel  matlab.ui.control.Label
+        GridsearchTab                   matlab.ui.container.Tab
+        GridLayout11                    matlab.ui.container.GridLayout
+        CheckBox                        matlab.ui.control.CheckBox
+        GridLayout12_4                  matlab.ui.container.GridLayout
+        ThresholdDropDown               matlab.ui.control.DropDown
+        ThresholdDropDownLabel          matlab.ui.control.Label
+        GridLayout12_3                  matlab.ui.container.GridLayout
+        IterationtimesforgridsearchEditField  matlab.ui.control.NumericEditField
+        IterationtimesforgridsearchEditFieldLabel  matlab.ui.control.Label
+        GridLayout12_2                  matlab.ui.container.GridLayout
+        GridintervalDeltaixiEditField   matlab.ui.control.NumericEditField
+        GridintervalDeltaixiEditFieldLabel  matlab.ui.control.Label
+        GridLayout12                    matlab.ui.container.GridLayout
+        ThenumberofgridpointsEditField  matlab.ui.control.NumericEditField
+        ThenumberofgridpointsEditFieldLabel  matlab.ui.control.Label
+        DeterminegridintervalautomaticallyCheckBox  matlab.ui.control.CheckBox
+        GridreactionTab                 matlab.ui.container.Tab
+        GridLayout23                    matlab.ui.container.GridLayout
+        GridReactionUITable             matlab.ui.control.Table
+        GridLayout8                     matlab.ui.container.GridLayout
+        INSTMFACheckBox                 matlab.ui.control.CheckBox
+        DeleteResultButton              matlab.ui.control.CheckBox
+        GridLayoutAlgorithm_2           matlab.ui.container.GridLayout
+        AlgorithmCIDropDown             matlab.ui.control.DropDown
+        AlgorithmforCIcalculationDropDownLabel  matlab.ui.control.Label
+        CalcCICheckBox                  matlab.ui.control.CheckBox
+        PerturbateEffluxCheckBox        matlab.ui.control.CheckBox
+        SuggestionCheckBox              matlab.ui.control.CheckBox
+        LargeScaleCheckBox              matlab.ui.control.CheckBox
+        GridLayoutAlgorithm             matlab.ui.container.GridLayout
+        AlgorithmDropDown               matlab.ui.control.DropDown
+        CalculationalgorithmDropDownLabel  matlab.ui.control.Label
+        GridLayoutIteration             matlab.ui.container.GridLayout
+        IterationSpinner                matlab.ui.control.Spinner
+        IterationtimesforcalculationSpinnerLabel  matlab.ui.control.Label
+        MSfragmentTab                   matlab.ui.container.Tab
+        GridLayout5                     matlab.ui.container.GridLayout
+        MSTable                         matlab.ui.control.Table
+        GridLayout7                     matlab.ui.container.GridLayout
+        MSRestoreDefaultButton          matlab.ui.control.Button
+        MSApplyAllButton                matlab.ui.control.Button
+        MSCancelButton                  matlab.ui.control.Button
+        EffluxperturbationTab           matlab.ui.container.Tab
+        GridLayout13                    matlab.ui.container.GridLayout
+        GridLayout22                    matlab.ui.container.GridLayout
+        EffluxUITable                   matlab.ui.control.Table
+        GridLayout15                    matlab.ui.container.GridLayout
+        EffluxRestoreDefaultButton      matlab.ui.control.Button
+        EffluxApplyButton               matlab.ui.control.Button
+        EffluxCancelButton              matlab.ui.control.Button
+        TracersuggestionTab             matlab.ui.container.Tab
+        GridLayout14                    matlab.ui.container.GridLayout
+        GridLayout17                    matlab.ui.container.GridLayout
+        GridLayout18                    matlab.ui.container.GridLayout
+        LabelTable                      matlab.ui.control.Table
+        GridLayout16                    matlab.ui.container.GridLayout
+        SuggestionApplyButton           matlab.ui.control.Button
+        SuggestionRestoreDefaultButton  matlab.ui.control.Button
+        SuggestionCancelButton          matlab.ui.control.Button
+        INSTMFATab                      matlab.ui.container.Tab
+        GridLayout13_2                  matlab.ui.container.GridLayout
+        GridLayout20                    matlab.ui.container.GridLayout
+        INSTMFATimeCourseUITable        matlab.ui.control.Table
+        GridLayout21                    matlab.ui.container.GridLayout
+        INSTMFAPoolUITable              matlab.ui.control.Table
+        GridLayout15_2                  matlab.ui.container.GridLayout
+        INSTMFAApplyButton              matlab.ui.control.Button
+        INSTMFARestoreDefaultButton     matlab.ui.control.Button
+        INSTMFACancelButton             matlab.ui.control.Button
+        ContextMenu                     matlab.ui.container.ContextMenu
+        AddnewpatternMenu               matlab.ui.container.Menu
+        AddnewpatternsMenu              matlab.ui.container.Menu
+        CopythistracerforallentriesMenu  matlab.ui.container.Menu
+        ContextMenuINST                 matlab.ui.container.ContextMenu
+        AddexperimentsMenu              matlab.ui.container.Menu
+        RemoveselectedexperimentMenu    matlab.ui.container.Menu
     end
+
 
     %% Private properties
     properties (Access = private)
@@ -773,6 +774,10 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function cancelChanges(app)
 
+            if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
+                app.ChildAppHost.closeAll();
+            end
+
             notify(app, "Closed");
             delete(app);
 
@@ -789,6 +794,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         end % readOnlyColumns
 
     end % private methods
+
 
     % Callbacks that handle component events
     methods (Access = private)
@@ -925,7 +931,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             if isempty(selectedRow)
                 return
             end
-
         end
 
         % Value changed function: SuggestionCheckBox
@@ -986,7 +991,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             if strcmp(key, 'escape')
                 app.cancelChanges();
             end
-
         end
 
         % Callback function
@@ -1006,7 +1010,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             app.cancelChanges();
         end
-
     end
 
     % Component initialization
@@ -1776,7 +1779,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.BatchconfigUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -1797,7 +1799,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -1806,7 +1807,5 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.BatchconfigUIFigure)
         end
-
     end
-
 end

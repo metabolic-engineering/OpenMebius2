@@ -2,17 +2,18 @@ classdef MSView_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        MSViewerUIFigure matlab.ui.Figure
-        GridLayout matlab.ui.container.GridLayout
-        GridLayout3 matlab.ui.container.GridLayout
-        TableTypeDropDown matlab.ui.control.DropDown
-        ExpDropDown matlab.ui.control.DropDown
-        GridLayout2 matlab.ui.container.GridLayout
-        PlotButton matlab.ui.control.Button
-        ReloadButton matlab.ui.control.Button
-        SaveButton matlab.ui.control.Button
-        MSTable matlab.ui.control.Table
+        MSViewerUIFigure   matlab.ui.Figure
+        GridLayout         matlab.ui.container.GridLayout
+        GridLayout3        matlab.ui.container.GridLayout
+        TableTypeDropDown  matlab.ui.control.DropDown
+        ExpDropDown        matlab.ui.control.DropDown
+        GridLayout2        matlab.ui.container.GridLayout
+        PlotButton         matlab.ui.control.Button
+        ReloadButton       matlab.ui.control.Button
+        SaveButton         matlab.ui.control.Button
+        MSTable            matlab.ui.control.Table
     end
+
 
     properties (Access = private)
         Presenter openmebius.presentation.experiment.MSViewPresenter
@@ -135,6 +136,7 @@ classdef MSView_exported < matlab.apps.AppBase
 
     end % end private methods
 
+
     % Callbacks that handle component events
     methods (Access = private)
 
@@ -184,7 +186,6 @@ classdef MSView_exported < matlab.apps.AppBase
             if strcmp(key, 'escape')
                 close(app.MSViewerUIFigure);
             end
-
         end
 
         % Close request function: MSViewerUIFigure
@@ -194,7 +195,6 @@ classdef MSView_exported < matlab.apps.AppBase
             delete(app)
 
         end
-
     end
 
     % Component initialization
@@ -281,7 +281,6 @@ classdef MSView_exported < matlab.apps.AppBase
             % Show the figure after all components are created
             app.MSViewerUIFigure.Visible = 'on';
         end
-
     end
 
     % App creation and deletion
@@ -302,7 +301,6 @@ classdef MSView_exported < matlab.apps.AppBase
             if nargout == 0
                 clear app
             end
-
         end
 
         % Code that executes before app deletion
@@ -311,7 +309,5 @@ classdef MSView_exported < matlab.apps.AppBase
             % Delete UIFigure when app is deleted
             delete(app.MSViewerUIFigure)
         end
-
     end
-
 end

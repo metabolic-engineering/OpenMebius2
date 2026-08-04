@@ -9,6 +9,8 @@ classdef BatchConfig
             % Flux calculation configuration
             config = struct;
             config.iteration = 30;
+            config.initialFlux.restrictFreeEffluxSeeds = true;
+            config.initialFlux.freeEffluxSeedSigmaMultiplier = 3;
             config.perturbateEfflux = false;
             config.algorithm = 'sqp';
             config.largeScale = false;
@@ -21,7 +23,7 @@ classdef BatchConfig
             % Status
             % ready: ready to run
             % finished: finished
-            % error: error
+            % error: failed
             % warning: warning
             config.status = 'ready';
             config.deleteResultFile = true;
@@ -36,7 +38,7 @@ classdef BatchConfig
             config.fmincon.constraintTolerance = 1e-8;
             config.fmincon.finiteDifferenceType = 'central';
             config.fmincon.finiteDifferenceStepSize = 1e-6;
-            config.fmincon.finiteDifferenceStepSizeSearch.enabled = false;
+            config.fmincon.finiteDifferenceStepSizeSearch.enabled = true;
             config.fmincon.finiteDifferenceStepSizeSearch.candidates = ...
                 [1e-5, 1e-6, 1e-7, 1e-8, 1e-9];
             config.fmincon.finiteDifferenceStepSizeSearch.includeConfiguredStep = true;
@@ -150,6 +152,7 @@ classdef BatchConfig
             end
 
             BatchConfig.mustBePositiveInteger(config, 'iteration');
+            BatchConfig.validateInitialFlux(config);
             BatchConfig.mustBeKnownMember( ...
                 config, ...
                 'algorithm', ...
@@ -191,6 +194,13 @@ classdef BatchConfig
 
         end % validate
 
+        function tf = isTerminalStatus(status)
+
+            status = lower(strtrim(string(status)));
+            tf = ismember(status, ["finished", "error", "failed"]);
+
+        end % isTerminalStatus
+
         function config = fillMissingFields(config, defaultConfig)
 
             fields = fieldnames(defaultConfig);
@@ -217,6 +227,20 @@ classdef BatchConfig
     end % methods
 
     methods (Static, Access = private)
+
+        function validateInitialFlux(config)
+
+            import openmebius.domain.batch.BatchConfig
+
+            BatchConfig.mustBeStruct(config, 'initialFlux');
+            BatchConfig.mustBeLogical( ...
+                config, ...
+            'initialFlux.restrictFreeEffluxSeeds');
+            BatchConfig.mustBePositiveNumber( ...
+                config, ...
+            'initialFlux.freeEffluxSeedSigmaMultiplier');
+
+        end % validateInitialFlux
 
         function config = migrateGridModes(config)
 
@@ -410,7 +434,7 @@ classdef BatchConfig
 
             if strcmpi( ...
                     string(config.CIConf.grid.intervalMode), ...
-                    "automatic") && ...
+                "automatic") && ...
                     mod(double(config.CIConf.grid.points), 2) ~= 0
                 error( ...
                     "OpenMebius2:BatchConfig:" + ...
