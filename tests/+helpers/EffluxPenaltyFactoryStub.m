@@ -2,9 +2,11 @@ classdef EffluxPenaltyFactoryStub
 
     methods
 
-        function penalty = create(~, varargin)
+        function [penalty, profile] = create(~, varargin)
 
-            penalty = openmebius.mfa.EffluxPenalty();
+            profile = openmebius.mfa.EffluxPerturbationProfile();
+            penalty = openmebius.mfa.EffluxPenalty( ...
+                Profile = profile);
 
         end
 

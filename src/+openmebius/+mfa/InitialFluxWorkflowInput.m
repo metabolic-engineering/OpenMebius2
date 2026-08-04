@@ -10,6 +10,8 @@ classdef InitialFluxWorkflowInput
         SubstrateEMUs cell
         ExperimentalData
         EffluxPenalty
+        EffluxProfile (1, 1) ...
+            openmebius.mfa.EffluxPerturbationProfile
     end
 
     properties (Dependent, SetAccess = private)
@@ -31,6 +33,8 @@ classdef InitialFluxWorkflowInput
                 options.ExperimentalData (1, 1) ...
                     openmebius.mfa.MFAExperimentalData
                 options.EffluxPenalty
+                options.EffluxProfile (1, 1) ...
+                    openmebius.mfa.EffluxPerturbationProfile
             end
 
             if ~ismethod(options.Model, 'getS') || ...
@@ -76,6 +80,7 @@ classdef InitialFluxWorkflowInput
             obj.SubstrateEMUs = options.SubstrateEMUs;
             obj.ExperimentalData = options.ExperimentalData;
             obj.EffluxPenalty = options.EffluxPenalty;
+            obj.EffluxProfile = options.EffluxProfile;
 
         end % constructor
 
