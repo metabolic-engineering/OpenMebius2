@@ -41,7 +41,7 @@ classdef MFAIterationReporter
                 obj.report( ...
                     "info", ...
                     "Hybrid GA optimization is temporarily disabled. " + ...
-                    "Using FMINCON only.");
+                "Using FMINCON only.");
             end
 
             for iWarning = 1:numel(settings.OptionWarnings)
@@ -50,13 +50,14 @@ classdef MFAIterationReporter
 
         end % reportSettings
 
-        function reportResult(obj, iterationResult, analysisMode)
+        function reportResult(obj, iterationResult, analysisMode, options)
 
             arguments
                 obj (1, 1) openmebius.mfa.MFAIterationReporter
                 iterationResult (1, 1) ...
                     openmebius.mfa.MFAIterationResult
                 analysisMode (1, 1) openmebius.mfa.MFAAnalysisMode
+                options.ElapsedSeconds (1, 1) double = NaN
             end
 
             subject = "Nonlinear optimization";
@@ -79,21 +80,22 @@ classdef MFAIterationReporter
                 return
             end
 
-            stepSizeMessage = "";
-            optimizationOutput = iterationResult.Output;
+            elapsedMessage = "";
 
-            if isfield( ...
-                    optimizationOutput, ...
-                    'fminconFiniteDifferenceStepSize')
-                stepSizeMessage = " FiniteDifferenceStepSize: " + ...
-                    string(optimizationOutput ...
-                    .fminconFiniteDifferenceStepSize) + ".";
+            if isfinite(options.ElapsedSeconds)
+                elapsedText = string( ...
+                    seconds(options.ElapsedSeconds), ...
+                "hh:mm:ss.SSS");
+                elapsedMessage = " Elapsed: " + elapsedText + ".";
             end
+
+            formattedFval = compose("%.4f", fval);
 
             obj.report( ...
                 "info", ...
-                subject + " completed. RSS: " + string(fval) + ...
-                "." + stepSizeMessage);
+                subject + " completed. RSS: " + formattedFval + ...
+                "." + elapsedMessage ...
+            );
 
         end % reportResult
 
