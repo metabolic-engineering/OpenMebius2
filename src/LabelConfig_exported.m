@@ -28,6 +28,12 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
     end
 
+    events
+        Applied
+        Closed
+        NotificationRequested
+    end % events
+
     methods (Access = private)
 
         function initLabelTable(app)
