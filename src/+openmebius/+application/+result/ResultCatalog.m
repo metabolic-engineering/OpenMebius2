@@ -213,6 +213,24 @@ classdef ResultCatalog < handle
 
         end % getCIReaction
 
+        function data = getOptimizationState(obj, batchID)
+            % GETOPTIMIZATIONSTATE Get RSS trials and their threshold.
+
+            arguments
+                obj (1, 1) openmebius.application.result.ResultCatalog
+                batchID (1, 1) string
+            end
+
+            if ~obj.ResultLocation.hasResultFile(batchID)
+                notifyGeneralMessage(obj, "error", "Result file does not exist.");
+                data = [];
+                return
+            end
+
+            data = obj.QueryService.readOptimizationState(batchID);
+
+        end % getOptimizationState
+
         function [isExist, data] = getNextLabelSuggestion(obj, batchID)
             % GETNEXTLABELSUGGESTION Get the next label suggestion from the result file.
             %
@@ -562,6 +580,7 @@ classdef ResultCatalog < handle
                             ": " + msg);
                         return;
                     end
+
                 end
 
             end
@@ -803,14 +822,14 @@ classdef ResultCatalog < handle
 
             safeReactionID = strip(string(reactionID));
             invalidCharacters = [ ...
-                ":", string(char(92)), "/", "?", "*", ...
-                "[", "]", "'"];
+                                     ":", string(char(92)), "/", "?", "*", ...
+                                     "[", "]", "'"];
 
             for characterIndex = 1:numel(invalidCharacters)
                 safeReactionID = replace( ...
                     safeReactionID, ...
                     invalidCharacters(characterIndex), ...
-                    "_");
+                "_");
             end
 
             if ismissing(safeReactionID) || safeReactionID == ""

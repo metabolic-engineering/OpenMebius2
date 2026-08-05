@@ -66,6 +66,60 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsSelectedResultOptimizationState(testCase)
+
+            presenter = openmebius.presentation.result ...
+                .ResultPlotPresenter();
+            result = helpers.ResultPlotWorkspaceStub();
+            result.OptimizationStateData = struct( ...
+                "RSS", [1, 2, 4, 8], ...
+                "threshold", 6);
+            context = testCase.context();
+            context.SelectionSource = "SubTable";
+
+            viewModel = presenter.present( ...
+                testCase.model(), result, context);
+
+            testCase.verifyTrue(result.OptimizationCalled);
+            testCase.verifyFalse(result.Called);
+            testCase.verifyEqual(result.BatchID, "batch-1");
+            testCase.verifyEqual( ...
+                viewModel.SubPlot.Kind, ...
+            "optimization-rss-histogram");
+            testCase.verifyEqual(viewModel.SubPlot.RSS, [1; 2; 4; 8]);
+            testCase.verifyEqual(viewModel.SubPlot.Threshold, 6);
+            testCase.verifyFalse(viewModel.SubPlot.UseLogScale);
+            testCase.verifyEqual( ...
+                viewModel.SubPlot.Title, ...
+            "Optimization state: First");
+            testCase.verifyEmpty(viewModel.Notification);
+
+        end
+
+        function usesOptimizationLogScaleOnlyWhenOptionEnabled(testCase)
+
+            presenter = openmebius.presentation.result ...
+                .ResultPlotPresenter();
+            result = helpers.ResultPlotWorkspaceStub();
+            result.OptimizationStateData = struct( ...
+                "RSS", [1, 2, 3], ...
+                "threshold", 2.5);
+            context = testCase.context();
+            context.SelectionSource = "SubTable";
+
+            defaultViewModel = presenter.present( ...
+                testCase.model(), result, context);
+            logViewModel = presenter.present( ...
+                testCase.model(), ...
+                result, ...
+                context, ...
+                UseLogScale = true);
+
+            testCase.verifyFalse(defaultViewModel.SubPlot.UseLogScale);
+            testCase.verifyTrue(logViewModel.SubPlot.UseLogScale);
+
+        end
+
         function clearsPlotsOutsideOverview(testCase)
 
             presenter = openmebius.presentation.result ...

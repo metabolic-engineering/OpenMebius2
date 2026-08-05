@@ -1177,6 +1177,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     subPlot.Kind == "grid-search-profile"
                 app.renderGridSearchProfile(subPlot);
 
+            elseif isfield(subPlot, "Kind") && ...
+                    subPlot.Kind == "optimization-rss-histogram"
+                app.renderOptimizationRSSHistogram(subPlot);
+
             else
                 cla(app.SubUIAxes);
             end
@@ -1471,9 +1475,87 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % renderGridSearchProfile
 
+        function renderOptimizationRSSHistogram(app, plotData)
+
+            rss = double(plotData.RSS(:));
+            rss = rss(isfinite(rss) & rss >= 0);
+            threshold = double(plotData.Threshold);
+            axes = app.SubUIAxes;
+
+            if isempty(rss) || ~isscalar(threshold) || ...
+                    ~isfinite(threshold) || threshold < 0
+                cla(axes);
+                return
+            end
+
+            cla(axes);
+            app.prepareCartesianResultAxes(axes);
+            axes.FontSize = 16;
+            axes.FontName = 'Arial';
+            axes.XLabel.String = "RSS";
+            axes.YLabel.String = "Frequency";
+            axes.Title.String = plotData.Title;
+            axes.XGrid = 'on';
+            axes.YGrid = 'on';
+            useLogScale = isfield(plotData, "UseLogScale") && ...
+                isscalar(plotData.UseLogScale) && plotData.UseLogScale;
+            rssForPlot = rss;
+            binCount = max(1, ceil(log2(numel(rss)) + 1));
+            histogramArguments = {'NumBins', binCount};
+
+            if useLogScale
+                positiveRSS = rss(rss > 0);
+
+                if ~isempty(positiveRSS)
+                    lowerEdge = min(positiveRSS);
+
+                    if any(rss == 0)
+                        lowerEdge = max(lowerEdge / 10, realmin('double'));
+                        rssForPlot(rssForPlot == 0) = lowerEdge;
+                    end
+
+                    upperEdge = max(rssForPlot);
+
+                    if lowerEdge < upperEdge
+                        binEdges = logspace( ...
+                            log10(lowerEdge), log10(upperEdge), binCount + 1);
+                        histogramArguments = {'BinEdges', binEdges};
+                    end
+
+                    axes.XScale = 'log';
+                end
+
+            end
+
+            hold(axes, 'on');
+            histogram( ...
+                axes, ...
+                rssForPlot, ...
+                histogramArguments{:}, ...
+                'FaceColor', "#0072B2", ...
+                'EdgeColor', 'none', ...
+                'DisplayName', 'RSS');
+
+            if strcmp(axes.XScale, 'linear') || threshold > 0
+                xline( ...
+                    axes, ...
+                    threshold, ...
+                    '-', ...
+                    'Color', "#D55E00", ...
+                    'LineWidth', 2, ...
+                    'DisplayName', 'Threshold');
+            end
+
+            legend(axes, 'show', 'Location', 'best');
+            hold(axes, 'off');
+
+        end % renderOptimizationRSSHistogram
+
         function prepareCartesianResultAxes(~, axes)
 
             axes.Visible = 'on';
+            axes.XScale = 'linear';
+            axes.YScale = 'linear';
             axes.XColorMode = 'auto';
             axes.YColorMode = 'auto';
             axes.XTickMode = 'auto';
@@ -4114,9 +4196,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function handleResultAvailable
 
-        function updateResultPlot(app)
+        function updateResultPlot(app, selectionSource)
+
+            if nargin < 2
+                selectionSource = "";
+            end
 
             context = app.captureResultPlotContext();
+            context.SelectionSource = string(selectionSource);
             viewModel = app.ResultPlotPresenter.present( ...
                 app.ApplicationController.model(), ...
                 app.ApplicationController.result(), ...
@@ -5602,7 +5689,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ResultSubTableCellSelection(app, event)
 
             loadMainResultTable(app);
-            updateResultPlot(app);
+            updateResultPlot(app, "SubTable");
         end
 
         % Cell edit callback: ResultSubTable
@@ -5613,7 +5700,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Cell selection callback: ResultMainTable
         function ResultMainTableCellSelection(app, event)
 
-            updateResultPlot(app);
+            updateResultPlot(app, "MainTable");
         end
 
         % Button pushed function: ResultReportButton
