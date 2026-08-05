@@ -253,22 +253,18 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
 
             boundMessage = messages.Messages(contains( ...
                 messages.Messages, ...
-            "Initial free-efflux seed bounds:"));
+            "Perturbate efflux:"));
             distributionMessage = messages.Messages(contains( ...
                 messages.Messages, ...
             "Initial free-efflux seed distribution:"));
             testCase.verifyFalse(result.IsError);
             testCase.verifyNumElements(boundMessage, 1);
             testCase.verifyTrue(contains(boundMessage, "reaction=v2"));
-            testCase.verifyTrue(contains(boundMessage, "fluxIndex=2"));
-            testCase.verifyTrue(contains(boundMessage, "target=0.5"));
-            testCase.verifyTrue(contains(boundMessage, "sd=0.1"));
+            testCase.verifyTrue(contains(boundMessage, "mean=0.50"));
+            testCase.verifyTrue(contains(boundMessage, "sd=0.10"));
+            testCase.verifyTrue(contains(boundMessage, "sigma=2"));
             testCase.verifyTrue(contains( ...
-                boundMessage, "sigmaMultiplier=2"));
-            testCase.verifyTrue(contains( ...
-                boundMessage, "physicalBounds=[0, 1]"));
-            testCase.verifyTrue(contains( ...
-                boundMessage, "samplingBounds=[0.3, 0.7]"));
+                boundMessage, "samplingBounds=[0.30, 0.70]"));
             testCase.verifyNumElements(distributionMessage, 1);
             testCase.verifyTrue(contains( ...
                 distributionMessage, "count=2"));

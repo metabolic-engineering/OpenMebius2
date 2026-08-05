@@ -22,6 +22,11 @@ classdef ComparisonView_exported < matlab.apps.AppBase
         Mode (1, 1) string
     end
 
+    events
+        Closed
+        NotificationRequested
+    end % events
+
     methods (Access = private)
 
         function applyCatalog(app, viewModel)
@@ -246,7 +251,7 @@ classdef ComparisonView_exported < matlab.apps.AppBase
         % Button pushed function: CloseButton
         function CloseButtonPushed(app, event)
 
-            close(app.ComparisonviewUIFigure);
+            app.ComparisonviewUIFigureCloseRequest(event);
         end
 
         % Callback function
