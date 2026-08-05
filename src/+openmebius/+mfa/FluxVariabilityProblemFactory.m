@@ -57,6 +57,14 @@ classdef FluxVariabilityProblemFactory
                 lowerBounds = options.LowerBounds(:);
                 upperBounds = options.UpperBounds(:);
 
+                if isscalar(lowerBounds)
+                    lowerBounds = repmat(lowerBounds, fluxCount, 1);
+                end
+
+                if isscalar(upperBounds)
+                    upperBounds = repmat(upperBounds, fluxCount, 1);
+                end
+
                 if numel(lowerBounds) ~= fluxCount || ...
                         numel(upperBounds) ~= fluxCount
                     error( ...

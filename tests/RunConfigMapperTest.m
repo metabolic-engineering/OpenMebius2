@@ -149,6 +149,18 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             config.iteration = 47;
             config.algorithm = 'interior-point';
             config.largeScale = true;
+            config.fluxLB = -250;
+            config.fluxUB = 450;
+            config.fmincon.maxFunctionEvaluations = 7654;
+            config.fmincon.maxIterations = 987;
+            config.fmincon.functionTolerance = 2e-6;
+            config.fmincon.stepTolerance = 3e-10;
+            config.fmincon.optimalityTolerance = 4e-8;
+            config.fmincon.constraintTolerance = 5e-8;
+            config.fmincon.finiteDifferenceType = 'forward';
+            config.fmincon.finiteDifferenceStepSize = 6e-6;
+            config.fmincon.finiteDifferenceStepSizeSearch.enabled = false;
+            config.initialFlux.freeEffluxSeedSigmaMultiplier = 4.5;
             config.suggestNextFlux = true;
             config.perturbateEfflux = true;
             config.efflux.selection = [true; false];
@@ -190,6 +202,11 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             testCase.verifyEqual(actual.iteration, config.iteration);
             testCase.verifyEqual(actual.algorithm, config.algorithm);
             testCase.verifyEqual(actual.largeScale, config.largeScale);
+            testCase.verifyEqual(actual.fluxLB, config.fluxLB);
+            testCase.verifyEqual(actual.fluxUB, config.fluxUB);
+            testCase.verifyEqual(actual.fmincon, config.fmincon);
+            testCase.verifyEqual( ...
+                actual.initialFlux, config.initialFlux);
             testCase.verifyEqual( ...
                 actual.suggestNextFlux, config.suggestNextFlux);
             testCase.verifyEqual(actual.efflux, config.efflux);

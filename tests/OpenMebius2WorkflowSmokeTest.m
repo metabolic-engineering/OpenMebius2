@@ -220,14 +220,12 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
                 expectedDescription);
 
             app.RunConfigApp.IterationSpinner.Value = 31;
-            testCase.press(app.RunConfigApp.GeneralApplyButton);
+            testCase.press(app.RunConfigApp.GeneralCloseButton);
 
             testCase.verifyEqual( ...
                 string(app.RunTable.Data.Description(1)), ...
                 expectedDescription);
             testCase.verifyEmpty(app.Test_Alerts);
-            delete(app.RunConfigApp);
-
         end
 
         function rendersGridSearchAxesAfterWindowReload(testCase)
