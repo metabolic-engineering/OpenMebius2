@@ -142,6 +142,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         RunConfigApp;
         MSViewApp;
         ComparisonViewApp;
+        ViewComparisonApp;
         RunAddBatchApp;
         ViewSuggestionApp;
         RangePlotFigure;
@@ -2283,6 +2284,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                                            app.isLoadedObject(app.RunConfigApp)
                                            app.isLoadedObject(app.MSViewApp)
                                            app.isLoadedObject(app.ComparisonViewApp)
+                                           app.isLoadedObject(app.ViewComparisonApp)
                                            app.isLoadedObject(app.RunAddBatchApp)
                                            app.isLoadedObject(app.ViewSuggestionApp)
                                            app.isLoadedObject(app.LogApp)
@@ -2952,6 +2954,31 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % closeComparisonViewApp
 
+        function attachViewComparisonListeners(app, viewComparisonApp)
+
+            app.ChildAppHost.attach( ...
+                "ViewComparison", ...
+                viewComparisonApp, ...
+                {"NotificationRequested", ...
+                 @(source, event) app.onNotificationRequested(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onViewComparisonClosed(source, event)});
+
+        end % attachViewComparisonListeners
+
+        function detachViewComparisonListeners(app)
+
+            app.ChildAppHost.detach("ViewComparison");
+
+        end % detachViewComparisonListeners
+
+        function closeViewComparisonApp(app)
+
+            app.ChildAppHost.close("ViewComparison");
+            app.ViewComparisonApp = [];
+
+        end % closeViewComparisonApp
+
         function attachRunAddBatchListeners(app, runAddBatchApp)
 
             app.ChildAppHost.attach( ...
@@ -3092,6 +3119,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.refreshPresentation();
 
         end % onComparisonViewClosed
+
+        function onViewComparisonClosed(app, ~, ~)
+
+            app.detachViewComparisonListeners();
+            app.ViewComparisonApp = [];
+            app.refreshPresentation();
+
+        end % onViewComparisonClosed
 
         function renderTracerConfigurationNotifications(app, viewModel)
 
@@ -5077,6 +5112,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.RunConfigApp = [];
             app.MSViewApp = [];
             app.ComparisonViewApp = [];
+            app.ViewComparisonApp = [];
             app.RunAddBatchApp = [];
 
             app.deleteIfValid(app.ViewSuggestionApp);
@@ -5146,11 +5182,29 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function showRangePlot(app)
 
-            [batchIDs, batchNames] = app.selectedResultIdentities();
-            outcome = app.ApplicationController.prepareRangePlot( ...
-                batchIDs, batchNames);
-            app.renderResultRangePlotViewModel( ...
-                app.ResultPresenter.presentRangePlotOutcome(outcome));
+            presenter = openmebius.presentation.result ...
+                .ViewComparisonPresenter( ...
+                app.ApplicationController.batch(), ...
+                app.ApplicationController.result());
+            catalogViewModel = presenter.presentCatalog();
+
+            for notificationIndex = 1:numel( ...
+                    catalogViewModel.Notifications)
+                app.publishNotification( ...
+                    catalogViewModel.Notifications{notificationIndex});
+            end
+
+            if ~catalogViewModel.IsAvailable
+                return
+            end
+
+            app.closeViewComparisonApp();
+            context = openmebius.presentation.result ...
+                .ViewComparisonContext( ...
+                Presenter = presenter, ...
+                InitialCatalog = catalogViewModel);
+            app.ViewComparisonApp = ViewComparison(context);
+            app.attachViewComparisonListeners(app.ViewComparisonApp);
 
         end % showRangePlot
 

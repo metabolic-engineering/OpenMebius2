@@ -58,6 +58,13 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
 
         end
 
+        function viewComparisonCodeMatchesExportedSource(testCase)
+
+            OpenMebius2SourceSyncTest.verifyAppSource( ...
+                testCase, "ViewComparison");
+
+        end
+
         function legacyParserDoesNotProduceFalseMismatch(testCase)
 
             parser = helpers.LegacyPlainTextCodeParserStub();
