@@ -2,23 +2,31 @@ classdef Preferences_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        PreferencesUIFigure        matlab.ui.Figure
-        GridLayout                 matlab.ui.container.GridLayout
-        GridLayout4                matlab.ui.container.GridLayout
-        CancelButton               matlab.ui.control.Button
-        CloseButton                matlab.ui.control.Button
-        TabGroup                   matlab.ui.container.TabGroup
-        NotificationTab            matlab.ui.container.Tab
-        GridLayout2                matlab.ui.container.GridLayout
-        GridLayout3                matlab.ui.container.GridLayout
-        SlackWebhookEditField      matlab.ui.control.EditField
-        WebhookEditFieldLabel      matlab.ui.control.Label
-        SlacknotificationCheckBox  matlab.ui.control.CheckBox
+        PreferencesUIFigure         matlab.ui.Figure
+        GridLayout                  matlab.ui.container.GridLayout
+        GridLayout4                 matlab.ui.container.GridLayout
+        CancelButton                matlab.ui.control.Button
+        CloseButton                 matlab.ui.control.Button
+        TabGroup                    matlab.ui.container.TabGroup
+        NotificationTab             matlab.ui.container.Tab
+        GridLayout2                 matlab.ui.container.GridLayout
+        GridLayout3                 matlab.ui.container.GridLayout
+        SlackWebhookEditField       matlab.ui.control.EditField
+        WebhookEditFieldLabel       matlab.ui.control.Label
+        SlacknotificationCheckBox   matlab.ui.control.CheckBox
+        CalculationTab              matlab.ui.container.Tab
+        GridLayout2_2               matlab.ui.container.GridLayout
+        GridLayout5                 matlab.ui.container.GridLayout
+        GridLayout6                 matlab.ui.container.GridLayout
+        MDVcorrectionDropDown       matlab.ui.control.DropDown
+        MDVcorrectionDropDownLabel  matlab.ui.control.Label
     end
 
 
     properties (Access = private)
         SlackNotifier openmebius.infrastructure.notification.SlackWebhookNotifier
+        MDVCorrectionPreference openmebius.infrastructure.preferences ...
+            .MDVCorrectionPreference
         PreferencesClosedNotified (1, 1) logical = false
         NotificationPublisher (1, 1) function_handle = @(~) []
     end
@@ -78,6 +86,32 @@ classdef Preferences_exported < matlab.apps.AppBase
                 app.SlackNotifier.maskWebhook(value);
 
         end % method saveSlackPreferences
+
+        function loadMDVCorrectionPreference(app)
+
+            if isempty(app.MDVCorrectionPreference)
+                app.MDVCorrectionPreference = openmebius.infrastructure ...
+                    .preferences.MDVCorrectionPreference();
+            end
+
+            app.MDVcorrectionDropDown.ItemsData = ...
+                cellstr(app.MDVCorrectionPreference.SupportedMethods);
+            app.MDVcorrectionDropDown.Value = char( ...
+                app.MDVCorrectionPreference.getMethod());
+
+        end % loadMDVCorrectionPreference
+
+        function saveMDVCorrectionPreference(app)
+
+            if isempty(app.MDVCorrectionPreference)
+                app.MDVCorrectionPreference = openmebius.infrastructure ...
+                    .preferences.MDVCorrectionPreference();
+            end
+
+            app.MDVCorrectionPreference.setMethod( ...
+                string(app.MDVcorrectionDropDown.Value));
+
+        end % saveMDVCorrectionPreference
 
         function value = onOff(~, enabled)
 
@@ -154,6 +188,13 @@ classdef Preferences_exported < matlab.apps.AppBase
 
         end % method notifyPreferencesClosed
 
+        function closePreferences(app)
+
+            app.notifyPreferencesClosed();
+            delete(app);
+
+        end % closePreferences
+
     end % methods (Access = private)
 
 
@@ -161,7 +202,8 @@ classdef Preferences_exported < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, slackNotifier, notificationPublisher)
+        function startupFcn(app, slackNotifier, notificationPublisher, ...
+                mdvCorrectionPreference)
 
             if nargin < 2 || isempty(slackNotifier)
                 slackNotifier = ...
@@ -177,7 +219,15 @@ classdef Preferences_exported < matlab.apps.AppBase
                     @(message) app.renderLocalNotification(message);
             end
 
+            if nargin < 4 || isempty(mdvCorrectionPreference)
+                mdvCorrectionPreference = openmebius.infrastructure ...
+                    .preferences.MDVCorrectionPreference();
+            end
+
+            app.MDVCorrectionPreference = mdvCorrectionPreference;
+
             app.loadSlackPreferences();
+            app.loadMDVCorrectionPreference();
         end
 
         % Value changed function: SlacknotificationCheckBox
@@ -191,7 +241,7 @@ classdef Preferences_exported < matlab.apps.AppBase
         % Button pushed function: CancelButton
         function CancelButtonPushed(app, event)
 
-            delete(app);
+            app.closePreferences();
         end
 
         % Button pushed function: CloseButton
@@ -199,7 +249,8 @@ classdef Preferences_exported < matlab.apps.AppBase
 
             try
                 app.saveSlackPreferences();
-                delete(app);
+                app.saveMDVCorrectionPreference();
+                app.closePreferences();
 
             catch ME
                 app.showPreferenceNotification( ...
@@ -213,7 +264,7 @@ classdef Preferences_exported < matlab.apps.AppBase
         % Close request function: PreferencesUIFigure
         function PreferencesUIFigureCloseRequest(app, event)
 
-            delete(app);
+            app.closePreferences();
         end
     end
 
@@ -277,6 +328,42 @@ classdef Preferences_exported < matlab.apps.AppBase
             app.SlackWebhookEditField = uieditfield(app.GridLayout3, 'text');
             app.SlackWebhookEditField.Layout.Row = 1;
             app.SlackWebhookEditField.Layout.Column = 2;
+
+            % Create CalculationTab
+            app.CalculationTab = uitab(app.TabGroup);
+            app.CalculationTab.Title = 'Calculation';
+
+            % Create GridLayout2_2
+            app.GridLayout2_2 = uigridlayout(app.CalculationTab);
+            app.GridLayout2_2.RowHeight = {'1x'};
+
+            % Create GridLayout5
+            app.GridLayout5 = uigridlayout(app.GridLayout2_2);
+            app.GridLayout5.ColumnWidth = {'1x'};
+            app.GridLayout5.RowHeight = {'fit', '1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout5.Padding = [0 0 0 0];
+            app.GridLayout5.Layout.Row = 1;
+            app.GridLayout5.Layout.Column = 1;
+
+            % Create GridLayout6
+            app.GridLayout6 = uigridlayout(app.GridLayout5);
+            app.GridLayout6.RowHeight = {'1x'};
+            app.GridLayout6.Padding = [0 0 0 0];
+            app.GridLayout6.Layout.Row = 1;
+            app.GridLayout6.Layout.Column = 1;
+
+            % Create MDVcorrectionDropDownLabel
+            app.MDVcorrectionDropDownLabel = uilabel(app.GridLayout6);
+            app.MDVcorrectionDropDownLabel.Layout.Row = 1;
+            app.MDVcorrectionDropDownLabel.Layout.Column = 1;
+            app.MDVcorrectionDropDownLabel.Text = 'MDV correction';
+
+            % Create MDVcorrectionDropDown
+            app.MDVcorrectionDropDown = uidropdown(app.GridLayout6);
+            app.MDVcorrectionDropDown.Items = {'Classical', 'Skew method', 'Skew LSQ'};
+            app.MDVcorrectionDropDown.Layout.Row = 1;
+            app.MDVcorrectionDropDown.Layout.Column = 2;
+            app.MDVcorrectionDropDown.Value = 'Skew method';
 
             % Create GridLayout4
             app.GridLayout4 = uigridlayout(app.GridLayout);

@@ -401,10 +401,9 @@ classdef BatchSession < handle
             end
 
             tableRtn = table( ...
-                'Size', [0, 2], ...
+                false, NaN, ...
                 'VariableNames', {'Selection', 'SD'}, ...
-                'VariableTypes', {'logical', 'double'}, ...
-                'RowNames', string([]) ...
+                'RowNames', "mu (growth rate)" ...
             );
             columnEditable = [true, true];
 
@@ -428,6 +427,8 @@ classdef BatchSession < handle
             currentSelection = logical(config.efflux.selection(:));
             currentSubstrate = string(config.efflux.substrate(:));
             currentSubstrateSD = double(config.efflux.substrateSD(:));
+            currentMuSelection = logical(config.efflux.muSelection);
+            currentMuSD = double(config.efflux.muSD);
 
             nConfig = min([length(currentSubstrate), length(currentSelection), length(currentSubstrateSD)]);
 
@@ -459,10 +460,10 @@ classdef BatchSession < handle
             end
 
             tableRtn = table( ...
-                selectionUpdated, ...
-                substrateSDUpdated, ...
+                [currentMuSelection; selectionUpdated], ...
+                [currentMuSD; substrateSDUpdated], ...
                 'VariableNames', {'Selection', 'SD'}, ...
-                'RowNames', substrates ...
+                'RowNames', ["mu (growth rate)"; substrates] ...
             );
             tableRtn.Properties.VariableTypes = {'logical', 'double'};
 
@@ -910,9 +911,24 @@ classdef BatchSession < handle
             newSelection = logical(tableEffluxSD.Selection(:));
             newSubstrate = string(tableEffluxSD.Properties.RowNames);
             newSubstrateSD = double(tableEffluxSD.SD(:));
+            muMask = newSubstrate == "mu (growth rate)";
+
+            if sum(muMask) > 1
+                error( ...
+                    "OpenMebius2:BatchSession:InvalidPerturbationTable", ...
+                "Growth-rate perturbation must have exactly one row.");
+            end
+
             [editor, collection] = obj.batchConfigEditor();
             editor.applyEfflux( ...
-                ids, newSelection, newSubstrate, newSubstrateSD);
+                ids, newSelection(~muMask), newSubstrate(~muMask), ...
+                newSubstrateSD(~muMask));
+
+            if any(muMask)
+                editor.applyGrowthRatePerturbation( ...
+                    ids, newSelection(muMask), newSubstrateSD(muMask));
+            end
+
             obj.tableBatch = collection.toTable();
 
             updateContentHash(obj, ids);
@@ -1042,6 +1058,21 @@ classdef BatchSession < handle
             updateContentHash(obj, id);
 
         end % addBatch
+
+        function newIds = duplicateBatches(obj, sourceIds)
+            % DUPLICATEBATCHES Copy batches under new IDs as ready jobs.
+
+            arguments
+                obj
+                sourceIds (:, 1) string
+            end
+
+            collection = obj.batchCollection();
+            newIds = collection.duplicate(sourceIds);
+            obj.tableBatch = collection.toTable();
+            updateContentHash(obj, newIds);
+
+        end % duplicateBatches
 
         function editBatch(obj, id, name, exp, description, config)
             % EDITBATCH Edit batch

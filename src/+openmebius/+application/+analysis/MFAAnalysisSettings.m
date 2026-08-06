@@ -6,6 +6,8 @@ classdef MFAAnalysisSettings
             .analysis.MFAInputPreparationSettings
         InitialFluxSettings (1, 1) openmebius.mfa.InitialFluxSettings
         IterationSettings (1, 1) openmebius.mfa.MFAIterationSettings
+        FVALowerBound (1, 1) double = -1000
+        FVAUpperBound (1, 1) double = 1000
         InstationaryInputSpecification = []
     end
 
@@ -25,7 +27,19 @@ classdef MFAAnalysisSettings
                 options.IterationSettings (1, 1) openmebius.mfa ...
                     .MFAIterationSettings = ...
                     openmebius.mfa.MFAIterationSettings()
+                options.FVALowerBound (1, 1) double = -1000
+                options.FVAUpperBound (1, 1) double = 1000
                 options.InstationaryInputSpecification = []
+            end
+
+            if ~isfinite(options.FVALowerBound) || ...
+                    ~isfinite(options.FVAUpperBound) || ...
+                    options.FVALowerBound > options.FVAUpperBound
+                error( ...
+                    "OpenMebius2:MFAAnalysisSettings:" + ...
+                    "InvalidFVABounds", ...
+                    "FVA bounds must be finite and the lower bound " + ...
+                "must not exceed the upper bound.");
             end
 
             isInstationary = ...
@@ -55,6 +69,8 @@ classdef MFAAnalysisSettings
                 options.InputPreparationSettings;
             obj.InitialFluxSettings = options.InitialFluxSettings;
             obj.IterationSettings = options.IterationSettings;
+            obj.FVALowerBound = options.FVALowerBound;
+            obj.FVAUpperBound = options.FVAUpperBound;
             obj.InstationaryInputSpecification = ...
                 options.InstationaryInputSpecification;
 

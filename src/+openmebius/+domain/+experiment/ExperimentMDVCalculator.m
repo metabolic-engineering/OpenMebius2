@@ -6,6 +6,10 @@ classdef ExperimentMDVCalculator
         NaturalIsotopeCorrectionMethod (1, 1) string
     end
 
+    properties (Access = private)
+        NaturalIsotopeCorrectionMethodProvider
+    end
+
     methods
 
         function obj = ExperimentMDVCalculator(options)
@@ -14,11 +18,24 @@ classdef ExperimentMDVCalculator
                 options.MDVTolerance (1, 1) double = -1e-2
                 options.NaturalIsotopeCorrectionMethod (1, 1) string = ...
                     "skew"
+                options.NaturalIsotopeCorrectionMethodProvider = []
+            end
+
+            if ~isempty(options.NaturalIsotopeCorrectionMethodProvider) && ...
+                    ~isa( ...
+                    options.NaturalIsotopeCorrectionMethodProvider, ...
+                "function_handle")
+                error( ...
+                    "OpenMebius2:ExperimentMDVCalculator:" + ...
+                    "InvalidCorrectionMethodProvider", ...
+                "The correction method provider must be a function handle.");
             end
 
             obj.MDVTolerance = options.MDVTolerance;
             obj.NaturalIsotopeCorrectionMethod = ...
                 options.NaturalIsotopeCorrectionMethod;
+            obj.NaturalIsotopeCorrectionMethodProvider = ...
+                options.NaturalIsotopeCorrectionMethodProvider;
 
         end % constructor
 
@@ -192,7 +209,7 @@ classdef ExperimentMDVCalculator
                     atom.N, ...
                     atom.S, ...
                     atom.Si, ...
-                    method = obj.NaturalIsotopeCorrectionMethod, ...
+                    method = obj.resolveNaturalIsotopeCorrectionMethod(), ...
                     numTracerCarbon = numTracerCarbon);
                 mdv{:, iFragment} = corrected';
             end
@@ -308,6 +325,25 @@ classdef ExperimentMDVCalculator
             numTracerCarbon = candidate;
 
         end % getNumTracerCarbon
+
+        function method = resolveNaturalIsotopeCorrectionMethod(obj)
+
+            method = obj.NaturalIsotopeCorrectionMethod;
+
+            if ~isempty(obj.NaturalIsotopeCorrectionMethodProvider)
+                method = string( ...
+                    obj.NaturalIsotopeCorrectionMethodProvider());
+            end
+
+            if isempty(method) || ~isscalar(method) || ismissing(method)
+                error( ...
+                    "OpenMebius2:ExperimentMDVCalculator:" + ...
+                    "InvalidCorrectionMethod", ...
+                    "The natural-isotope correction method must be " + ...
+                "one nonmissing value.");
+            end
+
+        end % resolveNaturalIsotopeCorrectionMethod
 
         function enrichment = calculateEnrichment(~, numCarbon, mdv)
 

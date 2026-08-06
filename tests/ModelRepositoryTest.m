@@ -21,7 +21,7 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyClass( ...
                 model, ...
-                "openmebius.application.model.MetabolicModel");
+            "openmebius.application.model.MetabolicModel");
             testCase.verifyEqual( ...
                 model.getModelLocation().Directory, ...
                 modelLocation.Directory);
@@ -38,7 +38,7 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyClass( ...
                 snapshot, ...
-                "openmebius.domain.model.EMUNetworkSnapshot");
+            "openmebius.domain.model.EMUNetworkSnapshot");
             testCase.verifyNotEmpty(snapshot.TableEMU);
             testCase.verifyNotEmpty(snapshot.TableEMUReaction);
 
@@ -54,7 +54,7 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyClass( ...
                 pathway, ...
-                "openmebius.application.model.ModelPathwayData");
+            "openmebius.application.model.ModelPathwayData");
             testCase.verifyNotEmpty(pathway.Image);
             testCase.verifyNotEmpty(pathway.ReactionIDs);
             testCase.verifyEqual( ...
@@ -127,7 +127,7 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() repository.load(modelLocation), ...
-                "OpenMebius2:ModelRepository:DirectoryNotFound");
+            "OpenMebius2:ModelRepository:DirectoryNotFound");
 
         end
 
@@ -143,7 +143,7 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() repository.load(modelLocation), ...
-                "OpenMebius2:ModelRepository:ModelFileNotFound");
+            "OpenMebius2:ModelRepository:ModelFileNotFound");
 
             clear cleanup
 
@@ -181,7 +181,7 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
             modelHash = repository.hashModelFile( ...
                 modelLocation, ...
                 "metabolic_network", ...
-                "xlsx");
+            "xlsx");
             genericHash = repository.hashFile(modelFile);
 
             testCase.verifyNotEmpty(modelHash);
@@ -198,16 +198,26 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
                 ModelRepositoryTest.templateModelLocation(), ...
                 "metabolic_network", ...
                 "csv", ...
-                "info"), ...
-                "OpenMebius2:ModelRepository:UnsupportedModelFileType");
+            "info"), ...
+            "OpenMebius2:ModelRepository:UnsupportedModelFileType");
 
         end
 
         function modelEditingUsesValidationReport(testCase)
 
+            temporaryRoot = string(tempname);
+            mkdir(temporaryRoot);
+            cleanup = onCleanup(@() ...
+                ModelRepositoryTest.removeDirectory(temporaryRoot));
+            modelDirectory = fullfile(temporaryRoot, "model");
+            [wasCopied, copyMessage] = copyfile( ...
+                ModelRepositoryTest.templateModelDirectory(), ...
+                modelDirectory);
+            testCase.assertTrue(wasCopied, copyMessage);
             repository = openmebius.infrastructure.model.ModelRepository();
             model = repository.load( ...
-                ModelRepositoryTest.templateModelLocation());
+                openmebius.domain.model.ModelLocation ...
+                .fromDirectory(modelDirectory));
 
             testCase.verifyFalse(isprop(model, "isError"));
             testCase.verifyFalse(isprop(model, "statusMsg"));
@@ -216,7 +226,7 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyClass( ...
                 invalidReport, ...
-                "openmebius.domain.model.ModelValidationReport");
+            "openmebius.domain.model.ModelValidationReport");
             testCase.verifyFalse(invalidReport.IsValid);
             testCase.verifyNotEmpty(invalidReport.ErrorMessage);
             testCase.verifyEmpty(invalidReport.InvalidRows);
@@ -226,6 +236,43 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
             testCase.verifyTrue(validReport.IsValid);
             testCase.verifyNotEmpty(validReport.Messages);
+
+            clear cleanup
+
+        end
+
+        function validModelEditPersistsWorkbook(testCase)
+
+            temporaryRoot = string(tempname);
+            mkdir(temporaryRoot);
+            cleanup = onCleanup(@() ...
+                ModelRepositoryTest.removeDirectory(temporaryRoot));
+            modelDirectory = fullfile(temporaryRoot, "model");
+            [wasCopied, copyMessage] = copyfile( ...
+                ModelRepositoryTest.templateModelDirectory(), ...
+                modelDirectory);
+            testCase.assertTrue(wasCopied, copyMessage);
+            location = openmebius.domain.model.ModelLocation ...
+                .fromDirectory(modelDirectory);
+            repository = openmebius.infrastructure.model.ModelRepository();
+            model = repository.load(location);
+            editedTable = model.getModelTableGUI();
+            expectedX = editedTable.x(1) + 1;
+            editedTable.x(1) = expectedX;
+
+            report = model.updateModelTableGUI(editedTable);
+
+            testCase.assertTrue(report.IsValid, report.ErrorMessage);
+            savedPosition = repository.readModelSheet( ...
+                location, ...
+                "metabolic_network", ...
+                "xlsx", ...
+                "position", ...
+                RefVariableNames = ["x", "y"], ...
+                RefTypes = ["double", "double"]);
+            testCase.verifyEqual(savedPosition.x(1), expectedX);
+
+            clear cleanup
 
         end
 
@@ -246,7 +293,7 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
                 ModelRepositoryTest.repositoryRoot(), ...
                 "tutorial", ...
                 "ecoli", ...
-                "model");
+            "model");
 
         end
 

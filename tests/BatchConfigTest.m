@@ -241,6 +241,18 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
         end % validateRejectsInfiniteEffluxStandardDeviation
 
+        function normalizeRestoresJsonNullGrowthRateSD(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.efflux.muSD = [];
+
+            normalized = openmebius.domain.batch.BatchConfig ...
+                .normalize(config);
+
+            testCase.verifyTrue(isnan(normalized.efflux.muSD));
+
+        end % normalizeRestoresJsonNullGrowthRateSD
+
         function mapperRejectsInvalidBatchConfig(testCase)
 
             batchData = struct( ...

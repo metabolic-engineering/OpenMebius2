@@ -6,7 +6,7 @@ classdef MFAProblemFactory
 
         function problem = create( ...
                 ~, stoichiometryTable, systemType, rightHandSide, ...
-                lowerBounds, upperBounds)
+                lowerBounds, upperBounds, options)
 
             arguments
                 ~
@@ -15,6 +15,7 @@ classdef MFAProblemFactory
                 rightHandSide (:, 1) double
                 lowerBounds (:, 1) double
                 upperBounds (:, 1) double
+                options.FreeConstraintIDs string = strings(0, 1)
             end
 
             systemType = string(systemType(:));
@@ -25,14 +26,39 @@ classdef MFAProblemFactory
             if numel(systemType) ~= height(stoichiometryTable)
                 error( ...
                     "OpenMebius2:MFAProblem:SystemTypeDimensionMismatch", ...
-                    "System types must match stoichiometry rows.");
+                "System types must match stoichiometry rows.");
             end
 
             if numel(rowNames) ~= height(stoichiometryTable)
                 error( ...
                     "OpenMebius2:MFAProblem:MissingRowNames", ...
-                    "Stoichiometry rows must have reaction names.");
+                "Stoichiometry rows must have reaction names.");
             end
+
+            freeConstraintIDs = string(options.FreeConstraintIDs(:));
+
+            if any(ismissing(freeConstraintIDs)) || ...
+                    any(strlength(freeConstraintIDs) == 0) || ...
+                    numel(unique(freeConstraintIDs)) ~= ...
+                    numel(freeConstraintIDs)
+                error( ...
+                    "OpenMebius2:MFAProblem:InvalidFreeConstraintID", ...
+                "Free constraint IDs must be nonempty and unique.");
+            end
+
+            [foundFreeConstraints, freeConstraintIndices] = ...
+                ismember(freeConstraintIDs, rowNames);
+
+            if any(~foundFreeConstraints)
+                error( ...
+                    "OpenMebius2:MFAProblem:FreeConstraintNotFound", ...
+                    "Free constraints were not found in the " + ...
+                    "stoichiometry: %s.", ...
+                    strjoin(freeConstraintIDs(~foundFreeConstraints), ...
+                ", "));
+            end
+
+            systemType(freeConstraintIndices) = "independent";
 
             independentMask = systemType == "independent";
             independentReactionNames = rowNames(independentMask);

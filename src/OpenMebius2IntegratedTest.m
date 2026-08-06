@@ -279,8 +279,7 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
 
             app.RunConfigApp.CalcCICheckBox.Value = true;
 
-            testCase.press(app.RunConfigApp.GeneralApplyButton);
-            testCase.press(app.RunConfigApp.GeneralCancelButton);
+            testCase.press(app.RunConfigApp.GeneralCloseButton);
 
             testCase.press(app.RunConfigButton);
             testCase.verifyTrue(app.RunConfigApp.CalcCICheckBox.Value);

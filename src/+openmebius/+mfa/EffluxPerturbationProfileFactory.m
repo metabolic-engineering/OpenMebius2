@@ -6,7 +6,7 @@ classdef EffluxPerturbationProfileFactory
 
         function profile = create( ...
                 ~, model, substrateList, experimentalValues, ...
-                standardDeviations, freeMask)
+                standardDeviations, freeMask, options)
 
             arguments
                 ~
@@ -15,6 +15,9 @@ classdef EffluxPerturbationProfileFactory
                 experimentalValues double
                 standardDeviations double
                 freeMask
+                options.GrowthRate (1, 1) double = NaN
+                options.GrowthRateStandardDeviation (1, 1) double = NaN
+                options.GrowthRateFree (1, 1) logical = false
             end
 
             substrateList = string(substrateList(:));
@@ -23,10 +26,14 @@ classdef EffluxPerturbationProfileFactory
             freeMask = logical(freeMask(:));
             itemCount = numel(substrateList);
 
-            if isempty(freeMask)
+            if isempty(freeMask) && ~options.GrowthRateFree
                 profile = ...
                     openmebius.mfa.EffluxPerturbationProfile();
                 return
+            end
+
+            if isempty(freeMask)
+                freeMask = false(itemCount, 1);
             end
 
             if numel(freeMask) ~= itemCount
@@ -38,7 +45,7 @@ classdef EffluxPerturbationProfileFactory
 
             selectedIndices = find(freeMask);
 
-            if isempty(selectedIndices)
+            if isempty(selectedIndices) && ~options.GrowthRateFree
                 profile = ...
                     openmebius.mfa.EffluxPerturbationProfile();
                 return
@@ -73,8 +80,12 @@ classdef EffluxPerturbationProfileFactory
 
             reactionNames = ...
                 string(stoichiometry.Properties.VariableNames);
-            reactionIndices = nan(numel(selectedIndices), 1);
-            selectedReactionIDs = strings(numel(selectedIndices), 1);
+            measurementCount = numel(selectedIndices) + ...
+                double(options.GrowthRateFree);
+            reactionIndices = nan(measurementCount, 1);
+            selectedReactionIDs = strings(measurementCount, 1);
+            selectedExperimentalValues = nan(measurementCount, 1);
+            selectedStandardDeviations = nan(measurementCount, 1);
 
             for i = 1:numel(selectedIndices)
                 substrate = substrateList(selectedIndices(i));
@@ -107,15 +118,36 @@ classdef EffluxPerturbationProfileFactory
 
                 reactionIndices(i) = reactionIndex;
                 selectedReactionIDs(i) = reactionID;
+                selectedExperimentalValues(i) = ...
+                    experimentalValues(selectedIndices(i));
+                selectedStandardDeviations(i) = ...
+                    standardDeviations(selectedIndices(i));
+            end
+
+            if options.GrowthRateFree
+                growthRateIndex = find(reactionNames == "biomass", 1);
+
+                if isempty(growthRateIndex)
+                    error( ...
+                        "OpenMebius2:" + ...
+                        "EffluxPerturbationProfileFactory:" + ...
+                        "BiomassReactionNotFound", ...
+                        "The biomass reaction required for growth-rate " + ...
+                    "perturbation was not found.");
+                end
+
+                reactionIndices(end) = growthRateIndex;
+                selectedReactionIDs(end) = "biomass";
+                selectedExperimentalValues(end) = options.GrowthRate;
+                selectedStandardDeviations(end) = ...
+                    options.GrowthRateStandardDeviation;
             end
 
             profile = openmebius.mfa.EffluxPerturbationProfile( ...
                 ReactionIDs = selectedReactionIDs, ...
                 ReactionIndices = reactionIndices, ...
-                ExperimentalValues = ...
-                experimentalValues(selectedIndices), ...
-                StandardDeviations = ...
-                standardDeviations(selectedIndices));
+                ExperimentalValues = selectedExperimentalValues, ...
+                StandardDeviations = selectedStandardDeviations);
 
         end % create
 

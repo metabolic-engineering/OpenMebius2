@@ -86,6 +86,25 @@ classdef ResultQueryService
                 obj.Location, id, reactionID);
         end
 
+        function data = readOptimizationState(obj, id)
+
+            arguments
+                obj
+                id (1, 1) string
+            end
+
+            obj.assertAvailable();
+
+            if ~obj.Location.hasResultFile(id)
+                data = [];
+                return
+            end
+
+            data = obj.Hdf5ResultRepository.readOptimizationState( ...
+                obj.Location, id);
+
+        end
+
         function [exists, data] = readNextLabelSuggestion(obj, id)
 
             arguments

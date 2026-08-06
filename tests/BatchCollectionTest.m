@@ -141,6 +141,31 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
 
         end
 
+        function duplicatesEntryWithNewIdAndReadyStatus(testCase)
+
+            collection = BatchCollectionTest.emptyCollection();
+            sourceId = collection.add( ...
+                "Original", {"exp-a"}, "description", ...
+                struct('iteration', 77));
+            collection.setStatus(sourceId, "finished");
+            source = collection.toTable();
+
+            duplicateId = collection.duplicate(sourceId);
+
+            duplicated = collection.toTable();
+            duplicate = duplicated(duplicated.id == duplicateId, :);
+            expectedConfig = source.config;
+            expectedConfig.status = 'ready';
+            testCase.verifyNotEqual(duplicateId, sourceId);
+            testCase.verifyEqual(duplicate.name, source.name);
+            testCase.verifyEqual(duplicate.exp, source.exp);
+            testCase.verifyEqual(duplicate.description, source.description);
+            testCase.verifyEqual(duplicate.config, expectedConfig);
+            testCase.verifyEqual( ...
+                duplicate.contentHash, source.contentHash);
+
+        end
+
         function unknownStatusLookupRemainsNonThrowing(testCase)
 
             collection = BatchCollectionTest.emptyCollection();

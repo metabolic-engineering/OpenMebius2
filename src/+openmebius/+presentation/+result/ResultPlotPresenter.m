@@ -29,6 +29,7 @@ classdef ResultPlotPresenter < handle
                 result
                 context struct
                 options.IsDarkTheme (1, 1) logical = false
+                options.UseLogScale (1, 1) logical = false
             end
 
             mode = ...
@@ -42,9 +43,16 @@ classdef ResultPlotPresenter < handle
                         model, ...
                         result, ...
                         context, ...
-                        IsDarkTheme = options.IsDarkTheme);
+                        IsDarkTheme = options.IsDarkTheme, ...
+                        UseLogScale = options.UseLogScale);
 
-                case {"Details", "Comparison"}
+                case "Details"
+                    viewModel = obj.presentDetailsOptimizationState( ...
+                        result, ...
+                        context, ...
+                        UseLogScale = options.UseLogScale);
+
+                case "Comparison"
                     viewModel = ...
                         openmebius.presentation.result.ResultPlotViewModel.none();
 
@@ -59,6 +67,74 @@ classdef ResultPlotPresenter < handle
 
     methods (Access = private)
 
+        function viewModel = presentDetailsOptimizationState( ...
+                obj, result, context, options)
+
+            arguments
+                obj
+                result
+                context struct
+                options.UseLogScale (1, 1) logical = false
+            end
+
+            selectionSource = "";
+
+            if isfield(context, "SelectionSource") && ...
+                    isscalar(context.SelectionSource)
+                selectionSource = string(context.SelectionSource);
+            end
+
+            if obj.isInvalidHandle(result) || ...
+                    selectionSource ~= "SubTable" || ...
+                    isempty(context.SelectedSubRows) || ...
+                    isempty(context.SubTableData) || ...
+                    ~istable(context.SubTableData) || ...
+                    ~any(string( ...
+                        context.SubTableData.Properties.VariableNames) == "ID")
+                viewModel = ...
+                    openmebius.presentation.result.ResultPlotViewModel.none();
+                return
+            end
+
+            selectedResultRow = context.SelectedSubRows(1);
+            batchIDs = string(context.SubTableData.ID);
+
+            if ~obj.isValidRow(selectedResultRow, numel(batchIDs))
+                viewModel = ...
+                    openmebius.presentation.result.ResultPlotViewModel.none();
+                return
+            end
+
+            batchName = batchIDs(selectedResultRow);
+
+            if any(string( ...
+                    context.SubTableData.Properties.VariableNames) == "Name")
+                batchNames = string(context.SubTableData.Name);
+                batchName = batchNames(selectedResultRow);
+            end
+
+            [subPlot, notification] = obj.presentOptimizationState( ...
+                result, ...
+                batchIDs(selectedResultRow), ...
+                batchName, ...
+                options.UseLogScale);
+
+            if isempty(fieldnames(subPlot))
+                viewModel = ...
+                    openmebius.presentation.result.ResultPlotViewModel.none( ...
+                        Notification = notification);
+                return
+            end
+
+            viewModel = ...
+                openmebius.presentation.result.ResultPlotViewModel( ...
+                    Kind = openmebius.presentation.result ...
+                        .ResultPlotKind.OptimizationState, ...
+                    SubPlot = subPlot, ...
+                    Notification = notification);
+
+        end % presentDetailsOptimizationState
+
         function viewModel = presentOverview(obj, model, result, context, options)
 
             arguments
@@ -67,6 +143,7 @@ classdef ResultPlotPresenter < handle
                 result
                 context struct
                 options.IsDarkTheme (1, 1) logical = false
+                options.UseLogScale (1, 1) logical = false
             end
 
             if obj.isInvalidHandle(result)
@@ -125,8 +202,29 @@ classdef ResultPlotPresenter < handle
             notification = [];
             rxnIDs = string(context.MainTableRowNames);
             rxnIDs = rxnIDs(:);
+            selectionSource = "";
 
-            if ~isempty(context.SelectedMainRows)
+            if isfield(context, "SelectionSource") && ...
+                    isscalar(context.SelectionSource)
+                selectionSource = string(context.SelectionSource);
+            end
+
+            if selectionSource == "SubTable"
+                batchName = batchIDs(selectedResultRow);
+
+                if any(string( ...
+                        context.SubTableData.Properties.VariableNames) == "Name")
+                    batchNames = string(context.SubTableData.Name);
+                    batchName = batchNames(selectedResultRow);
+                end
+
+                [subPlot, notification] = obj.presentOptimizationState( ...
+                    result, ...
+                    batchIDs(selectedResultRow), ...
+                    batchName, ...
+                    options.UseLogScale);
+
+            elseif ~isempty(context.SelectedMainRows)
                 selectedFluxRow = context.SelectedMainRows(1);
 
                 if obj.isValidRow(selectedFluxRow, numel(rxnIDs))
@@ -214,6 +312,49 @@ classdef ResultPlotPresenter < handle
             end
 
         end % presentConfidenceInterval
+
+        function [plotData, notification] = presentOptimizationState( ...
+                ~, result, batchID, batchName, useLogScale)
+
+            plotData = struct();
+            notification = [];
+
+            try
+                data = getOptimizationState(result, batchID);
+            catch
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                "Optimization state data could not be loaded.");
+                return
+            end
+
+            if isempty(data) || ~isstruct(data) || ~isscalar(data) || ...
+                    ~isfield(data, "RSS") || ~isfield(data, "threshold")
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                "Optimization state data is unavailable.");
+                return
+            end
+
+            rss = double(data.RSS(:));
+            rss = rss(isfinite(rss) & rss >= 0);
+            threshold = double(data.threshold);
+
+            if isempty(rss) || ~isscalar(threshold) || ...
+                    ~isfinite(threshold) || threshold < 0
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                "Optimization state values are unavailable.");
+                return
+            end
+
+            plotData.Kind = "optimization-rss-histogram";
+            plotData.RSS = rss;
+            plotData.Threshold = threshold;
+            plotData.UseLogScale = useLogScale;
+            plotData.Title = "Optimization state: " + batchName;
+
+        end % presentOptimizationState
 
         function [plotData, notification] = ...
                 presentMonteCarloConfidenceInterval( ...

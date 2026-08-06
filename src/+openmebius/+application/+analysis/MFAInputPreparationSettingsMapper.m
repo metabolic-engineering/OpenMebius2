@@ -50,6 +50,8 @@ classdef MFAInputPreparationSettingsMapper
             substrates = strings(0, 1);
             freeSelection = false(0, 1);
             standardDeviations = zeros(0, 1);
+            growthRateFree = false;
+            growthRateStandardDeviation = NaN;
 
             if isfield(config, 'efflux') && ...
                     isstruct(config.efflux) && isscalar(config.efflux)
@@ -67,13 +69,24 @@ classdef MFAInputPreparationSettingsMapper
                     standardDeviations = double(efflux.substrateSD(:));
                 end
 
+                if isfield(efflux, 'muSelection')
+                    growthRateFree = logical(efflux.muSelection);
+                end
+
+                if isfield(efflux, 'muSD')
+                    growthRateStandardDeviation = double(efflux.muSD);
+                end
+
             end
 
             settings = openmebius.mfa.EffluxPerturbationSettings( ...
                 Enabled = enabled, ...
                 Substrates = substrates, ...
                 FreeSelection = freeSelection, ...
-                StandardDeviations = standardDeviations);
+                StandardDeviations = standardDeviations, ...
+                GrowthRateFree = growthRateFree, ...
+                GrowthRateStandardDeviation = ...
+                growthRateStandardDeviation);
 
         end % mapEffluxPerturbation
 

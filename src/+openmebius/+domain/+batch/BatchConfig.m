@@ -75,6 +75,8 @@ classdef BatchConfig
             config.efflux.selection = logical([]);
             config.efflux.substrate = string([]);
             config.efflux.substrateSD = [];
+            config.efflux.muSelection = false;
+            config.efflux.muSD = NaN;
 
             % Confidence interval configuration
             config.isCalcCI = false;
@@ -131,6 +133,12 @@ classdef BatchConfig
             config = openmebius.domain.batch.BatchConfig.fillMissingFields( ...
                 config, ...
                 baseConfig);
+
+            % JSON encodes NaN as null, which jsondecode restores as an
+            % empty value. Canonicalize the unset scalar before validation.
+            if isempty(config.efflux.muSD)
+                config.efflux.muSD = NaN;
+            end
 
             % Legacy batch IDs used this non-semantic field as random salt.
             if isfield(config, 'random')
@@ -562,6 +570,17 @@ classdef BatchConfig
                     "OpenMebius2:BatchConfig:InvalidFiniteNumber", ...
                     "Batch config field efflux.substrateSD must contain " + ...
                 "finite numbers or NaN for unset values.");
+            end
+
+            BatchConfig.mustBeLogical(config, 'efflux.muSelection');
+
+            if ~(isnumeric(effluxConfig.muSD) && ...
+                    isscalar(effluxConfig.muSD) && ...
+                    ~isinf(double(effluxConfig.muSD)))
+                error( ...
+                    "OpenMebius2:BatchConfig:InvalidFiniteNumber", ...
+                    "Batch config field efflux.muSD must be a finite " + ...
+                "number or NaN when unset.");
             end
 
         end % validateEfflux

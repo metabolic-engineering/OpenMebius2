@@ -195,6 +195,21 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function marksTerminalEditorReadOnly(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            batch.Config.status = 'error';
+            session = openmebius.application.batch ...
+                .BatchConfigurationSession(batch, [], "batch-a");
+            presenter = openmebius.presentation.batch ...
+                .RunConfigPresenter();
+
+            editor = presenter.presentEditor(session);
+
+            testCase.verifyTrue(editor.IsReadOnly);
+
+        end
+
         function reportsUnavailableINSTMFAForMultipleBatches(testCase)
 
             batch = helpers.RunConfigBatchStub();

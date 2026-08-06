@@ -7,6 +7,8 @@ classdef MFAInputPreparationResult
         FailureStage (1, 1) string = ""
         ErrorMessage (1, 1) string = ""
         GrowthRate (1, 1) double = NaN
+        GrowthRateStandardDeviation (1, 1) double = NaN
+        GrowthRateFree (1, 1) logical = false
         SubstrateList (:, 1) string = strings(0, 1)
         Efflux (:, 1) double = zeros(0, 1)
         EffluxStandardDeviation (:, 1) double = zeros(0, 1)
@@ -25,6 +27,8 @@ classdef MFAInputPreparationResult
                                                         options.FailureStage, ["", "efflux", "mdv"])} = ""
                 options.ErrorMessage (1, 1) string = ""
                 options.GrowthRate (1, 1) double = NaN
+                options.GrowthRateStandardDeviation (1, 1) double = NaN
+                options.GrowthRateFree (1, 1) logical = false
                 options.SubstrateList = strings(0, 1)
                 options.Efflux (:, 1) double = zeros(0, 1)
                 options.EffluxStandardDeviation (:, 1) double = ...
@@ -49,6 +53,9 @@ classdef MFAInputPreparationResult
             obj.FailureStage = options.FailureStage;
             obj.ErrorMessage = options.ErrorMessage;
             obj.GrowthRate = options.GrowthRate;
+            obj.GrowthRateStandardDeviation = ...
+                options.GrowthRateStandardDeviation;
+            obj.GrowthRateFree = options.GrowthRateFree;
             obj.SubstrateList = string(options.SubstrateList(:));
             obj.Efflux = options.Efflux;
             obj.EffluxStandardDeviation = ...

@@ -143,6 +143,28 @@ classdef Hdf5ResultRepository < handle
 
         end % readConfidenceInterval
 
+        function data = readOptimizationState(obj, resultLocation, id)
+
+            arguments
+                obj
+                resultLocation openmebius.domain.result.ResultLocation
+                id (1, 1) string
+            end
+
+            filePath = obj.requireResultFile(resultLocation, id);
+            status = h5read(filePath, "/status");
+            data = [];
+
+            if numel(status) < 2 || ~status(2)
+                return
+            end
+
+            data = struct;
+            data.RSS = h5read(filePath, "/RSS");
+            data.threshold = h5read(filePath, "/threshold");
+
+        end % readOptimizationState
+
         function [isAvailable, data] = readNextLabelSuggestion( ...
                 ~, resultLocation, id)
 

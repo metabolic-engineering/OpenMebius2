@@ -118,6 +118,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ViewMStableMenu                 matlab.ui.container.Menu
         ContextMenuRun                  matlab.ui.container.ContextMenu
         AddbatchMenu                    matlab.ui.container.Menu
+        DuplicatethisbatchMenu          matlab.ui.container.Menu
         RemovethisbatchMenu             matlab.ui.container.Menu
         ParallellabelingMenu            matlab.ui.container.Menu
         ContextMenu2                    matlab.ui.container.ContextMenu
@@ -130,6 +131,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
     end
 
 
+
     properties (Access = public)
 
         typeSimulation (1, 1) string {mustBeMember(typeSimulation, ["MDV", "Flux", "Label"])} = "Flux";
@@ -140,6 +142,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         RunConfigApp;
         MSViewApp;
         ComparisonViewApp;
+        ViewComparisonApp;
         RunAddBatchApp;
         ViewSuggestionApp;
         RangePlotFigure;
@@ -1148,6 +1151,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 case openmebius.presentation.result.ResultPlotKind.OverviewFlux
                     app.renderOverviewResultPlot(viewModel);
 
+                case openmebius.presentation.result.ResultPlotKind.OptimizationState
+                    app.clearResultPlots();
+                    app.renderOptimizationRSSHistogram(viewModel.SubPlot);
+
                 otherwise
                     app.clearResultPlots();
             end
@@ -1176,6 +1183,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             elseif isfield(subPlot, "Kind") && ...
                     subPlot.Kind == "grid-search-profile"
                 app.renderGridSearchProfile(subPlot);
+
+            elseif isfield(subPlot, "Kind") && ...
+                    subPlot.Kind == "optimization-rss-histogram"
+                app.renderOptimizationRSSHistogram(subPlot);
 
             else
                 cla(app.SubUIAxes);
@@ -1471,9 +1482,107 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % renderGridSearchProfile
 
+        function renderOptimizationRSSHistogram(app, plotData)
+
+            rss = double(plotData.RSS(:));
+            rss = rss(isfinite(rss) & rss >= 0);
+            threshold = double(plotData.Threshold);
+            axes = app.SubUIAxes;
+
+            if isempty(rss) || ~isscalar(threshold) || ...
+                    ~isfinite(threshold) || threshold < 0
+                cla(axes);
+                return
+            end
+
+            cla(axes);
+            app.prepareCartesianResultAxes(axes);
+            axes.FontSize = 16;
+            axes.FontName = 'Arial';
+            axes.XLabel.String = "RSS";
+            axes.YLabel.String = "Frequency";
+            axes.Title.String = plotData.Title;
+            axes.XGrid = 'on';
+            axes.YGrid = 'on';
+            useLogScale = isfield(plotData, "UseLogScale") && ...
+                isscalar(plotData.UseLogScale) && plotData.UseLogScale;
+            rssForPlot = rss;
+            histogramArguments = {'BinMethod', 'fd'};
+
+            if useLogScale
+                positiveRSS = rss(rss > 0);
+
+                if ~isempty(positiveRSS)
+                    lowerEdge = min(positiveRSS);
+
+                    if any(rss == 0)
+                        lowerEdge = max(lowerEdge / 10, realmin('double'));
+                        rssForPlot(rssForPlot == 0) = lowerEdge;
+                    end
+
+                    upperEdge = max(rssForPlot);
+
+                    if lowerEdge < upperEdge
+                        [~, logBinEdges] = histcounts( ...
+                            log10(rssForPlot), 'BinMethod', 'fd');
+                        histogramArguments = { ...
+                            'BinEdges', 10 .^ logBinEdges};
+                    end
+
+                    axes.XScale = 'log';
+                end
+
+            end
+
+            hold(axes, 'on');
+            histogram( ...
+                axes, ...
+                rssForPlot, ...
+                histogramArguments{:}, ...
+                'FaceColor', "#0072B2", ...
+                'EdgeColor', 'none', ...
+                'DisplayName', 'RSS');
+
+            if strcmp(axes.XScale, 'linear') || threshold > 0
+                xline( ...
+                    axes, ...
+                    threshold, ...
+                    '-', ...
+                    'Color', "#D55E00", ...
+                    'LineWidth', 2, ...
+                    'DisplayName', 'Threshold');
+            end
+
+            maximumValue = max([rssForPlot; threshold]);
+            alpha = 0.05 * maximumValue;
+
+            if alpha == 0
+                alpha = 0.05;
+            end
+
+            upperXLimit = maximumValue + alpha;
+
+            if strcmp(axes.XScale, 'linear')
+                axes.XLim = [0, upperXLimit];
+            else
+                currentXLimits = axes.XLim;
+
+                if currentXLimits(1) < upperXLimit
+                    axes.XLim = [currentXLimits(1), upperXLimit];
+                end
+
+            end
+
+            legend(axes, 'show', 'Location', 'best');
+            hold(axes, 'off');
+
+        end % renderOptimizationRSSHistogram
+
         function prepareCartesianResultAxes(~, axes)
 
             axes.Visible = 'on';
+            axes.XScale = 'linear';
+            axes.YScale = 'linear';
             axes.XColorMode = 'auto';
             axes.YColorMode = 'auto';
             axes.XTickMode = 'auto';
@@ -2175,6 +2284,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                                            app.isLoadedObject(app.RunConfigApp)
                                            app.isLoadedObject(app.MSViewApp)
                                            app.isLoadedObject(app.ComparisonViewApp)
+                                           app.isLoadedObject(app.ViewComparisonApp)
                                            app.isLoadedObject(app.RunAddBatchApp)
                                            app.isLoadedObject(app.ViewSuggestionApp)
                                            app.isLoadedObject(app.LogApp)
@@ -2844,6 +2954,31 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % closeComparisonViewApp
 
+        function attachViewComparisonListeners(app, viewComparisonApp)
+
+            app.ChildAppHost.attach( ...
+                "ViewComparison", ...
+                viewComparisonApp, ...
+                {"NotificationRequested", ...
+                 @(source, event) app.onNotificationRequested(source, event); ...
+                 "Closed", ...
+                 @(source, event) app.onViewComparisonClosed(source, event)});
+
+        end % attachViewComparisonListeners
+
+        function detachViewComparisonListeners(app)
+
+            app.ChildAppHost.detach("ViewComparison");
+
+        end % detachViewComparisonListeners
+
+        function closeViewComparisonApp(app)
+
+            app.ChildAppHost.close("ViewComparison");
+            app.ViewComparisonApp = [];
+
+        end % closeViewComparisonApp
+
         function attachRunAddBatchListeners(app, runAddBatchApp)
 
             app.ChildAppHost.attach( ...
@@ -2984,6 +3119,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.refreshPresentation();
 
         end % onComparisonViewClosed
+
+        function onViewComparisonClosed(app, ~, ~)
+
+            app.detachViewComparisonListeners();
+            app.ViewComparisonApp = [];
+            app.refreshPresentation();
+
+        end % onViewComparisonClosed
 
         function renderTracerConfigurationNotifications(app, viewModel)
 
@@ -3433,6 +3576,26 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 outcome, batch));
 
         end % removeSelectedBatches
+
+        function duplicateSelectedBatches(app)
+
+            selectedRows = app.selectedTableRows(app.RunTable);
+
+            if isempty(selectedRows)
+                app.publishMessage( ...
+                    "warning", "Please select a batch to duplicate.");
+                return
+            end
+
+            batchData = app.getBatchOperationalData();
+            batchIds = string(batchData.ID(selectedRows));
+            [outcome, batch] = app.ApplicationController ...
+                .duplicateBatches(batchIds, batchData);
+            app.renderBatchOperationViewModel( ...
+                app.BatchPresenter.presentDuplicateOutcome( ...
+                outcome, batch));
+
+        end % duplicateSelectedBatches
 
         function context = captureResultPlotContext(app)
 
@@ -4114,9 +4277,14 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % function handleResultAvailable
 
-        function updateResultPlot(app)
+        function updateResultPlot(app, selectionSource)
+
+            if nargin < 2
+                selectionSource = "";
+            end
 
             context = app.captureResultPlotContext();
+            context.SelectionSource = string(selectionSource);
             viewModel = app.ResultPlotPresenter.present( ...
                 app.ApplicationController.model(), ...
                 app.ApplicationController.result(), ...
@@ -4909,6 +5077,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.closeReloadWindowChildren();
             app.ApplicationController.resetWorkspace();
 
+            app.saveHistory();
             app.loadHistory();
             app.ProjectDirectoryDropDown.Value = "";
             app.TemplateModelDirectoryDropDown.Value = "";
@@ -4943,6 +5112,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.RunConfigApp = [];
             app.MSViewApp = [];
             app.ComparisonViewApp = [];
+            app.ViewComparisonApp = [];
             app.RunAddBatchApp = [];
 
             app.deleteIfValid(app.ViewSuggestionApp);
@@ -5012,11 +5182,29 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function showRangePlot(app)
 
-            [batchIDs, batchNames] = app.selectedResultIdentities();
-            outcome = app.ApplicationController.prepareRangePlot( ...
-                batchIDs, batchNames);
-            app.renderResultRangePlotViewModel( ...
-                app.ResultPresenter.presentRangePlotOutcome(outcome));
+            presenter = openmebius.presentation.result ...
+                .ViewComparisonPresenter( ...
+                app.ApplicationController.batch(), ...
+                app.ApplicationController.result());
+            catalogViewModel = presenter.presentCatalog();
+
+            for notificationIndex = 1:numel( ...
+                    catalogViewModel.Notifications)
+                app.publishNotification( ...
+                    catalogViewModel.Notifications{notificationIndex});
+            end
+
+            if ~catalogViewModel.IsAvailable
+                return
+            end
+
+            app.closeViewComparisonApp();
+            context = openmebius.presentation.result ...
+                .ViewComparisonContext( ...
+                Presenter = presenter, ...
+                InitialCatalog = catalogViewModel);
+            app.ViewComparisonApp = ViewComparison(context);
+            app.attachViewComparisonListeners(app.ViewComparisonApp);
 
         end % showRangePlot
 
@@ -5264,6 +5452,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method onPreferencesClosed
 
     end % methods (Access = private)
+
 
 
     % Callbacks that handle component events
@@ -5602,7 +5791,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function ResultSubTableCellSelection(app, event)
 
             loadMainResultTable(app);
-            updateResultPlot(app);
+            updateResultPlot(app, "SubTable");
         end
 
         % Cell edit callback: ResultSubTable
@@ -5613,7 +5802,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Cell selection callback: ResultMainTable
         function ResultMainTableCellSelection(app, event)
 
-            updateResultPlot(app);
+            updateResultPlot(app, "MainTable");
         end
 
         % Button pushed function: ResultReportButton
@@ -5736,6 +5925,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function OpenMebius2UIFigureKeyPress(app, event)
 
             app.reloadSelectedTab(event);
+        end
+
+        % Menu selected function: DuplicatethisbatchMenu
+        function DuplicatethisbatchMenuSelected(app, event)
+
+            app.duplicateSelectedBatches();
         end
     end
 
@@ -6535,6 +6730,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.AddbatchMenu = uimenu(app.ContextMenuRun);
             app.AddbatchMenu.MenuSelectedFcn = createCallbackFcn(app, @RunAddbatchMenuSelected, true);
             app.AddbatchMenu.Text = 'Add batch';
+
+            % Create DuplicatethisbatchMenu
+            app.DuplicatethisbatchMenu = uimenu(app.ContextMenuRun);
+            app.DuplicatethisbatchMenu.MenuSelectedFcn = createCallbackFcn(app, @DuplicatethisbatchMenuSelected, true);
+            app.DuplicatethisbatchMenu.Text = 'Duplicate this batch';
 
             % Create RemovethisbatchMenu
             app.RemovethisbatchMenu = uimenu(app.ContextMenuRun);

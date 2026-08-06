@@ -69,8 +69,16 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
 
             testCase.press(app.ModelEditButton);
             testCase.verifyTrue(any(app.ModelTable.ColumnEditable));
+            updatedX = app.ModelTable.Data.x(1) + 1;
+            app.ModelTable.Data.x(1) = updatedX;
             testCase.press(app.ModelSaveButton);
             testCase.verifyFalse(any(app.ModelTable.ColumnEditable));
+            savedPosition = readtable( ...
+                fullfile( ...
+                createdProject, "model", "metabolic_network.xlsx"), ...
+                Sheet = "position", ...
+                ReadRowNames = true);
+            testCase.verifyEqual(savedPosition.x(1), updatedX);
             testCase.verifyEmpty(app.Test_Alerts);
 
         end
@@ -151,6 +159,9 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.verifyEqual(string(app.ProjectLoadButton.Enable), "on");
             testCase.verifyEqual(string(app.ModelTable.Enable), "off");
             testCase.verifyEqual(string(app.ResultSubTable.Enable), "off");
+            testCase.verifyTrue(any( ...
+                string(app.ProjectDirectoryDropDown.Items) == ...
+                analysisProject));
 
             OpenMebius2WorkflowSmokeTest.selectProject( ...
                 app, analysisProject);
@@ -220,13 +231,42 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
                 expectedDescription);
 
             app.RunConfigApp.IterationSpinner.Value = 31;
-            testCase.press(app.RunConfigApp.GeneralApplyButton);
+            testCase.press(app.RunConfigApp.GeneralCloseButton);
 
             testCase.verifyEqual( ...
                 string(app.RunTable.Data.Description(1)), ...
                 expectedDescription);
             testCase.verifyEmpty(app.Test_Alerts);
-            delete(app.RunConfigApp);
+        end
+
+        function duplicatesSelectedBatchAsReady(testCase)
+
+            app = testCase.App;
+            projectDirectory = ...
+                OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli");
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, projectDirectory);
+            testCase.press(app.ProjectLoadButton);
+            rawDataBefore = app.RunTable.UserData.RawData;
+            expectedDescription = "Edited before duplicate";
+            app.RunTable.Data.Description(2) = expectedDescription;
+            source = app.RunTable.Data(2, :);
+            app.RunTable.Selection = [2, 1];
+
+            callback = app.DuplicatethisbatchMenu.MenuSelectedFcn;
+            callback(app.DuplicatethisbatchMenu, []);
+
+            rawDataAfter = app.RunTable.UserData.RawData;
+            duplicate = rawDataAfter(end, :);
+            testCase.verifyEqual( ...
+                height(rawDataAfter), height(rawDataBefore) + 1);
+            testCase.verifyNotEqual(duplicate.ID, source.ID);
+            testCase.verifyEqual(duplicate.Name, source.Name);
+            testCase.verifyEqual(duplicate.Experiment, source.Experiment);
+            testCase.verifyEqual( ...
+                duplicate.Description, expectedDescription);
+            testCase.verifyEmpty(app.Test_Alerts);
 
         end
 
@@ -247,6 +287,48 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             app.ResultSubTable.Selection = [1, 1];
             app.testResultSubTableCellSelection();
             testCase.verifyNotEmpty(app.ResultMainTable.Data);
+            testCase.verifyNotEmpty(app.SubUIAxes.Children);
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.XLabel.String), "RSS");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.YLabel.String), "Frequency");
+            rssHistogram = findobj( ...
+                app.SubUIAxes, 'Type', 'histogram');
+            testCase.verifyNotEmpty(rssHistogram);
+            testCase.verifyEqual( ...
+                string(rssHistogram.BinMethod), "fd");
+            thresholdLine = findobj( ...
+                app.SubUIAxes, ...
+                'Type', 'constantline', ...
+                'DisplayName', 'Threshold');
+            testCase.verifyNotEmpty(thresholdLine);
+            testCase.verifyEqual(string(thresholdLine.LineStyle), "-");
+            maximumValue = max([ ...
+                                    rssHistogram.Data(:); thresholdLine.Value]);
+            alpha = 0.05 * maximumValue;
+
+            if alpha == 0
+                alpha = 0.05;
+            end
+
+            testCase.verifyEqual(app.SubUIAxes.XLim(1), 0);
+            testCase.verifyEqual( ...
+                app.SubUIAxes.XLim(2), maximumValue + alpha);
+
+            testCase.choose(app.ResultDropDown, "Details");
+            app.ResultSubTable.Selection = [1, 1];
+            app.testResultSubTableCellSelection();
+            detailsHistogram = findobj( ...
+                app.SubUIAxes, 'Type', 'histogram');
+            testCase.verifyNotEmpty(detailsHistogram);
+            testCase.verifyEqual( ...
+                string(detailsHistogram.BinMethod), "fd");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.XLabel.String), "RSS");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.YLabel.String), "Frequency");
+
+            testCase.choose(app.ResultDropDown, "Overview");
             gridSearchRow = find( ...
                 string(app.ResultMainTable.RowName) == "r2", 1);
             testCase.assertNotEmpty(gridSearchRow);

@@ -198,8 +198,7 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             data = app.RunConfigApp.MSTable.Data;
 
-            press(testCase, app.RunConfigApp.MSApplyAllButton);
-            testCase.press(app.RunConfigApp.MSCancelButton);
+            press(testCase, app.RunConfigApp.MSCloseButton);
             testCase.press(app.RunConfigButton);
             testCase.verifyEqual(app.RunConfigApp.MSTable.Data, data);
 
@@ -230,8 +229,7 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             iterBefore = app.RunConfigApp.IterationSpinner.Value;
 
-            press(testCase, app.RunConfigApp.GeneralApplyButton);
-            testCase.press(app.RunConfigApp.GeneralCancelButton);
+            press(testCase, app.RunConfigApp.GeneralCloseButton);
             testCase.press(app.RunConfigButton);
             testCase.verifyEqual(app.RunConfigApp.IterationSpinner.Value, iterBefore);
 
@@ -261,8 +259,7 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
             choose(testCase, app.RunConfigApp.TabGroup, 'General');
             type(testCase, app.RunConfigApp.IterationSpinner, 1);
             verifyEqual(testCase, app.RunConfigApp.IterationSpinner.Value, 1);
-            press(testCase, app.RunConfigApp.GeneralApplyButton);
-            press(testCase, app.RunConfigApp.GeneralCancelButton);
+            press(testCase, app.RunConfigApp.GeneralCloseButton);
 
             % Select the Run tab again
             press(testCase, app.RunRunButton);
