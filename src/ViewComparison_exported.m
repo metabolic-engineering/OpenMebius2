@@ -76,6 +76,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             app.UIAxes.TickLabelInterpreter = 'none';
             title(app.UIAxes, 'Flux range comparison');
             xlabel(app.UIAxes, 'Flux (mmol gDCW^{-1} h^{-1})');
+            ylabel(app.UIAxes, '');
             app.applyUIFont();
 
         end % configureComponents
@@ -291,6 +292,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             if isempty(reactionRows)
                 cla(app.UIAxes);
                 title(app.UIAxes, 'Select one or more fluxes');
+                ylabel(app.UIAxes, '');
                 return
             end
 
@@ -310,7 +312,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
 
             if bestfitStyle == "none"
                 bestFits = table();
-                bestfitStyle = "triangle";
+                bestfitStyle = "diamond";
             elseif ~isempty(bestFits)
                 bestFits = bestFits(reactionRows, :);
             end
@@ -347,6 +349,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
                     FontSize = fontSize, ...
                     ReactionNames = reactionNames);
                 title(app.UIAxes, 'Flux range comparison');
+                ylabel(app.UIAxes, '');
                 app.applyUIFont();
             catch exception
                 app.requestNotification( ...
@@ -533,6 +536,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             app.UIAxes.Color = 'white';
             title(app.UIAxes, 'Select one or more analyzed batches');
             xlabel(app.UIAxes, 'Flux (mmol gDCW^{-1} h^{-1})');
+            ylabel(app.UIAxes, '');
             app.applyUIFont();
 
         end % clearPlotData
