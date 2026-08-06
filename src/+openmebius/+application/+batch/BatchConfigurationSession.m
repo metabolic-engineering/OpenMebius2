@@ -71,6 +71,18 @@ classdef BatchConfigurationSession < handle
 
         end % isSingleBatch
 
+        function tf = isReadOnly(obj)
+
+            configs = obj.configs();
+            tf = false;
+
+            for batchIndex = 1:numel(configs)
+                tf = tf || openmebius.domain.batch.BatchConfig ...
+                    .isTerminalStatus(configs(batchIndex).status);
+            end
+
+        end % isReadOnly
+
         function selections = msFragmentSelections(obj)
 
             selections = obj.BatchSource ...
@@ -141,6 +153,12 @@ classdef BatchConfigurationSession < handle
                 config (1, 1) struct
                 fragmentSelections (1, :) struct
                 suggestionTable = []
+            end
+
+            if obj.isReadOnly()
+                error( ...
+                    "OpenMebius2:BatchConfigurationSession:ReadOnly", ...
+                "Finished or failed batch configuration is read-only.");
             end
 
             originalConfigs = obj.configs();

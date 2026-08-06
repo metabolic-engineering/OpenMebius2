@@ -120,12 +120,42 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
 
         end
 
-        function clearsPlotsOutsideOverview(testCase)
+        function presentsOptimizationStateInDetails(testCase)
 
             presenter = openmebius.presentation.result ...
                 .ResultPlotPresenter();
             context = testCase.context();
             context.Mode = "Details";
+            context.SelectionSource = "SubTable";
+            result = helpers.ResultPlotWorkspaceStub();
+            result.OptimizationStateData = struct( ...
+                "RSS", [1, 3, 9], ...
+                "threshold", 5);
+
+            viewModel = presenter.present( ...
+                testCase.model(), result, context);
+
+            testCase.verifyEqual( ...
+                viewModel.Kind, ...
+                openmebius.presentation.result ...
+                    .ResultPlotKind.OptimizationState);
+            testCase.verifyTrue(result.OptimizationCalled);
+            testCase.verifyFalse(result.Called);
+            testCase.verifyEqual( ...
+                viewModel.SubPlot.Kind, ...
+                "optimization-rss-histogram");
+            testCase.verifyEqual(viewModel.SubPlot.RSS, [1; 3; 9]);
+            testCase.verifyEqual(viewModel.SubPlot.Threshold, 5);
+
+        end
+
+        function clearsDetailsPlotForMainTableSelection(testCase)
+
+            presenter = openmebius.presentation.result ...
+                .ResultPlotPresenter();
+            context = testCase.context();
+            context.Mode = "Details";
+            context.SelectionSource = "MainTable";
             result = helpers.ResultPlotWorkspaceStub();
 
             viewModel = presenter.present( ...
@@ -134,7 +164,7 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 viewModel.Kind, ...
                 openmebius.presentation.result.ResultPlotKind.None);
-            testCase.verifyFalse(result.Called);
+            testCase.verifyFalse(result.OptimizationCalled);
 
         end
 

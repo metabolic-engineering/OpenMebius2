@@ -76,7 +76,7 @@ classdef MFAConstraintBuilder
         end % buildRightHandSide
 
         function mask = effluxFreeConstraintRowMask( ...
-                ~, model, stoichiometry, substrateList, freeMask)
+                ~, model, stoichiometry, substrateList, freeMask, options)
 
             arguments
                 ~
@@ -84,19 +84,22 @@ classdef MFAConstraintBuilder
                 stoichiometry table
                 substrateList
                 freeMask
+                options.FreeGrowthRate (1, 1) logical = false
             end
 
             rowCount = size(stoichiometry, 1);
             mask = false(rowCount, 1);
             freeMask = logical(freeMask(:));
 
-            if isempty(freeMask) || ~any(freeMask)
+            if (isempty(freeMask) || ~any(freeMask)) && ...
+                    ~options.FreeGrowthRate
                 return;
             end
 
             substrateList = string(substrateList(:));
 
-            if numel(freeMask) ~= numel(substrateList)
+            if ~isempty(freeMask) && ...
+                    numel(freeMask) ~= numel(substrateList)
                 error( ...
                     "OpenMebius2:MFAConstraintBuilder:" + ...
                     "FreeEffluxDimensionMismatch", ...
@@ -107,6 +110,26 @@ classdef MFAConstraintBuilder
                 .fromModel(model, stoichiometry);
             reactionIDs = metadata.ReactionIDs;
             reactionTypes = metadata.ReactionTypes;
+
+            if options.FreeGrowthRate
+                biomassRows = reactionTypes == "biomass" | ...
+                    reactionIDs == "biomass";
+
+                if ~any(biomassRows)
+                    error( ...
+                        "OpenMebius2:MFAConstraintBuilder:" + ...
+                        "MissingBiomassConstraint", ...
+                        "The stoichiometry must contain a biomass " + ...
+                    "constraint for growth-rate perturbation.");
+                end
+
+                mask(biomassRows) = true;
+            end
+
+            if isempty(freeMask) || ~any(freeMask)
+                return;
+            end
+
             freeSubstrates = substrateList(freeMask);
             effluxRows = find(reactionTypes == "efflux");
 

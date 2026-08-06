@@ -34,6 +34,7 @@ classdef FluxVariabilityProblemFactory
                 options.UseCustomBounds (1, 1) logical = false
                 options.LowerBounds double = []
                 options.UpperBounds double = []
+                options.FreeGrowthRate (1, 1) logical = false
             end
 
             stoichiometry = model.getSBefore();
@@ -99,7 +100,8 @@ classdef FluxVariabilityProblemFactory
                 model, ...
                 stoichiometry, ...
                 substrateList, ...
-                freeEffluxMask);
+                freeEffluxMask, ...
+                FreeGrowthRate = options.FreeGrowthRate);
             freeConstraintIDs = string( ...
                 stoichiometry.Properties.RowNames(freeRowMask));
             equalityMatrix = table2array(stoichiometry);

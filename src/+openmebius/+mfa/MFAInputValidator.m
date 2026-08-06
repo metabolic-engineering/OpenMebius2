@@ -90,12 +90,31 @@ classdef MFAInputValidator
 
             standardDeviations = zeros(0, 1);
             freeMask = false(0, 1);
+            growthRateStandardDeviation = NaN;
+            growthRateFree = false;
 
             if settings.Enabled
+                growthRateFree = settings.GrowthRateFree;
+
+                if growthRateFree
+                    growthRateStandardDeviation = ...
+                        settings.GrowthRateStandardDeviation;
+
+                    if ~isfinite(growthRateStandardDeviation) || ...
+                            growthRateStandardDeviation <= 0
+                        result = openmebius.mfa ...
+                            .MFAInputValidationResult.failure( ...
+                            "Growth-rate (mu) standard deviation must " + ...
+                        "be positive and finite for perturbation.");
+                        return;
+                    end
+
+                end
+
                 [standardDeviations, freeMask, errorMessage] = ...
                     openmebius.mfa.MFAInputValidator ...
                     .alignPerturbationConfiguration( ...
-                    substrates, settings);
+                    substrates, settings, growthRateFree);
 
                 if strlength(errorMessage) > 0
                     result = openmebius.mfa ...
@@ -112,6 +131,9 @@ classdef MFAInputValidator
             value.Efflux = efflux;
             value.EffluxStandardDeviation = standardDeviations;
             value.EffluxFree = freeMask;
+            value.GrowthRateStandardDeviation = ...
+                growthRateStandardDeviation;
+            value.GrowthRateFree = growthRateFree;
             result = ...
                 openmebius.mfa.MFAInputValidationResult.success(value);
 
@@ -164,7 +186,8 @@ classdef MFAInputValidator
     methods (Static, Access = private)
 
         function [standardDeviations, freeMask, errorMessage] = ...
-                alignPerturbationConfiguration(substrates, settings)
+                alignPerturbationConfiguration( ...
+                substrates, settings, allowEmpty)
 
             standardDeviations = zeros(0, 1);
             freeMask = false(0, 1);
@@ -175,8 +198,15 @@ classdef MFAInputValidator
             configuredStandardDeviations = settings.StandardDeviations;
 
             if isempty(configuredSubstrates)
-                errorMessage = ...
-                    "No substrate selected for efflux perturbation.";
+
+                if allowEmpty
+                    standardDeviations = nan(numel(substrates), 1);
+                    freeMask = false(numel(substrates), 1);
+                else
+                    errorMessage = ...
+                        "No substrate selected for efflux perturbation.";
+                end
+
                 return;
             end
 

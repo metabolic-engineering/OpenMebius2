@@ -175,6 +175,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         MSFragmentTableMetadata
+        IsReadOnly (1, 1) logical = false
     end
 
     events
@@ -219,7 +220,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.BatchExperimentSelectionEditorPresenter = ...
                 context.ExperimentSelectionPresenter;
             app.ChildAppHost = context.ChildAppHost;
+            app.PerturbateEffluxCheckBox.Text = ...
+                'Perturbate efflux or growth rate (mu)';
+            app.EffluxperturbationTab.Title = 'Flux perturbation';
             editor = context.Editor;
+            app.IsReadOnly = editor.IsReadOnly;
             app.renderRunConfigViewModel(editor.Config);
             app.MSFragmentTableMetadata = editor.MSFragmentTable.Metadata;
             app.renderTableViewModel(app.MSTable, editor.MSFragmentTable);
@@ -237,6 +242,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 editor.INSTMFATables.TimePointTable);
             app.renderControlState(editor.ControlState);
             app.wireActionButtons();
+            app.renderReadOnlyState();
 
         end % initializeView
 
@@ -430,8 +436,62 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 app.TracersuggestionTab, state.SuggestionEnabled);
             app.renderMainTabVisibility( ...
                 app.INSTMFATab, state.INSTMFATablesEnabled);
+            app.renderReadOnlyState();
 
         end % renderControlState
+
+        function renderReadOnlyState(app)
+
+            if ~app.IsReadOnly
+                return
+            end
+
+            components = findall(app.BatchconfigUIFigure);
+
+            for componentIndex = 1:numel(components)
+                component = components(componentIndex);
+
+                if isprop(component, 'Enable')
+
+                    try
+                        component.Enable = 'off';
+                    catch
+                    end
+
+                end
+
+                if isprop(component, 'ColumnEditable') && ...
+                        isprop(component, 'Data')
+
+                    try
+                        component.ColumnEditable = ...
+                            app.readOnlyColumns(component.Data);
+                    catch
+                    end
+
+                end
+
+            end
+
+            navigationButtons = [ ...
+                app.GeneralCloseButton
+                app.MSCloseButton
+                app.OptimizationCloseButton
+                app.EffluxCloseButton
+                app.SuggestionCloseButton
+                app.INSTMFACloseButton
+                app.GeneralCancelButton
+                app.MSCancelButton
+                app.OptimizationCancelButton
+                app.EffluxCancelButton
+                app.SuggestionCancelButton
+                app.INSTMFACancelButton];
+
+            for buttonIndex = 1:numel(navigationButtons)
+                navigationButtons(buttonIndex).Enable = 'on';
+            end
+
+        end % renderReadOnlyState
 
         function renderGridReactionVisibility(app, isVisible)
 
@@ -823,6 +883,10 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function restoreDefaultValues(app)
 
+            if app.IsReadOnly
+                return
+            end
+
             msData = app.MSTable.Data;
             effluxData = app.EffluxUITable.Data;
             gridReactionData = app.GridReactionUITable.Data;
@@ -860,6 +924,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
         end % restoreDefaultValues
 
         function applyCurrentSettings(app)
+
+            if app.IsReadOnly
+                app.closeConfiguration();
+                return
+            end
 
             requestFactory = @() app.Presenter.createApplyRequest( ...
                 app.Session, ...

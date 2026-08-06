@@ -198,6 +198,32 @@ classdef BatchCollection < handle
 
                                       end % add
 
+                                      function newIds = duplicate(obj, sourceIds)
+
+                                      arguments
+                                      obj (1, 1) openmebius.domain.batch.BatchCollection
+                                      sourceIds (:, 1) string
+                                      end
+
+                                      sourceTable = obj.TableData;
+                                      newIds = strings(numel(sourceIds), 1);
+
+                                      for batchIndex = 1:numel(sourceIds)
+                                      sourceIndex = obj.indexOf(sourceIds(batchIndex));
+                                      config = sourceTable.config(sourceIndex);
+                                      config.status = 'ready';
+                                      newIds(batchIndex) = obj.add( ...
+                                          sourceTable.name(sourceIndex), ...
+                                          sourceTable.exp(sourceIndex), ...
+                                          sourceTable.description(sourceIndex), ...
+                                          config);
+                                      newIndex = obj.indexOf(newIds(batchIndex));
+                                      obj.TableData.contentHash(newIndex) = ...
+                                          sourceTable.contentHash(sourceIndex);
+                                      end
+
+                                      end % duplicate
+
                                       function edit(obj, id, name, experiments, description, config)
 
                                       arguments
@@ -215,7 +241,7 @@ classdef BatchCollection < handle
                                           obj.TableData.config(index).status);
 
                                       if openmebius.domain.batch.BatchConfig ...
-                                              .isTerminalStatus(currentStatus)
+                                          .isTerminalStatus(currentStatus)
                                       config.status = char(currentStatus);
                                       end
 

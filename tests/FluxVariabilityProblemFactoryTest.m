@@ -60,6 +60,26 @@ classdef FluxVariabilityProblemFactoryTest < matlab.unittest.TestCase
 
         end
 
+        function removesGrowthRateAndEffluxConstraints(testCase)
+
+            factory = openmebius.mfa.FluxVariabilityProblemFactory();
+
+            problem = factory.create( ...
+                helpers.FluxVariabilityModelStub(), ...
+                [0.2; 10; 0; 0], ...
+                10, ...
+                "A", ...
+                true, ...
+                FreeGrowthRate = true);
+
+            testCase.verifyEqual( ...
+                problem.EqualityMatrix, [9, 10, 0, 12]);
+            testCase.verifyEqual(problem.EqualityRightHandSide, 0);
+            testCase.verifyEqual( ...
+                problem.FreeConstraintIDs, ["biomass"; "EX_A"]);
+
+        end
+
         function appliesCustomBoundsAndIrreversibility(testCase)
 
             factory = openmebius.mfa.FluxVariabilityProblemFactory();

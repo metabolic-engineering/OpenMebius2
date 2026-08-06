@@ -161,6 +161,26 @@ classdef BatchConfigEditor < handle
 
         end % applyEfflux
 
+        function applyGrowthRatePerturbation(obj, ids, selection, sd)
+
+            arguments
+                obj (1, 1) openmebius.domain.batch.BatchConfigEditor
+                ids string
+                selection (1, 1) logical
+                sd (1, 1) double
+            end
+
+            ids = string(ids(:));
+
+            for i = 1:numel(ids)
+                config = obj.Collection.configFor(ids(i));
+                config.efflux.muSelection = selection;
+                config.efflux.muSD = sd;
+                obj.Collection.replaceConfig(ids(i), config);
+            end
+
+        end % applyGrowthRatePerturbation
+
         function applySuggestion( ...
                 obj, ids, values, rowNames, variableNames)
 

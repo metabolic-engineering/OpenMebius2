@@ -46,7 +46,13 @@ classdef ResultPlotPresenter < handle
                         IsDarkTheme = options.IsDarkTheme, ...
                         UseLogScale = options.UseLogScale);
 
-                case {"Details", "Comparison"}
+                case "Details"
+                    viewModel = obj.presentDetailsOptimizationState( ...
+                        result, ...
+                        context, ...
+                        UseLogScale = options.UseLogScale);
+
+                case "Comparison"
                     viewModel = ...
                         openmebius.presentation.result.ResultPlotViewModel.none();
 
@@ -60,6 +66,74 @@ classdef ResultPlotPresenter < handle
     end
 
     methods (Access = private)
+
+        function viewModel = presentDetailsOptimizationState( ...
+                obj, result, context, options)
+
+            arguments
+                obj
+                result
+                context struct
+                options.UseLogScale (1, 1) logical = false
+            end
+
+            selectionSource = "";
+
+            if isfield(context, "SelectionSource") && ...
+                    isscalar(context.SelectionSource)
+                selectionSource = string(context.SelectionSource);
+            end
+
+            if obj.isInvalidHandle(result) || ...
+                    selectionSource ~= "SubTable" || ...
+                    isempty(context.SelectedSubRows) || ...
+                    isempty(context.SubTableData) || ...
+                    ~istable(context.SubTableData) || ...
+                    ~any(string( ...
+                        context.SubTableData.Properties.VariableNames) == "ID")
+                viewModel = ...
+                    openmebius.presentation.result.ResultPlotViewModel.none();
+                return
+            end
+
+            selectedResultRow = context.SelectedSubRows(1);
+            batchIDs = string(context.SubTableData.ID);
+
+            if ~obj.isValidRow(selectedResultRow, numel(batchIDs))
+                viewModel = ...
+                    openmebius.presentation.result.ResultPlotViewModel.none();
+                return
+            end
+
+            batchName = batchIDs(selectedResultRow);
+
+            if any(string( ...
+                    context.SubTableData.Properties.VariableNames) == "Name")
+                batchNames = string(context.SubTableData.Name);
+                batchName = batchNames(selectedResultRow);
+            end
+
+            [subPlot, notification] = obj.presentOptimizationState( ...
+                result, ...
+                batchIDs(selectedResultRow), ...
+                batchName, ...
+                options.UseLogScale);
+
+            if isempty(fieldnames(subPlot))
+                viewModel = ...
+                    openmebius.presentation.result.ResultPlotViewModel.none( ...
+                        Notification = notification);
+                return
+            end
+
+            viewModel = ...
+                openmebius.presentation.result.ResultPlotViewModel( ...
+                    Kind = openmebius.presentation.result ...
+                        .ResultPlotKind.OptimizationState, ...
+                    SubPlot = subPlot, ...
+                    Notification = notification);
+
+        end % presentDetailsOptimizationState
 
         function viewModel = presentOverview(obj, model, result, context, options)
 

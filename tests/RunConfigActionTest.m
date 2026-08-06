@@ -161,6 +161,39 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
         end
 
+        function terminalConfigurationDisablesEditingAndClosesWithoutSaving( ...
+                testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            batch.Config.status = 'finished';
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfigActionTest.createApp(session);
+            cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+            recorder = helpers.RunConfigEventRecorder();
+            recorder.attach(app);
+
+            testCase.verifyEqual(string(app.IterationSpinner.Enable), "off");
+            testCase.verifyEqual(string(app.CalcCICheckBox.Enable), "off");
+            testCase.verifyEqual(string(app.MSTable.Enable), "off");
+            testCase.verifyFalse(any(app.MSTable.ColumnEditable));
+            testCase.verifyEqual( ...
+                string(app.GeneralRestoreDefaultButton.Enable), "off");
+            testCase.verifyEqual( ...
+                string(app.GeneralCloseButton.Enable), "on");
+            testCase.verifyEqual( ...
+                string(app.GeneralCancelButton.Enable), "on");
+
+            callback = app.GeneralCloseButton.ButtonPushedFcn;
+            callback([], []);
+
+            testCase.verifyFalse(isvalid(app));
+            testCase.verifyEqual(batch.ConfigUpdateCount, 0);
+            testCase.verifyEqual(batch.FragmentUpdateCount, 0);
+            testCase.verifyEqual(recorder.AppliedCount, 0);
+            testCase.verifyEqual(recorder.ClosedCount, 1);
+
+        end
+
         function escapeClosesWithoutSaving(testCase)
 
             batch = helpers.RunConfigBatchStub();

@@ -242,6 +242,36 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
 
         end % preservesDisabledTableSettings
 
+        function mapsGrowthRatePerturbationTableRow(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.perturbateEfflux = true;
+            config.efflux.muSelection = true;
+            config.efflux.muSD = 0.025;
+            config.efflux.selection = true;
+            config.efflux.substrate = "A";
+            config.efflux.substrateSD = 0.4;
+
+            viewModel = openmebius.presentation.batch ...
+                .RunConfigMapper.toViewModel(config);
+
+            testCase.verifyEqual( ...
+                string(viewModel.EffluxTable.Properties.RowNames), ...
+                ["mu (growth rate)"; "A"]);
+            testCase.verifyEqual( ...
+                viewModel.EffluxTable.Selection, [true; true]);
+            testCase.verifyEqual( ...
+                viewModel.EffluxTable.SD, [0.025; 0.4]);
+
+            actual = openmebius.presentation.batch ...
+                .RunConfigMapper.fromViewModel(viewModel, config);
+
+            testCase.verifyTrue(actual.efflux.muSelection);
+            testCase.verifyEqual(actual.efflux.muSD, 0.025);
+            testCase.verifyEqual(actual.efflux.substrate, "A");
+
+        end % mapsGrowthRatePerturbationTableRow
+
         function rejectsUnknownValue(testCase)
 
             testCase.verifyError( ...

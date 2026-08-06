@@ -59,6 +59,25 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
 
         end
 
+        function duplicatesSelectedBatches(testCase)
+
+            batch = helpers.BatchOperationStub();
+            controller = openmebius.application.batch ...
+                .BatchOperationController();
+            tableData = batch.Data;
+            tableData.Name = "Edited before duplicate";
+
+            outcome = controller.duplicate( ...
+                batch, ["batch-a"; "batch-b"], tableData);
+
+            testCase.verifyTrue(outcome.isSuccess());
+            testCase.verifyEqual( ...
+                batch.DuplicatedIds, ["batch-a"; "batch-b"]);
+            testCase.verifyEqual(batch.SavedTable, tableData);
+            testCase.verifyFalse(batch.SaveCalled);
+
+        end
+
         function capturesBatchOperationFailure(testCase)
 
             batch = helpers.BatchOperationStub();

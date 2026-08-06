@@ -162,6 +162,103 @@ classdef ModelRepository < handle
 
         end % readModelSheet
 
+        function writeModelSheets( ...
+                ~, modelLocation, fileName, fileType, ...
+                sheetNames, tables, writeRowNames)
+
+            arguments
+                ~
+                modelLocation openmebius.domain.model.ModelLocation
+                fileName (1, 1) string
+                fileType (1, 1) string
+                sheetNames (1, :) string
+                tables (1, :) cell
+                writeRowNames (1, :) logical
+            end
+
+            if fileType ~= "xlsx"
+                error( ...
+                    "OpenMebius2:ModelRepository:UnsupportedModelFileType", ...
+                    "The file type %s is not supported.", ...
+                    fileType);
+            end
+
+            if numel(sheetNames) ~= numel(tables) || ...
+                    numel(sheetNames) ~= numel(writeRowNames)
+                error( ...
+                    "OpenMebius2:ModelRepository:InvalidModelSheets", ...
+                "Model sheet names, tables, and row-name flags must align.");
+            end
+
+            pathFile = modelLocation.modelFile(fileName, fileType);
+
+            if ~isfile(pathFile)
+                error( ...
+                    "OpenMebius2:ModelRepository:ModelFileNotFound", ...
+                    "The file %s does not exist.", ...
+                    pathFile);
+            end
+
+            outputDirectory = string(fileparts(pathFile));
+            temporaryPath = string(tempname(char(outputDirectory))) + ...
+                ".xlsx";
+            cleanup = onCleanup(@() openmebius.infrastructure.model ...
+                .ModelRepository.deleteIfExists(temporaryPath));
+
+            try
+                [wasCopied, copyMessage] = copyfile( ...
+                    pathFile, temporaryPath, "f");
+
+                if ~wasCopied
+                    error( ...
+                        "OpenMebius2:ModelRepository:ModelCopyFailed", ...
+                        "Failed to prepare the model workbook: %s", ...
+                        copyMessage);
+                end
+
+                for sheetIndex = 1:numel(sheetNames)
+                    [wasWritten, writeMessage] = ...
+                        openmebius.infrastructure.filesystem ...
+                        .ExcelFileStore.writeTable( ...
+                        temporaryPath, ...
+                        tables{sheetIndex}, ...
+                        sheetNames(sheetIndex), ...
+                        WriteRowNames = writeRowNames(sheetIndex));
+
+                    if ~wasWritten
+                        error( ...
+                            "OpenMebius2:ModelRepository:ModelSheetWriteFailed", ...
+                            "Failed to write sheet %s: %s", ...
+                            sheetNames(sheetIndex), ...
+                            writeMessage);
+                    end
+
+                end
+
+                [wasMoved, moveMessage] = movefile( ...
+                    temporaryPath, pathFile, "f");
+
+                if ~wasMoved
+                    error( ...
+                        "OpenMebius2:ModelRepository:ModelReplaceFailed", ...
+                        "Failed to replace the model workbook: %s", ...
+                        moveMessage);
+                end
+
+            catch cause
+                exception = MException( ...
+                    "OpenMebius2:ModelRepository:ModelWriteFailed", ...
+                    "Failed to save the model workbook %s: %s", ...
+                    pathFile, ...
+                    string(cause.message));
+                exception = addCause(exception, cause);
+                throw(exception);
+            end
+
+            clear cleanup
+
+        end % writeModelSheets
+
         function label = readLabel(~, modelLocation, fileName, fileType)
 
             arguments
@@ -286,6 +383,14 @@ classdef ModelRepository < handle
     end % methods
 
     methods (Static, Access = private)
+
+        function deleteIfExists(pathFile)
+
+            if isfile(pathFile)
+                delete(pathFile);
+            end
+
+        end % deleteIfExists
 
         function throwModelSheetReadError(pathFile, cause)
 

@@ -118,6 +118,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ViewMStableMenu                 matlab.ui.container.Menu
         ContextMenuRun                  matlab.ui.container.ContextMenu
         AddbatchMenu                    matlab.ui.container.Menu
+        DuplicatethisbatchMenu          matlab.ui.container.Menu
         RemovethisbatchMenu             matlab.ui.container.Menu
         ParallellabelingMenu            matlab.ui.container.Menu
         ContextMenu2                    matlab.ui.container.ContextMenu
@@ -128,6 +129,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ContextMenu3                    matlab.ui.container.ContextMenu
         CopythistracerforallentriesMenu  matlab.ui.container.Menu
     end
+
 
 
     properties (Access = public)
@@ -1148,6 +1150,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 case openmebius.presentation.result.ResultPlotKind.OverviewFlux
                     app.renderOverviewResultPlot(viewModel);
 
+                case openmebius.presentation.result.ResultPlotKind.OptimizationState
+                    app.clearResultPlots();
+                    app.renderOptimizationRSSHistogram(viewModel.SubPlot);
+
                 otherwise
                     app.clearResultPlots();
             end
@@ -1500,8 +1506,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             useLogScale = isfield(plotData, "UseLogScale") && ...
                 isscalar(plotData.UseLogScale) && plotData.UseLogScale;
             rssForPlot = rss;
-            binCount = max(1, ceil(log2(numel(rss)) + 1));
-            histogramArguments = {'NumBins', binCount};
+            histogramArguments = {'BinMethod', 'fd'};
 
             if useLogScale
                 positiveRSS = rss(rss > 0);
@@ -1517,9 +1522,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     upperEdge = max(rssForPlot);
 
                     if lowerEdge < upperEdge
-                        binEdges = logspace( ...
-                            log10(lowerEdge), log10(upperEdge), binCount + 1);
-                        histogramArguments = {'BinEdges', binEdges};
+                        [~, logBinEdges] = histcounts( ...
+                            log10(rssForPlot), 'BinMethod', 'fd');
+                        histogramArguments = { ...
+                            'BinEdges', 10 .^ logBinEdges};
                     end
 
                     axes.XScale = 'log';
@@ -1544,6 +1550,26 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     'Color', "#D55E00", ...
                     'LineWidth', 2, ...
                     'DisplayName', 'Threshold');
+            end
+
+            maximumValue = max([rssForPlot; threshold]);
+            alpha = 0.05 * maximumValue;
+
+            if alpha == 0
+                alpha = 0.05;
+            end
+
+            upperXLimit = maximumValue + alpha;
+
+            if strcmp(axes.XScale, 'linear')
+                axes.XLim = [0, upperXLimit];
+            else
+                currentXLimits = axes.XLim;
+
+                if currentXLimits(1) < upperXLimit
+                    axes.XLim = [currentXLimits(1), upperXLimit];
+                end
+
             end
 
             legend(axes, 'show', 'Location', 'best');
@@ -3516,6 +3542,26 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % removeSelectedBatches
 
+        function duplicateSelectedBatches(app)
+
+            selectedRows = app.selectedTableRows(app.RunTable);
+
+            if isempty(selectedRows)
+                app.publishMessage( ...
+                    "warning", "Please select a batch to duplicate.");
+                return
+            end
+
+            batchData = app.getBatchOperationalData();
+            batchIds = string(batchData.ID(selectedRows));
+            [outcome, batch] = app.ApplicationController ...
+                .duplicateBatches(batchIds, batchData);
+            app.renderBatchOperationViewModel( ...
+                app.BatchPresenter.presentDuplicateOutcome( ...
+                outcome, batch));
+
+        end % duplicateSelectedBatches
+
         function context = captureResultPlotContext(app)
 
             context = struct();
@@ -4996,6 +5042,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.closeReloadWindowChildren();
             app.ApplicationController.resetWorkspace();
 
+            app.saveHistory();
             app.loadHistory();
             app.ProjectDirectoryDropDown.Value = "";
             app.TemplateModelDirectoryDropDown.Value = "";
@@ -5351,6 +5398,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method onPreferencesClosed
 
     end % methods (Access = private)
+
 
 
     % Callbacks that handle component events
@@ -5823,6 +5871,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         function OpenMebius2UIFigureKeyPress(app, event)
 
             app.reloadSelectedTab(event);
+        end
+
+        % Menu selected function: DuplicatethisbatchMenu
+        function DuplicatethisbatchMenuSelected(app, event)
+
+            app.duplicateSelectedBatches();
         end
     end
 
@@ -6622,6 +6676,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.AddbatchMenu = uimenu(app.ContextMenuRun);
             app.AddbatchMenu.MenuSelectedFcn = createCallbackFcn(app, @RunAddbatchMenuSelected, true);
             app.AddbatchMenu.Text = 'Add batch';
+
+            % Create DuplicatethisbatchMenu
+            app.DuplicatethisbatchMenu = uimenu(app.ContextMenuRun);
+            app.DuplicatethisbatchMenu.MenuSelectedFcn = createCallbackFcn(app, @DuplicatethisbatchMenuSelected, true);
+            app.DuplicatethisbatchMenu.Text = 'Duplicate this batch';
 
             % Create RemovethisbatchMenu
             app.RemovethisbatchMenu = uimenu(app.ContextMenuRun);

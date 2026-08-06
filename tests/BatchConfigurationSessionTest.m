@@ -62,6 +62,34 @@ classdef BatchConfigurationSessionTest < matlab.unittest.TestCase
 
         end
 
+        function terminalConfigurationIsReadOnly(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            batch.Config.status = 'finished';
+            session = BatchConfigurationSessionTest.createSession(batch);
+            config = session.primaryConfig();
+            config.iteration = 99;
+            selections = batch.getBatchMSFragmentSelections("batch-a");
+
+            testCase.verifyTrue(session.isReadOnly());
+            testCase.verifyError( ...
+                @() session.apply(config, selections, []), ...
+                "OpenMebius2:BatchConfigurationSession:ReadOnly");
+            testCase.verifyEqual(batch.ConfigUpdateCount, 0);
+            testCase.verifyEqual(batch.FragmentUpdateCount, 0);
+
+        end
+
+        function failedConfigurationIsReadOnly(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            batch.Config.status = 'error';
+            session = BatchConfigurationSessionTest.createSession(batch);
+
+            testCase.verifyTrue(session.isReadOnly());
+
+        end
+
     end % methods (Test)
 
     methods (Static, Access = private)
