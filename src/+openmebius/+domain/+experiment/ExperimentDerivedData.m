@@ -5,6 +5,7 @@ classdef ExperimentDerivedData
         MSNormalized table
         MDV table
         MDVBiomass table
+        MDVOptimization table
         MDVErrors (1, :) logical
         Enrichment table
         EnrichmentErrors (:, 1) logical
@@ -20,6 +21,7 @@ classdef ExperimentDerivedData
                 options.MSNormalized table
                 options.MDV table
                 options.MDVBiomass table
+                options.MDVOptimization table = table()
                 options.MDVErrors (1, :) logical
                 options.Enrichment table
                 options.EnrichmentErrors (:, 1) logical
@@ -31,7 +33,7 @@ classdef ExperimentDerivedData
                 error( ...
                     "OpenMebius2:ExperimentDerivedData:" + ...
                     "InvalidMDVErrors", ...
-                    "MDVErrors must contain one value per MDV column.");
+                "MDVErrors must contain one value per MDV column.");
             end
 
             if height(options.Enrichment) ~= ...
@@ -39,12 +41,13 @@ classdef ExperimentDerivedData
                 error( ...
                     "OpenMebius2:ExperimentDerivedData:" + ...
                     "InvalidEnrichmentErrors", ...
-                    "EnrichmentErrors must contain one value per row.");
+                "EnrichmentErrors must contain one value per row.");
             end
 
             obj.MSNormalized = options.MSNormalized;
             obj.MDV = options.MDV;
             obj.MDVBiomass = options.MDVBiomass;
+            obj.MDVOptimization = options.MDVOptimization;
             obj.MDVErrors = options.MDVErrors;
             obj.Enrichment = options.Enrichment;
             obj.EnrichmentErrors = options.EnrichmentErrors;

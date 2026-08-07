@@ -2081,6 +2081,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
+            if ~isempty(app.RunTableEditable)
+                return
+            end
+
             try
                 current = app.RunTable.ColumnEditable;
 
@@ -2105,6 +2109,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 end
 
                 app.RunTable.ColumnEditable = app.RunTableEditable;
+                app.RunTableEditable = [];
 
             catch
                 % If the table shape has changed, keep current ColumnEditable.

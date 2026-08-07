@@ -41,7 +41,11 @@ classdef PreferencesIntegrationTest < matlab.unittest.TestCase
                 app, ...
                 {"PreferencesClosed", @recordNotification});
 
-            app.MDVcorrectionDropDown.Value = "matrix";
+            testCase.verifyTrue(any(strcmp( ...
+                app.MDVcorrectionDropDown.ItemsData, ...
+            "least-squares-with-fraction")));
+            app.MDVcorrectionDropDown.Value = ...
+                "least-squares-with-fraction";
             closeCallback = app.CloseButton.ButtonPushedFcn;
             closeCallback(app.CloseButton, []);
 
@@ -51,7 +55,9 @@ classdef PreferencesIntegrationTest < matlab.unittest.TestCase
                 childAppHost.isAttached("Preferences"));
             testCase.verifyTrue( ...
                 unlockedViewModel.UiState.MainInteractionEnabled);
-            testCase.verifyEqual(preference.getMethod(), "matrix");
+            testCase.verifyEqual( ...
+                preference.getMethod(), ...
+            "least-squares-with-fraction");
 
             function recordNotification(~, ~)
 
