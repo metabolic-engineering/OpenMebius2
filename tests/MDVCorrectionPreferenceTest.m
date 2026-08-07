@@ -34,6 +34,19 @@ classdef MDVCorrectionPreferenceTest < matlab.unittest.TestCase
 
         end
 
+        function providesOneLabelPerSupportedMethod(testCase)
+
+            fixture = testCase.createFixture();
+
+            testCase.verifyEqual( ...
+                numel(fixture.Preference.SupportedMethodLabels), ...
+                numel(fixture.Preference.SupportedMethods));
+            testCase.verifyTrue(any( ...
+                fixture.Preference.SupportedMethods == ...
+            "least-squares-with-fraction"));
+
+        end
+
         function rejectsUnsupportedMethod(testCase)
 
             fixture = testCase.createFixture();

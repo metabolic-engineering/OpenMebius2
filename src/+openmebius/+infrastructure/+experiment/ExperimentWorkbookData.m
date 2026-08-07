@@ -8,6 +8,7 @@ classdef ExperimentWorkbookData
         MSNormalized table
         MDV table
         MDVBiomass table
+        MDVOptimization table
         Enrichment table
         DefaultSubstrateVariableNames (1, :) string
         DefaultSubstrateVariableTypes (1, :) string
@@ -24,6 +25,7 @@ classdef ExperimentWorkbookData
                 options.MSNormalized table = table()
                 options.MDV table = table()
                 options.MDVBiomass table = table()
+                options.MDVOptimization table = table()
                 options.Enrichment table = table()
                 options.DefaultSubstrateVariableNames (1, :) string = ...
                     strings(1, 0)
@@ -46,6 +48,7 @@ classdef ExperimentWorkbookData
             obj.MSNormalized = options.MSNormalized;
             obj.MDV = options.MDV;
             obj.MDVBiomass = options.MDVBiomass;
+            obj.MDVOptimization = options.MDVOptimization;
             obj.Enrichment = options.Enrichment;
             obj.DefaultSubstrateVariableNames = ...
                 options.DefaultSubstrateVariableNames;

@@ -155,11 +155,18 @@ name, without its extension, is the experiment name used by Batch definitions.
 | `MS (Normalized)` | Derived | Normalized MS values |
 | `MDV` | Derived | Corrected mass distribution vectors |
 | `MDV (biomass)` | Derived | Biomass-corrected MDVs |
+| `MDV optimization` | Derived | Optimal objective and biomass carryover fraction for each fragment |
 | `Enrichment` | Derived | Calculated enrichment values |
 
 The repository can reconstruct missing derived sheets from available inputs.
 Derived sheets are persisted when the experiment is saved. Older aliases for
 derived sheet names are resolved by `ExperimentWorkbookStore`.
+
+When `Least squares with fraction` is selected in Preferences, natural-isotope
+and biomass carryover correction are solved jointly. In this mode `MDV` and
+`MDV (biomass)` intentionally contain the same optimized values. The
+`MDV optimization` sheet stores the final `Objective` and optimized `Fraction`
+for each measured fragment.
 
 # Project directory
 

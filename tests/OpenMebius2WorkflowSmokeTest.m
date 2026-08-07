@@ -99,6 +99,14 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.verifyGreaterThan(height(app.RunTable.Data), 0);
 
             testCase.choose(app.TabGroup, "Run");
+            editableColumns = app.RunTable.ColumnEditable;
+            columnNames = string(app.RunTable.ColumnName);
+            nameColumn = find(columnNames == "Name", 1);
+            descriptionColumn = find(columnNames == "Description", 1);
+            testCase.assertNotEmpty(nameColumn);
+            testCase.assertNotEmpty(descriptionColumn);
+            testCase.assertTrue(editableColumns(nameColumn));
+            testCase.assertTrue(editableColumns(descriptionColumn));
             app.RunTable.Selection = [1, 1];
             app.Test_TriggerCancelDuringRun = true;
             testCase.press(app.RunRunButton);
@@ -106,6 +114,8 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.verifyTrue(app.Test_RunInvoked);
             testCase.verifyTrue(app.Test_CancelInvoked);
             testCase.verifyEqual(string(app.RunRunButton.Text), "Run");
+            testCase.verifyEqual( ...
+                app.RunTable.ColumnEditable, editableColumns);
 
             testCase.choose(app.TabGroup, "Result");
             testCase.press(app.ResultReportButton);
