@@ -400,6 +400,15 @@ classdef MainApplicationController < handle
 
         end
 
+        function [outcome, batch] = duplicateBatches( ...
+                obj, batchIds, tableData)
+
+            batch = obj.Session.Batch;
+            outcome = obj.BatchController.duplicate( ...
+                batch, batchIds, tableData);
+
+        end
+
         function [outcome, batch] = applyBatchExperimentSelection( ...
                 obj, selection)
 

@@ -32,18 +32,31 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             timeCourse = table( ...
                 "exp-a", 3, ...
                 VariableNames = ["TimePointExpName", "TimePoint"]);
+            suggestion = table("pattern-a", ...
+                VariableNames = "exp-a");
             app.EffluxUITable.Data = efflux;
+            app.LabelTable.Data = suggestion;
             app.INSTMFAPoolUITable.Data = pool;
             app.INSTMFATimeCourseUITable.Data = timeCourse;
+            app.MSTable.Data{1, 1} = false;
+            app.GridReactionUITable.Data.Select(2) = false;
+            expectedMS = app.MSTable.Data;
+            expectedGrid = app.GridReactionUITable.Data;
             app.IterationSpinner.Value = 7;
             app.CalcCICheckBox.Value = true;
+            app.MaxIterationsEditField.Value = 99;
+            app.MCLmaxEditField_2.Value = 9;
 
             callback = app.GeneralRestoreDefaultButton.ButtonPushedFcn;
             callback([], []);
 
             testCase.verifyEqual(app.IterationSpinner.Value, 30);
             testCase.verifyFalse(app.CalcCICheckBox.Value);
+            testCase.verifyEqual( ...
+                app.MaxIterationsEditField.Value, 2000);
+            testCase.verifyEqual(app.MCLmaxEditField_2.Value, 3);
             testCase.verifyEqual(app.EffluxUITable.Data, efflux);
+            testCase.verifyEqual(app.LabelTable.Data, suggestion);
             testCase.verifyEqual(app.INSTMFAPoolUITable.Data, pool);
             testCase.verifyEqual( ...
                 app.INSTMFATimeCourseUITable.Data, timeCourse);
@@ -54,13 +67,13 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 app.INSTMFATimeCourseUITable.ColumnEditable, ...
                 [false, false]);
-            testCase.verifyTrue( ...
-                all(app.GridReactionUITable.Data.Select));
+            testCase.verifyEqual( ...
+                app.GridReactionUITable.Data, expectedGrid);
             testCase.verifyEqual( ...
                 app.GridReactionUITable.ColumnEditable, ...
                 [true, false, false]);
             testCase.verifyEqual(app.EffluxUITable.Enable, 'off');
-            testCase.verifyTrue(all(app.MSTable.Data{:, :}, "all"));
+            testCase.verifyEqual(app.MSTable.Data, expectedMS);
             testCase.verifyEqual(batch.ConfigUpdateCount, 0);
             testCase.verifyEqual(recorder.AppliedCount, 0);
 
@@ -76,26 +89,58 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             recorder.attach(app);
             app.IterationSpinner.Value = 42;
             app.MSTable.Data{1, 1} = true;
+            app.AlgorithmDropDown.Value = 'IPMs';
+            app.FluxLBEditField.Value = -200;
+            app.FluxUBEditField.Value = 300;
+            app.MaxFunctionEvaluationsEditField.Value = 4321;
+            app.MaxIterationsEditField.Value = 876;
+            app.FunctionToleranceEditField.Value = 2e-6;
+            app.StepToleranceEditField.Value = 3e-10;
+            app.OptimalityToleranceEditField.Value = 4e-8;
+            app.ConstraintToleranceEditField.Value = 5e-8;
+            app.FiniteDifferenceTypeDropDown.Value = 'Forward';
+            app.FiniteDifferenceStepSizeEditField.Value = 6e-6;
+            app.SearchOptimalFiniteDifferenceStepSizeCheckBox.Value = ...
+                false;
+            app.MCLmaxEditField_2.Value = 4.5;
 
-            applyButtons = [ ...
-                                app.GeneralApplyButton
-                            app.MSApplyAllButton
-                            app.EffluxApplyButton
-                            app.SuggestionApplyButton
-                            app.INSTMFAApplyButton];
-
-            for buttonIndex = 1:numel(applyButtons)
-                callback = applyButtons(buttonIndex).ButtonPushedFcn;
-                callback([], []);
-            end
+            callback = app.OptimizationCloseButton.ButtonPushedFcn;
+            callback([], []);
 
             testCase.verifyEqual(batch.Config.iteration, 42);
-            testCase.verifyEqual(batch.ConfigUpdateCount, 5);
-            testCase.verifyEqual(batch.FragmentUpdateCount, 5);
+            testCase.verifyEqual(batch.Config.algorithm, 'interior-point');
+            testCase.verifyEqual(batch.Config.fluxLB, -200);
+            testCase.verifyEqual(batch.Config.fluxUB, 300);
+            testCase.verifyEqual( ...
+                batch.Config.fmincon.maxFunctionEvaluations, 4321);
+            testCase.verifyEqual( ...
+                batch.Config.fmincon.maxIterations, 876);
+            testCase.verifyEqual( ...
+                batch.Config.fmincon.functionTolerance, 2e-6);
+            testCase.verifyEqual( ...
+                batch.Config.fmincon.stepTolerance, 3e-10);
+            testCase.verifyEqual( ...
+                batch.Config.fmincon.optimalityTolerance, 4e-8);
+            testCase.verifyEqual( ...
+                batch.Config.fmincon.constraintTolerance, 5e-8);
+            testCase.verifyEqual( ...
+                batch.Config.fmincon.finiteDifferenceType, 'forward');
+            testCase.verifyEqual( ...
+                batch.Config.fmincon.finiteDifferenceStepSize, 6e-6);
+            testCase.verifyFalse( ...
+                batch.Config.fmincon ...
+                .finiteDifferenceStepSizeSearch.enabled);
+            testCase.verifyEqual( ...
+                batch.Config.initialFlux ...
+                .freeEffluxSeedSigmaMultiplier, 4.5);
+            testCase.verifyEqual(batch.ConfigUpdateCount, 1);
+            testCase.verifyEqual(batch.FragmentUpdateCount, 1);
             testCase.verifyTrue( ...
                 batch.LastFragmentSelections(1).Selection(1));
-            testCase.verifyEqual(recorder.AppliedCount, 5);
+            testCase.verifyEqual(recorder.AppliedCount, 1);
+            testCase.verifyEqual(recorder.ClosedCount, 1);
             testCase.verifyEmpty(recorder.Notifications);
+            testCase.verifyFalse(isvalid(app));
 
         end
 
@@ -116,6 +161,57 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
         end
 
+        function terminalConfigurationDisablesEditingAndClosesWithoutSaving( ...
+                testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            batch.Config.status = 'finished';
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfigActionTest.createApp(session);
+            cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+            recorder = helpers.RunConfigEventRecorder();
+            recorder.attach(app);
+
+            testCase.verifyEqual(string(app.IterationSpinner.Enable), "off");
+            testCase.verifyEqual(string(app.CalcCICheckBox.Enable), "off");
+            testCase.verifyEqual(string(app.MSTable.Enable), "off");
+            testCase.verifyFalse(any(app.MSTable.ColumnEditable));
+            testCase.verifyEqual( ...
+                string(app.GeneralRestoreDefaultButton.Enable), "off");
+            testCase.verifyEqual( ...
+                string(app.GeneralCloseButton.Enable), "on");
+            testCase.verifyEqual( ...
+                string(app.GeneralCancelButton.Enable), "on");
+
+            callback = app.GeneralCloseButton.ButtonPushedFcn;
+            callback([], []);
+
+            testCase.verifyFalse(isvalid(app));
+            testCase.verifyEqual(batch.ConfigUpdateCount, 0);
+            testCase.verifyEqual(batch.FragmentUpdateCount, 0);
+            testCase.verifyEqual(recorder.AppliedCount, 0);
+            testCase.verifyEqual(recorder.ClosedCount, 1);
+
+        end
+
+        function escapeClosesWithoutSaving(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfigActionTest.createApp(session);
+            recorder = helpers.RunConfigEventRecorder();
+            recorder.attach(app);
+            app.IterationSpinner.Value = 91;
+
+            callback = app.BatchconfigUIFigure.KeyPressFcn;
+            callback([], struct(Key = 'escape'));
+
+            testCase.verifyFalse(isvalid(app));
+            testCase.verifyEqual(batch.ConfigUpdateCount, 0);
+            testCase.verifyEqual(recorder.ClosedCount, 1);
+
+        end
+
         function reportsApplyFailureAndKeepsOriginalConfig(testCase)
 
             batch = helpers.RunConfigBatchStub();
@@ -128,7 +224,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             recorder.attach(app);
             app.IterationSpinner.Value = 55;
 
-            callback = app.GeneralApplyButton.ButtonPushedFcn;
+            callback = app.GeneralCloseButton.ButtonPushedFcn;
             callback([], []);
 
             testCase.verifyEqual(batch.Config.iteration, originalIteration);
@@ -138,6 +234,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
                 recorder.Notifications{1}.Level, "error");
             testCase.verifyTrue( ...
                 recorder.Notifications{1}.ShowAlert);
+            testCase.verifyTrue(isvalid(app));
 
         end
 
@@ -165,7 +262,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             app.DeterminegridintervalautomaticallyCheckBox.Value = false;
             app.CheckBox.Value = false;
             app.GridReactionUITable.Data.Select(2) = false;
-            callback = app.GeneralApplyButton.ButtonPushedFcn;
+            callback = app.GeneralCloseButton.ButtonPushedFcn;
             callback([], []);
 
             testCase.verifyEqual( ...
@@ -184,6 +281,67 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 batch.Config.CIConf.grid.reactions.id, ...
                 ["R1"; "R2"]);
+
+        end
+
+        function conditionallyShowsTabsAndPreservesTableValues(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfigActionTest.createApp(session);
+            cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+
+            testCase.verifyEmpty(app.EffluxperturbationTab.Parent);
+            testCase.verifyEmpty(app.TracersuggestionTab.Parent);
+            testCase.verifyEmpty(app.INSTMFATab.Parent);
+
+            efflux = table( ...
+                true, 0.25, ...
+                VariableNames = ["Selection", "SD"], ...
+                RowNames = "substrate-a");
+            app.EffluxUITable.Data = efflux;
+            app.PerturbateEffluxCheckBox.Value = true;
+            callback = app.PerturbateEffluxCheckBox.ValueChangedFcn;
+            callback([], []);
+            testCase.verifyEqual( ...
+                app.EffluxperturbationTab.Parent, app.TabGroup);
+
+            app.PerturbateEffluxCheckBox.Value = false;
+            callback([], []);
+            testCase.verifyEmpty(app.EffluxperturbationTab.Parent);
+            testCase.verifyEqual(app.EffluxUITable.Data, efflux);
+
+            suggestion = table("pattern-a", ...
+                VariableNames = "exp-a");
+            app.LabelTable.Data = suggestion;
+            app.SuggestionCheckBox.Value = true;
+            callback = app.SuggestionCheckBox.ValueChangedFcn;
+            callback([], []);
+            testCase.verifyEqual( ...
+                app.TracersuggestionTab.Parent, app.TabGroup);
+            app.SuggestionCheckBox.Value = false;
+            callback([], []);
+            testCase.verifyEmpty(app.TracersuggestionTab.Parent);
+            testCase.verifyEqual(app.LabelTable.Data, suggestion);
+
+            pool = table( ...
+                "metabolite-a", 2.5, ...
+                VariableNames = ["Metabolite", "PoolSize"]);
+            timeCourse = table( ...
+                "exp-a", 3, ...
+                VariableNames = ["TimePointExpName", "TimePoint"]);
+            app.INSTMFAPoolUITable.Data = pool;
+            app.INSTMFATimeCourseUITable.Data = timeCourse;
+            app.INSTMFACheckBox.Value = true;
+            callback = app.INSTMFACheckBox.ValueChangedFcn;
+            callback([], struct(Source = app.INSTMFACheckBox));
+            testCase.verifyEqual(app.INSTMFATab.Parent, app.TabGroup);
+            app.INSTMFACheckBox.Value = false;
+            callback([], struct(Source = app.INSTMFACheckBox));
+            testCase.verifyEmpty(app.INSTMFATab.Parent);
+            testCase.verifyEqual(app.INSTMFAPoolUITable.Data, pool);
+            testCase.verifyEqual( ...
+                app.INSTMFATimeCourseUITable.Data, timeCourse);
 
         end
 

@@ -12,6 +12,7 @@ classdef InitialFluxWorkflowInput
         EffluxPenalty
         EffluxProfile (1, 1) ...
             openmebius.mfa.EffluxPerturbationProfile
+        FreeConstraintIDs (:, 1) string
         ReversibleReactionIndices (:, 2) double
     end
 
@@ -36,6 +37,7 @@ classdef InitialFluxWorkflowInput
                 options.EffluxPenalty
                 options.EffluxProfile (1, 1) ...
                     openmebius.mfa.EffluxPerturbationProfile
+                options.FreeConstraintIDs string = strings(0, 1)
                 options.ReversibleReactionIndices (:, 2) double = ...
                     zeros(0, 2)
             end
@@ -91,6 +93,18 @@ classdef InitialFluxWorkflowInput
                 "The efflux penalty must implement evaluate().");
             end
 
+            freeConstraintIDs = string(options.FreeConstraintIDs(:));
+
+            if any(ismissing(freeConstraintIDs)) || ...
+                    any(strlength(freeConstraintIDs) == 0) || ...
+                    numel(unique(freeConstraintIDs)) ~= ...
+                    numel(freeConstraintIDs)
+                error( ...
+                    "OpenMebius2:InitialFluxInput:" + ...
+                    "InvalidFreeConstraintIDs", ...
+                "Free constraint IDs must be nonempty and unique.");
+            end
+
             obj.Model = options.Model;
             obj.Settings = options.Settings;
             obj.RightHandSide = options.RightHandSide;
@@ -100,6 +114,7 @@ classdef InitialFluxWorkflowInput
             obj.ExperimentalData = options.ExperimentalData;
             obj.EffluxPenalty = options.EffluxPenalty;
             obj.EffluxProfile = options.EffluxProfile;
+            obj.FreeConstraintIDs = freeConstraintIDs;
             obj.ReversibleReactionIndices = reversibleIndices;
 
         end % constructor

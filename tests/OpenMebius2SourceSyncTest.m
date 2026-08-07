@@ -58,6 +58,39 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
 
         end
 
+        function viewComparisonCodeMatchesExportedSource(testCase)
+
+            OpenMebius2SourceSyncTest.verifyAppSource( ...
+                testCase, "ViewComparison");
+
+        end
+
+        function legacyParserDoesNotProduceFalseMismatch(testCase)
+
+            parser = helpers.LegacyPlainTextCodeParserStub();
+            callbackInfo = struct( ...
+                AssignedCallbacks = [], ...
+                Children = struct.empty);
+            [codeData, isSupported] = ...
+                OpenMebius2SourceSyncTest.tryParseCodeData( ...
+                parser, callbackInfo, "startupFcn", true, "Standard");
+
+            testCase.verifyFalse(isSupported);
+            testCase.verifyEmpty(codeData);
+
+        end
+
+        function editableSectionBoundaryBlankLinesAreIgnored(testCase)
+
+            actual = {'', 'properties', ''};
+            expected = {'', '', 'properties', '', ''};
+
+            testCase.verifyEqual( ...
+                OpenMebius2SourceSyncTest.normalizeCodeData(actual), ...
+                OpenMebius2SourceSyncTest.normalizeCodeData(expected));
+
+        end
+
         function allMlappCodeStoresAreSynchronized(testCase)
 
             root = fileparts(fileparts(mfilename("fullpath")));
@@ -93,37 +126,65 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
             exportedCode = replace( ...
                 exportedCode, appName + "_exported", appName);
 
-            [appModelCode, expectedCode] = ...
+            appModelCode = OpenMebius2SourceSyncTest.readAppModelCode( ...
+                testCase, mlappPath);
+            testCase.verifyEqual( ...
+                OpenMebius2SourceSyncTest.normalizeCode(appModelCode), ...
+                OpenMebius2SourceSyncTest.normalizeCode(exportedCode), ...
+                "appModel.mat mismatch in " + appName);
+
+            [actualCodeData, expectedCodeData, isParserSupported] = ...
                 OpenMebius2SourceSyncTest.appModelCodeData( ...
                 testCase, mlappPath, exportedCode);
-            fields = [ ...
-                "ClassName", ...
-                "EditableSectionCode", ...
-                "Callbacks", ...
-                "StartupCallback", ...
-                "InputParameters"];
 
-            for fieldIndex = 1:numel(fields)
-                field = fields(fieldIndex);
-                testCase.verifyEqual( ...
-                    OpenMebius2SourceSyncTest.normalizeCodeData( ...
-                        appModelCode.(field)), ...
-                    OpenMebius2SourceSyncTest.normalizeCodeData( ...
-                        expectedCode.(field)), ...
-                    "appModel.mat mismatch in " + appName + ...
-                    ": " + field);
+            if isParserSupported
+                fields = [ ...
+                              "ClassName", ...
+                              "EditableSectionCode", ...
+                              "Callbacks", ...
+                              "StartupCallback", ...
+                          "InputParameters"];
+
+                for fieldIndex = 1:numel(fields)
+                    field = fields(fieldIndex);
+                    testCase.verifyEqual( ...
+                        OpenMebius2SourceSyncTest.normalizeCodeData( ...
+                        actualCodeData.(field)), ...
+                        OpenMebius2SourceSyncTest.normalizeCodeData( ...
+                        expectedCodeData.(field)), ...
+                        "appModel.mat mismatch in " + appName + ...
+                        ": " + field);
+                end
+
             end
 
             mlappCode = OpenMebius2SourceSyncTest.readDocumentCode( ...
                 testCase, mlappPath);
             testCase.verifyEqual( ...
                 OpenMebius2SourceSyncTest.normalizeCode(mlappCode), ...
-                OpenMebius2SourceSyncTest.normalizeCode(exportedCode));
+                OpenMebius2SourceSyncTest.normalizeCode(exportedCode), ...
+                "document.xml mismatch in " + appName);
 
         end % verifyAppSource
 
-        function [actual, expected] = appModelCodeData( ...
-                testCase, mlappPath, exportedCode)
+        function code = readAppModelCode(testCase, mlappPath)
+
+            [loadOutcome, ~, ~, code] = ...
+                appdesigner.internal.comparison.getAppCode(mlappPath);
+            diagnostic = "Unable to read appModel.mat.";
+
+            if isfield(loadOutcome, 'Message')
+                diagnostic = diagnostic + " " + ...
+                    string(loadOutcome.Message);
+            end
+
+            testCase.assertEqual( ...
+                string(loadOutcome.Status), "success", diagnostic);
+
+        end % readAppModelCode
+
+        function [actual, expected, isParserSupported] = ...
+                appModelCodeData(testCase, mlappPath, exportedCode)
 
             [actual, ~, metadata] = ...
                 appdesigner.internal.comparison.getAppData(mlappPath);
@@ -141,9 +202,19 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
 
             isSingleton = isfield(actual, 'SingletonMode') && ...
                 strcmp(actual.SingletonMode, 'FOCUS');
-            expected = parser.parseCodeData( ...
-                callbackInfo, startupName, isSingleton, ...
-                string(metadata.AppType));
+            appType = "Standard";
+
+            if isfield(metadata, 'AppType')
+                appType = string(metadata.AppType);
+            end
+
+            [expected, isParserSupported] = ...
+                OpenMebius2SourceSyncTest.tryParseCodeData( ...
+                parser, callbackInfo, startupName, isSingleton, appType);
+
+            if ~isParserSupported
+                return
+            end
 
             if isfield(expected, 'StartupFcn')
                 expected.StartupCallback = expected.StartupFcn;
@@ -151,11 +222,11 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
             end
 
             requiredFields = [ ...
-                "ClassName", ...
-                "EditableSectionCode", ...
-                "Callbacks", ...
-                "StartupCallback", ...
-                "InputParameters"];
+                                  "ClassName", ...
+                                  "EditableSectionCode", ...
+                                  "Callbacks", ...
+                                  "StartupCallback", ...
+                              "InputParameters"];
             defaults = struct( ...
                 EditableSectionCode = {{}}, ...
                 Callbacks = [], ...
@@ -182,6 +253,26 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
             end
 
         end % appModelCodeData
+
+        function [codeData, isSupported] = tryParseCodeData( ...
+                parser, callbackInfo, startupName, isSingleton, appType)
+
+            isSupported = true;
+
+            try
+                codeData = parser.parseCodeData( ...
+                    callbackInfo, startupName, isSingleton, appType);
+            catch exception
+
+                if ~strcmp(exception.identifier, "MATLAB:TooManyInputs")
+                    rethrow(exception);
+                end
+
+                codeData = [];
+                isSupported = false;
+            end
+
+        end % tryParseCodeData
 
         function code = readDocumentCode(testCase, mlappPath)
 
@@ -224,19 +315,31 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
             end
 
             if iscell(value)
+
                 for valueIndex = 1:numel(value)
                     value{valueIndex} = OpenMebius2SourceSyncTest ...
                         .normalizeCodeData(value{valueIndex});
+                end
+
+                if isvector(value)
+                    value = value(:);
+
+                    while numel(value) > 1 && ...
+                            ischar(value{1}) && isempty(value{1})
+                        value(1) = [];
+                    end
+
+                    while numel(value) > 1 && ...
+                            ischar(value{end}) && isempty(value{end})
+                        value(end) = [];
+                    end
+
                 end
 
                 if isscalar(value) && ischar(value{1}) && ...
                         isempty(value{1})
                     value = '';
                     return
-                end
-
-                if isvector(value)
-                    value = value(:);
                 end
 
                 return
@@ -246,14 +349,17 @@ classdef OpenMebius2SourceSyncTest < matlab.unittest.TestCase
                 fields = fieldnames(value);
 
                 for valueIndex = 1:numel(value)
+
                     for fieldIndex = 1:numel(fields)
                         field = fields{fieldIndex};
                         value(valueIndex).(field) = ...
                             OpenMebius2SourceSyncTest ...
-                                .normalizeCodeData( ...
-                                    value(valueIndex).(field));
+                            .normalizeCodeData( ...
+                            value(valueIndex).(field));
                     end
+
                 end
+
             end
 
         end

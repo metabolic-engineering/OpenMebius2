@@ -7,7 +7,7 @@ classdef BatchOperationController < handle
 
             outcome = openmebius.application.batch ...
                 .BatchOperationController.executeCommand( ...
-                    @() batch.autoFillBatch());
+                @() batch.autoFillBatch());
 
         end % autoFill
 
@@ -30,6 +30,28 @@ classdef BatchOperationController < handle
             end
 
         end % save
+
+        function outcome = duplicate(~, batch, batchIds, tableData)
+
+            arguments
+                ~
+                batch
+                batchIds (:, 1) string
+                tableData table
+            end
+
+            outcome = openmebius.application.batch ...
+                .BatchOperationController.executeCommand( ...
+                @duplicateBatches);
+
+            function duplicateBatches()
+
+                batch.updateBatchFromGUI(tableData);
+                batch.duplicateBatches(batchIds);
+
+            end
+
+        end % duplicate
 
         function outcome = remove(~, batch, batchIds)
 
@@ -71,6 +93,7 @@ classdef BatchOperationController < handle
 
                 switch selection.Mode
                     case "parallel"
+
                         if selection.AddAsParallel
                             config = struct( ...
                                 numExperiments = numel(experiments), ...
@@ -81,6 +104,7 @@ classdef BatchOperationController < handle
                                 "Added parallel item", ...
                                 config);
                         else
+
                             for experimentIndex = 1:numel(experiments)
                                 experiment = experiments(experimentIndex);
                                 batch.addBatch( ...
@@ -89,6 +113,7 @@ classdef BatchOperationController < handle
                                     "Added item", ...
                                     struct());
                             end
+
                         end
 
                     case "inst-mfa"
@@ -121,9 +146,9 @@ classdef BatchOperationController < handle
             catch exception
                 outcome = openmebius.application.batch ...
                     .BatchOperationOutcome( ...
-                        false, ...
-                        ErrorMessage = string(exception.message), ...
-                        Exception = exception);
+                    false, ...
+                    ErrorMessage = string(exception.message), ...
+                    Exception = exception);
             end
 
         end % executeCommand

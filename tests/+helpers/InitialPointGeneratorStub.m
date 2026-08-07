@@ -7,6 +7,9 @@ classdef InitialPointGeneratorStub < handle
         IsError (1, 1) logical = false
         ErrorMessage (1, 1) string = ""
         LastProblem = []
+        RetryFluxes (:, :) double = zeros(0, 0)
+        RetryRightHandSides (:, :) double = zeros(0, 0)
+        GenerationCount (1, 1) double = 0
     end
 
     methods
@@ -20,6 +23,8 @@ classdef InitialPointGeneratorStub < handle
                 options.IsCanceled (1, 1) logical = false
                 options.IsError (1, 1) logical = false
                 options.ErrorMessage (1, 1) string = ""
+                options.RetryFluxes double = zeros(0, 0)
+                options.RetryRightHandSides double = zeros(0, 0)
             end
 
             obj.Fluxes = fluxes;
@@ -27,12 +32,15 @@ classdef InitialPointGeneratorStub < handle
             obj.IsCanceled = options.IsCanceled;
             obj.IsError = options.IsError;
             obj.ErrorMessage = options.ErrorMessage;
+            obj.RetryFluxes = options.RetryFluxes;
+            obj.RetryRightHandSides = options.RetryRightHandSides;
 
         end
 
         function result = generateRandom(obj, problem, ~, varargin)
 
             obj.LastProblem = problem;
+            obj.GenerationCount = obj.GenerationCount + 1;
             result = obj.result();
 
         end
@@ -41,6 +49,7 @@ classdef InitialPointGeneratorStub < handle
                 obj, problem, ~, ~, varargin)
 
             obj.LastProblem = problem;
+            obj.GenerationCount = obj.GenerationCount + 1;
             result = obj.result();
 
         end
@@ -51,9 +60,17 @@ classdef InitialPointGeneratorStub < handle
 
         function value = result(obj)
 
+            fluxes = obj.Fluxes;
+            rightHandSides = obj.RightHandSides;
+
+            if obj.GenerationCount > 1 && ~isempty(obj.RetryFluxes)
+                fluxes = obj.RetryFluxes;
+                rightHandSides = obj.RetryRightHandSides;
+            end
+
             value = openmebius.mfa.InitialPointResult( ...
-                Fluxes = obj.Fluxes, ...
-                RightHandSides = obj.RightHandSides, ...
+                Fluxes = fluxes, ...
+                RightHandSides = rightHandSides, ...
                 IsCanceled = obj.IsCanceled, ...
                 IsError = obj.IsError, ...
                 ErrorMessage = obj.ErrorMessage);

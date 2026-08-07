@@ -21,7 +21,7 @@ classdef MFAAnalysisSettingsMapperTest < matlab.unittest.TestCase
             testCase.verifyTrue(mapping.IsValid);
             testCase.verifyClass( ...
                 mapping.Settings, ...
-                'openmebius.application.analysis.MFAAnalysisSettings');
+            'openmebius.application.analysis.MFAAnalysisSettings');
             testCase.verifyEqual( ...
                 mapping.Settings.InitialFluxSettings.IterationCount, 3);
             testCase.verifyEqual( ...
@@ -29,6 +29,24 @@ classdef MFAAnalysisSettingsMapperTest < matlab.unittest.TestCase
                 openmebius.mfa.MFAAnalysisMode.SteadyState);
             testCase.verifyEmpty( ...
                 mapping.Settings.InstationaryInputSpecification);
+            testCase.verifyEqual(mapping.Settings.FVALowerBound, -1000);
+            testCase.verifyEqual(mapping.Settings.FVAUpperBound, 1000);
+
+        end
+
+        function mapsConfiguredFVABounds(testCase)
+
+            mapping = openmebius.application.analysis ...
+                .MFAAnalysisSettingsMapper.tryFromBatchConfig( ...
+                struct( ...
+                iteration = 3, ...
+                isINSTMFA = false, ...
+                fluxLB = -250, ...
+                fluxUB = 450));
+
+            testCase.verifyTrue(mapping.IsValid);
+            testCase.verifyEqual(mapping.Settings.FVALowerBound, -250);
+            testCase.verifyEqual(mapping.Settings.FVAUpperBound, 450);
 
         end
 
@@ -46,7 +64,7 @@ classdef MFAAnalysisSettingsMapperTest < matlab.unittest.TestCase
             testCase.verifyTrue(mapping.IsValid);
             testCase.verifyClass( ...
                 mapping.Settings.InstationaryInputSpecification, ...
-                'openmebius.mfa.InstationaryInputSpecification');
+            'openmebius.mfa.InstationaryInputSpecification');
 
         end
 
@@ -60,7 +78,7 @@ classdef MFAAnalysisSettingsMapperTest < matlab.unittest.TestCase
             testCase.verifyEqual(mapping.FailureStage, "initial");
             testCase.verifyTrue(contains( ...
                 mapping.ErrorMessage, ...
-                "initial-flux iteration count"));
+            "initial-flux iteration count"));
 
         end
 
@@ -99,7 +117,7 @@ classdef MFAAnalysisSettingsMapperTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-                'src');
+            'src');
 
         end
 

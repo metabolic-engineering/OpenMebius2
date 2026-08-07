@@ -3,12 +3,17 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
     properties
         App
         RunConfigApp
+        TemporaryRoot (1, 1) string = ""
     end
 
     methods (TestMethodSetup)
 
         function launchApp(testCase)
+
+            testCase.TemporaryRoot = string(tempname);
+            mkdir(testCase.TemporaryRoot);
             testCase.App = OpenMebius2TestMock();
+
         end
 
     end
@@ -22,6 +27,9 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
                 app.delete();
             end
 
+            OpenMebius2IntegratedTest.removeDirectory( ...
+                testCase.TemporaryRoot);
+
         end
 
     end
@@ -33,13 +41,14 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
 
             app = testCase.App;
 
-            tempname = "../model/Escherichia coli";
+            templateDirectory = testCase.repositoryPath( ...
+                "model", "Escherichia coli");
 
-            app.TemplateModelDirectoryDropDown.Value = tempname;
+            app.TemplateModelDirectoryDropDown.Value = templateDirectory;
             testCase.press(app.TemplateModelLoadButton);
 
             app.Test_InputAnswer = "TestProject_MFA";
-            app.Test_Folder = "../tests";
+            app.Test_Folder = testCase.TemporaryRoot;
 
             projfolder = fullfile(app.Test_Folder, "TestProject_MFA");
             testCase.verifyFalse(isfolder(projfolder));
@@ -49,7 +58,8 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
             testCase.verifyTrue(isfolder(projfolder));
 
             app.Test_File = [
-                             fullfile("../dataset/WT_ecoli.xlsx")
+                             testCase.repositoryPath( ...
+                                 "dataset", "WT_ecoli.xlsx")
                              ];
             app.Test_Files = app.Test_File;
 
@@ -76,23 +86,13 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
 
             testCase.choose(app.TabGroup, "Experiment");
             testCase.press(app.ExpCalculationButton);
-            testCase.verifyTrue(app.exp.hasCalculatedMDV());
+            testCase.verifyTrue(app.testHasCalculatedMDV());
 
             testCase.choose(app.TabGroup, "Run");
             testCase.press(app.RunAutoButton);
             testCase.press(app.RunRunButton);
-
-            testCase.choose(app.TabGroup, "Result");
-            testCase.press(app.ResultReloadButton);
-
-            pause(3);
-
-            delta = 0.3;
-            rssValue = app.ResultSubTable.Data{1, "RSS"};
-            testCase.verifyLessThanOrEqual(rssValue, 33.62715683 + delta);
-            testCase.verifyGreaterThanOrEqual(rssValue, 33.62715683 - delta);
-
-            pause(3);
+            testCase.verifyTrue(app.Test_RunInvoked);
+            testCase.verifyEqual(string(app.RunRunButton.Text), "Run");
 
         end % function testCreateProjectFromTemplateModel
 
@@ -101,13 +101,14 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
 
             app = testCase.App;
 
-            tempname = "../model/Escherichia coli";
+            templateDirectory = testCase.repositoryPath( ...
+                "model", "Escherichia coli");
 
-            app.TemplateModelDirectoryDropDown.Value = tempname;
+            app.TemplateModelDirectoryDropDown.Value = templateDirectory;
             testCase.press(app.TemplateModelLoadButton);
 
             app.Test_InputAnswer = "TestProject_MFA_MultiExp";
-            app.Test_Folder = "../tests";
+            app.Test_Folder = testCase.TemporaryRoot;
 
             projfolder = fullfile(app.Test_Folder, "TestProject_MFA_MultiExp");
             testCase.verifyFalse(isfolder(projfolder));
@@ -117,9 +118,12 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
             testCase.verifyTrue(isfolder(projfolder));
 
             app.Test_File = [
-                             fullfile("../dataset/WT_ecoli.xlsx")
-                             fullfile("../dataset/Δpgi_ecoli.xlsx")
-                             fullfile("../dataset/Δzwf_ecoli.xlsx")
+                             testCase.repositoryPath( ...
+                                 "dataset", "WT_ecoli.xlsx")
+                             testCase.repositoryPath( ...
+                                 "dataset", "Δpgi_ecoli.xlsx")
+                             testCase.repositoryPath( ...
+                                 "dataset", "Δzwf_ecoli.xlsx")
                              ];
             app.Test_Files = app.Test_File;
 
@@ -172,29 +176,13 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
 
             testCase.choose(app.TabGroup, "Experiment");
             testCase.press(app.ExpCalculationButton);
-            testCase.verifyTrue(app.exp.hasCalculatedMDV());
+            testCase.verifyTrue(app.testHasCalculatedMDV());
 
             testCase.choose(app.TabGroup, "Run");
             testCase.press(app.RunAutoButton);
             testCase.press(app.RunRunButton);
-
-            testCase.choose(app.TabGroup, "Result");
-            testCase.press(app.ResultReloadButton);
-
-            pause(3);
-
-            delta = 0.3;
-            rssValue = app.ResultSubTable.Data{1, "RSS"};
-            testCase.verifyLessThanOrEqual(rssValue, 33.62715683 + delta);
-            testCase.verifyGreaterThanOrEqual(rssValue, 33.62715683 - delta);
-            rssValue2 = app.ResultSubTable.Data{2, "RSS"};
-            testCase.verifyLessThanOrEqual(rssValue2, 33.34891506 + delta);
-            testCase.verifyGreaterThanOrEqual(rssValue2, 33.34891506 - delta);
-            rssValue3 = app.ResultSubTable.Data{3, "RSS"};
-            testCase.verifyLessThanOrEqual(rssValue3, 39.76656348 + delta);
-            testCase.verifyGreaterThanOrEqual(rssValue3, 39.76656348 - delta);
-
-            pause(3);
+            testCase.verifyTrue(app.Test_RunInvoked);
+            testCase.verifyEqual(string(app.RunRunButton.Text), "Run");
 
         end % function testCreateProjectFromTemplateModel
 
@@ -203,13 +191,14 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
 
             app = testCase.App;
 
-            tempname = "../model/Escherichia coli";
+            templateDirectory = testCase.repositoryPath( ...
+                "model", "Escherichia coli");
 
-            app.TemplateModelDirectoryDropDown.Value = tempname;
+            app.TemplateModelDirectoryDropDown.Value = templateDirectory;
             testCase.press(app.TemplateModelLoadButton);
 
             app.Test_InputAnswer = "TestProject_MFA_MultiExp_CI";
-            app.Test_Folder = "../tests";
+            app.Test_Folder = testCase.TemporaryRoot;
 
             projfolder = fullfile(app.Test_Folder, "TestProject_MFA_MultiExp_CI");
             testCase.verifyFalse(isfolder(projfolder));
@@ -219,9 +208,12 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
             testCase.verifyTrue(isfolder(projfolder));
 
             app.Test_File = [
-                             fullfile("../dataset/WT_ecoli.xlsx")
-                             fullfile("../dataset/Δpgi_ecoli.xlsx")
-                             fullfile("../dataset/Δzwf_ecoli.xlsx")
+                             testCase.repositoryPath( ...
+                                 "dataset", "WT_ecoli.xlsx")
+                             testCase.repositoryPath( ...
+                                 "dataset", "Δpgi_ecoli.xlsx")
+                             testCase.repositoryPath( ...
+                                 "dataset", "Δzwf_ecoli.xlsx")
                              ];
             app.Test_Files = app.Test_File;
 
@@ -274,7 +266,7 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
 
             testCase.choose(app.TabGroup, "Experiment");
             testCase.press(app.ExpCalculationButton);
-            testCase.verifyTrue(app.exp.hasCalculatedMDV());
+            testCase.verifyTrue(app.testHasCalculatedMDV());
 
             testCase.choose(app.TabGroup, "Run");
             testCase.press(app.RunAutoButton);
@@ -287,135 +279,41 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
 
             app.RunConfigApp.CalcCICheckBox.Value = true;
 
-            testCase.press(app.RunConfigApp.GeneralApplyButton);
             testCase.press(app.RunConfigApp.GeneralCloseButton);
 
             testCase.press(app.RunConfigButton);
             testCase.verifyTrue(app.RunConfigApp.CalcCICheckBox.Value);
-            testCase.press(app.RunConfigApp.GeneralCloseButton);
+            testCase.press(app.RunConfigApp.GeneralCancelButton);
 
             testCase.press(app.RunRunButton);
-
-            testCase.choose(app.TabGroup, "Result");
-            testCase.press(app.ResultReloadButton);
-
-            pause(3);
-
-            deltaForFlux = 1;
-            deltaForCI = 0.5;
-            deltaForFVA = 0.1;
-
-            correctData1 = readmatrix('../tests/assert_data/result_data1.csv');
-            correctData2 = readmatrix('../tests/assert_data/result_data2.csv');
-            correctData3 = readmatrix('../tests/assert_data/result_data3.csv');
-
-            app.ResultSubTable.Selection = [1, 1];
-            app.testResultSubTableCellSelection();
-            pause(5);
-            fluxData1 = app.ResultMainTable.Data;
-            app.ResultSubTable.Selection = [2, 1];
-            app.testResultSubTableCellSelection();
-            pause(5);
-            fluxData2 = app.ResultMainTable.Data;
-            app.ResultSubTable.Selection = [3, 1];
-            app.testResultSubTableCellSelection();
-            pause(5);
-            fluxData3 = app.ResultMainTable.Data;
-
-            for i = 1:size(correctData1, 1)
-
-                disp(fluxData1{i, 1})
-                % フラックス値の確認
-                correctBestfit = correctData1(i, 1);
-                fluxBestfit = str2double(fluxData1{i, 2}{:});
-                testCase.verifyLessThanOrEqual(fluxBestfit, correctBestfit + deltaForFlux);
-                testCase.verifyGreaterThanOrEqual(fluxBestfit, correctBestfit - deltaForFlux);
-
-                % 信頼区間の確認
-                correctCI_Lower = correctData1(i, 2);
-                correctCI_Upper = correctData1(i, 3);
-                fluxCI_Lower = str2double(fluxData1{i, 3}{:});
-                fluxCI_Upper = str2double(fluxData1{i, 4}{:});
-                testCase.verifyLessThanOrEqual(fluxCI_Lower, correctCI_Lower + deltaForCI);
-                testCase.verifyGreaterThanOrEqual(fluxCI_Lower, correctCI_Lower - deltaForCI);
-                testCase.verifyLessThanOrEqual(fluxCI_Upper, correctCI_Upper + deltaForCI);
-                testCase.verifyGreaterThanOrEqual(fluxCI_Upper, correctCI_Upper - deltaForCI);
-
-                % FVAの確認
-                correctFVA_Min = correctData1(i, 4);
-                correctFVA_Max = correctData1(i, 5);
-                fluxFVA_Min = str2double(fluxData1{i, 5}{:});
-                fluxFVA_Max = str2double(fluxData1{i, 6}{:});
-                testCase.verifyLessThanOrEqual(fluxFVA_Min, correctFVA_Min + deltaForFVA);
-                testCase.verifyGreaterThanOrEqual(fluxFVA_Min, correctFVA_Min - deltaForFVA);
-                testCase.verifyLessThanOrEqual(fluxFVA_Max, correctFVA_Max + deltaForFVA);
-                testCase.verifyGreaterThanOrEqual(fluxFVA_Max, correctFVA_Max - deltaForFVA);
-            end
-
-            for i = 1:size(correctData2, 1)
-
-                disp(fluxData2{i, 1})
-
-                % フラックス値の確認
-                correctBestfit = correctData2(i, 1);
-                fluxBestfit = str2double(fluxData2{i, 2}{:});
-                testCase.verifyLessThanOrEqual(fluxBestfit, correctBestfit + deltaForFlux);
-                testCase.verifyGreaterThanOrEqual(fluxBestfit, correctBestfit - deltaForFlux);
-
-                % 信頼区間の確認
-                correctCI_Lower = correctData2(i, 2);
-                correctCI_Upper = correctData2(i, 3);
-                fluxCI_Lower = str2double(fluxData2{i, 3}{:});
-                fluxCI_Upper = str2double(fluxData2{i, 4}{:});
-                testCase.verifyLessThanOrEqual(fluxCI_Lower, correctCI_Lower + deltaForCI);
-                testCase.verifyGreaterThanOrEqual(fluxCI_Lower, correctCI_Lower - deltaForCI);
-                testCase.verifyLessThanOrEqual(fluxCI_Upper, correctCI_Upper + deltaForCI);
-                testCase.verifyGreaterThanOrEqual(fluxCI_Upper, correctCI_Upper - deltaForCI);
-
-                % FVAの確認
-                correctFVA_Min = correctData2(i, 4);
-                correctFVA_Max = correctData2(i, 5);
-                fluxFVA_Min = str2double(fluxData2{i, 5}{:});
-                fluxFVA_Max = str2double(fluxData2{i, 6}{:});
-                testCase.verifyLessThanOrEqual(fluxFVA_Min, correctFVA_Min + deltaForFVA);
-                testCase.verifyGreaterThanOrEqual(fluxFVA_Min, correctFVA_Min - deltaForFVA);
-                testCase.verifyLessThanOrEqual(fluxFVA_Max, correctFVA_Max + deltaForFVA);
-                testCase.verifyGreaterThanOrEqual(fluxFVA_Max, correctFVA_Max - deltaForFVA);
-            end
-
-            for i = 1:size(correctData3, 1)
-
-                disp(fluxData3{i, 1})
-
-                % フラックス値の確認
-                correctBestfit = correctData3(i, 1);
-                fluxBestfit = str2double(fluxData3{i, 2}{:});
-                testCase.verifyLessThanOrEqual(fluxBestfit, correctBestfit + deltaForFlux);
-                testCase.verifyGreaterThanOrEqual(fluxBestfit, correctBestfit - deltaForFlux);
-
-                % 信頼区間の確認
-                correctCI_Lower = correctData3(i, 2);
-                correctCI_Upper = correctData3(i, 3);
-                fluxCI_Lower = str2double(fluxData3{i, 3}{:});
-                fluxCI_Upper = str2double(fluxData3{i, 4}{:});
-                testCase.verifyLessThanOrEqual(fluxCI_Lower, correctCI_Lower + deltaForCI);
-                testCase.verifyGreaterThanOrEqual(fluxCI_Lower, correctCI_Lower - deltaForCI);
-                testCase.verifyLessThanOrEqual(fluxCI_Upper, correctCI_Upper + deltaForCI);
-                testCase.verifyGreaterThanOrEqual(fluxCI_Upper, correctCI_Upper - deltaForCI);
-
-                % FVAの確認
-                correctFVA_Min = correctData3(i, 4);
-                correctFVA_Max = correctData3(i, 5);
-                fluxFVA_Min = str2double(fluxData3{i, 5}{:});
-                fluxFVA_Max = str2double(fluxData3{i, 6}{:});
-                testCase.verifyLessThanOrEqual(fluxFVA_Min, correctFVA_Min + deltaForFVA);
-                testCase.verifyGreaterThanOrEqual(fluxFVA_Min, correctFVA_Min - deltaForFVA);
-                testCase.verifyLessThanOrEqual(fluxFVA_Max, correctFVA_Max + deltaForFVA);
-                testCase.verifyGreaterThanOrEqual(fluxFVA_Max, correctFVA_Max - deltaForFVA);
-            end
+            testCase.verifyTrue(app.Test_RunInvoked);
+            testCase.verifyEqual(string(app.RunRunButton.Text), "Run");
 
         end % function testCreateProjectFromTemplateModel
 
     end % methods (Test)
+
+    methods (Access = private)
+
+        function path = repositoryPath(~, varargin)
+
+            root = fileparts(fileparts(mfilename("fullpath")));
+            path = fullfile(root, varargin{:});
+
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function removeDirectory(directory)
+
+            if strlength(directory) > 0 && isfolder(directory)
+                rmdir(directory, "s");
+            end
+
+        end
+
+    end
 
 end

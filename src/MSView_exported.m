@@ -23,6 +23,12 @@ classdef MSView_exported < matlab.apps.AppBase
         color
     end
 
+    events
+        ComparisonRequested
+        Closed
+        NotificationRequested
+    end % events
+
     methods (Access = private)
 
         function initializeView(app, context)

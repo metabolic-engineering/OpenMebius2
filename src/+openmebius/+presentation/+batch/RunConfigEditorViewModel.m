@@ -11,6 +11,7 @@ classdef RunConfigEditorViewModel
         SuggestionTable openmebius.presentation.batch.RunConfigTableViewModel
         INSTMFATables openmebius.presentation.batch ...
             .RunConfigINSTMFATablesViewModel
+        IsReadOnly (1, 1) logical
         Notifications (1, :) cell
     end
 
@@ -40,6 +41,7 @@ classdef RunConfigEditorViewModel
                 options.INSTMFATables (1, 1) openmebius.presentation ...
                     .batch.RunConfigINSTMFATablesViewModel = openmebius ...
                     .presentation.batch.RunConfigINSTMFATablesViewModel()
+                options.IsReadOnly (1, 1) logical = false
                 options.Notifications (1, :) cell = {}
             end
 
@@ -50,6 +52,7 @@ classdef RunConfigEditorViewModel
             obj.EffluxTable = options.EffluxTable;
             obj.SuggestionTable = options.SuggestionTable;
             obj.INSTMFATables = options.INSTMFATables;
+            obj.IsReadOnly = options.IsReadOnly;
             obj.Notifications = options.Notifications;
 
         end % constructor

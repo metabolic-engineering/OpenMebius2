@@ -3,12 +3,17 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
     properties
         App
         RunConfigApp
+        TemporaryRoot (1, 1) string = ""
     end
 
     methods (TestMethodSetup)
 
         function launchApp(testCase)
+
+            testCase.TemporaryRoot = string(tempname);
+            mkdir(testCase.TemporaryRoot);
             testCase.App = OpenMebius2();
+
         end
 
     end
@@ -18,21 +23,26 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
         function closeApp(testCase)
             app = testCase.App;
 
-            if isempty(app) || ~isvalid(app)
-                return;
+            if ~isempty(app) && isvalid(app)
+
+                if isprop(app, "RunConfigApp") && ...
+                        ~isempty(app.RunConfigApp) && ...
+                        isvalid(app.RunConfigApp)
+                    app.RunConfigApp.delete();
+                    app.RunConfigApp = [];
+                end
+
+                if isprop(app, "MSViewApp") && ...
+                        ~isempty(app.MSViewApp) && ...
+                        isvalid(app.MSViewApp)
+                    app.MSViewApp.delete();
+                    app.MSViewApp = [];
+                end
+
+                app.delete();
             end
 
-            if isprop(app, "RunConfigApp") && ~isempty(app.RunConfigApp) && isvalid(app.RunConfigApp)
-                app.RunConfigApp.delete();
-                app.RunConfigApp = [];
-            end
-
-            if isprop(app, "MSViewApp") && ~isempty(app.MSViewApp) && isvalid(app.MSViewApp)
-                app.MSViewApp.delete();
-                app.MSViewApp = [];
-            end
-
-            app.delete();
+            OpenMebius2Test.removeDirectory(testCase.TemporaryRoot);
 
         end
 
@@ -44,11 +54,14 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             app = testCase.App;
 
-            app.ProjectDirectoryDropDown.Value = '../tutorial/ecoli';
+            projectDirectory = testCase.projectFixture("ecoli");
+            app.ProjectDirectoryDropDown.Value = projectDirectory;
             testCase.press(app.ProjectLoadButton);
 
             % Check if the project is loaded correctly
-            testCase.verifyEqual(app.ProjectDirectoryDropDown.Value, '../tutorial/ecoli');
+            testCase.verifyEqual( ...
+                string(app.ProjectDirectoryDropDown.Value), ...
+                projectDirectory);
 
         end
 
@@ -56,7 +69,8 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             app = testCase.App;
 
-            app.ProjectDirectoryDropDown.Value = '../tutorial/ecoli';
+            app.ProjectDirectoryDropDown.Value = ...
+                testCase.projectFixture("ecoli");
             testCase.press(app.ProjectLoadButton);
             app.TabGroup.SelectedTab = app.ExperimentTab;
 
@@ -96,7 +110,8 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             app = testCase.App;
 
-            app.ProjectDirectoryDropDown.Value = '../tutorial/ecoli';
+            app.ProjectDirectoryDropDown.Value = ...
+                testCase.projectFixture("ecoli");
             testCase.press(app.ProjectLoadButton);
             app.TabGroup.SelectedTab = app.RunTab;
 
@@ -116,8 +131,8 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
             pause(1)
 
             % Check close button
-            testCase.press(app.RunConfigApp.GeneralCloseButton);
-            testCase.verifyFalse(isvalid(app.RunConfigApp));
+            testCase.press(app.RunConfigApp.GeneralCancelButton);
+            testCase.verifyEmpty(app.RunConfigApp);
 
             pause(1)
 
@@ -129,8 +144,8 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             % Check close button
             app.RunConfigApp.TabGroup.SelectedTab = app.RunConfigApp.MSfragmentTab;
-            testCase.press(app.RunConfigApp.MSCloseButton);
-            testCase.verifyFalse(isvalid(app.RunConfigApp));
+            testCase.press(app.RunConfigApp.MSCancelButton);
+            testCase.verifyEmpty(app.RunConfigApp);
 
             testCase.press(app.RunConfigButton);
             testCase.verifyNotEmpty(app.RunConfigApp);
@@ -156,7 +171,8 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             app = testCase.App;
 
-            app.ProjectDirectoryDropDown.Value = '../tutorial/ecoli';
+            app.ProjectDirectoryDropDown.Value = ...
+                testCase.projectFixture("ecoli");
             testCase.press(app.ProjectLoadButton);
             app.TabGroup.SelectedTab = app.RunTab;
 
@@ -182,8 +198,7 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             data = app.RunConfigApp.MSTable.Data;
 
-            press(testCase, app.RunConfigApp.MSApplyButton);
-            testCase.press(app.RunConfigApp.MSCloseButton);
+            press(testCase, app.RunConfigApp.MSCloseButton);
             testCase.press(app.RunConfigButton);
             testCase.verifyEqual(app.RunConfigApp.MSTable.Data, data);
 
@@ -195,7 +210,8 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             app = testCase.App;
 
-            app.ProjectDirectoryDropDown.Value = '../tutorial/ecoli';
+            app.ProjectDirectoryDropDown.Value = ...
+                testCase.projectFixture("ecoli");
             testCase.press(app.ProjectLoadButton);
             app.TabGroup.SelectedTab = app.RunTab;
 
@@ -213,8 +229,7 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             iterBefore = app.RunConfigApp.IterationSpinner.Value;
 
-            press(testCase, app.RunConfigApp.GeneralApplyButton);
-            testCase.press(app.RunConfigApp.GeneralCloseButton);
+            press(testCase, app.RunConfigApp.GeneralCloseButton);
             testCase.press(app.RunConfigButton);
             testCase.verifyEqual(app.RunConfigApp.IterationSpinner.Value, iterBefore);
 
@@ -226,7 +241,8 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
             app = testCase.App;
 
             % Load the project
-            app.ProjectDirectoryDropDown.Value = '../tutorial/ecoli';
+            app.ProjectDirectoryDropDown.Value = ...
+                testCase.projectFixture("ecoli");
             testCase.press(app.ProjectLoadButton);
 
             % Select the Run tab
@@ -243,7 +259,6 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
             choose(testCase, app.RunConfigApp.TabGroup, 'General');
             type(testCase, app.RunConfigApp.IterationSpinner, 1);
             verifyEqual(testCase, app.RunConfigApp.IterationSpinner.Value, 1);
-            press(testCase, app.RunConfigApp.GeneralApplyButton);
             press(testCase, app.RunConfigApp.GeneralCloseButton);
 
             % Select the Run tab again
@@ -255,7 +270,8 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
 
             app = testCase.App;
 
-            app.ProjectDirectoryDropDown.Value = '../tutorial/ecoli_monte-carlo';
+            app.ProjectDirectoryDropDown.Value = ...
+                testCase.projectFixture("ecoli_monte-carlo");
             press(testCase, app.ProjectLoadButton);
             choose(testCase, app.TabGroup, 'Result');
 
@@ -301,5 +317,42 @@ classdef OpenMebius2Test < matlab.uitest.TestCase
         end % function testResultView
 
     end % methods (Test)
+
+    methods (Access = private)
+
+        function projectDirectory = projectFixture(testCase, name)
+
+            root = fileparts(fileparts(mfilename("fullpath")));
+            source = fullfile(root, "tutorial", name);
+            projectDirectory = fullfile(testCase.TemporaryRoot, name);
+
+            if ~isfolder(projectDirectory)
+                [wasCopied, message] = copyfile( ...
+                    source, projectDirectory);
+
+                if ~wasCopied
+                    error( ...
+                        "OpenMebius2:Test:FixtureCopyFailed", ...
+                        "Could not copy project fixture: %s", ...
+                        string(message));
+                end
+
+            end
+
+        end
+
+    end
+
+    methods (Static, Access = private)
+
+        function removeDirectory(directory)
+
+            if strlength(directory) > 0 && isfolder(directory)
+                rmdir(directory, "s");
+            end
+
+        end
+
+    end
 
 end % classdef OpenMebius2Test

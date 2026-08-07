@@ -47,6 +47,7 @@ classdef FluxVariabilityWorkflow
                 options.UseCustomBounds (1, 1) logical = false
                 options.LowerBounds double = []
                 options.UpperBounds double = []
+                options.FreeGrowthRate (1, 1) logical = false
                 options.MessageReporter (1, 1) function_handle = ...
                     @(~, ~) []
             end
@@ -62,7 +63,8 @@ classdef FluxVariabilityWorkflow
                 freeEffluxMask, ...
                 UseCustomBounds = options.UseCustomBounds, ...
                 LowerBounds = options.LowerBounds, ...
-                UpperBounds = options.UpperBounds);
+                UpperBounds = options.UpperBounds, ...
+                FreeGrowthRate = options.FreeGrowthRate);
 
             if problem.UsedDefaultMaximumEfflux
                 message = "Maximum efflux is not set or non-positive. " + ...
@@ -72,8 +74,15 @@ classdef FluxVariabilityWorkflow
             end
 
             if ~isempty(problem.FreeConstraintIDs)
-                message = "FVA will not fix efflux-free reactions: " + ...
-                    strjoin(problem.FreeConstraintIDs, ", ") + ".";
+
+                if options.FreeGrowthRate
+                    message = "FVA will not fix perturbed constraints: " + ...
+                        strjoin(problem.FreeConstraintIDs, ", ") + ".";
+                else
+                    message = "FVA will not fix efflux-free reactions: " + ...
+                        strjoin(problem.FreeConstraintIDs, ", ") + ".";
+                end
+
                 options.MessageReporter("info", message);
             end
 

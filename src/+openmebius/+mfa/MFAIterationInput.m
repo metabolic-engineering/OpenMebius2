@@ -14,6 +14,9 @@ classdef MFAIterationInput
         Efflux (:, 1) double
         EffluxStandardDeviation (:, 1) double
         EffluxFree (:, 1) logical
+        GrowthRate (1, 1) double
+        GrowthRateStandardDeviation (1, 1) double
+        GrowthRateFree (1, 1) logical
     end
 
     methods
@@ -35,6 +38,9 @@ classdef MFAIterationInput
                 options.Efflux double
                 options.EffluxStandardDeviation double
                 options.EffluxFree
+                options.GrowthRate (1, 1) double = NaN
+                options.GrowthRateStandardDeviation (1, 1) double = NaN
+                options.GrowthRateFree (1, 1) logical = false
             end
 
             options.Problem.extractIndependentValues( ...
@@ -90,6 +96,10 @@ classdef MFAIterationInput
             obj.Efflux = efflux;
             obj.EffluxStandardDeviation = effluxStandardDeviation;
             obj.EffluxFree = effluxFree;
+            obj.GrowthRate = options.GrowthRate;
+            obj.GrowthRateStandardDeviation = ...
+                options.GrowthRateStandardDeviation;
+            obj.GrowthRateFree = options.GrowthRateFree;
 
         end % constructor
 

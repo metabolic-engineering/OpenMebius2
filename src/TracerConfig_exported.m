@@ -17,6 +17,11 @@ classdef TracerConfig_exported < matlab.apps.AppBase
         InitialTable table
     end
 
+    events
+        Applied
+        Closed
+    end % events
+
     methods (Access = private)
 
         function reloadEditorTable(app)

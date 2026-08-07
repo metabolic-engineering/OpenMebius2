@@ -292,6 +292,116 @@ classdef MDVCorrection < handle
 
         end % correctBiomass
 
+        function [MDVNormalized, objective, optimalFraction] = ...
+                correctWithOptimizedFraction( ...
+                obj, MDV, nC, nH, nO, nN, nS, nSi, fraction, options)
+            % CORRECTWITHOPTIMIZEDFRACTION jointly corrects isotope and biomass carryover.
+            %
+            % The transformed variables are w = (1-r)x and r, where x is
+            % the newly synthesized MDV and r is the biomass carryover
+            % fraction.  This gives the convex constrained least-squares
+            % problem
+            %
+            %   min ||W^(1/2)(y - A(w + r*u))||^2
+            %       + ((r-r0)/sigmaR)^2
+            %   s.t. w >= 0, rL <= r <= rU, sum(w) + r = 1.
+            %
+            % Here u is the unlabeled initial-biomass MDV.  The returned
+            % MDV is x = w/(1-r).
+
+            arguments
+                obj (1, 1) MDVCorrection
+                MDV (:, 1) double {mustBeNonNan, mustBeFinite}
+                nC (1, 1) {mustBeInteger, mustBeNonnegative}
+                nH (1, 1) {mustBeInteger, mustBeNonnegative}
+                nO (1, 1) {mustBeInteger, mustBeNonnegative}
+                nN (1, 1) {mustBeInteger, mustBeNonnegative}
+                nS (1, 1) {mustBeInteger, mustBeNonnegative}
+                nSi (1, 1) {mustBeInteger, mustBeNonnegative}
+                fraction (1, 1) double {mustBeFinite}
+                options.numTracerCarbon (1, 1) ...
+                    {mustBeInteger, mustBeNonnegative} = ...
+                    max(0, length(MDV) - 1)
+                options.fractionStandardDeviation (1, 1) double ...
+                    {mustBePositive, mustBeFinite} = 0.01
+                options.fractionBounds (1, 2) double ...
+                    {mustBeFinite} = [0, 1 -1e-8]
+                options.weights (:, 1) double ...
+                    {mustBePositive, mustBeFinite} = 0.01 * ones(size(MDV))
+            end % arguments
+
+            numMDV = length(MDV);
+
+            if length(options.weights) ~= numMDV
+                error( ...
+                    "MDVCorrection:InvalidOptimizationWeights", ...
+                "There must be one optimization weight per MDV value.");
+            end % if
+
+            fractionBounds = options.fractionBounds;
+
+            if fractionBounds(1) < 0 || ...
+                    fractionBounds(2) >= 1 || ...
+                    fractionBounds(1) > fractionBounds(2)
+                error( ...
+                    "MDVCorrection:InvalidFractionBounds", ...
+                    "Fraction bounds must satisfy " + ...
+                "0 <= lower <= upper < 1.");
+            end % if
+
+            numTracerCarbon = min( ...
+                [options.numTracerCarbon, nC, numMDV - 1]);
+            numCorrectedMDV = numTracerCarbon + 1;
+            correctionMatrix = getCorrectedMatrixSkew( ...
+                obj, nC, nH, nO, nN, nS, nSi, ...
+                numObservedMDV = numMDV, ...
+                numTracerCarbon = numTracerCarbon ...
+            );
+            initialMDV = zeros(numCorrectedMDV, 1);
+            initialMDV(1) = 1;
+            squareRootWeights = sqrt(options.weights);
+            predictionMatrix = [ ...
+                                    correctionMatrix, correctionMatrix * initialMDV];
+            weightedPredictionMatrix = ...
+                squareRootWeights .* predictionMatrix;
+            augmentedMatrix = [
+                               weightedPredictionMatrix
+                               zeros(1, numCorrectedMDV), ...
+                                   1 / options.fractionStandardDeviation
+                               ];
+            augmentedTarget = [
+                               squareRootWeights .* MDV
+                               fraction / options.fractionStandardDeviation
+                               ];
+            equalityMatrix = [ones(1, numCorrectedMDV), 1];
+            lowerBounds = [zeros(numCorrectedMDV, 1); fractionBounds(1)];
+            upperBounds = [inf(numCorrectedMDV, 1); fractionBounds(2)];
+            solution = solveFractionConstrainedLeastSquares( ...
+                obj, ...
+                augmentedMatrix, ...
+                augmentedTarget, ...
+                equalityMatrix, ...
+                lowerBounds, ...
+                upperBounds, ...
+                fraction);
+
+            w = solution(1:numCorrectedMDV);
+            optimalFraction = solution(end);
+            corrected = w / (1 - optimalFraction);
+            MDVCorrected = zeros(numMDV, 1);
+            MDVCorrected(1:numCorrectedMDV) = corrected;
+            MDVNormalized = normalizeCorrectedMDV( ...
+                obj, MDVCorrected, numMDV);
+
+            predictedMDV = correctionMatrix * ...
+                (w + optimalFraction * initialMDV);
+            residual = MDV - predictedMDV;
+            objective = sum(options.weights .* residual .^ 2) + ...
+                ((optimalFraction - fraction) / ...
+                options.fractionStandardDeviation) ^ 2;
+
+        end % correctWithOptimizedFraction
+
     end % methods
 
     methods (Access = private)
@@ -471,6 +581,97 @@ classdef MDVCorrection < handle
             MDVCorrected(MDVCorrected < 0) = 0;
 
         end % solveLeastSquares
+
+        function solution = solveFractionConstrainedLeastSquares( ...
+                obj, matrix, target, equalityMatrix, lowerBounds, ...
+                upperBounds, measuredFraction)
+            % SOLVEFRACTIONCONSTRAINEDLEASTSQUARES solves the convex QP.
+
+            if exist('lsqlin', 'file') == 2
+                solverOptions = optimoptions('lsqlin', 'Display', 'off');
+                [candidate, ~, ~, exitFlag] = lsqlin( ...
+                    matrix, ...
+                    target, ...
+                    [], ...
+                    [], ...
+                    equalityMatrix, ...
+                    1, ...
+                    lowerBounds, ...
+                    upperBounds, ...
+                    [], ...
+                    solverOptions);
+
+                if exitFlag > 0 && all(isfinite(candidate))
+                    solution = candidate;
+                    return
+                end % if
+
+            end % if
+
+            % Toolbox-independent projected-gradient fallback.  Projection
+            % is onto the bounded simplex defined by the linear constraints.
+            initialFraction = min( ...
+                max(measuredFraction, lowerBounds(end)), ...
+                upperBounds(end));
+            solution = [ ...
+                            1 - initialFraction; ...
+                            zeros(length(lowerBounds) - 2, 1); ...
+                            initialFraction];
+            solution = projectBoundedSimplex( ...
+                obj, solution, lowerBounds, upperBounds);
+            lipschitz = 2 * norm(matrix, 2) ^ 2;
+
+            if lipschitz <= eps
+                return
+            end % if
+
+            stepSize = 1 / lipschitz;
+
+            for iteration = 1:10000
+                gradient = 2 * matrix' * (matrix * solution - target);
+                candidate = projectBoundedSimplex( ...
+                    obj, ...
+                    solution - stepSize * gradient, ...
+                    lowerBounds, ...
+                    upperBounds);
+
+                if norm(candidate - solution, inf) <= 1e-12
+                    solution = candidate;
+                    return
+                end % if
+
+                solution = candidate;
+            end % for
+
+        end % solveFractionConstrainedLeastSquares
+
+        function projected = projectBoundedSimplex( ...
+                ~, value, lowerBounds, upperBounds)
+            % PROJECTBOUNDEDSIMPLEX projects a vector while preserving sum=1.
+
+            lowerLambda = min(value) - 1;
+            upperLambda = max(value - lowerBounds);
+
+            for iteration = 1:100
+                lambda = (lowerLambda + upperLambda) / 2;
+                projected = min( ...
+                    max(value - lambda, lowerBounds), ...
+                    upperBounds);
+
+                if sum(projected) > 1
+                    lowerLambda = lambda;
+                else
+                    upperLambda = lambda;
+                end % if
+
+            end % for
+
+            lambda = (lowerLambda + upperLambda) / 2;
+            projected = min( ...
+                max(value - lambda, lowerBounds), ...
+                upperBounds);
+
+        end % projectBoundedSimplex
 
         function method = normalizeCorrectionMethod(obj, method)
             % NORMALIZECORRECTIONMETHOD validates and canonicalizes correction method names.

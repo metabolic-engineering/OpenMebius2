@@ -9,7 +9,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         GridLayout5_2                   matlab.ui.container.GridLayout
         GridLayout7_2                   matlab.ui.container.GridLayout
         GeneralRestoreDefaultButton     matlab.ui.control.Button
-        GeneralApplyButton              matlab.ui.control.Button
+        GeneralCloseButton              matlab.ui.control.Button
         GeneralCancelButton             matlab.ui.control.Button
         GridLayout6_2                   matlab.ui.container.GridLayout
         TabGroup2                       matlab.ui.container.TabGroup
@@ -68,10 +68,6 @@ classdef RunConfig_exported < matlab.apps.AppBase
         CalcCICheckBox                  matlab.ui.control.CheckBox
         PerturbateEffluxCheckBox        matlab.ui.control.CheckBox
         SuggestionCheckBox              matlab.ui.control.CheckBox
-        LargeScaleCheckBox              matlab.ui.control.CheckBox
-        GridLayoutAlgorithm             matlab.ui.container.GridLayout
-        AlgorithmDropDown               matlab.ui.control.DropDown
-        CalculationalgorithmDropDownLabel  matlab.ui.control.Label
         GridLayoutIteration             matlab.ui.container.GridLayout
         IterationSpinner                matlab.ui.control.Spinner
         IterationtimesforcalculationSpinnerLabel  matlab.ui.control.Label
@@ -80,15 +76,62 @@ classdef RunConfig_exported < matlab.apps.AppBase
         MSTable                         matlab.ui.control.Table
         GridLayout7                     matlab.ui.container.GridLayout
         MSRestoreDefaultButton          matlab.ui.control.Button
-        MSApplyAllButton                matlab.ui.control.Button
+        MSCloseButton                   matlab.ui.control.Button
         MSCancelButton                  matlab.ui.control.Button
+        OptimizationTab                 matlab.ui.container.Tab
+        GridLayout13_3                  matlab.ui.container.GridLayout
+        GridLayout22_2                  matlab.ui.container.GridLayout
+        GridLayout26                    matlab.ui.container.GridLayout
+        GridLayout10_19                 matlab.ui.container.GridLayout
+        MCLmaxEditField_2               matlab.ui.control.NumericEditField
+        EditFieldLabel_2                matlab.ui.control.Label
+        SearchOptimalFiniteDifferenceStepSizeCheckBox  matlab.ui.control.CheckBox
+        GridLayout24                    matlab.ui.container.GridLayout
+        GridLayout10_17                 matlab.ui.container.GridLayout
+        FiniteDifferenceStepSizeEditField  matlab.ui.control.NumericEditField
+        EditFieldLabel                  matlab.ui.control.Label
+        GridLayout25_2                  matlab.ui.container.GridLayout
+        FiniteDifferenceTypeDropDown    matlab.ui.control.DropDown
+        DropDownLabel_2                 matlab.ui.control.Label
+        GridLayout10_16                 matlab.ui.container.GridLayout
+        ConstraintToleranceEditField    matlab.ui.control.NumericEditField
+        FluxUBEditFieldLabel_8          matlab.ui.control.Label
+        GridLayout10_15                 matlab.ui.container.GridLayout
+        OptimalityToleranceEditField    matlab.ui.control.NumericEditField
+        FluxUBEditFieldLabel_7          matlab.ui.control.Label
+        GridLayout10_14                 matlab.ui.container.GridLayout
+        StepToleranceEditField          matlab.ui.control.NumericEditField
+        FluxUBEditFieldLabel_6          matlab.ui.control.Label
+        GridLayout10_13                 matlab.ui.container.GridLayout
+        FunctionToleranceEditField      matlab.ui.control.NumericEditField
+        FluxUBEditFieldLabel_5          matlab.ui.control.Label
+        GridLayout10_12                 matlab.ui.container.GridLayout
+        MaxIterationsEditField          matlab.ui.control.NumericEditField
+        FluxUBEditFieldLabel_4          matlab.ui.control.Label
+        GridLayout10_11                 matlab.ui.container.GridLayout
+        MaxFunctionEvaluationsEditField  matlab.ui.control.NumericEditField
+        FluxUBEditFieldLabel_3          matlab.ui.control.Label
+        GridLayout10_10                 matlab.ui.container.GridLayout
+        FluxLBEditField                 matlab.ui.control.NumericEditField
+        FluxUBEditFieldLabel_2          matlab.ui.control.Label
+        GridLayout10_9                  matlab.ui.container.GridLayout
+        FluxUBEditField                 matlab.ui.control.NumericEditField
+        FluxUBEditFieldLabel            matlab.ui.control.Label
+        LargeScaleCheckBox              matlab.ui.control.CheckBox
+        GridLayout25                    matlab.ui.container.GridLayout
+        AlgorithmDropDown               matlab.ui.control.DropDown
+        DropDownLabel                   matlab.ui.control.Label
+        GridLayout15_3                  matlab.ui.container.GridLayout
+        OptimizationRestoreDefaultButton  matlab.ui.control.Button
+        OptimizationCloseButton         matlab.ui.control.Button
+        OptimizationCancelButton        matlab.ui.control.Button
         EffluxperturbationTab           matlab.ui.container.Tab
         GridLayout13                    matlab.ui.container.GridLayout
         GridLayout22                    matlab.ui.container.GridLayout
         EffluxUITable                   matlab.ui.control.Table
         GridLayout15                    matlab.ui.container.GridLayout
         EffluxRestoreDefaultButton      matlab.ui.control.Button
-        EffluxApplyButton               matlab.ui.control.Button
+        EffluxCloseButton               matlab.ui.control.Button
         EffluxCancelButton              matlab.ui.control.Button
         TracersuggestionTab             matlab.ui.container.Tab
         GridLayout14                    matlab.ui.container.GridLayout
@@ -96,7 +139,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         GridLayout18                    matlab.ui.container.GridLayout
         LabelTable                      matlab.ui.control.Table
         GridLayout16                    matlab.ui.container.GridLayout
-        SuggestionApplyButton           matlab.ui.control.Button
+        SuggestionCloseButton           matlab.ui.control.Button
         SuggestionRestoreDefaultButton  matlab.ui.control.Button
         SuggestionCancelButton          matlab.ui.control.Button
         INSTMFATab                      matlab.ui.container.Tab
@@ -106,7 +149,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         GridLayout21                    matlab.ui.container.GridLayout
         INSTMFAPoolUITable              matlab.ui.control.Table
         GridLayout15_2                  matlab.ui.container.GridLayout
-        INSTMFAApplyButton              matlab.ui.control.Button
+        INSTMFACloseButton              matlab.ui.control.Button
         INSTMFARestoreDefaultButton     matlab.ui.control.Button
         INSTMFACancelButton             matlab.ui.control.Button
         ContextMenu                     matlab.ui.container.ContextMenu
@@ -132,6 +175,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         MSFragmentTableMetadata
+        IsReadOnly (1, 1) logical = false
     end
 
     events
@@ -176,7 +220,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.BatchExperimentSelectionEditorPresenter = ...
                 context.ExperimentSelectionPresenter;
             app.ChildAppHost = context.ChildAppHost;
+            app.PerturbateEffluxCheckBox.Text = ...
+                'Perturbate efflux or growth rate (mu)';
+            app.EffluxperturbationTab.Title = 'Flux perturbation';
             editor = context.Editor;
+            app.IsReadOnly = editor.IsReadOnly;
             app.renderRunConfigViewModel(editor.Config);
             app.MSFragmentTableMetadata = editor.MSFragmentTable.Metadata;
             app.renderTableViewModel(app.MSTable, editor.MSFragmentTable);
@@ -194,6 +242,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 editor.INSTMFATables.TimePointTable);
             app.renderControlState(editor.ControlState);
             app.wireActionButtons();
+            app.renderReadOnlyState();
 
         end % initializeView
 
@@ -248,6 +297,28 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.IterationSpinner.Value = viewModel.Iteration;
             app.AlgorithmDropDown.Value = viewModel.Algorithm;
             app.LargeScaleCheckBox.Value = viewModel.LargeScale;
+            app.FluxLBEditField.Value = viewModel.FluxLowerBound;
+            app.FluxUBEditField.Value = viewModel.FluxUpperBound;
+            app.MaxFunctionEvaluationsEditField.Value = ...
+                viewModel.FminconMaxFunctionEvaluations;
+            app.MaxIterationsEditField.Value = ...
+                viewModel.FminconMaxIterations;
+            app.FunctionToleranceEditField.Value = ...
+                viewModel.FminconFunctionTolerance;
+            app.StepToleranceEditField.Value = ...
+                viewModel.FminconStepTolerance;
+            app.OptimalityToleranceEditField.Value = ...
+                viewModel.FminconOptimalityTolerance;
+            app.ConstraintToleranceEditField.Value = ...
+                viewModel.FminconConstraintTolerance;
+            app.FiniteDifferenceTypeDropDown.Value = ...
+                viewModel.FminconFiniteDifferenceType;
+            app.FiniteDifferenceStepSizeEditField.Value = ...
+                viewModel.FminconFiniteDifferenceStepSize;
+            app.SearchOptimalFiniteDifferenceStepSizeCheckBox.Value = ...
+                viewModel.SearchOptimalFiniteDifferenceStepSize;
+            app.MCLmaxEditField_2.Value = ...
+                viewModel.FreeEffluxSeedSigmaMultiplier;
             app.SuggestionCheckBox.Value = viewModel.SuggestNextFlux;
             app.PerturbateEffluxCheckBox.Value = ...
                 viewModel.PerturbateEfflux;
@@ -359,8 +430,68 @@ classdef RunConfig_exported < matlab.apps.AppBase
             instMFA = app.onOff(state.INSTMFATablesEnabled);
             app.INSTMFAPoolUITable.Enable = instMFA;
             app.INSTMFATimeCourseUITable.Enable = instMFA;
+            app.renderMainTabVisibility( ...
+                app.EffluxperturbationTab, state.EffluxEnabled);
+            app.renderMainTabVisibility( ...
+                app.TracersuggestionTab, state.SuggestionEnabled);
+            app.renderMainTabVisibility( ...
+                app.INSTMFATab, state.INSTMFATablesEnabled);
+            app.renderReadOnlyState();
 
         end % renderControlState
+
+        function renderReadOnlyState(app)
+
+            if ~app.IsReadOnly
+                return
+            end
+
+            components = findall(app.BatchconfigUIFigure);
+
+            for componentIndex = 1:numel(components)
+                component = components(componentIndex);
+
+                if isprop(component, 'Enable')
+
+                    try
+                        component.Enable = 'off';
+                    catch
+                    end
+
+                end
+
+                if isprop(component, 'ColumnEditable') && ...
+                        isprop(component, 'Data')
+
+                    try
+                        component.ColumnEditable = ...
+                            app.readOnlyColumns(component.Data);
+                    catch
+                    end
+
+                end
+
+            end
+
+            navigationButtons = [ ...
+                app.GeneralCloseButton
+                app.MSCloseButton
+                app.OptimizationCloseButton
+                app.EffluxCloseButton
+                app.SuggestionCloseButton
+                app.INSTMFACloseButton
+                app.GeneralCancelButton
+                app.MSCancelButton
+                app.OptimizationCancelButton
+                app.EffluxCancelButton
+                app.SuggestionCancelButton
+                app.INSTMFACancelButton];
+
+            for buttonIndex = 1:numel(navigationButtons)
+                navigationButtons(buttonIndex).Enable = 'on';
+            end
+
+        end % renderReadOnlyState
 
         function renderGridReactionVisibility(app, isVisible)
 
@@ -386,6 +517,29 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % renderGridReactionVisibility
 
+        function renderMainTabVisibility(app, tab, isVisible)
+
+            if isVisible
+
+                if isempty(tab.Parent)
+                    tab.Parent = app.TabGroup;
+                end
+
+                return
+            end
+
+            if isempty(tab.Parent)
+                return
+            end
+
+            if isequal(app.TabGroup.SelectedTab, tab)
+                app.TabGroup.SelectedTab = app.GeneralTab;
+            end
+
+            tab.Parent = [];
+
+        end % renderMainTabVisibility
+
         function value = onOff(~, enabled)
 
             if enabled
@@ -400,14 +554,12 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             isEnable = app.PerturbateEffluxCheckBox.Value;
 
-            if isEnable
+            if isEnable && ~app.hasTableDefinition( ...
+                    app.EffluxUITable.Data)
                 viewModel = app.Presenter.presentEffluxTable(app.Session);
-            else
-                viewModel = openmebius.presentation.batch ...
-                    .RunConfigTableViewModel();
+                app.renderTableViewModel(app.EffluxUITable, viewModel);
             end
 
-            app.renderTableViewModel(app.EffluxUITable, viewModel);
             app.refreshControlState();
 
         end % enabledisableEffluxPertubation
@@ -418,15 +570,13 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             isSuggestLabel = app.SuggestionCheckBox.Value;
 
-            if isSuggestLabel
+            if isSuggestLabel && ~app.hasTableDefinition( ...
+                    app.LabelTable.Data)
                 viewModel = app.Presenter ...
                     .presentSuggestionTable(app.Session);
-            else
-                viewModel = openmebius.presentation.batch ...
-                    .RunConfigTableViewModel();
+                app.renderTableViewModel(app.LabelTable, viewModel);
             end
 
-            app.renderTableViewModel(app.LabelTable, viewModel);
             app.refreshControlState();
 
         end % enabledisableSuggestion
@@ -435,7 +585,12 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % ENABLEDISABLEINSTMFA Enable or disable INST-MFA-related UI components
             % based on the isINSTMFA flag
 
-            if isINSTMFA
+            tablesLoaded = app.hasTableDefinition( ...
+                app.INSTMFAPoolUITable.Data) && ...
+                app.hasTableDefinition( ...
+                app.INSTMFATimeCourseUITable.Data);
+
+            if isINSTMFA && ~tablesLoaded
                 viewModel = app.Presenter ...
                     .presentINSTMFATables(app.Session);
                 app.requestNotifications(viewModel.Notifications);
@@ -453,17 +608,12 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
                 poolTable = viewModel.PoolTable;
                 timePointTable = viewModel.TimePointTable;
-            else
-                poolTable = openmebius.presentation.batch ...
-                    .RunConfigTableViewModel();
-                timePointTable = openmebius.presentation.batch ...
-                    .RunConfigTableViewModel();
+                app.renderTableViewModel( ...
+                    app.INSTMFAPoolUITable, poolTable);
+                app.renderTableViewModel( ...
+                    app.INSTMFATimeCourseUITable, timePointTable);
             end
 
-            app.renderTableViewModel( ...
-                app.INSTMFAPoolUITable, poolTable);
-            app.renderTableViewModel( ...
-                app.INSTMFATimeCourseUITable, timePointTable);
             app.refreshControlState();
 
         end % enabledisableINSTMFA
@@ -622,6 +772,28 @@ classdef RunConfig_exported < matlab.apps.AppBase
             viewModel.Iteration = app.IterationSpinner.Value;
             viewModel.Algorithm = app.AlgorithmDropDown.Value;
             viewModel.LargeScale = app.LargeScaleCheckBox.Value;
+            viewModel.FluxLowerBound = app.FluxLBEditField.Value;
+            viewModel.FluxUpperBound = app.FluxUBEditField.Value;
+            viewModel.FminconMaxFunctionEvaluations = ...
+                app.MaxFunctionEvaluationsEditField.Value;
+            viewModel.FminconMaxIterations = ...
+                app.MaxIterationsEditField.Value;
+            viewModel.FminconFunctionTolerance = ...
+                app.FunctionToleranceEditField.Value;
+            viewModel.FminconStepTolerance = ...
+                app.StepToleranceEditField.Value;
+            viewModel.FminconOptimalityTolerance = ...
+                app.OptimalityToleranceEditField.Value;
+            viewModel.FminconConstraintTolerance = ...
+                app.ConstraintToleranceEditField.Value;
+            viewModel.FminconFiniteDifferenceType = ...
+                app.FiniteDifferenceTypeDropDown.Value;
+            viewModel.FminconFiniteDifferenceStepSize = ...
+                app.FiniteDifferenceStepSizeEditField.Value;
+            viewModel.SearchOptimalFiniteDifferenceStepSize = ...
+                app.SearchOptimalFiniteDifferenceStepSizeCheckBox.Value;
+            viewModel.FreeEffluxSeedSigmaMultiplier = ...
+                app.MCLmaxEditField_2.Value;
             viewModel.SuggestNextFlux = app.SuggestionCheckBox.Value;
             viewModel.PerturbateEfflux = ...
                 app.PerturbateEffluxCheckBox.Value;
@@ -679,18 +851,21 @@ classdef RunConfig_exported < matlab.apps.AppBase
             restoreButtons = [ ...
                                   app.GeneralRestoreDefaultButton
                               app.MSRestoreDefaultButton
+                              app.OptimizationRestoreDefaultButton
                               app.EffluxRestoreDefaultButton
                               app.SuggestionRestoreDefaultButton
                               app.INSTMFARestoreDefaultButton];
-            applyButtons = [ ...
-                                app.GeneralApplyButton
-                            app.MSApplyAllButton
-                            app.EffluxApplyButton
-                            app.SuggestionApplyButton
-                            app.INSTMFAApplyButton];
+            closeButtons = [ ...
+                                app.GeneralCloseButton
+                            app.MSCloseButton
+                            app.OptimizationCloseButton
+                            app.EffluxCloseButton
+                            app.SuggestionCloseButton
+                            app.INSTMFACloseButton];
             cancelButtons = [ ...
                                  app.GeneralCancelButton
                              app.MSCancelButton
+                             app.OptimizationCancelButton
                              app.EffluxCancelButton
                              app.SuggestionCancelButton
                              app.INSTMFACancelButton];
@@ -698,7 +873,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             for buttonIndex = 1:numel(restoreButtons)
                 restoreButtons(buttonIndex).ButtonPushedFcn = ...
                     @(~, ~) app.restoreDefaultValues();
-                applyButtons(buttonIndex).ButtonPushedFcn = ...
+                closeButtons(buttonIndex).ButtonPushedFcn = ...
                     @(~, ~) app.applyCurrentSettings();
                 cancelButtons(buttonIndex).ButtonPushedFcn = ...
                     @(~, ~) app.cancelChanges();
@@ -708,28 +883,22 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function restoreDefaultValues(app)
 
+            if app.IsReadOnly
+                return
+            end
+
+            msData = app.MSTable.Data;
             effluxData = app.EffluxUITable.Data;
             gridReactionData = app.GridReactionUITable.Data;
+            suggestionData = app.LabelTable.Data;
             instPoolData = app.INSTMFAPoolUITable.Data;
             instTimeCourseData = app.INSTMFATimeCourseUITable.Data;
             viewModel = app.Presenter.presentDefaults();
             app.renderRunConfigViewModel(viewModel);
-
-            msData = app.MSTable.Data;
-
-            if istable(msData) && ~isempty(msData)
-                msData{:, :} = true(height(msData), width(msData));
-                app.MSTable.Data = msData;
-            end
+            app.MSTable.Data = msData;
 
             app.enabledisableCIUI(app.CalcCICheckBox.Value);
             app.enabledisableSuggestion();
-
-            if istable(gridReactionData) && ...
-                    ismember('Select', ...
-                    gridReactionData.Properties.VariableNames)
-                gridReactionData.Select(:) = true;
-            end
 
             app.GridReactionUITable.Data = gridReactionData;
             app.GridReactionUITable.ColumnEditable = ...
@@ -739,6 +908,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.EffluxUITable.Enable = 'off';
             app.EffluxUITable.ColumnEditable = ...
                 app.readOnlyColumns(effluxData);
+
+            app.LabelTable.Data = suggestionData;
 
             app.INSTMFAPoolUITable.Data = instPoolData;
             app.INSTMFAPoolUITable.Enable = 'off';
@@ -754,6 +925,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function applyCurrentSettings(app)
 
+            if app.IsReadOnly
+                app.closeConfiguration();
+                return
+            end
+
             requestFactory = @() app.Presenter.createApplyRequest( ...
                 app.Session, ...
                 app.collectRunConfigViewModel(), ...
@@ -768,11 +944,18 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             if viewModel.IsSuccessful
                 notify(app, "Applied");
+                app.closeConfiguration();
             end
 
         end % applyCurrentSettings
 
         function cancelChanges(app)
+
+            app.closeConfiguration();
+
+        end % cancelChanges
+
+        function closeConfiguration(app)
 
             if ~isempty(app.ChildAppHost) && isvalid(app.ChildAppHost)
                 app.ChildAppHost.closeAll();
@@ -781,7 +964,13 @@ classdef RunConfig_exported < matlab.apps.AppBase
             notify(app, "Closed");
             delete(app);
 
-        end % cancelChanges
+        end % closeConfiguration
+
+        function loaded = hasTableDefinition(~, data)
+
+            loaded = istable(data) && width(data) > 0;
+
+        end % hasTableDefinition
 
         function editable = readOnlyColumns(~, data)
 
@@ -817,8 +1006,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.applyCurrentSettings();
         end
 
-        % Button pushed function: GeneralApplyButton
-        function GeneralApplyButtonPushed2(app, event)
+        % Button pushed function: GeneralCloseButton
+        function GeneralCloseButtonPushed2(app, event)
 
             app.applyCurrentSettings();
         end
@@ -835,8 +1024,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.applyCurrentSettings();
         end
 
-        % Button pushed function: MSApplyAllButton
-        function MSApplyAllButtonPushed(app, event)
+        % Button pushed function: MSCloseButton
+        function MSCloseButtonPushed(app, event)
 
             app.applyCurrentSettings();
         end
@@ -936,12 +1125,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
         % Value changed function: SuggestionCheckBox
         function SuggestionCheckBoxValueChanged(app, event)
 
-            if ~app.SuggestionCheckBox.Value
-                return
+            if app.SuggestionCheckBox.Value
+                app.CalcCICheckBox.Value = true;
+                app.enabledisableCIUI(app.CalcCICheckBox.Value);
             end
 
-            app.CalcCICheckBox.Value = true;
-            app.enabledisableCIUI(app.CalcCICheckBox.Value);
             app.enabledisableSuggestion();
         end
 
@@ -1058,7 +1246,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Create GridLayout8
             app.GridLayout8 = uigridlayout(app.GridLayout6_2);
             app.GridLayout8.ColumnWidth = {'1x'};
-            app.GridLayout8.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
+            app.GridLayout8.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
             app.GridLayout8.Padding = [0 0 0 0];
             app.GridLayout8.Layout.Row = 1;
             app.GridLayout8.Layout.Column = 1;
@@ -1084,52 +1272,25 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.IterationSpinner.Layout.Column = 2;
             app.IterationSpinner.Value = 10;
 
-            % Create GridLayoutAlgorithm
-            app.GridLayoutAlgorithm = uigridlayout(app.GridLayout8);
-            app.GridLayoutAlgorithm.ColumnWidth = {'6x', '4x'};
-            app.GridLayoutAlgorithm.RowHeight = {'1x'};
-            app.GridLayoutAlgorithm.Padding = [0 0 0 0];
-            app.GridLayoutAlgorithm.Layout.Row = 2;
-            app.GridLayoutAlgorithm.Layout.Column = 1;
-
-            % Create CalculationalgorithmDropDownLabel
-            app.CalculationalgorithmDropDownLabel = uilabel(app.GridLayoutAlgorithm);
-            app.CalculationalgorithmDropDownLabel.Layout.Row = 1;
-            app.CalculationalgorithmDropDownLabel.Layout.Column = 1;
-            app.CalculationalgorithmDropDownLabel.Text = 'Calculation algorithm';
-
-            % Create AlgorithmDropDown
-            app.AlgorithmDropDown = uidropdown(app.GridLayoutAlgorithm);
-            app.AlgorithmDropDown.Items = {'IPMs', 'SQP'};
-            app.AlgorithmDropDown.Layout.Row = 1;
-            app.AlgorithmDropDown.Layout.Column = 2;
-            app.AlgorithmDropDown.Value = 'SQP';
-
-            % Create LargeScaleCheckBox
-            app.LargeScaleCheckBox = uicheckbox(app.GridLayout8);
-            app.LargeScaleCheckBox.Text = 'Large scale problem';
-            app.LargeScaleCheckBox.Layout.Row = 3;
-            app.LargeScaleCheckBox.Layout.Column = 1;
-
             % Create SuggestionCheckBox
             app.SuggestionCheckBox = uicheckbox(app.GridLayout8);
             app.SuggestionCheckBox.ValueChangedFcn = createCallbackFcn(app, @SuggestionCheckBoxValueChanged, true);
             app.SuggestionCheckBox.Text = 'Suggest label tracer to increase accuracy';
-            app.SuggestionCheckBox.Layout.Row = 4;
+            app.SuggestionCheckBox.Layout.Row = 2;
             app.SuggestionCheckBox.Layout.Column = 1;
 
             % Create PerturbateEffluxCheckBox
             app.PerturbateEffluxCheckBox = uicheckbox(app.GridLayout8);
             app.PerturbateEffluxCheckBox.ValueChangedFcn = createCallbackFcn(app, @PerturbateEffluxCheckBoxValueChanged, true);
             app.PerturbateEffluxCheckBox.Text = 'Perturbate efflux';
-            app.PerturbateEffluxCheckBox.Layout.Row = 5;
+            app.PerturbateEffluxCheckBox.Layout.Row = 3;
             app.PerturbateEffluxCheckBox.Layout.Column = 1;
 
             % Create CalcCICheckBox
             app.CalcCICheckBox = uicheckbox(app.GridLayout8);
             app.CalcCICheckBox.ValueChangedFcn = createCallbackFcn(app, @CalcCICheckBoxValueChanged, true);
             app.CalcCICheckBox.Text = 'Calculate confidence intervals of fluxes';
-            app.CalcCICheckBox.Layout.Row = 7;
+            app.CalcCICheckBox.Layout.Row = 5;
             app.CalcCICheckBox.Layout.Column = 1;
 
             % Create GridLayoutAlgorithm_2
@@ -1137,7 +1298,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayoutAlgorithm_2.ColumnWidth = {'6x', '4x'};
             app.GridLayoutAlgorithm_2.RowHeight = {'1x'};
             app.GridLayoutAlgorithm_2.Padding = [0 0 0 0];
-            app.GridLayoutAlgorithm_2.Layout.Row = 8;
+            app.GridLayoutAlgorithm_2.Layout.Row = 6;
             app.GridLayoutAlgorithm_2.Layout.Column = 1;
 
             % Create AlgorithmforCIcalculationDropDownLabel
@@ -1157,7 +1318,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Create DeleteResultButton
             app.DeleteResultButton = uicheckbox(app.GridLayout8);
             app.DeleteResultButton.Text = 'Delete result file when batch is canceled';
-            app.DeleteResultButton.Layout.Row = 9;
+            app.DeleteResultButton.Layout.Row = 7;
             app.DeleteResultButton.Layout.Column = 1;
             app.DeleteResultButton.Value = true;
 
@@ -1165,7 +1326,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.INSTMFACheckBox = uicheckbox(app.GridLayout8);
             app.INSTMFACheckBox.ValueChangedFcn = createCallbackFcn(app, @INSTMFACheckBoxValueChanged, true);
             app.INSTMFACheckBox.Text = 'Instrationaly-MFA instead of parallel labeling';
-            app.INSTMFACheckBox.Layout.Row = 6;
+            app.INSTMFACheckBox.Layout.Row = 4;
             app.INSTMFACheckBox.Layout.Column = 1;
 
             % Create TabGroup2
@@ -1505,12 +1666,12 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GeneralCancelButton.Layout.Column = 5;
             app.GeneralCancelButton.Text = 'Cancel';
 
-            % Create GeneralApplyButton
-            app.GeneralApplyButton = uibutton(app.GridLayout7_2, 'push');
-            app.GeneralApplyButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralApplyButtonPushed2, true);
-            app.GeneralApplyButton.Layout.Row = 1;
-            app.GeneralApplyButton.Layout.Column = 4;
-            app.GeneralApplyButton.Text = 'Apply';
+            % Create GeneralCloseButton
+            app.GeneralCloseButton = uibutton(app.GridLayout7_2, 'push');
+            app.GeneralCloseButton.ButtonPushedFcn = createCallbackFcn(app, @GeneralCloseButtonPushed2, true);
+            app.GeneralCloseButton.Layout.Row = 1;
+            app.GeneralCloseButton.Layout.Column = 4;
+            app.GeneralCloseButton.Text = 'Close';
 
             % Create GeneralRestoreDefaultButton
             app.GeneralRestoreDefaultButton = uibutton(app.GridLayout7_2, 'push');
@@ -1542,12 +1703,12 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.MSCancelButton.Layout.Column = 5;
             app.MSCancelButton.Text = 'Cancel';
 
-            % Create MSApplyAllButton
-            app.MSApplyAllButton = uibutton(app.GridLayout7, 'push');
-            app.MSApplyAllButton.ButtonPushedFcn = createCallbackFcn(app, @MSApplyAllButtonPushed, true);
-            app.MSApplyAllButton.Layout.Row = 1;
-            app.MSApplyAllButton.Layout.Column = 4;
-            app.MSApplyAllButton.Text = 'Apply';
+            % Create MSCloseButton
+            app.MSCloseButton = uibutton(app.GridLayout7, 'push');
+            app.MSCloseButton.ButtonPushedFcn = createCallbackFcn(app, @MSCloseButtonPushed, true);
+            app.MSCloseButton.Layout.Row = 1;
+            app.MSCloseButton.Layout.Column = 4;
+            app.MSCloseButton.Text = 'Close';
 
             % Create MSRestoreDefaultButton
             app.MSRestoreDefaultButton = uibutton(app.GridLayout7, 'push');
@@ -1561,6 +1722,330 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.MSTable.RowName = {};
             app.MSTable.Layout.Row = 1;
             app.MSTable.Layout.Column = 1;
+
+            % Create OptimizationTab
+            app.OptimizationTab = uitab(app.TabGroup);
+            app.OptimizationTab.Title = 'Optimization';
+
+            % Create GridLayout13_3
+            app.GridLayout13_3 = uigridlayout(app.OptimizationTab);
+            app.GridLayout13_3.ColumnWidth = {'1x'};
+            app.GridLayout13_3.RowHeight = {'1x', 'fit'};
+
+            % Create GridLayout15_3
+            app.GridLayout15_3 = uigridlayout(app.GridLayout13_3);
+            app.GridLayout15_3.ColumnWidth = {'1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout15_3.RowHeight = {'1x'};
+            app.GridLayout15_3.Padding = [0 0 0 0];
+            app.GridLayout15_3.Layout.Row = 2;
+            app.GridLayout15_3.Layout.Column = 1;
+
+            % Create OptimizationCancelButton
+            app.OptimizationCancelButton = uibutton(app.GridLayout15_3, 'push');
+            app.OptimizationCancelButton.Layout.Row = 1;
+            app.OptimizationCancelButton.Layout.Column = 5;
+            app.OptimizationCancelButton.Text = 'Cancel';
+
+            % Create OptimizationCloseButton
+            app.OptimizationCloseButton = uibutton(app.GridLayout15_3, 'push');
+            app.OptimizationCloseButton.Layout.Row = 1;
+            app.OptimizationCloseButton.Layout.Column = 4;
+            app.OptimizationCloseButton.Text = 'Close';
+
+            % Create OptimizationRestoreDefaultButton
+            app.OptimizationRestoreDefaultButton = uibutton(app.GridLayout15_3, 'push');
+            app.OptimizationRestoreDefaultButton.Layout.Row = 1;
+            app.OptimizationRestoreDefaultButton.Layout.Column = 3;
+            app.OptimizationRestoreDefaultButton.Text = 'Restore default';
+
+            % Create GridLayout22_2
+            app.GridLayout22_2 = uigridlayout(app.GridLayout13_3);
+            app.GridLayout22_2.RowHeight = {'1x'};
+            app.GridLayout22_2.Padding = [0 0 0 0];
+            app.GridLayout22_2.Layout.Row = 1;
+            app.GridLayout22_2.Layout.Column = 1;
+
+            % Create GridLayout24
+            app.GridLayout24 = uigridlayout(app.GridLayout22_2);
+            app.GridLayout24.ColumnWidth = {'1x'};
+            app.GridLayout24.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit'};
+            app.GridLayout24.Padding = [0 0 0 0];
+            app.GridLayout24.Layout.Row = 1;
+            app.GridLayout24.Layout.Column = 1;
+
+            % Create GridLayout25
+            app.GridLayout25 = uigridlayout(app.GridLayout24);
+            app.GridLayout25.ColumnWidth = {'6x', '4x'};
+            app.GridLayout25.RowHeight = {'1x'};
+            app.GridLayout25.Padding = [0 0 0 0];
+            app.GridLayout25.Layout.Row = 1;
+            app.GridLayout25.Layout.Column = 1;
+
+            % Create DropDownLabel
+            app.DropDownLabel = uilabel(app.GridLayout25);
+            app.DropDownLabel.Layout.Row = 1;
+            app.DropDownLabel.Layout.Column = 1;
+            app.DropDownLabel.Text = 'Calculation algorithm';
+
+            % Create AlgorithmDropDown
+            app.AlgorithmDropDown = uidropdown(app.GridLayout25);
+            app.AlgorithmDropDown.Items = {'IPMs', 'SQP'};
+            app.AlgorithmDropDown.Layout.Row = 1;
+            app.AlgorithmDropDown.Layout.Column = 2;
+            app.AlgorithmDropDown.Value = 'SQP';
+
+            % Create LargeScaleCheckBox
+            app.LargeScaleCheckBox = uicheckbox(app.GridLayout24);
+            app.LargeScaleCheckBox.Text = 'Large scale problem';
+            app.LargeScaleCheckBox.Layout.Row = 2;
+            app.LargeScaleCheckBox.Layout.Column = 1;
+
+            % Create GridLayout10_9
+            app.GridLayout10_9 = uigridlayout(app.GridLayout24);
+            app.GridLayout10_9.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_9.RowHeight = {'1x'};
+            app.GridLayout10_9.Padding = [0 0 0 0];
+            app.GridLayout10_9.Layout.Row = 3;
+            app.GridLayout10_9.Layout.Column = 1;
+
+            % Create FluxUBEditFieldLabel
+            app.FluxUBEditFieldLabel = uilabel(app.GridLayout10_9);
+            app.FluxUBEditFieldLabel.Layout.Row = 1;
+            app.FluxUBEditFieldLabel.Layout.Column = 1;
+            app.FluxUBEditFieldLabel.Text = 'Flux upperbound for FVA';
+
+            % Create FluxUBEditField
+            app.FluxUBEditField = uieditfield(app.GridLayout10_9, 'numeric');
+            app.FluxUBEditField.Limits = [0 Inf];
+            app.FluxUBEditField.Layout.Row = 1;
+            app.FluxUBEditField.Layout.Column = 2;
+            app.FluxUBEditField.Value = 1000;
+
+            % Create GridLayout10_10
+            app.GridLayout10_10 = uigridlayout(app.GridLayout24);
+            app.GridLayout10_10.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_10.RowHeight = {'1x'};
+            app.GridLayout10_10.Padding = [0 0 0 0];
+            app.GridLayout10_10.Layout.Row = 4;
+            app.GridLayout10_10.Layout.Column = 1;
+
+            % Create FluxUBEditFieldLabel_2
+            app.FluxUBEditFieldLabel_2 = uilabel(app.GridLayout10_10);
+            app.FluxUBEditFieldLabel_2.Layout.Row = 1;
+            app.FluxUBEditFieldLabel_2.Layout.Column = 1;
+            app.FluxUBEditFieldLabel_2.Text = 'Flux lowerbound for FVA';
+
+            % Create FluxLBEditField
+            app.FluxLBEditField = uieditfield(app.GridLayout10_10, 'numeric');
+            app.FluxLBEditField.Limits = [-Inf 0];
+            app.FluxLBEditField.Layout.Row = 1;
+            app.FluxLBEditField.Layout.Column = 2;
+            app.FluxLBEditField.Value = -1000;
+
+            % Create GridLayout10_11
+            app.GridLayout10_11 = uigridlayout(app.GridLayout24);
+            app.GridLayout10_11.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_11.RowHeight = {'1x'};
+            app.GridLayout10_11.Padding = [0 0 0 0];
+            app.GridLayout10_11.Layout.Row = 5;
+            app.GridLayout10_11.Layout.Column = 1;
+
+            % Create FluxUBEditFieldLabel_3
+            app.FluxUBEditFieldLabel_3 = uilabel(app.GridLayout10_11);
+            app.FluxUBEditFieldLabel_3.Layout.Row = 1;
+            app.FluxUBEditFieldLabel_3.Layout.Column = 1;
+            app.FluxUBEditFieldLabel_3.Text = 'MaxFunctionEvaluations';
+
+            % Create MaxFunctionEvaluationsEditField
+            app.MaxFunctionEvaluationsEditField = uieditfield(app.GridLayout10_11, 'numeric');
+            app.MaxFunctionEvaluationsEditField.Limits = [1 Inf];
+            app.MaxFunctionEvaluationsEditField.Layout.Row = 1;
+            app.MaxFunctionEvaluationsEditField.Layout.Column = 2;
+            app.MaxFunctionEvaluationsEditField.Value = 3000;
+
+            % Create GridLayout10_12
+            app.GridLayout10_12 = uigridlayout(app.GridLayout24);
+            app.GridLayout10_12.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_12.RowHeight = {'1x'};
+            app.GridLayout10_12.Padding = [0 0 0 0];
+            app.GridLayout10_12.Layout.Row = 6;
+            app.GridLayout10_12.Layout.Column = 1;
+
+            % Create FluxUBEditFieldLabel_4
+            app.FluxUBEditFieldLabel_4 = uilabel(app.GridLayout10_12);
+            app.FluxUBEditFieldLabel_4.Layout.Row = 1;
+            app.FluxUBEditFieldLabel_4.Layout.Column = 1;
+            app.FluxUBEditFieldLabel_4.Text = 'MaxIterations';
+
+            % Create MaxIterationsEditField
+            app.MaxIterationsEditField = uieditfield(app.GridLayout10_12, 'numeric');
+            app.MaxIterationsEditField.Limits = [1 Inf];
+            app.MaxIterationsEditField.Layout.Row = 1;
+            app.MaxIterationsEditField.Layout.Column = 2;
+            app.MaxIterationsEditField.Value = 1500;
+
+            % Create GridLayout10_13
+            app.GridLayout10_13 = uigridlayout(app.GridLayout24);
+            app.GridLayout10_13.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_13.RowHeight = {'1x'};
+            app.GridLayout10_13.Padding = [0 0 0 0];
+            app.GridLayout10_13.Layout.Row = 7;
+            app.GridLayout10_13.Layout.Column = 1;
+
+            % Create FluxUBEditFieldLabel_5
+            app.FluxUBEditFieldLabel_5 = uilabel(app.GridLayout10_13);
+            app.FluxUBEditFieldLabel_5.Layout.Row = 1;
+            app.FluxUBEditFieldLabel_5.Layout.Column = 1;
+            app.FluxUBEditFieldLabel_5.Text = 'FunctionTolerance';
+
+            % Create FunctionToleranceEditField
+            app.FunctionToleranceEditField = uieditfield(app.GridLayout10_13, 'numeric');
+            app.FunctionToleranceEditField.Limits = [0 Inf];
+            app.FunctionToleranceEditField.Layout.Row = 1;
+            app.FunctionToleranceEditField.Layout.Column = 2;
+            app.FunctionToleranceEditField.Value = 1e-06;
+
+            % Create GridLayout10_14
+            app.GridLayout10_14 = uigridlayout(app.GridLayout24);
+            app.GridLayout10_14.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_14.RowHeight = {'1x'};
+            app.GridLayout10_14.Padding = [0 0 0 0];
+            app.GridLayout10_14.Layout.Row = 8;
+            app.GridLayout10_14.Layout.Column = 1;
+
+            % Create FluxUBEditFieldLabel_6
+            app.FluxUBEditFieldLabel_6 = uilabel(app.GridLayout10_14);
+            app.FluxUBEditFieldLabel_6.Layout.Row = 1;
+            app.FluxUBEditFieldLabel_6.Layout.Column = 1;
+            app.FluxUBEditFieldLabel_6.Text = 'StepTolerance';
+
+            % Create StepToleranceEditField
+            app.StepToleranceEditField = uieditfield(app.GridLayout10_14, 'numeric');
+            app.StepToleranceEditField.Limits = [0 Inf];
+            app.StepToleranceEditField.Layout.Row = 1;
+            app.StepToleranceEditField.Layout.Column = 2;
+            app.StepToleranceEditField.Value = 1e-10;
+
+            % Create GridLayout10_15
+            app.GridLayout10_15 = uigridlayout(app.GridLayout24);
+            app.GridLayout10_15.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_15.RowHeight = {'1x'};
+            app.GridLayout10_15.Padding = [0 0 0 0];
+            app.GridLayout10_15.Layout.Row = 9;
+            app.GridLayout10_15.Layout.Column = 1;
+
+            % Create FluxUBEditFieldLabel_7
+            app.FluxUBEditFieldLabel_7 = uilabel(app.GridLayout10_15);
+            app.FluxUBEditFieldLabel_7.Layout.Row = 1;
+            app.FluxUBEditFieldLabel_7.Layout.Column = 1;
+            app.FluxUBEditFieldLabel_7.Text = 'OptimalityTolerance';
+
+            % Create OptimalityToleranceEditField
+            app.OptimalityToleranceEditField = uieditfield(app.GridLayout10_15, 'numeric');
+            app.OptimalityToleranceEditField.Limits = [0 Inf];
+            app.OptimalityToleranceEditField.Layout.Row = 1;
+            app.OptimalityToleranceEditField.Layout.Column = 2;
+            app.OptimalityToleranceEditField.Value = 1e-08;
+
+            % Create GridLayout10_16
+            app.GridLayout10_16 = uigridlayout(app.GridLayout24);
+            app.GridLayout10_16.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_16.RowHeight = {'1x'};
+            app.GridLayout10_16.Padding = [0 0 0 0];
+            app.GridLayout10_16.Layout.Row = 10;
+            app.GridLayout10_16.Layout.Column = 1;
+
+            % Create FluxUBEditFieldLabel_8
+            app.FluxUBEditFieldLabel_8 = uilabel(app.GridLayout10_16);
+            app.FluxUBEditFieldLabel_8.Layout.Row = 1;
+            app.FluxUBEditFieldLabel_8.Layout.Column = 1;
+            app.FluxUBEditFieldLabel_8.Text = 'ConstraintTolerance';
+
+            % Create ConstraintToleranceEditField
+            app.ConstraintToleranceEditField = uieditfield(app.GridLayout10_16, 'numeric');
+            app.ConstraintToleranceEditField.Limits = [0 Inf];
+            app.ConstraintToleranceEditField.Layout.Row = 1;
+            app.ConstraintToleranceEditField.Layout.Column = 2;
+            app.ConstraintToleranceEditField.Value = 1e-08;
+
+            % Create GridLayout25_2
+            app.GridLayout25_2 = uigridlayout(app.GridLayout24);
+            app.GridLayout25_2.ColumnWidth = {'7x', '3x'};
+            app.GridLayout25_2.RowHeight = {'1x'};
+            app.GridLayout25_2.Padding = [0 0 0 0];
+            app.GridLayout25_2.Layout.Row = 11;
+            app.GridLayout25_2.Layout.Column = 1;
+
+            % Create DropDownLabel_2
+            app.DropDownLabel_2 = uilabel(app.GridLayout25_2);
+            app.DropDownLabel_2.Layout.Row = 1;
+            app.DropDownLabel_2.Layout.Column = 1;
+            app.DropDownLabel_2.Text = 'FiniteDifferenceType';
+
+            % Create FiniteDifferenceTypeDropDown
+            app.FiniteDifferenceTypeDropDown = uidropdown(app.GridLayout25_2);
+            app.FiniteDifferenceTypeDropDown.Items = {'Forward', 'Central'};
+            app.FiniteDifferenceTypeDropDown.Layout.Row = 1;
+            app.FiniteDifferenceTypeDropDown.Layout.Column = 2;
+            app.FiniteDifferenceTypeDropDown.Value = 'Central';
+
+            % Create GridLayout10_17
+            app.GridLayout10_17 = uigridlayout(app.GridLayout24);
+            app.GridLayout10_17.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_17.RowHeight = {'1x'};
+            app.GridLayout10_17.Padding = [0 0 0 0];
+            app.GridLayout10_17.Layout.Row = 12;
+            app.GridLayout10_17.Layout.Column = 1;
+
+            % Create EditFieldLabel
+            app.EditFieldLabel = uilabel(app.GridLayout10_17);
+            app.EditFieldLabel.Layout.Row = 1;
+            app.EditFieldLabel.Layout.Column = 1;
+            app.EditFieldLabel.Text = 'FiniteDifferenceStepSize';
+
+            % Create FiniteDifferenceStepSizeEditField
+            app.FiniteDifferenceStepSizeEditField = uieditfield(app.GridLayout10_17, 'numeric');
+            app.FiniteDifferenceStepSizeEditField.Limits = [0 Inf];
+            app.FiniteDifferenceStepSizeEditField.Layout.Row = 1;
+            app.FiniteDifferenceStepSizeEditField.Layout.Column = 2;
+            app.FiniteDifferenceStepSizeEditField.Value = 1e-06;
+
+            % Create GridLayout26
+            app.GridLayout26 = uigridlayout(app.GridLayout22_2);
+            app.GridLayout26.ColumnWidth = {'1x'};
+            app.GridLayout26.RowHeight = {'fit', 'fit', '1x', '1x', '1x'};
+            app.GridLayout26.Padding = [0 0 0 0];
+            app.GridLayout26.Layout.Row = 1;
+            app.GridLayout26.Layout.Column = 2;
+
+            % Create SearchOptimalFiniteDifferenceStepSizeCheckBox
+            app.SearchOptimalFiniteDifferenceStepSizeCheckBox = uicheckbox(app.GridLayout26);
+            app.SearchOptimalFiniteDifferenceStepSizeCheckBox.Text = 'Search optimal FiniteDifferenceStepSize';
+            app.SearchOptimalFiniteDifferenceStepSizeCheckBox.Layout.Row = 1;
+            app.SearchOptimalFiniteDifferenceStepSizeCheckBox.Layout.Column = 1;
+            app.SearchOptimalFiniteDifferenceStepSizeCheckBox.Value = true;
+
+            % Create GridLayout10_19
+            app.GridLayout10_19 = uigridlayout(app.GridLayout26);
+            app.GridLayout10_19.ColumnWidth = {'7x', '3x'};
+            app.GridLayout10_19.RowHeight = {'1x'};
+            app.GridLayout10_19.Padding = [0 0 0 0];
+            app.GridLayout10_19.Layout.Row = 2;
+            app.GridLayout10_19.Layout.Column = 1;
+
+            % Create EditFieldLabel_2
+            app.EditFieldLabel_2 = uilabel(app.GridLayout10_19);
+            app.EditFieldLabel_2.Layout.Row = 1;
+            app.EditFieldLabel_2.Layout.Column = 1;
+            app.EditFieldLabel_2.Interpreter = 'html';
+            app.EditFieldLabel_2.Text = 'Restrict efflux perturbation with <i>σ</i>:';
+
+            % Create MCLmaxEditField_2
+            app.MCLmaxEditField_2 = uieditfield(app.GridLayout10_19, 'numeric');
+            app.MCLmaxEditField_2.Limits = [0 Inf];
+            app.MCLmaxEditField_2.Layout.Row = 1;
+            app.MCLmaxEditField_2.Layout.Column = 2;
+            app.MCLmaxEditField_2.Value = 3;
 
             % Create EffluxperturbationTab
             app.EffluxperturbationTab = uitab(app.TabGroup);
@@ -1586,11 +2071,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.EffluxCancelButton.Layout.Column = 5;
             app.EffluxCancelButton.Text = 'Cancel';
 
-            % Create EffluxApplyButton
-            app.EffluxApplyButton = uibutton(app.GridLayout15, 'push');
-            app.EffluxApplyButton.Layout.Row = 1;
-            app.EffluxApplyButton.Layout.Column = 4;
-            app.EffluxApplyButton.Text = 'Apply';
+            % Create EffluxCloseButton
+            app.EffluxCloseButton = uibutton(app.GridLayout15, 'push');
+            app.EffluxCloseButton.Layout.Row = 1;
+            app.EffluxCloseButton.Layout.Column = 4;
+            app.EffluxCloseButton.Text = 'Close';
 
             % Create EffluxRestoreDefaultButton
             app.EffluxRestoreDefaultButton = uibutton(app.GridLayout15, 'push');
@@ -1643,11 +2128,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.SuggestionRestoreDefaultButton.Layout.Column = 3;
             app.SuggestionRestoreDefaultButton.Text = 'Restore default';
 
-            % Create SuggestionApplyButton
-            app.SuggestionApplyButton = uibutton(app.GridLayout16, 'push');
-            app.SuggestionApplyButton.Layout.Row = 1;
-            app.SuggestionApplyButton.Layout.Column = 4;
-            app.SuggestionApplyButton.Text = 'Apply';
+            % Create SuggestionCloseButton
+            app.SuggestionCloseButton = uibutton(app.GridLayout16, 'push');
+            app.SuggestionCloseButton.Layout.Row = 1;
+            app.SuggestionCloseButton.Layout.Column = 4;
+            app.SuggestionCloseButton.Text = 'Close';
 
             % Create GridLayout17
             app.GridLayout17 = uigridlayout(app.GridLayout14);
@@ -1703,11 +2188,11 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.INSTMFARestoreDefaultButton.Layout.Column = 3;
             app.INSTMFARestoreDefaultButton.Text = 'Restore default';
 
-            % Create INSTMFAApplyButton
-            app.INSTMFAApplyButton = uibutton(app.GridLayout15_2, 'push');
-            app.INSTMFAApplyButton.Layout.Row = 1;
-            app.INSTMFAApplyButton.Layout.Column = 4;
-            app.INSTMFAApplyButton.Text = 'Apply';
+            % Create INSTMFACloseButton
+            app.INSTMFACloseButton = uibutton(app.GridLayout15_2, 'push');
+            app.INSTMFACloseButton.Layout.Row = 1;
+            app.INSTMFACloseButton.Layout.Column = 4;
+            app.INSTMFACloseButton.Text = 'Close';
 
             % Create GridLayout20
             app.GridLayout20 = uigridlayout(app.GridLayout13_2);
