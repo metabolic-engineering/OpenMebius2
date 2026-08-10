@@ -182,6 +182,27 @@ classdef MainApplicationController < handle
 
         end
 
+        function outcome = duplicateProject(obj, options)
+
+            arguments
+                obj
+                options.ParentDirectory (1, 1) string
+                options.ProjectDirectoryName (1, 1) string
+            end
+
+            outcome = obj.projectCommand(@duplicateProject);
+
+            function value = duplicateProject()
+
+                value = obj.ProjectController.duplicate( ...
+                    obj.Session.Project, ...
+                    ParentDirectory = options.ParentDirectory, ...
+                    ProjectDirectoryName = options.ProjectDirectoryName);
+
+            end
+
+        end % duplicateProject
+
         function outcome = loadTemplateModel(obj, directory)
 
             outcome = obj.modelCommand(@loadTemplate);

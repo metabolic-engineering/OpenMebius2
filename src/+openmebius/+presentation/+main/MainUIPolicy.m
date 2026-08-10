@@ -97,6 +97,9 @@ classdef MainUIPolicy
             ui.ProjectCreateEnabled = ...
                 isIdle && canCreateProjectFromTemplate && ~hasProject && ~isEditing;
 
+            ui.DuplicateProjectEnabled = ...
+                isIdle && hasProject && ~isEditing;
+
             ui.TemplateModelSaveEnabled = ...
                 isIdle && hasModel && ~isEditing;
 

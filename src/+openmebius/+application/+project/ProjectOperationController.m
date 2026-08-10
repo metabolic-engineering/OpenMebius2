@@ -1,10 +1,12 @@
 classdef ProjectOperationController < handle
-    % PROJECTOPERATIONCONTROLLER Runs project open, save, and create use cases.
+    % PROJECTOPERATIONCONTROLLER Runs project open, save, create, and
+    % duplicate use cases.
 
     properties (Access = private)
         Repository
         OpenProjectUseCase
         CreateProjectUseCase
+        DuplicateProjectUseCase
         ArtifactRepository
         MigrationService
     end
@@ -17,6 +19,7 @@ classdef ProjectOperationController < handle
                 options.Repository = []
                 options.OpenProjectUseCase = []
                 options.CreateProjectUseCase = []
+                options.DuplicateProjectUseCase = []
                 options.ArtifactRepository = []
                 options.MigrationService = []
             end
@@ -42,6 +45,13 @@ classdef ProjectOperationController < handle
                     .CreateProjectUseCase(repository);
             end
 
+            duplicateProjectUseCase = options.DuplicateProjectUseCase;
+
+            if isempty(duplicateProjectUseCase)
+                duplicateProjectUseCase = openmebius.application.project ...
+                    .DuplicateProjectUseCase(repository);
+            end
+
             artifactRepository = options.ArtifactRepository;
 
             if isempty(artifactRepository)
@@ -59,6 +69,7 @@ classdef ProjectOperationController < handle
             obj.Repository = repository;
             obj.OpenProjectUseCase = openProjectUseCase;
             obj.CreateProjectUseCase = createProjectUseCase;
+            obj.DuplicateProjectUseCase = duplicateProjectUseCase;
             obj.ArtifactRepository = artifactRepository;
             obj.MigrationService = migrationService;
 
@@ -158,6 +169,32 @@ classdef ProjectOperationController < handle
             end
 
         end % create
+
+        function outcome = duplicate(obj, currentSession, options)
+
+            arguments
+                obj
+                currentSession
+                options.ParentDirectory (1, 1) string
+                options.ProjectDirectoryName (1, 1) string
+            end
+
+            outcome = obj.execute(@duplicateProject);
+
+            function result = duplicateProject()
+
+                duplicateResult = obj.DuplicateProjectUseCase.execute( ...
+                    SourceSession = currentSession, ...
+                    ParentDirectory = options.ParentDirectory, ...
+                    ProjectDirectoryName = options.ProjectDirectoryName);
+                result = openmebius.application.project ...
+                    .ProjectOperationResult( ...
+                    Session = duplicateResult.Session, ...
+                    Messages = duplicateResult.Messages);
+
+            end
+
+        end % duplicate
 
     end % methods
 

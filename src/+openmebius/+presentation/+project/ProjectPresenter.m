@@ -47,6 +47,32 @@ classdef ProjectPresenter
 
         end % presentCreateOutcome
 
+        function viewModel = presentDuplicateOutcome(obj, outcome)
+
+            if outcome.isSuccess()
+                notifications = obj.successNotifications( ...
+                    outcome.Result.Messages);
+            else
+                message = outcome.ErrorMessage;
+
+                if message == ""
+                    message = "Project duplicate failed.";
+                end
+
+                notifications = { ...
+                                     openmebius.presentation.notification ...
+                                     .Notification.error( ...
+                                     message, ...
+                                     Title = "Project duplicate failed", ...
+                                     ShowAlert = true)};
+            end
+
+            viewModel = openmebius.presentation.project ...
+                .ProjectOperationViewModel( ...
+                Notifications = notifications);
+
+        end % presentDuplicateOutcome
+
     end % methods
 
     methods (Access = private)

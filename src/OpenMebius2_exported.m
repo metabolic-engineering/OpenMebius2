@@ -5,6 +5,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         OpenMebius2UIFigure             matlab.ui.Figure
         ApplicationMenu                 matlab.ui.container.Menu
         ReloadWindowMenu                matlab.ui.container.Menu
+        DuplicatecurrentprojectMenu     matlab.ui.container.Menu
         ClearcacheMenu                  matlab.ui.container.Menu
         PreferencesMenu                 matlab.ui.container.Menu
         ExperimentaldataMenu            matlab.ui.container.Menu
@@ -1679,6 +1680,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if isfield(ui, "ProjectCreateEnabled")
                 app.ProjectCreateButton.Enable = ...
                     app.onOff(ui.ProjectCreateEnabled);
+            end
+
+            if isfield(ui, "DuplicateProjectEnabled")
+                app.DuplicatecurrentprojectMenu.Enable = ...
+                    app.onOff(ui.DuplicateProjectEnabled);
             end
 
             % Stoichiometry tab
@@ -3562,34 +3568,20 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             batchData = app.getBatchOperationalData();
             batchIds = string(batchData.ID(selectedRows));
-            statuses = lower(app.ApplicationController ...
-                .getBatchStatuses(batchIds));
-            needsConfirmation = ismember( ...
-                statuses, ["finished", "error", "failed"]);
-            batchIdsToRemove = batchIds(~needsConfirmation);
+            [answer, isOK] = app.uiConfirmWrap( ...
+                "Are you sure you want to remove the selected batch?", ...
+                "Remove Batch", ...
+                Options = ["Yes", "No"], ...
+                DefaultOption = "No", ...
+                CancelOption = "No", ...
+                Icon = "warning");
 
-            if any(needsConfirmation)
-                [answer, isOK] = app.uiConfirmWrap( ...
-                    "Removing completed or failed batches also " + ...
-                    "permanently deletes their result files. Continue?", ...
-                    "Remove Batch", ...
-                    Options = ["Yes", "No"], ...
-                    DefaultOption = "No", ...
-                    CancelOption = "No", ...
-                    Icon = "warning");
-
-                if isOK && answer == "Yes"
-                    batchIdsToRemove = [ ...
-                        batchIdsToRemove; batchIds(needsConfirmation)];
-                end
-            end
-
-            if isempty(batchIdsToRemove)
+            if ~isOK || answer ~= "Yes"
                 return
             end
 
             [outcome, batch] = app.ApplicationController ...
-                .removeBatches(batchIdsToRemove);
+                .removeBatches(batchIds);
             app.renderBatchOperationViewModel( ...
                 app.BatchPresenter.presentRemoveOutcome( ...
                 outcome, batch));
@@ -4831,6 +4823,67 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % createProjectFromDialog
 
+        function duplicateCurrentProjectFromDialog(app)
+
+            currentProject = app.ApplicationController.project();
+
+            if isempty(currentProject)
+                app.publishMessage( ...
+                    "error", "No project is currently loaded.");
+                app.refreshPresentation();
+                return
+            end
+
+            cleanupPresentation = ...
+                app.beginPresentationOperation(); %#ok<NASGU>
+            currentName = string(currentProject.Metadata.Name);
+
+            if strtrim(currentName) == ""
+                [~, currentName] = fileparts( ...
+                    currentProject.Paths.RootDirectory);
+                currentName = string(currentName);
+            end
+
+            [answers, isOK] = app.uiInputDlgWrap( ...
+                Prompt = "Enter the name of the duplicated project:", ...
+                Title = "Duplicate Current Project", ...
+                Default = currentName + "_2");
+
+            if ~isOK || isempty(answers)
+                return
+            end
+
+            projectName = strtrim(string(answers(1)));
+
+            if projectName == ""
+                app.publishMessage( ...
+                    "error", "Project name cannot be empty.");
+                return
+            end
+
+            startPath = string(fileparts( ...
+                currentProject.Paths.RootDirectory));
+
+            if startPath == "" || ~isfolder(startPath)
+                startPath = string(pwd);
+            end
+
+            [parentDirectory, isOK] = app.uiGetDirWrap( ...
+                StartPath = startPath, ...
+                Title = "Select Destination for Duplicated Project");
+
+            if ~isOK
+                return
+            end
+
+            outcome = app.ApplicationController.duplicateProject( ...
+                ParentDirectory = string(parentDirectory), ...
+                ProjectDirectoryName = projectName);
+            app.renderProjectOperationViewModel( ...
+                app.ProjectPresenter.presentDuplicateOutcome(outcome));
+
+        end % duplicateCurrentProjectFromDialog
+
         function acceptProjectDirectoryValue(app)
 
             selectedValue = string(app.ProjectDirectoryDropDown.Value);
@@ -5854,6 +5907,12 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.reloadMainWindow();
         end
 
+        % Menu selected function: DuplicatecurrentprojectMenu
+        function DuplicatecurrentprojectMenuSelected(app, event)
+
+            app.duplicateCurrentProjectFromDialog();
+        end
+
         % Menu selected function: PreferencesMenu
         function PreferencesMenuSelected(app, event)
 
@@ -5979,6 +6038,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ReloadWindowMenu = uimenu(app.ApplicationMenu);
             app.ReloadWindowMenu.MenuSelectedFcn = createCallbackFcn(app, @ReloadWindowMenuSelected, true);
             app.ReloadWindowMenu.Text = 'Reload Window';
+
+            % Create DuplicatecurrentprojectMenu
+            app.DuplicatecurrentprojectMenu = uimenu(app.ApplicationMenu);
+            app.DuplicatecurrentprojectMenu.MenuSelectedFcn = createCallbackFcn(app, @DuplicatecurrentprojectMenuSelected, true);
+            app.DuplicatecurrentprojectMenu.Text = 'Duplicate current project';
 
             % Create ClearcacheMenu
             app.ClearcacheMenu = uimenu(app.ApplicationMenu);
