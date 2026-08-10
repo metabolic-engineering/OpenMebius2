@@ -97,7 +97,12 @@ classdef BatchOperationStub < handle
         function status = getBatchStatus(obj, ids)
 
             obj.RequestedStatusIds = string(ids(:));
-            status = repmat(obj.Status(1), numel(ids), 1);
+
+            if isscalar(obj.Status)
+                status = repmat(obj.Status, numel(ids), 1);
+            else
+                status = obj.Status(:);
+            end
 
         end
 

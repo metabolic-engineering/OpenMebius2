@@ -67,6 +67,31 @@ classdef ResultQueryService
 
         end
 
+        function snapshots = readBatchSnapshots(obj, ids)
+
+            arguments
+                obj
+                ids string
+            end
+
+            obj.assertAvailable();
+            ids = string(ids(:));
+            snapshots = cell(numel(ids), 1);
+
+            for index = 1:numel(ids)
+
+                try
+                    snapshots{index} = obj.Hdf5ResultRepository ...
+                        .readBatchSnapshot(obj.Location, ids(index));
+                catch
+                    % A corrupt result must not prevent other batches
+                    % from being restored when the project is opened.
+                end
+
+            end
+
+        end
+
         function data = readConfidenceInterval(obj, id, reactionID)
 
             arguments

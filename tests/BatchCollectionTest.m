@@ -39,6 +39,36 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
 
         end
 
+        function addsRecoveredEntryWithItsOriginalId(testCase)
+
+            collection = BatchCollectionTest.emptyCollection();
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.status = 'finished';
+
+            added = collection.addRecovered( ...
+                "bat_recovered", ...
+                "Recovered batch", ...
+                {["exp-a"; "exp-b"]}, ...
+                "description", ...
+                config, ...
+            "sha256:result");
+            duplicateAdded = collection.addRecovered( ...
+                "bat_recovered", "Duplicate", {"exp-c"}, "", config);
+
+            batchTable = collection.toTable();
+            testCase.verifyTrue(added);
+            testCase.verifyFalse(duplicateAdded);
+            testCase.verifyEqual(height(batchTable), 1);
+            testCase.verifyEqual(batchTable.id, "bat_recovered");
+            testCase.verifyEqual(batchTable.name, "Recovered batch");
+            testCase.verifyEqual( ...
+                batchTable.exp{1}, ["exp-a"; "exp-b"]);
+            testCase.verifyEqual(batchTable.contentHash, "sha256:result");
+            testCase.verifyEqual( ...
+                string(batchTable.config.status), "finished");
+
+        end
+
         function editsConfigAndStatusesByStableId(testCase)
 
             collection = BatchCollectionTest.emptyCollection();
@@ -117,7 +147,7 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
 
         end
 
-        function removeAndClearPreserveTerminalEntries(testCase)
+        function removeAllowsTerminalEntriesAndClearPreservesOthers(testCase)
 
             collection = BatchCollectionTest.emptyCollection();
             finishedId = BatchCollectionTest.addDefault(collection, "Done");
@@ -130,14 +160,14 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
                 collection.remove(finishedId);
             [removedReady, readyReason] = collection.remove(readyId);
 
-            testCase.verifyFalse(removedFinished);
-            testCase.verifyEqual(finishedReason, "finished");
+            testCase.verifyTrue(removedFinished);
+            testCase.verifyEqual(finishedReason, "");
             testCase.verifyTrue(removedReady);
             testCase.verifyEqual(readyReason, "");
             BatchCollectionTest.addDefault(collection, "Another ready");
             collection.clearUnfinished();
             testCase.verifyEqual( ...
-                collection.toTable().id, [finishedId; failedId]);
+                collection.toTable().id, failedId);
 
         end
 

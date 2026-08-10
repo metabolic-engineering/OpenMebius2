@@ -47,8 +47,10 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
         function removesSelectedBatches(testCase)
 
             batch = helpers.BatchOperationStub();
+            artifactRepository = helpers.ResultArtifactRepositoryStub();
             controller = openmebius.application.batch ...
-                .BatchOperationController();
+                .BatchOperationController( ...
+                    ArtifactRepository = artifactRepository);
 
             outcome = controller.remove( ...
                 batch, ["batch-a"; "batch-b"]);
@@ -56,6 +58,47 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
             testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual( ...
                 batch.RemovedIds, ["batch-a"; "batch-b"]);
+            testCase.verifyEmpty(artifactRepository.DeletedBatchIds);
+
+        end
+
+        function removesTerminalBatchesAndTheirResultArtifacts(testCase)
+
+            batch = helpers.BatchOperationStub();
+            batch.Status = ["finished"; "error"];
+            artifactRepository = helpers.ResultArtifactRepositoryStub();
+            controller = openmebius.application.batch ...
+                .BatchOperationController( ...
+                    ArtifactRepository = artifactRepository);
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(string(tempdir));
+
+            outcome = controller.remove( ...
+                batch, ["batch-a"; "batch-b"], resultLocation);
+
+            testCase.verifyTrue(outcome.isSuccess());
+            testCase.verifyEqual( ...
+                artifactRepository.DeletedBatchIds, ...
+                ["batch-a"; "batch-b"]);
+            testCase.verifyEqual( ...
+                batch.RemovedIds, ["batch-a"; "batch-b"]);
+
+        end
+
+        function requiresResultLocationForTerminalBatchRemoval(testCase)
+
+            batch = helpers.BatchOperationStub();
+            batch.Status = "finished";
+            controller = openmebius.application.batch ...
+                .BatchOperationController();
+
+            outcome = controller.remove(batch, "batch-a");
+
+            testCase.verifyTrue(outcome.isFailure());
+            testCase.verifyEqual( ...
+                string(outcome.Exception.identifier), ...
+                "OpenMebius2:BatchRemoval:MissingResultLocation");
+            testCase.verifyEmpty(batch.RemovedIds);
 
         end
 

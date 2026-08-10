@@ -396,7 +396,15 @@ classdef MainApplicationController < handle
         function [outcome, batch] = removeBatches(obj, batchIds)
 
             batch = obj.Session.Batch;
-            outcome = obj.BatchController.remove(batch, batchIds);
+            resultLocation = obj.Session.Project.Paths.resultLocation();
+            outcome = obj.BatchController.remove( ...
+                batch, batchIds, resultLocation);
+
+        end
+
+        function statuses = getBatchStatuses(obj, batchIds)
+
+            statuses = obj.Session.Batch.getBatchStatus(batchIds);
 
         end
 
