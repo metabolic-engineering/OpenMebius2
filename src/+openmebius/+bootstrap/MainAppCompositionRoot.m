@@ -16,6 +16,7 @@ classdef MainAppCompositionRoot
                     .ResultOperationController()
                 options.NotificationDispatcher = []
                 options.SlackNotifier = []
+                options.IsDeployed (1, 1) logical = isdeployed
             end
 
             slackNotifier = options.SlackNotifier;
@@ -28,8 +29,12 @@ classdef MainAppCompositionRoot
             notificationDispatcher = options.NotificationDispatcher;
 
             if isempty(notificationDispatcher)
+                policy = openmebius.infrastructure.notification ...
+                    .RoutingPolicy( ...
+                    Mode = "desktop", ...
+                    ConsoleEnabled = ~options.IsDeployed);
                 notificationDispatcher = openmebius.infrastructure ...
-                    .notification.NotificationDispatcher();
+                    .notification.NotificationDispatcher(Policy = policy);
                 notificationDispatcher.addSink( ...
                     openmebius.infrastructure.notification.TextFileSink());
                 notificationDispatcher.addSink( ...
