@@ -42,6 +42,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
         maximumnumberoftrialsLsubmaxsubLabel  matlab.ui.control.Label
         GridsearchTab                   matlab.ui.container.Tab
         GridLayout11                    matlab.ui.container.GridLayout
+        GridLayout12_5                  matlab.ui.container.GridLayout
+        MinimumFLuxRangeEditField       matlab.ui.control.NumericEditField
+        MinimumfluxrangeEditFieldLabel  matlab.ui.control.Label
         CheckBox                        matlab.ui.control.CheckBox
         GridLayout12_4                  matlab.ui.container.GridLayout
         ThresholdDropDown               matlab.ui.control.DropDown
@@ -349,6 +352,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridintervalDeltaixiEditField.Value = viewModel.GridDelta;
             app.IterationtimesforgridsearchEditField.Value = ...
                 viewModel.GridIterations;
+            app.MinimumFLuxRangeEditField.Value = ...
+                viewModel.GridMinimumFluxRange;
             app.ThresholdDropDown.Value = viewModel.GridThreshold;
 
             app.INSTMFACheckBox.Value = viewModel.IsINSTMFA;
@@ -416,6 +421,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.CheckBox.Enable = ...
                 app.onOff(state.GridExecutionModeEnabled);
             app.IterationtimesforgridsearchEditField.Enable = grid;
+            app.MinimumFLuxRangeEditField.Enable = grid;
             app.ThresholdDropDown.Enable = grid;
             app.ThenumberofgridpointsEditField.Enable = ...
                 app.onOff(state.GridPointsEnabled);
@@ -822,6 +828,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             viewModel.GridDelta = app.GridintervalDeltaixiEditField.Value;
             viewModel.GridIterations = ...
                 app.IterationtimesforgridsearchEditField.Value;
+            viewModel.GridMinimumFluxRange = ...
+                app.MinimumFLuxRangeEditField.Value;
             viewModel.GridThreshold = app.ThresholdDropDown.Value;
             viewModel.IsINSTMFA = app.INSTMFACheckBox.Value;
 
@@ -1531,7 +1539,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Create GridLayout11
             app.GridLayout11 = uigridlayout(app.GridsearchTab);
             app.GridLayout11.ColumnWidth = {'1x'};
-            app.GridLayout11.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
+            app.GridLayout11.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
             app.GridLayout11.Padding = [5 5 5 5];
 
             % Create DeterminegridintervalautomaticallyCheckBox
@@ -1611,7 +1619,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayout12_4.ColumnWidth = {'6x', '4x'};
             app.GridLayout12_4.RowHeight = {'fit'};
             app.GridLayout12_4.Padding = [0 0 0 0];
-            app.GridLayout12_4.Layout.Row = 6;
+            app.GridLayout12_4.Layout.Row = 7;
             app.GridLayout12_4.Layout.Column = 1;
 
             % Create ThresholdDropDownLabel
@@ -1633,6 +1641,27 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.CheckBox.Layout.Row = 2;
             app.CheckBox.Layout.Column = 1;
             app.CheckBox.Value = true;
+
+            % Create GridLayout12_5
+            app.GridLayout12_5 = uigridlayout(app.GridLayout11);
+            app.GridLayout12_5.ColumnWidth = {'7x', '3x'};
+            app.GridLayout12_5.RowHeight = {'1x'};
+            app.GridLayout12_5.Padding = [0 0 0 0];
+            app.GridLayout12_5.Layout.Row = 6;
+            app.GridLayout12_5.Layout.Column = 1;
+
+            % Create MinimumfluxrangeEditFieldLabel
+            app.MinimumfluxrangeEditFieldLabel = uilabel(app.GridLayout12_5);
+            app.MinimumfluxrangeEditFieldLabel.Layout.Row = 1;
+            app.MinimumfluxrangeEditFieldLabel.Layout.Column = 1;
+            app.MinimumfluxrangeEditFieldLabel.Text = 'Minimum flux range';
+
+            % Create MinimumFLuxRangeEditField
+            app.MinimumFLuxRangeEditField = uieditfield(app.GridLayout12_5, 'numeric');
+            app.MinimumFLuxRangeEditField.Limits = [0 Inf];
+            app.MinimumFLuxRangeEditField.Layout.Row = 1;
+            app.MinimumFLuxRangeEditField.Layout.Column = 2;
+            app.MinimumFLuxRangeEditField.Value = 1e-06;
 
             % Create GridreactionTab
             app.GridreactionTab = uitab(app.TabGroup2);

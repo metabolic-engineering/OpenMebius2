@@ -182,6 +182,7 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             config.CIConf.grid.points = 23;
             config.CIConf.grid.delta = 0.5;
             config.CIConf.grid.iteration = 71;
+            config.CIConf.grid.minimumFluxRange = 2e-5;
             config.CIConf.grid.threshold = 'f-distribution';
             config.CIConf.grid.reactions.select = [false; true];
             config.CIConf.grid.reactions.id = ["R1"; "R2"];

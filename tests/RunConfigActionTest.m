@@ -244,6 +244,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             batch.Config.CIConf.algorithm = 'Grid search';
             batch.Config.CIConf.MC.iteration = 222;
             batch.Config.CIConf.grid.points = 18;
+            batch.Config.CIConf.grid.minimumFluxRange = 2e-5;
             batch.Config.CIConf.grid.intervalMode = 'automatic';
             batch.Config.CIConf.grid.executionMode = 'parallel';
             session = RunConfigActionTest.createSession(batch);
@@ -253,12 +254,15 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             testCase.verifyEqual(app.MCLmaxEditField.Value, 222);
             testCase.verifyEqual( ...
                 app.ThenumberofgridpointsEditField.Value, 18);
+            testCase.verifyEqual( ...
+                app.MinimumFLuxRangeEditField.Value, 2e-5);
             testCase.verifyTrue( ...
                 app.DeterminegridintervalautomaticallyCheckBox.Value);
             testCase.verifyTrue(app.CheckBox.Value);
 
             app.MCLmaxEditField.Value = 333;
             app.ThenumberofgridpointsEditField.Value = 29;
+            app.MinimumFLuxRangeEditField.Value = 3e-4;
             app.DeterminegridintervalautomaticallyCheckBox.Value = false;
             app.CheckBox.Value = false;
             app.GridReactionUITable.Data.Select(2) = false;
@@ -269,6 +273,8 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
                 batch.Config.CIConf.MC.iteration, 333);
             testCase.verifyEqual( ...
                 batch.Config.CIConf.grid.points, 29);
+            testCase.verifyEqual( ...
+                batch.Config.CIConf.grid.minimumFluxRange, 3e-4);
             testCase.verifyEqual( ...
                 batch.Config.CIConf.grid.intervalMode, ...
             'fixed-delta');

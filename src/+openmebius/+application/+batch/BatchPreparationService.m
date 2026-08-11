@@ -51,6 +51,9 @@ classdef BatchPreparationService
                     model, ...
                     experiments, ...
                     string(batchTable.exp{index}));
+                provenance.batchName = string(batchTable.name(index));
+                provenance.batchDescription = ...
+                    string(batchTable.description(index));
                 provenances{index} = provenance;
                 previousHash = batchTable.contentHash(index);
                 currentHash = string(provenance.contentHash);

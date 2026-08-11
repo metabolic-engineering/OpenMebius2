@@ -9,6 +9,7 @@ classdef GridSearchConfidenceIntervalSettings
         PointCount (1, 1) double
         IterationCount (1, 1) double
         MaximumTrial (1, 1) double
+        MinimumFluxRange (1, 1) double
         Alpha (1, 1) double
     end
 
@@ -28,6 +29,7 @@ classdef GridSearchConfidenceIntervalSettings
                 options.PointCount (1, 1) double = 10
                 options.IterationCount (1, 1) double = 30
                 options.MaximumTrial (1, 1) double = 10
+                options.MinimumFluxRange (1, 1) double = 1e-6
                 options.Alpha (1, 1) double = 0.05
             end
 
@@ -51,6 +53,15 @@ classdef GridSearchConfidenceIntervalSettings
                 options.IterationCount, "IterationCount");
             obj.validatePositiveInteger( ...
                 options.MaximumTrial, "MaximumTrial");
+
+            if ~isfinite(options.MinimumFluxRange) || ...
+                    options.MinimumFluxRange < 0
+                error( ...
+                    "OpenMebius2:GridSearchConfidenceIntervalSettings:" + ...
+                    "InvalidMinimumFluxRange", ...
+                    "MinimumFluxRange must be a finite, nonnegative " + ...
+                "number.");
+            end
 
             if options.IntervalMode.isAutomatic() && ...
                     mod(options.PointCount, 2) ~= 0
@@ -76,6 +87,7 @@ classdef GridSearchConfidenceIntervalSettings
             obj.PointCount = options.PointCount;
             obj.IterationCount = options.IterationCount;
             obj.MaximumTrial = options.MaximumTrial;
+            obj.MinimumFluxRange = options.MinimumFluxRange;
             obj.Alpha = options.Alpha;
 
         end

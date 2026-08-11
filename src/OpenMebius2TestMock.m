@@ -3,6 +3,7 @@ classdef OpenMebius2TestMock < OpenMebius2
     properties
         Test_InputAnswer string = "NewProject"
         Test_InputOK (1, 1) logical = true
+        Test_LastInputDefault (1, 1) string = ""
 
         Test_Folder string = string(tempdir)
         Test_GetDirOK (1, 1) logical = true
@@ -99,6 +100,10 @@ classdef OpenMebius2TestMock < OpenMebius2
                     if isfield(opt, "Prompt")
                         n = numel(opt.Prompt);
                         if n == 0, n = 1; end
+                    end
+
+                    if isfield(opt, "Default")
+                        app.Test_LastInputDefault = string(opt.Default(1));
                     end
 
                 catch

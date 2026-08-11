@@ -1059,6 +1059,41 @@ classdef BatchSession < handle
 
         end % addBatch
 
+        function recoveredIds = recoverBatches(obj, entries)
+
+            arguments
+                obj
+                entries cell
+            end
+
+            collection = obj.batchCollection();
+            recoveredIds = strings(0, 1);
+
+            for index = 1:numel(entries)
+                entry = entries{index};
+                added = collection.addRecovered( ...
+                    string(entry.ID), ...
+                    string(entry.Name), ...
+                    {string(entry.Experiments(:))}, ...
+                    string(entry.Description), ...
+                    entry.Config, ...
+                    string(entry.ContentHash));
+
+                if added
+                    recoveredIds(end + 1, 1) = string(entry.ID); %#ok<AGROW>
+                end
+
+            end
+
+            if isempty(recoveredIds)
+                return
+            end
+
+            obj.tableBatch = collection.toTable();
+            obj.saveBatchFile();
+
+        end % recoverBatches
+
         function newIds = duplicateBatches(obj, sourceIds)
             % DUPLICATEBATCHES Copy batches under new IDs as ready jobs.
 
@@ -1129,7 +1164,6 @@ classdef BatchSession < handle
             %     Batch
             % id: (1, 1) string
             %     Batch ID
-            %     If the batch is finished, it cannot be removed
 
             arguments
                 obj
@@ -1137,18 +1171,7 @@ classdef BatchSession < handle
             end
 
             collection = obj.batchCollection();
-            [removed, reason] = collection.remove(id);
-
-            if reason == "finished"
-
-                displayId = extractBefore(string(id), ...
-                    min(strlength(string(id)) + 1, 11));
-                error( ...
-                    "OpenMebius2:Batch:FinishedBatchRemoval", ...
-                    "Batch ID %s is finished. Cannot remove.", ...
-                    displayId);
-
-            end
+            [removed, ~] = collection.remove(id);
 
             if removed
                 obj.tableBatch = collection.toTable();

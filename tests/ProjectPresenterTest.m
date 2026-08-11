@@ -48,7 +48,7 @@ classdef ProjectPresenterTest < matlab.unittest.TestCase
             presenter = openmebius.presentation.project.ProjectPresenter();
             outcome = openmebius.application.project ...
                 .ProjectOperationOutcome( ...
-                    false, ErrorMessage = "Create failed.");
+                false, ErrorMessage = "Create failed.");
 
             viewModel = presenter.presentCreateOutcome(outcome);
             notification = viewModel.Notifications{1};
@@ -75,6 +75,39 @@ classdef ProjectPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsDuplicatedProjectWithoutChangingCurrentSession(testCase)
+
+            presenter = openmebius.presentation.project.ProjectPresenter();
+            result = ProjectPresenterTest.operationResult();
+            outcome = openmebius.application.project ...
+                .ProjectOperationOutcome(true, Result = result);
+
+            viewModel = presenter.presentDuplicateOutcome(outcome);
+
+            testCase.verifyEmpty(viewModel.Session);
+            testCase.verifyEmpty(viewModel.Artifacts);
+            testCase.verifyEqual( ...
+                viewModel.Notifications{1}.Message, "Completed.");
+
+        end
+
+        function presentsDuplicateFailure(testCase)
+
+            presenter = openmebius.presentation.project.ProjectPresenter();
+            outcome = openmebius.application.project ...
+                .ProjectOperationOutcome( ...
+                false, ErrorMessage = "Duplicate failed.");
+
+            viewModel = presenter.presentDuplicateOutcome(outcome);
+            notification = viewModel.Notifications{1};
+
+            testCase.verifyEqual( ...
+                notification.Title, "Project duplicate failed");
+            testCase.verifyEqual(notification.Message, "Duplicate failed.");
+            testCase.verifyTrue(notification.ShowAlert);
+
+        end
+
     end % methods (Test)
 
     methods (Static, Access = private)
@@ -92,9 +125,9 @@ classdef ProjectPresenterTest < matlab.unittest.TestCase
                 metadata, paths);
             result = openmebius.application.project ...
                 .ProjectOperationResult( ...
-                    Session = session, ...
-                    Artifacts = options.Artifacts, ...
-                    Messages = "Completed.");
+                Session = session, ...
+                Artifacts = options.Artifacts, ...
+                Messages = "Completed.");
 
         end
 

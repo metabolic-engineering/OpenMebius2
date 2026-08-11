@@ -218,7 +218,7 @@ top-level sections are:
 
 | Section | Content |
 |---|---|
-| `batch` | Stable ID, content hash, and hash algorithm version |
+| `batch` | Stable ID, display name, description, content hash, and hash algorithm version |
 | `result` | HDF5 filename, SHA-256, byte size, and completion status |
 | `software` | OpenMebius2 version, MATLAB release/version, and Toolboxes |
 | `model` | Model filename and SHA-256 |
@@ -230,3 +230,9 @@ top-level sections are:
 The manifest filename is `<batch-id>.manifest.json`. Older `.h5` files without a
 manifest remain readable but cannot provide complete provenance. See
 [Migration](migration.md) for compatibility rules.
+
+Current HDF5 metadata also stores the Batch name and description. When a Result
+file has no corresponding row in `batch.json`, opening the project restores the
+row and persists it. For older Result files without these fields, the display
+name is derived from the stored experiment names; legacy files without either
+field use `Recovered result` while retaining the filename stem in the Batch ID.

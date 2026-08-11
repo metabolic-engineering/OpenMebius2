@@ -94,6 +94,53 @@ classdef Hdf5ResultRepository < handle
 
         end % readResultData
 
+        function snapshot = readBatchSnapshot(obj, resultLocation, id)
+
+            arguments
+                obj
+                resultLocation openmebius.domain.result.ResultLocation
+                id (1, 1) string
+            end
+
+            filePath = obj.requireResultFile(resultLocation, id);
+            storedId = obj.readOptionalDataset(filePath, "/metadata/batch/id", []);
+
+            if isempty(storedId)
+                storedId = obj.readOptionalDataset(filePath, "/ID", id);
+            end
+
+            snapshot = struct;
+            snapshot.ID = obj.scalarString(storedId, id);
+            snapshot.Name = obj.scalarString( ...
+                obj.readOptionalDataset( ...
+                filePath, "/metadata/batch/name", ""), "");
+            snapshot.Experiments = string(obj.readOptionalDataset( ...
+                filePath, "/metadata/experiments/names", strings(0, 1)));
+            snapshot.Experiments = snapshot.Experiments(:);
+            snapshot.Description = obj.scalarString( ...
+                obj.readOptionalDataset( ...
+                filePath, "/metadata/batch/description", ""), "");
+            snapshot.ConfigJson = obj.scalarString( ...
+                obj.readOptionalDataset( ...
+                filePath, "/metadata/batch/configJson", ""), "");
+            snapshot.ContentHash = obj.scalarString( ...
+                obj.readOptionalDataset( ...
+                filePath, "/metadata/batch/contentHash", ""), "");
+
+            isError = logical(obj.readOptionalDataset( ...
+                filePath, "/metadata/run/isError", int8(0)));
+            isCanceled = logical(obj.readOptionalDataset( ...
+                filePath, "/metadata/run/isCanceled", int8(0)));
+            snapshot.Status = "finished";
+
+            if any(isCanceled(:))
+                snapshot.Status = "canceled";
+            elseif any(isError(:))
+                snapshot.Status = "error";
+            end
+
+        end % readBatchSnapshot
+
         function data = readConfidenceInterval( ...
                 obj, resultLocation, id, reactionId)
 
@@ -278,6 +325,8 @@ classdef Hdf5ResultRepository < handle
             paths = { ...
                          "/metadata/schemaVersion"; ...
                          "/metadata/batch/id"; ...
+                         "/metadata/batch/name"; ...
+                         "/metadata/batch/description"; ...
                          "/metadata/batch/contentHash"; ...
                          "/metadata/batch/contentHashVersion"; ...
                          "/metadata/batch/configJson"; ...
@@ -297,6 +346,10 @@ classdef Hdf5ResultRepository < handle
             values = { ...
                           int32(metadata.schemaVersion); ...
                           string(metadata.batchId); ...
+                          string(obj.metadataValue( ...
+                          metadata, 'batchName', "")); ...
+                          string(obj.metadataValue( ...
+                          metadata, 'batchDescription', "")); ...
                           string(metadata.contentHash); ...
                           int32(metadata.contentHashVersion); ...
                           string(metadata.configJson); ...
@@ -314,7 +367,8 @@ classdef Hdf5ResultRepository < handle
                           uint32(metadata.randomState(:)); ...
                           string(metadata.startedAtUtc)};
             dataTypes = { ...
-                             "int32"; "string"; "string"; "int32"; "string"; ...
+                             "int32"; "string"; "string"; "string"; ...
+                             "string"; "int32"; "string"; ...
                              "string"; "string"; "string"; "string"; ...
                              "string"; "string"; "string"; "string"; "string"; ...
                              "string"; "uint32"; "uint32"; "string"};
@@ -377,7 +431,7 @@ classdef Hdf5ResultRepository < handle
 
     methods (Access = private)
 
-        function data = readGridSearchData(~, filePath)
+        function data = readGridSearchData(obj, filePath)
 
             basePath = "/CI/gridSearch";
             data = struct;
@@ -400,6 +454,9 @@ classdef Hdf5ResultRepository < handle
                 filePath, basePath + "/trialCount"));
             data.maximumTrial = double(h5read( ...
                 filePath, basePath + "/maximumTrial"));
+            data.minimumFluxRange = double( ...
+                obj.readOptionalDataset( ...
+                filePath, basePath + "/minimumFluxRange", NaN));
             data.alpha = h5read(filePath, basePath + "/alpha");
             data.thresholdType = string(h5read( ...
                 filePath, basePath + "/thresholdType"));
@@ -412,6 +469,41 @@ classdef Hdf5ResultRepository < handle
                 filePath, basePath + "/elapsedTime");
 
         end % readGridSearchData
+
+        function value = metadataValue(~, metadata, fieldName, defaultValue)
+
+            value = defaultValue;
+
+            if isfield(metadata, fieldName) && ...
+                    ~isempty(metadata.(fieldName))
+                value = metadata.(fieldName);
+            end
+
+        end % metadataValue
+
+        function value = readOptionalDataset(~, filePath, pathData, defaultValue)
+
+            value = defaultValue;
+
+            try
+                value = h5read(filePath, pathData);
+            catch
+                % Result metadata is optional for legacy result files.
+            end
+
+        end % readOptionalDataset
+
+        function value = scalarString(~, rawValue, defaultValue)
+
+            value = string(rawValue);
+
+            if isempty(value)
+                value = string(defaultValue);
+            else
+                value = value(1);
+            end
+
+        end % scalarString
 
         function pathFile = requireResultFile(~, resultLocation, id)
 

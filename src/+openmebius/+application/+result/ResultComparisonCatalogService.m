@@ -19,7 +19,7 @@ classdef ResultComparisonCatalogService < handle
                     string(batchTable.Properties.VariableNames)))
                 error( ...
                     "OpenMebius2:ResultComparison:InvalidBatchTable", ...
-                    "Batch data does not contain ID, Name, and Experiment.");
+                "Batch data does not contain ID, Name, and Experiment.");
             end
 
             batchIDs = string(batchTable.ID);

@@ -101,6 +101,23 @@ classdef ResultCatalog < handle
 
         end % getResultLocation
 
+        function ids = getResultIDs(obj)
+
+            ids = obj.ResultLocation.resultIds();
+
+        end % getResultIDs
+
+        function snapshots = getBatchSnapshots(obj, ids)
+
+            arguments
+                obj
+                ids string
+            end
+
+            snapshots = obj.QueryService.readBatchSnapshots(ids);
+
+        end % getBatchSnapshots
+
         function tableRtn = getFluxOverView(obj, id, options)
 
             arguments
