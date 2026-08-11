@@ -91,6 +91,26 @@ classdef ResultLocation
 
         end % resultFiles
 
+        function ids = resultIds(obj)
+
+            files = obj.resultFiles();
+
+            if isempty(files)
+                ids = strings(0, 1);
+                return
+            end
+
+            fileNames = string({files.name});
+            ids = strings(numel(fileNames), 1);
+
+            for fileIndex = 1:numel(fileNames)
+                [~, ids(fileIndex)] = fileparts(fileNames(fileIndex));
+            end
+
+            ids = sort(ids);
+
+        end % resultIds
+
     end % methods
 
     methods (Static)

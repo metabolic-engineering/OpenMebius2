@@ -6,6 +6,7 @@ classdef ProjectArtifactRepository
         ExperimentRepository
         BatchRepository
         ResultRepository
+        ResultBatchRecoveryService
     end
 
     methods
@@ -21,12 +22,17 @@ classdef ProjectArtifactRepository
                     openmebius.infrastructure.batch.BatchRepository()
                 options.ResultRepository = ...
                     openmebius.infrastructure.result.ResultRepository()
+                options.ResultBatchRecoveryService = ...
+                    openmebius.application.result ...
+                    .ResultBatchRecoveryService()
             end
 
             obj.ModelRepository = options.ModelRepository;
             obj.ExperimentRepository = options.ExperimentRepository;
             obj.BatchRepository = options.BatchRepository;
             obj.ResultRepository = options.ResultRepository;
+            obj.ResultBatchRecoveryService = ...
+                options.ResultBatchRecoveryService;
 
         end
 
@@ -52,11 +58,20 @@ classdef ProjectArtifactRepository
             batch = obj.BatchRepository.load( ...
                 paths.experimentLocation(), experiments);
             result = obj.ResultRepository.open(paths.resultLocation());
+            recoveredIds = obj.ResultBatchRecoveryService.recover( ...
+                batch, result);
             messages = [ ...
                             "Model loaded successfully."
                         "Experiment data loaded successfully."
                         "Batch session created successfully."
                         "Result session created successfully."];
+
+            if ~isempty(recoveredIds)
+                messages(end + 1, 1) = sprintf( ...
+                    "%d batch entries restored from result files.", ...
+                    numel(recoveredIds));
+            end
+
             artifacts = openmebius.application.project.ProjectArtifacts( ...
                 Model = model, ...
                 Experiments = experiments, ...

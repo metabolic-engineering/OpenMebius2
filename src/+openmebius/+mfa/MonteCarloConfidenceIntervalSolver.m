@@ -38,6 +38,12 @@ classdef MonteCarloConfidenceIntervalSolver
             cancellationRequested = options.CancellationRequested;
 
             if options.UseParallel
+                % Callbacks supplied by the desktop application can close
+                % over UI handles. Do not invoke them after serialization
+                % to a parallel worker; client-side lifecycle messages are
+                % still reported before and after this sampling phase.
+                workerMessageReporter = @(~, ~) [];
+
                 parfor i = 1:iterationCount
                     [perturbedMDVs(:, :, i), sampledFluxes(:, i)] = ...
                         openmebius.mfa ...
@@ -47,9 +53,11 @@ classdef MonteCarloConfidenceIntervalSolver
                         iterationFunction, ...
                         fluxCount, ...
                         i, ...
-                        messageReporter);
+                        workerMessageReporter);
                 end
+
             else
+
                 for i = 1:iterationCount
                     [perturbedMDVs(:, :, i), sampledFluxes(:, i)] = ...
                         openmebius.mfa ...
@@ -61,6 +69,7 @@ classdef MonteCarloConfidenceIntervalSolver
                         i, ...
                         messageReporter);
                 end
+
             end
 
             forwardFluxes = ...
@@ -190,7 +199,7 @@ classdef MonteCarloConfidenceIntervalSolver
                     fluxCount < 1 || fix(fluxCount) ~= fluxCount
                 error( ...
                     "OpenMebius2:MonteCarloCI:InvalidFluxCount", ...
-                    "The sampled flux count must be a positive integer.");
+                "The sampled flux count must be a positive integer.");
             end
 
             if ~isscalar(confidenceLevel) || ...
@@ -199,7 +208,7 @@ classdef MonteCarloConfidenceIntervalSolver
                 error( ...
                     "OpenMebius2:MonteCarloCI:" + ...
                     "InvalidConfidenceLevel", ...
-                    "The confidence level must be between zero and one.");
+                "The confidence level must be between zero and one.");
             end
 
             if ~settings.CalculationMethod.isDiscarding()
@@ -207,7 +216,7 @@ classdef MonteCarloConfidenceIntervalSolver
                     "OpenMebius2:MonteCarloCI:" + ...
                     "MethodNotImplemented", ...
                     "Mean-varianced confidence intervals are " + ...
-                    "not implemented yet.");
+                "not implemented yet.");
             end
 
         end % validateInputs
@@ -215,12 +224,12 @@ classdef MonteCarloConfidenceIntervalSolver
         function flux = extractFlux(iterationResult, fluxCount)
 
             if ~isa(iterationResult, ...
-                    'openmebius.mfa.MFAIterationResult')
+                'openmebius.mfa.MFAIterationResult')
                 error( ...
                     "OpenMebius2:MonteCarloCI:" + ...
                     "InvalidIterationResult", ...
                     "The iteration function must return an " + ...
-                    "MFAIterationResult.");
+                "MFAIterationResult.");
             end
 
             flux = iterationResult.Flux(:);
@@ -229,7 +238,7 @@ classdef MonteCarloConfidenceIntervalSolver
                 error( ...
                     "OpenMebius2:MonteCarloCI:FluxSizeMismatch", ...
                     "Each Monte Carlo iteration must return the " + ...
-                    "configured number of fluxes.");
+                "configured number of fluxes.");
             end
 
         end % extractFlux
@@ -250,7 +259,7 @@ classdef MonteCarloConfidenceIntervalSolver
             if ~calculationMethod.isDiscarding()
                 error( ...
                     "OpenMebius2:MonteCarloCI:UnknownMethod", ...
-                    "Unknown confidence-interval calculation method.");
+                "Unknown confidence-interval calculation method.");
             end
 
             fluxes = rmmissing(fluxes, 2);
@@ -275,12 +284,14 @@ classdef MonteCarloConfidenceIntervalSolver
                         upperBounds(fluxIndex, sample) = ...
                             sortedFlux(end - rank + 1);
                     end
+
                 end
 
                 if logical(cancellationRequested())
                     isCanceled = true;
                     return;
                 end
+
             end
 
         end % calculateCumulativeBounds

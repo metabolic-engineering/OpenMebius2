@@ -41,6 +41,8 @@ classdef ConfidenceIntervalSettingsMapperTest < matlab.unittest.TestCase
                 openmebius.mfa.GridSearchExecutionMode.Parallel);
             testCase.verifyEqual( ...
                 settings.GridSearchSettings.MaximumTrial, 10);
+            testCase.verifyEqual( ...
+                settings.GridSearchSettings.MinimumFluxRange, 1e-6);
 
         end
 
@@ -57,6 +59,8 @@ classdef ConfidenceIntervalSettingsMapperTest < matlab.unittest.TestCase
                 settings.GridSearchSettings.PointCount, 10);
             testCase.verifyEqual( ...
                 settings.GridSearchSettings.MaximumTrial, 10);
+            testCase.verifyEqual( ...
+                settings.GridSearchSettings.MinimumFluxRange, 1e-6);
 
         end
 
@@ -198,7 +202,7 @@ classdef ConfidenceIntervalSettingsMapperTest < matlab.unittest.TestCase
                 .fromBatchConfig(config), ...
                 "OpenMebius2:" + ...
                 "MFAConfidenceIntervalRunSettings:" + ...
-                "MissingGridReactions");
+            "MissingGridReactions");
 
         end
 

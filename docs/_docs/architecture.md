@@ -82,7 +82,7 @@ cannot fail the application operation.
 | File | `debug` and above; explicit append with size-based rotation |
 | Console | `warning` and above; normal output uses stdout, failures use stderr |
 | UI log | `info` and above, excluding progress and developer-only messages |
-| UI alert | User messages requiring action, plus fatal messages |
+| UI alert | Action-required information/success messages and fatal messages; warnings/errors remain in the UI log only |
 | Slack | Allow-listed terminal batch event codes only |
 
 UI sinks are registered after the App Designer controls exist and removed when

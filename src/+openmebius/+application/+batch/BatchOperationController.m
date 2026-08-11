@@ -1,7 +1,23 @@
 classdef BatchOperationController < handle
     % BATCHOPERATIONCONTROLLER Runs batch-management commands.
 
+    properties (SetAccess = private)
+        ArtifactRepository
+    end
+
     methods
+
+        function obj = BatchOperationController(options)
+
+            arguments
+                options.ArtifactRepository = ...
+                    openmebius.infrastructure.result ...
+                    .ResultArtifactRepository()
+            end
+
+            obj.ArtifactRepository = options.ArtifactRepository;
+
+        end % constructor
 
         function outcome = autoFill(~, batch)
 
@@ -53,12 +69,13 @@ classdef BatchOperationController < handle
 
         end % duplicate
 
-        function outcome = remove(~, batch, batchIds)
+        function outcome = remove(obj, batch, batchIds, resultLocation)
 
             arguments
-                ~
+                obj
                 batch
                 batchIds (:, 1) string
+                resultLocation = []
             end
 
             outcome = openmebius.application.batch ...
@@ -66,8 +83,25 @@ classdef BatchOperationController < handle
 
             function removeBatches()
 
-                for batchIndex = 1:numel(batchIds)
-                    batch.removeBatch(batchIds(batchIndex));
+                statuses = batch.getBatchStatus(batchIds);
+                terminal = openmebius.domain.batch.BatchConfig ...
+                    .isTerminalStatus(statuses);
+
+                if any(terminal) && isempty(resultLocation)
+                    error( ...
+                        "OpenMebius2:BatchRemoval:" + ...
+                        "MissingResultLocation", ...
+                        "A result location is required to remove " + ...
+                    "completed or failed batches.");
+                end
+
+                for terminalId = batchIds(terminal)'
+                    obj.ArtifactRepository.deleteBatchArtifacts( ...
+                        resultLocation, terminalId);
+                end
+
+                for batchId = batchIds'
+                    batch.removeBatch(batchId);
                 end
 
             end

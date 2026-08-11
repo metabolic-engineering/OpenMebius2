@@ -181,6 +181,49 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
 
         end
 
+        function duplicatesCurrentProject(testCase)
+
+            app = testCase.App;
+            projectDirectory = ...
+                OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli");
+            testCase.verifyEqual( ...
+                string(app.DuplicatecurrentprojectMenu.Enable), "off");
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, projectDirectory);
+            testCase.press(app.ProjectLoadButton);
+            testCase.verifyEqual( ...
+                string(app.DuplicatecurrentprojectMenu.Enable), "on");
+            expectedDefaultName = ...
+                string(app.ProjectNameEditField.Value) + "_2";
+            app.Test_InputAnswer = "ecoli_2";
+
+            callback = app.DuplicatecurrentprojectMenu.MenuSelectedFcn;
+            callback(app.DuplicatecurrentprojectMenu, []);
+
+            duplicateDirectory = fullfile( ...
+                testCase.TemporaryRoot, "ecoli_2");
+            metadata = openmebius.infrastructure.project ...
+                .FileProjectRepository.readMetadata( ...
+                fullfile(duplicateDirectory, "setting.om2"));
+            testCase.verifyTrue(isfolder(duplicateDirectory));
+            testCase.verifyTrue(isfile(fullfile( ...
+                duplicateDirectory, "model", ...
+            "metabolic_network.xlsx")));
+            testCase.verifyEqual(metadata.Name, "ecoli_2");
+            testCase.verifyEqual( ...
+                app.Test_LastInputDefault, expectedDefaultName);
+            testCase.verifyEqual( ...
+                string(app.ProjectDirectoryDropDown.Value), ...
+                projectDirectory);
+            testCase.verifyEqual( ...
+                app.Test_ApplicationController.project() ...
+                .Paths.RootDirectory, ...
+                projectDirectory);
+            testCase.verifyEmpty(app.Test_Alerts);
+
+        end
+
         function removesOnlyTheCellSelectedBatch(testCase)
 
             app = testCase.App;
@@ -209,6 +252,7 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             selectedId = rawDataBefore.ID(2);
             firstId = rawDataBefore.ID(1);
             app.RunTable.Selection = [2, 1];
+            app.Test_ConfirmAnswer = "No";
 
             callback = app.RemovethisbatchMenu.MenuSelectedFcn;
             callback(app.RemovethisbatchMenu, []);
@@ -217,6 +261,56 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.verifyEqual(height(rawDataAfter), 2);
             testCase.verifyTrue(any(rawDataAfter.ID == firstId));
             testCase.verifyFalse(any(rawDataAfter.ID == selectedId));
+            testCase.verifyEmpty(app.Test_Alerts);
+
+        end
+
+        function confirmsCompletedRemovalAndDeletesResultFiles(testCase)
+
+            app = testCase.App;
+            projectDirectory = ...
+                OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli");
+            experimentLocation = openmebius.domain.experiment ...
+                .ExperimentLocation.fromDirectory( ...
+                fullfile(projectDirectory, "experiments"));
+            repository = ...
+                openmebius.infrastructure.batch.BatchJsonRepository();
+            [batchTable, isError, message] = repository.load( ...
+                experimentLocation, "batch.json");
+            testCase.assertFalse(isError, string(message));
+
+            for batchIndex = 1:height(batchTable)
+                batchTable.config(batchIndex).status = 'ready';
+            end
+
+            batchTable.config(2).status = 'finished';
+            completedId = batchTable.id(2);
+            repository.save( ...
+                experimentLocation, "batch.json", batchTable);
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, projectDirectory);
+            testCase.press(app.ProjectLoadButton);
+
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(fullfile(projectDirectory, "results"));
+            artifacts = resultLocation.resultArtifactFiles(completedId);
+            OpenMebius2WorkflowSmokeTest.writeText(artifacts(1));
+            OpenMebius2WorkflowSmokeTest.writeText(artifacts(2));
+            app.RunTable.Selection = [2, 1];
+            callback = app.RemovethisbatchMenu.MenuSelectedFcn;
+
+            app.Test_ConfirmAnswer = "No";
+            callback(app.RemovethisbatchMenu, []);
+            testCase.verifyTrue(any( ...
+                app.RunTable.UserData.RawData.ID == completedId));
+            testCase.verifyTrue(all(isfile(artifacts)));
+
+            app.Test_ConfirmAnswer = "Yes";
+            callback(app.RemovethisbatchMenu, []);
+            testCase.verifyFalse(any( ...
+                app.RunTable.UserData.RawData.ID == completedId));
+            testCase.verifyFalse(any(isfile(artifacts)));
             testCase.verifyEmpty(app.Test_Alerts);
 
         end
@@ -396,6 +490,16 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
                     "OpenMebius2WorkflowSmokeTest:CopyFailed", ...
                     "Could not copy UI fixture: %s", string(message));
             end
+
+        end
+
+        function writeText(path)
+
+            fileId = fopen(path, 'w');
+            assert(fileId >= 0, "Unable to create test file: " + path);
+            cleanup = onCleanup(@() fclose(fileId));
+            fprintf(fileId, 'test');
+            clear cleanup
 
         end
 

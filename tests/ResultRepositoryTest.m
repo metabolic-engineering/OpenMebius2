@@ -68,6 +68,32 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
         end
 
+        function openedResultListsHdf5ResultIDs(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            cleanup = onCleanup(@() ...
+                ResultRepositoryTest.removeDirectory(resultDirectory));
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(resultDirectory);
+            ResultRepositoryTest.createEmptyFile( ...
+                resultLocation.resultFile("result-b"));
+            ResultRepositoryTest.createEmptyFile( ...
+                resultLocation.resultFile("result-a"));
+            ResultRepositoryTest.createEmptyFile( ...
+                resultLocation.manifestFile("ignored"));
+            repository = openmebius.infrastructure.result.ResultRepository();
+
+            result = repository.open(resultLocation);
+
+            testCase.verifyEqual( ...
+                result.getResultIDs(), ...
+                ["result-a"; "result-b"]);
+
+            clear cleanup
+
+        end
+
         function openedResultUsesInjectedHdf5Repository(testCase)
 
             resultDirectory = string(tempname);
@@ -244,6 +270,20 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
             if isfolder(directory)
                 rmdir(directory, "s");
             end
+
+        end
+
+        function createEmptyFile(pathFile)
+
+            fileID = fopen(pathFile, "w");
+
+            if fileID < 0
+                error( ...
+                    "OpenMebius2:Test:CreateFileFailed", ...
+                    "Could not create test file: %s", pathFile);
+            end
+
+            fclose(fileID);
 
         end
 

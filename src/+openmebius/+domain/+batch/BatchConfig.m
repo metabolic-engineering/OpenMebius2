@@ -86,6 +86,7 @@ classdef BatchConfig
             config.CIConf.grid.points = 10;
             config.CIConf.grid.iteration = config.iteration;
             config.CIConf.grid.maximumTrial = 10;
+            config.CIConf.grid.minimumFluxRange = 1e-6;
             config.CIConf.grid.alpha = 0.05;
             config.CIConf.grid.intervalMode = 'automatic';
             config.CIConf.grid.executionMode = 'parallel';
@@ -434,6 +435,8 @@ classdef BatchConfig
             BatchConfig.mustBePositiveInteger(config, 'CIConf.grid.iteration');
             BatchConfig.mustBePositiveInteger( ...
                 config, 'CIConf.grid.maximumTrial');
+            BatchConfig.mustBeNonnegativeNumber( ...
+                config, 'CIConf.grid.minimumFluxRange');
             BatchConfig.mustBeProbability(config, 'CIConf.grid.alpha');
             BatchConfig.mustBeKnownMember( ...
                 config, ...

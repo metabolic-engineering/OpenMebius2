@@ -198,33 +198,9 @@ classdef BatchCollection < handle
 
                                       end % add
 
-                                      function newIds = duplicate(obj, sourceIds)
-
-                                      arguments
-                                      obj (1, 1) openmebius.domain.batch.BatchCollection
-                                      sourceIds (:, 1) string
-                                      end
-
-                                      sourceTable = obj.TableData;
-                                      newIds = strings(numel(sourceIds), 1);
-
-                                      for batchIndex = 1:numel(sourceIds)
-                                      sourceIndex = obj.indexOf(sourceIds(batchIndex));
-                                      config = sourceTable.config(sourceIndex);
-                                      config.status = 'ready';
-                                      newIds(batchIndex) = obj.add( ...
-                                          sourceTable.name(sourceIndex), ...
-                                          sourceTable.exp(sourceIndex), ...
-                                          sourceTable.description(sourceIndex), ...
-                                          config);
-                                      newIndex = obj.indexOf(newIds(batchIndex));
-                                      obj.TableData.contentHash(newIndex) = ...
-                                          sourceTable.contentHash(sourceIndex);
-                                      end
-
-                                      end % duplicate
-
-                                      function edit(obj, id, name, experiments, description, config)
+                                      function added = addRecovered( ...
+                                          obj, id, name, experiments, ...
+                                          description, config, contentHash)
 
                                       arguments
                                       obj (1, 1) openmebius.domain.batch.BatchCollection
@@ -233,98 +209,156 @@ classdef BatchCollection < handle
                                       experiments (1, 1) cell
                                       description (1, 1) string
                                       config (1, 1) struct
+                                      contentHash (1, 1) string = ""
                                       end
 
-                                      openmebius.domain.batch.BatchConfig.validate(config);
-                                      index = obj.indexOf(id);
-                                      currentStatus = string( ...
-                                          obj.TableData.config(index).status);
+                                      added = false;
 
-                                      if openmebius.domain.batch.BatchConfig ...
-                                          .isTerminalStatus(currentStatus)
-                                      config.status = char(currentStatus);
-                                      end
-
-                                      obj.TableData.name(index) = name;
-                                      obj.TableData.exp(index) = experiments;
-                                      obj.TableData.description(index) = description;
-                                      obj.TableData.config(index) = config;
-
-                                      end % edit
-
-                                      function [removed, reason] = remove(obj, id)
-
-                                      arguments
-                                      obj (1, 1) openmebius.domain.batch.BatchCollection
-                                      id (1, 1) string
-                                      end
-
-                                      removed = false;
-                                      reason = "";
-                                      index = find(obj.TableData.id == id, 1);
-
-                                      if isempty(index)
-                                      reason = "missing";
+                                      if any(obj.TableData.id == id)
                                       return
                                       end
 
-                                      if string(obj.TableData.config(index).status) == "finished"
-                                      reason = "finished";
-                                      return
-                                      end
+                                      config = openmebius.domain.batch.BatchConfig.normalize(config);
+                                      row = cell2table( ...
+                                          {id, name, experiments, description, ...
+                     config, contentHash}, ...
+                    'VariableNames', ...
+                    obj.TableData.Properties.VariableNames);
+                row.Properties.VariableTypes = ...
+                    obj.TableData.Properties.VariableTypes;
 
-                                      obj.TableData(index, :) = [];
-                                      removed = true;
+                if isempty(obj.TableData)
+                    obj.TableData = row;
+                else
+                    obj.TableData = [obj.TableData; row];
+                end
 
-                                      end % remove
+                added = true;
 
-                                      function clearUnfinished(obj)
+            end % addRecovered
 
-                                      terminal = false(height(obj.TableData), 1);
+            function newIds = duplicate(obj, sourceIds)
 
-                                      for i = 1:height(obj.TableData)
-                                      terminal(i) = ...
-                                          openmebius.domain.batch.BatchConfig ...
-                                          .isTerminalStatus( ...
-                                          obj.TableData.config(i).status);
-                                      end
+                arguments
+                    obj (1, 1) openmebius.domain.batch.BatchCollection
+                    sourceIds (:, 1) string
+                end
 
-                                      obj.TableData = obj.TableData(terminal, :);
+                sourceTable = obj.TableData;
+                newIds = strings(numel(sourceIds), 1);
 
-                                      end % clearUnfinished
+                for batchIndex = 1:numel(sourceIds)
+                    sourceIndex = obj.indexOf(sourceIds(batchIndex));
+                    config = sourceTable.config(sourceIndex);
+                    config.status = 'ready';
+                    newIds(batchIndex) = obj.add( ...
+                        sourceTable.name(sourceIndex), ...
+                        sourceTable.exp(sourceIndex), ...
+                        sourceTable.description(sourceIndex), ...
+                        config);
+                    newIndex = obj.indexOf(newIds(batchIndex));
+                    obj.TableData.contentHash(newIndex) = ...
+                        sourceTable.contentHash(sourceIndex);
+                end
 
-                                      end % methods
+            end % duplicate
 
-                                      methods (Access = private)
+            function edit(obj, id, name, experiments, description, config)
 
-                                      function index = indexOf(obj, id)
+                arguments
+                    obj (1, 1) openmebius.domain.batch.BatchCollection
+                    id (1, 1) string
+                    name (1, 1) string
+                    experiments (1, 1) cell
+                    description (1, 1) string
+                    config (1, 1) struct
+                end
 
-                                      index = find(obj.TableData.id == string(id), 1);
+                openmebius.domain.batch.BatchConfig.validate(config);
+                index = obj.indexOf(id);
+                currentStatus = string( ...
+                    obj.TableData.config(index).status);
 
-                                      if isempty(index)
-                                      error( ...
-                                          "OpenMebius2:BatchCollection:BatchNotFound", ...
-                                          "Batch ID not found: %s", ...
-                                          id);
-                                      end
+                if openmebius.domain.batch.BatchConfig ...
+                        .isTerminalStatus(currentStatus)
+                    config.status = char(currentStatus);
+                end
 
-                                      end % indexOf
+                obj.TableData.name(index) = name;
+                obj.TableData.exp(index) = experiments;
+                obj.TableData.description(index) = description;
+                obj.TableData.config(index) = config;
 
-                                      function indices = indicesOf(obj, ids)
+            end % edit
 
-                                      ids = string(ids(:));
-                                      [found, indices] = ismember(ids, obj.TableData.id);
+            function [removed, reason] = remove(obj, id)
 
-                                      if ~all(found)
-                                      missingId = ids(find(~found, 1));
-                                      error( ...
-                                          "OpenMebius2:BatchCollection:BatchNotFound", ...
-                                          "Batch ID not found: %s", ...
-                                          missingId);
-                                      end
+                arguments
+                    obj (1, 1) openmebius.domain.batch.BatchCollection
+                    id (1, 1) string
+                end
 
-                                      end % indicesOf
+                removed = false;
+                reason = "";
+                index = find(obj.TableData.id == id, 1);
 
-                                      end % methods (Access = private)
+                if isempty(index)
+                    reason = "missing";
+                    return
+                end
 
-                                      end % classdef
+                obj.TableData(index, :) = [];
+                removed = true;
+
+            end % remove
+
+            function clearUnfinished(obj)
+
+                terminal = false(height(obj.TableData), 1);
+
+                for i = 1:height(obj.TableData)
+                    terminal(i) = ...
+                        openmebius.domain.batch.BatchConfig ...
+                        .isTerminalStatus( ...
+                        obj.TableData.config(i).status);
+                end
+
+                obj.TableData = obj.TableData(terminal, :);
+
+            end % clearUnfinished
+
+        end % methods
+
+        methods (Access = private)
+
+            function index = indexOf(obj, id)
+
+                index = find(obj.TableData.id == string(id), 1);
+
+                if isempty(index)
+                    error( ...
+                        "OpenMebius2:BatchCollection:BatchNotFound", ...
+                        "Batch ID not found: %s", ...
+                        id);
+                end
+
+            end % indexOf
+
+            function indices = indicesOf(obj, ids)
+
+                ids = string(ids(:));
+                [found, indices] = ismember(ids, obj.TableData.id);
+
+                if ~all(found)
+                    missingId = ids(find(~found, 1));
+                    error( ...
+                        "OpenMebius2:BatchCollection:BatchNotFound", ...
+                        "Batch ID not found: %s", ...
+                        missingId);
+                end
+
+            end % indicesOf
+
+        end % methods (Access = private)
+
+    end % classdef

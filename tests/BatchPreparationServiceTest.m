@@ -44,6 +44,11 @@ classdef BatchPreparationServiceTest < matlab.unittest.TestCase
                 @(value) string(value.batchId), provenances);
             testCase.verifyEqual( ...
                 provenanceIds, ["bat_1"; "bat_2"; "bat_3"; "bat_4"]);
+            provenanceNames = cellfun( ...
+                @(value) string(value.batchName), provenances);
+            testCase.verifyEqual( ...
+                provenanceNames, ["Batch 1"; "Batch 2"; ...
+                                  "Batch 3"; "Batch 4"]);
 
         end
 
@@ -86,7 +91,7 @@ classdef BatchPreparationServiceTest < matlab.unittest.TestCase
                 "missing", ...
                 struct, ...
                 struct), ...
-                "OpenMebius2:BatchPreparationService:BatchNotFound");
+            "OpenMebius2:BatchPreparationService:BatchNotFound");
 
         end
 
@@ -126,7 +131,7 @@ classdef BatchPreparationServiceTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-                'src');
+            'src');
 
         end
 
