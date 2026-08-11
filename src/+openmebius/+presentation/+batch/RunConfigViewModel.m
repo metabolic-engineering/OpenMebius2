@@ -38,6 +38,7 @@ classdef RunConfigViewModel
         GridPoints (1, 1) double = 10
         GridDelta (1, 1) double = 1
         GridIterations (1, 1) double = 30
+        GridMinimumFluxRange (1, 1) double = 1e-6
         GridThreshold (1, 1) string = "Chi-squared"
         GridReactionTable table = table()
 

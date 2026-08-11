@@ -217,6 +217,8 @@ classdef Hdf5ResultRepositoryTest < matlab.unittest.TestCase
                 data.CI.gridSearch.objectiveThreshold, 5.5);
             testCase.verifyEqual( ...
                 data.CI.gridSearch.maximumTrial, 10);
+            testCase.verifyEqual( ...
+                data.CI.gridSearch.minimumFluxRange, 1e-6);
             testCase.verifyEqual(data.fluxLB, [0.6; NaN]);
             testCase.verifyEqual(data.fluxUB, [1.4; NaN]);
 

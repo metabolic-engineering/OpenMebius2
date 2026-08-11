@@ -431,7 +431,7 @@ classdef Hdf5ResultRepository < handle
 
     methods (Access = private)
 
-        function data = readGridSearchData(~, filePath)
+        function data = readGridSearchData(obj, filePath)
 
             basePath = "/CI/gridSearch";
             data = struct;
@@ -454,6 +454,9 @@ classdef Hdf5ResultRepository < handle
                 filePath, basePath + "/trialCount"));
             data.maximumTrial = double(h5read( ...
                 filePath, basePath + "/maximumTrial"));
+            data.minimumFluxRange = double( ...
+                obj.readOptionalDataset( ...
+                filePath, basePath + "/minimumFluxRange", NaN));
             data.alpha = h5read(filePath, basePath + "/alpha");
             data.thresholdType = string(h5read( ...
                 filePath, basePath + "/thresholdType"));
