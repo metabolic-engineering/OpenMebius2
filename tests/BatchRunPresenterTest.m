@@ -27,7 +27,7 @@ classdef BatchRunPresenterTest < matlab.unittest.TestCase
             testCase.verifyThat( ...
                 canceling.Notification.Message, ...
                 matlab.unittest.constraints.ContainsSubstring( ...
-                    "Canceling batch jobs"));
+            "Canceling batch jobs"));
 
         end
 
@@ -38,17 +38,17 @@ classdef BatchRunPresenterTest < matlab.unittest.TestCase
 
             finished = presenter.presentRunOutcome( ...
                 openmebius.application.batch.BatchRunOutcome( ...
-                    true, elapsedTime));
+                true, elapsedTime));
             canceled = presenter.presentRunOutcome( ...
                 openmebius.application.batch.BatchRunOutcome( ...
-                    false, elapsedTime, Canceled = true));
+                false, elapsedTime, Canceled = true));
 
             testCase.verifyEqual(finished.SectionStatus, "finished");
             testCase.verifyEqual(finished.CompletionStatus, "finished");
             testCase.verifyEqual(finished.ElapsedTime, elapsedTime);
             testCase.verifyEqual( ...
                 finished.Notification.Message, ...
-                "All batch jobs are completed.");
+            "All batch jobs are completed.");
             testCase.verifyEqual(canceled.SectionStatus, "finished");
             testCase.verifyEqual(canceled.CompletionStatus, "canceled");
 
@@ -90,6 +90,27 @@ classdef BatchRunPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(viewModel.Status, "finished");
             testCase.verifyEqual(viewModel.Rate, 0.5);
             testCase.verifyEqual(viewModel.StyleRules.Rows, 1);
+
+        end
+
+        function presentsCanceledProgressAsWarning(testCase)
+
+            presenter = openmebius.presentation.batch.BatchPresenter();
+            progress = struct( ...
+                id = "bat_1", ...
+                status = "canceled", ...
+                rate = 0.5);
+            currentTable = table( ...
+                "bat_1", ...
+                "Batch 1", ...
+                'VariableNames', ["ID", "Name"]);
+
+            viewModel = presenter.presentProgress( ...
+                progress, currentTable);
+
+            testCase.verifyEqual(viewModel.Status, "canceled");
+            testCase.verifyEqual(viewModel.StyleRules.StyleKey, "warning");
+            testCase.verifyEqual(viewModel.Notification.Level, "warning");
 
         end
 
