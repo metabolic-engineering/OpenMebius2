@@ -157,8 +157,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Styles for results
         styleIsPassed = uistyle('FontColor', '#009E73', 'FontWeight', 'bold');
         styleIsNotPassed = uistyle('FontColor', '#D55E00', 'FontWeight', 'bold');
-        styleIsPassedDark = uistyle('FontColor', '#004834', 'FontWeight', 'bold');
-        styleIsNotPassedDark = uistyle('FontColor', '#331700', 'FontWeight', 'bold');
+        styleIsPassedDark = uistyle('FontColor', '#4FD1A5', 'FontWeight', 'bold');
+        styleIsNotPassedDark = uistyle('FontColor', '#FF9D66', 'FontWeight', 'bold');
 
         % Table styles
         styleSuccessIcon = uistyle('Icon', 'success', 'IconAlignment', 'rightmargin');

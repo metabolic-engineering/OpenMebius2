@@ -315,6 +315,9 @@ classdef BatchPresenter < handle
                 case "warning"
                     key = "warning";
 
+                case "canceled"
+                    key = "warning";
+
                 case "error"
                     key = "error";
 
