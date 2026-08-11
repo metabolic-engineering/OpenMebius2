@@ -4,6 +4,7 @@ classdef RoutingPolicy < handle
     properties
         Mode (1, 1) string = "desktop"
         DeveloperMode (1, 1) logical = false
+        ConsoleEnabled (1, 1) logical = true
         FileMinimumLevel (1, 1) string = "debug"
         DesktopConsoleMinimumLevel (1, 1) string = "warning"
         CliConsoleMinimumLevel (1, 1) string = "info"
@@ -19,6 +20,7 @@ classdef RoutingPolicy < handle
             arguments
                 options.Mode (1, 1) string = "desktop"
                 options.DeveloperMode (1, 1) logical = false
+                options.ConsoleEnabled (1, 1) logical = true
                 options.FileMinimumLevel (1, 1) string = "debug"
                 options.DesktopConsoleMinimumLevel (1, 1) string = "warning"
                 options.CliConsoleMinimumLevel (1, 1) string = "info"
@@ -31,6 +33,7 @@ classdef RoutingPolicy < handle
             mustBeMember(mode, ["desktop", "cli", "test"]);
             obj.Mode = mode;
             obj.DeveloperMode = options.DeveloperMode;
+            obj.ConsoleEnabled = options.ConsoleEnabled;
             obj.FileMinimumLevel = openmebius.core.notification ...
                 .Severity.normalize(options.FileMinimumLevel);
             obj.DesktopConsoleMinimumLevel = openmebius.core.notification ...
@@ -60,7 +63,7 @@ classdef RoutingPolicy < handle
 
                 case "console"
 
-                    if obj.Mode == "test"
+                    if ~obj.ConsoleEnabled || obj.Mode == "test"
                         tf = false;
                     elseif obj.Mode == "cli"
                         tf = openmebius.core.notification.Severity.atLeast( ...
