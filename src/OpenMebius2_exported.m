@@ -229,10 +229,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         %% Public check methods
         function isDark = isDarkTheme(app)
-            bgColor = app.OpenMebius2UIFigure.Color;
-            % The sum of RGB values is less than a certain threshold to determine if it is a dark theme
-            brightness = sum(bgColor);
-            isDark = brightness < 1.5; % The threshold can be adjusted empirically (1.5 to 1.8 is a guideline)
+
+            isDark = app.OpenMebius2UIFigure ...
+                .Theme.BaseColorStyle == "dark";
+
         end % function isDarkTheme
 
         function saveHistory(app)
