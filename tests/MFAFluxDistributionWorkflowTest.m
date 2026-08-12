@@ -120,6 +120,12 @@ classdef MFAFluxDistributionWorkflowTest < matlab.unittest.TestCase
             testCase.verifyEqual(fixture.IterationService.CallCount, 2);
             testCase.verifyEqual(fixture.Progress.ProgressIndices, [1, 2]);
             testCase.verifyEqual(fixture.Progress.ProgressTotals, [2, 2]);
+            testCase.verifyEqual( ...
+                size(fixture.Session.InitialFluxes, 2), 2);
+            testCase.verifyEqual( ...
+                size(fixture.Session.InitialRightHandSides, 2), 2);
+            testCase.verifyEqual( ...
+                fixture.Session.InitialObjectiveValues, [1, 2]);
 
         end
 

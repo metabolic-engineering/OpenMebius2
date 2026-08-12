@@ -162,7 +162,7 @@ classdef InitialFluxWorkflow
 
             while validCount < input.IterationCount && ...
                     samplingAttempt < options.MaxSamplingAttempts && ...
-                    startAt + options.MaxTime > tic
+                    toc(startAt) <= options.MaxTime
 
                 samplingAttempt = samplingAttempt + 1;
 
