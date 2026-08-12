@@ -207,7 +207,7 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
 
         end
 
-        function gridSearchExportContainsProfileSheets(testCase)
+        function gridSearchExportSeparatesProfilesIntoSingleWorkbook(testCase)
 
             repositoryRoot = ResultRepositoryTest.repositoryRoot();
             resultDirectory = fullfile( ...
@@ -231,12 +231,25 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
             testCase.assertTrue(isfile(workbook));
             sheets = string(sheetnames(workbook));
             testCase.verifyTrue(any(sheets == "GridSearch"));
-            testCase.verifyTrue(any(sheets == "GS_001_r2"));
-            profileSheets = sheets(startsWith(sheets, "GS_"));
+            testCase.verifyFalse(any(startsWith(sheets, "GS_")));
+
+            profileWorkbook = fullfile( ...
+                outputDirectory, ...
+                "result_" + batchName + "_" + batchID + ...
+            "_grid_search_profiles.xlsx");
+            testCase.assertTrue(isfile(profileWorkbook));
+            profileSheets = string(sheetnames(profileWorkbook));
             testCase.verifyNumElements(profileSheets, 24);
+            testCase.verifyTrue(any(profileSheets == "GS_001_r2"));
             testCase.verifyTrue(any(profileSheets == "GS_024_r25"));
+
+            workbookFiles = dir(fullfile(outputDirectory, "*.xlsx"));
+            testCase.verifyNumElements(workbookFiles, 2);
+            testCase.verifyEmpty( ...
+                dir(fullfile(outputDirectory, "GS_*.xlsx")));
+
             profile = readtable( ...
-                workbook, Sheet = "GS_001_r2");
+                profileWorkbook, Sheet = "GS_001_r2");
             testCase.verifyEqual( ...
                 string(profile.Properties.VariableNames), ...
                 ["FixedFlux", "RSS"]);
