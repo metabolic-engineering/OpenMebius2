@@ -114,7 +114,7 @@ classdef MFAFitStatistics
         function [threshold, degreesOfFreedom] = ...
                 chiSquareThreshold( ...
                 ~, modelDegreesOfFreedom, fragmentLabels, ...
-                fragmentMask, alpha)
+                fragmentMask, alpha, options)
 
             arguments
                 ~
@@ -122,6 +122,7 @@ classdef MFAFitStatistics
                 fragmentLabels
                 fragmentMask
                 alpha (1, 1) double = 0.05
+                options.ExperimentCount (1, 1) double = NaN
             end
 
             if ~isfinite(modelDegreesOfFreedom)
@@ -141,12 +142,39 @@ classdef MFAFitStatistics
             fragmentLabels = string(fragmentLabels);
             fragmentMask = logical(fragmentMask);
 
+            if isvector(fragmentLabels) && isvector(fragmentMask)
+                fragmentLabels = fragmentLabels(:);
+                fragmentMask = fragmentMask(:);
+            end
+
             if ~isequal(size(fragmentLabels), size(fragmentMask))
                 error( ...
                     "OpenMebius2:MFAFitStatistics:" + ...
                     "FragmentDimensionMismatch", ...
                     "Fragment labels and masks must have the same " + ...
                 "dimensions.");
+            end
+
+            metadataExperimentCount = size(fragmentMask, 2);
+            experimentCount = options.ExperimentCount;
+
+            if isnan(experimentCount)
+                experimentCount = metadataExperimentCount;
+            elseif ~isfinite(experimentCount) || experimentCount < 1 || ...
+                    fix(experimentCount) ~= experimentCount
+                error( ...
+                    "OpenMebius2:MFAFitStatistics:" + ...
+                    "InvalidExperimentCount", ...
+                "The experiment count must be a positive integer.");
+            end
+
+            if metadataExperimentCount > 1 && ...
+                    metadataExperimentCount ~= experimentCount
+                error( ...
+                    "OpenMebius2:MFAFitStatistics:" + ...
+                    "ExperimentCountMismatch", ...
+                    "The experiment count must match the fragment " + ...
+                "metadata columns.");
             end
 
             fragmentDegreesOfFreedom = 0;
@@ -160,6 +188,11 @@ classdef MFAFitStatistics
                 fragmentDegreesOfFreedom = ...
                     fragmentDegreesOfFreedom + ...
                     dataPointCount - fragmentCount;
+            end
+
+            if metadataExperimentCount == 1
+                fragmentDegreesOfFreedom = ...
+                    fragmentDegreesOfFreedom * experimentCount;
             end
 
             degreesOfFreedom = ...
