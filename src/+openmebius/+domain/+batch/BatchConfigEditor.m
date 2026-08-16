@@ -29,7 +29,7 @@ classdef BatchConfigEditor < handle
 
             requiredFields = ...
                 ["BatchID", "ExperimentNames", "FragmentNames", ...
-             "Selection"];
+                "Selection"];
 
             for fieldName = requiredFields
 
@@ -47,7 +47,7 @@ classdef BatchConfigEditor < handle
             if numel(defaultFragmentNames) ~= numel(defaultMask)
                 openmebius.domain.batch.BatchConfigEditor.invalidMSFragmentSelection( ...
                     "Default fragment names and selection mask must " + ...
-                "have the same length.");
+                    "have the same length.");
             end
 
             ids = strings(1, numel(selections));
@@ -58,7 +58,7 @@ classdef BatchConfigEditor < handle
 
                 if ~isscalar(id) || strlength(id) == 0
                     openmebius.domain.batch.BatchConfigEditor.invalidMSFragmentSelection( ...
-                    "BatchID must be a nonempty string scalar.");
+                        "BatchID must be a nonempty string scalar.");
                 end
 
                 experimentNames = string(selection.ExperimentNames(:)).';
@@ -69,7 +69,7 @@ classdef BatchConfigEditor < handle
                         size(selectionData, 2) ~= numel(experimentNames)
                     openmebius.domain.batch.BatchConfigEditor.invalidMSFragmentSelection( ...
                         "MS fragment selection size does not match " + ...
-                    "fragments and experiments.");
+                        "fragments and experiments.");
                 end
 
                 defaultSelection = ...
@@ -115,7 +115,7 @@ classdef BatchConfigEditor < handle
                 error( ...
                     "OpenMebius2:BatchConfigEditor:InvalidEfflux", ...
                     "Efflux selection, substrate names, and standard " + ...
-                "deviations must have the same length.");
+                    "deviations must have the same length.");
             end
 
             ids = string(ids(:));
@@ -131,7 +131,7 @@ classdef BatchConfigEditor < handle
                     error( ...
                         "OpenMebius2:BatchConfigEditor:InvalidEfflux", ...
                         "Stored efflux selection, substrate names, and " + ...
-                    "standard deviations must have the same length.");
+                        "standard deviations must have the same length.");
                 end
 
                 [~, newIndices, currentIndices] = ...
@@ -200,7 +200,7 @@ classdef BatchConfigEditor < handle
                 error( ...
                     "OpenMebius2:BatchConfigEditor:InvalidSuggestion", ...
                     "Suggestion values must match the row and variable " + ...
-                "name dimensions.");
+                    "name dimensions.");
             end
 
             ids = string(ids(:));

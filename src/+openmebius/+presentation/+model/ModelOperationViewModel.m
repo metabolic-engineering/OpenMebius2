@@ -20,9 +20,9 @@ classdef ModelOperationViewModel
 
             arguments
                 options.SectionStatus (1, 1) string {mustBeMember( ...
-                                                         options.SectionStatus, ["", "running", "error"])} = ""
+                    options.SectionStatus, ["", "running", "error"])} = ""
                 options.CompletionStatus (1, 1) string {mustBeMember( ...
-                                                            options.CompletionStatus, ["", "finished"])} = ""
+                    options.CompletionStatus, ["", "finished"])} = ""
                 options.Result = []
                 options.Notifications (:, 1) cell = cell(0, 1)
                 options.CompletionNotification = []

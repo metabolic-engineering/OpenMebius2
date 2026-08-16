@@ -21,7 +21,7 @@ classdef MFAAnalysisSettingsMapperTest < matlab.unittest.TestCase
             testCase.verifyTrue(mapping.IsValid);
             testCase.verifyClass( ...
                 mapping.Settings, ...
-            'openmebius.application.analysis.MFAAnalysisSettings');
+                'openmebius.application.analysis.MFAAnalysisSettings');
             testCase.verifyEqual( ...
                 mapping.Settings.InitialFluxSettings.IterationCount, 3);
             testCase.verifyEqual( ...
@@ -82,7 +82,7 @@ classdef MFAAnalysisSettingsMapperTest < matlab.unittest.TestCase
             testCase.verifyTrue(mapping.IsValid);
             testCase.verifyClass( ...
                 mapping.Settings.InstationaryInputSpecification, ...
-            'openmebius.mfa.InstationaryInputSpecification');
+                'openmebius.mfa.InstationaryInputSpecification');
 
         end
 
@@ -96,7 +96,7 @@ classdef MFAAnalysisSettingsMapperTest < matlab.unittest.TestCase
             testCase.verifyEqual(mapping.FailureStage, "initial");
             testCase.verifyTrue(contains( ...
                 mapping.ErrorMessage, ...
-            "initial-flux iteration count"));
+                "initial-flux iteration count"));
 
         end
 
@@ -135,7 +135,7 @@ classdef MFAAnalysisSettingsMapperTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

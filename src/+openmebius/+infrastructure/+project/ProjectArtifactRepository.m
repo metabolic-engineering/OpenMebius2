@@ -61,10 +61,10 @@ classdef ProjectArtifactRepository
             recoveredIds = obj.ResultBatchRecoveryService.recover( ...
                 batch, result);
             messages = [ ...
-                            "Model loaded successfully."
-                        "Experiment data loaded successfully."
-                        "Batch session created successfully."
-                        "Result session created successfully."];
+                "Model loaded successfully."
+                "Experiment data loaded successfully."
+                "Batch session created successfully."
+                "Result session created successfully."];
 
             if ~isempty(recoveredIds)
                 messages(end + 1, 1) = sprintf( ...

@@ -47,7 +47,7 @@ classdef ExperimentWorkbookDataTest < matlab.unittest.TestCase
                 DefaultSubstrateVariableNames = ["Uptake", "Label"], ...
                 DefaultSubstrateVariableTypes = "double"), ...
                 "OpenMebius2:ExperimentWorkbookData:" + ...
-            "DefaultVariableCountMismatch");
+                "DefaultVariableCountMismatch");
 
         end
 
@@ -59,7 +59,7 @@ classdef ExperimentWorkbookDataTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename("fullpath"))), ...
-            "src");
+                "src");
 
         end
 

@@ -27,7 +27,7 @@ classdef BatchRunPresenterTest < matlab.unittest.TestCase
             testCase.verifyThat( ...
                 canceling.Notification.Message, ...
                 matlab.unittest.constraints.ContainsSubstring( ...
-            "Canceling batch jobs"));
+                "Canceling batch jobs"));
 
         end
 
@@ -48,7 +48,7 @@ classdef BatchRunPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(finished.ElapsedTime, elapsedTime);
             testCase.verifyEqual( ...
                 finished.Notification.Message, ...
-            "All batch jobs are completed.");
+                "All batch jobs are completed.");
             testCase.verifyEqual(canceled.SectionStatus, "finished");
             testCase.verifyEqual(canceled.CompletionStatus, "canceled");
 

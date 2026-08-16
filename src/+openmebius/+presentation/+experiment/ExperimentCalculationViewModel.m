@@ -12,8 +12,8 @@ classdef ExperimentCalculationViewModel
 
             arguments
                 options.SectionStatus (1, 1) string {mustBeMember( ...
-                                                         options.SectionStatus, ...
-                                                         ["running", "finished", "error"])}
+                    options.SectionStatus, ...
+                    ["running", "finished", "error"])}
                 options.Notifications (:, 1) cell = cell(0, 1)
             end
 

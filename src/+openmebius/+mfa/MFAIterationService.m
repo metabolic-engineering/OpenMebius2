@@ -38,7 +38,7 @@ classdef MFAIterationService
 
             reporter = openmebius.mfa.MFAIterationReporter( ...
                 MessageReporter = options.MessageReporter ...
-            );
+                );
             objective = obj.ObjectiveFactory.create(input);
             settings = input.Settings;
             reporter.reportSettings(settings);
@@ -52,7 +52,7 @@ classdef MFAIterationService
                 LinearEqualityMatrix = options.LinearEqualityMatrix, ...
                 LinearEqualityRightHandSide = options.LinearEqualityRightHandSide, ...
                 MessageReporter = reporter.callback() ...
-            );
+                );
 
             elapsedSeconds = toc(iterationTimer);
 
@@ -60,7 +60,7 @@ classdef MFAIterationService
                 iterationResult, ...
                 input.analysisMode(), ...
                 ElapsedSeconds = elapsedSeconds ...
-            );
+                );
 
         end
 

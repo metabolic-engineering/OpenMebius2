@@ -70,7 +70,7 @@ classdef EffluxPenaltyTest < matlab.unittest.TestCase
                 ReactionIndices = 1, ...
                 ExperimentalValues = 1, ...
                 StandardDeviations = 0), ...
-            "OpenMebius2:EffluxPenalty:InvalidStandardDeviation");
+                "OpenMebius2:EffluxPenalty:InvalidStandardDeviation");
 
         end
 
@@ -82,7 +82,7 @@ classdef EffluxPenaltyTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

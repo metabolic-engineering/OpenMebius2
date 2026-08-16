@@ -74,7 +74,7 @@ classdef NextLabelExperimentWorkflow
                     string(patternCount) + "...");
                 report( ...
                     "info", ...
-                "Generating EMU model for the pattern...");
+                    "Generating EMU model for the pattern...");
                 candidateEMU = obj.SubstrateEMUFactory.fromPattern( ...
                     model, experiments, cellstr(pattern));
                 candidateEMUs = [baseEMUs; {candidateEMU}];
@@ -106,7 +106,7 @@ classdef NextLabelExperimentWorkflow
             if isCanceled
                 report( ...
                     "info", ...
-                "Next flux experiment suggestion canceled.");
+                    "Next flux experiment suggestion canceled.");
             else
                 report("info", "Next flux experiment suggested.");
             end

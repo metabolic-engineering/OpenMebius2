@@ -118,7 +118,7 @@ classdef FluxVariabilityProblemFactoryTest < matlab.unittest.TestCase
                 LowerBounds = zeros(3, 1), ...
                 UpperBounds = ones(3, 1)), ...
                 "OpenMebius2:FluxVariabilityProblemFactory:" + ...
-            "CustomBoundsDimensionMismatch");
+                "CustomBoundsDimensionMismatch");
 
         end
 
@@ -130,7 +130,7 @@ classdef FluxVariabilityProblemFactoryTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

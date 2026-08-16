@@ -22,13 +22,13 @@ classdef StoichiometricConstraintModel
             if height(systemMatrix) ~= width(systemMatrix)
                 error( ...
                     "OpenMebius2:StoichiometricConstraintModel:NonSquareSystem", ...
-                "Stoichiometric system matrix must be square.");
+                    "Stoichiometric system matrix must be square.");
             end
 
             if numel(systemTypes) ~= height(systemMatrix)
                 error( ...
                     "OpenMebius2:StoichiometricConstraintModel:TypeCountMismatch", ...
-                "Every stoichiometric row must have a constraint type.");
+                    "Every stoichiometric row must have a constraint type.");
             end
 
             obj.ConstraintMatrix = constraintMatrix;

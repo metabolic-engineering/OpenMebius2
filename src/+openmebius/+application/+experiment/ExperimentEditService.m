@@ -28,9 +28,9 @@ classdef ExperimentEditService < handle
                 Experiments = experiments, ...
                 Batch = batch, ...
                 Messages = [
-                            "Experimental data updated."
-                            "Experimental data saved successfully."
-                           ]);
+                "Experimental data updated."
+                "Experimental data saved successfully."
+                ]);
 
         end % saveInfo
 
@@ -61,10 +61,10 @@ classdef ExperimentEditService < handle
                 Experiments = experiments, ...
                 Batch = batch, ...
                 Messages = [
-                            "Uptake table updated."
-                            "Tracer table updated."
-                            "Experimental data saved successfully."
-                           ]);
+                "Uptake table updated."
+                "Tracer table updated."
+                "Experimental data saved successfully."
+                ]);
 
         end % saveTracer
 

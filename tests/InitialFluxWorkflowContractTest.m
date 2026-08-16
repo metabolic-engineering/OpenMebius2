@@ -23,7 +23,7 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
             testCase.verifyEqual(input.scoringSubstrateEMUs(false), {1});
             testCase.verifyClass( ...
                 input.EffluxProfile, ...
-            'openmebius.mfa.EffluxPerturbationProfile');
+                'openmebius.mfa.EffluxPerturbationProfile');
             testCase.verifyEmpty(input.ReversibleReactionIndices);
 
         end
@@ -33,7 +33,7 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
             testCase.verifyError( ...
                 @() InitialFluxWorkflowContractTest.createInput( ...
                 UpperBounds = 1), ...
-            "OpenMebius2:InitialFluxInput:DimensionMismatch");
+                "OpenMebius2:InitialFluxInput:DimensionMismatch");
 
         end
 
@@ -51,7 +51,7 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
             testCase.verifyError( ...
                 @() openmebius.mfa.InitialFluxWorkflowResult( ...
                 IsError = true), ...
-            "OpenMebius2:InitialFluxResult:MissingErrorMessage");
+                "OpenMebius2:InitialFluxResult:MissingErrorMessage");
 
         end
 
@@ -92,7 +92,7 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
             testCase.verifyTrue(result.IsError);
             testCase.verifyEqual( ...
                 result.ErrorMessage, ...
-            "Initial point generation produced no candidates.");
+                "Initial point generation produced no candidates.");
             testCase.verifyEqual(generator.GenerationCount, 30);
 
         end
@@ -104,7 +104,7 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
                 zeros(2, 0), ...
                 IsError = true, ...
                 ErrorMessage = ...
-            "Hit-and-Run: no feasible initial point was found.");
+                "Hit-and-Run: no feasible initial point was found.");
             workflow = openmebius.mfa.InitialFluxWorkflow( ...
                 PointGenerator = generator, ...
                 MDVPredictor = helpers.MDVPredictorStub());
@@ -116,7 +116,7 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
             testCase.verifyEqual(generator.GenerationCount, 30);
             testCase.verifyEqual( ...
                 result.ErrorMessage, ...
-            "Hit-and-Run: no feasible initial point was found.");
+                "Hit-and-Run: no feasible initial point was found.");
 
         end
 
@@ -257,7 +257,7 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
                 @() workflow.run( ...
                 InitialFluxWorkflowContractTest.createInput(), ...
                 MaxSamplingAttempts = 31), ...
-            "MATLAB:validators:mustBeLessThanOrEqual");
+                "MATLAB:validators:mustBeLessThanOrEqual");
 
         end
 
@@ -340,10 +340,10 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
 
             boundMessage = messages.Messages(contains( ...
                 messages.Messages, ...
-            "Perturbate efflux:"));
+                "Perturbate efflux:"));
             distributionMessage = messages.Messages(contains( ...
                 messages.Messages, ...
-            "Initial free-efflux seed distribution:"));
+                "Initial free-efflux seed distribution:"));
             testCase.verifyFalse(result.IsError);
             testCase.verifyNumElements(boundMessage, 1);
             testCase.verifyTrue(contains(boundMessage, "reaction=v2"));
@@ -454,7 +454,7 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
             testCase.verifyEqual(result.ObjectiveValues, [1e9, 1e9]);
             testCase.verifyTrue(any(contains( ...
                 messages.Messages, ...
-            "Using the best available candidates")));
+                "Using the best available candidates")));
 
         end
 
@@ -526,7 +526,7 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
             testCase.verifyTrue(result.IsError);
             testCase.verifyTrue(contains( ...
                 lower(result.ErrorMessage), ...
-            "required: 2, valid: 1"));
+                "required: 2, valid: 1"));
 
         end
 
@@ -579,7 +579,7 @@ classdef InitialFluxWorkflowContractTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

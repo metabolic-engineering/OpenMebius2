@@ -34,7 +34,7 @@ classdef EffluxPenalty
                 error( ...
                     "OpenMebius2:EffluxPenalty:ConflictingProfileInput", ...
                     "Specify either an efflux perturbation profile or " + ...
-                "legacy efflux vectors, not both.");
+                    "legacy efflux vectors, not both.");
             end
 
             if hasLegacyData
@@ -97,7 +97,7 @@ classdef EffluxPenalty
                     any(counterIndices(hasCounter) > size(flux, 1))
                 error( ...
                     "OpenMebius2:EffluxPenalty:FluxDimensionMismatch", ...
-                "Efflux reaction indices exceed the flux vector length.");
+                    "Efflux reaction indices exceed the flux vector length.");
             end
 
             simulatedValues = flux(obj.ReactionIndices, :);

@@ -293,7 +293,7 @@ classdef InitialPointGeneratorTest < matlab.unittest.TestCase
             testCase.verifyTrue(result.IsCanceled);
             testCase.verifyEqual( ...
                 result.ErrorMessage, ...
-            "Hit-and-Run: canceled.");
+                "Hit-and-Run: canceled.");
 
         end
 
@@ -335,7 +335,7 @@ classdef InitialPointGeneratorTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

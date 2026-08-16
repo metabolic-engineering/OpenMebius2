@@ -197,7 +197,7 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
                 BatchExecutionCoordinatorTest.resultLocation(), ...
                 {[]}), ...
                 "OpenMebius2:BatchExecutionCoordinator:" + ...
-            "MissingProvenance");
+                "MissingProvenance");
 
         end
 
@@ -267,7 +267,7 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

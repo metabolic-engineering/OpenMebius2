@@ -53,7 +53,7 @@ classdef Message
             mustBeMember(audience, ["user", "operator", "developer"]);
             mustBeMember(attention, ["passive", "action-required"]);
             mustBeMember(kind, [ ...
-                                    "notification", "diagnostic", "progress", "audit"]);
+                "notification", "diagnostic", "progress", "audit"]);
 
             eventId = strtrim(options.EventId);
 

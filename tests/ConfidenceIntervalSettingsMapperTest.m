@@ -98,7 +98,7 @@ classdef ConfidenceIntervalSettingsMapperTest < matlab.unittest.TestCase
                 .MonteCarloOptimizationProcedure.SingleRun);
             testCase.verifyEqual( ...
                 settings.GridSearchSettings.Threshold, ...
-            "f-distribution");
+                "f-distribution");
 
         end
 
@@ -179,7 +179,7 @@ classdef ConfidenceIntervalSettingsMapperTest < matlab.unittest.TestCase
                 .ConfidenceIntervalSettingsMapper ...
                 .fromBatchConfig(config), ...
                 "OpenMebius2:ConfidenceIntervalSettingsMapper:" + ...
-            "UnknownProcedure");
+                "UnknownProcedure");
 
         end
 
@@ -230,7 +230,7 @@ classdef ConfidenceIntervalSettingsMapperTest < matlab.unittest.TestCase
                 .fromBatchConfig(config), ...
                 "OpenMebius2:" + ...
                 "MFAConfidenceIntervalRunSettings:" + ...
-            "MissingGridReactions");
+                "MissingGridReactions");
 
         end
 
@@ -260,7 +260,7 @@ classdef ConfidenceIntervalSettingsMapperTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

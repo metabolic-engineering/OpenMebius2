@@ -141,9 +141,9 @@ classdef ReportGenerationService < handle
 
             if outputPath ~= ""
                 messages = [
-                            messages
-                            "Report output: " + outputPath
-                           ];
+                    messages
+                    "Report output: " + outputPath
+                    ];
             end
 
         end

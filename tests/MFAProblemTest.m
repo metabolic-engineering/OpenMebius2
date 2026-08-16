@@ -100,7 +100,7 @@ classdef MFAProblemTest < matlab.unittest.TestCase
                 UpperBounds = ones(2, 1), ...
                 IndependentMask = [false; true], ...
                 BoundaryReactionMask = [true; true]), ...
-            "OpenMebius2:MFAProblem:IndependentMappingMismatch");
+                "OpenMebius2:MFAProblem:IndependentMappingMismatch");
 
         end
 
@@ -114,7 +114,7 @@ classdef MFAProblemTest < matlab.unittest.TestCase
                 UpperBounds = ones(2, 1), ...
                 IndependentMask = [false; true], ...
                 BoundaryReactionMask = [false; true]), ...
-            "OpenMebius2:MFAProblem:InvalidBounds");
+                "OpenMebius2:MFAProblem:InvalidBounds");
 
         end
 
@@ -138,7 +138,7 @@ classdef MFAProblemTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

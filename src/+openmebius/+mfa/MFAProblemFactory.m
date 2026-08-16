@@ -35,13 +35,13 @@ classdef MFAProblemFactory
             if numel(systemType) ~= height(stoichiometryTable)
                 error( ...
                     "OpenMebius2:MFAProblem:SystemTypeDimensionMismatch", ...
-                "System types must match stoichiometry rows.");
+                    "System types must match stoichiometry rows.");
             end
 
             if numel(rowNames) ~= height(stoichiometryTable)
                 error( ...
                     "OpenMebius2:MFAProblem:MissingRowNames", ...
-                "Stoichiometry rows must have reaction names.");
+                    "Stoichiometry rows must have reaction names.");
             end
 
             freeConstraintIDs = string(options.FreeConstraintIDs(:));
@@ -52,7 +52,7 @@ classdef MFAProblemFactory
                     numel(freeConstraintIDs)
                 error( ...
                     "OpenMebius2:MFAProblem:InvalidFreeConstraintID", ...
-                "Free constraint IDs must be nonempty and unique.");
+                    "Free constraint IDs must be nonempty and unique.");
             end
 
             [foundFreeConstraints, freeConstraintIndices] = ...
@@ -64,7 +64,7 @@ classdef MFAProblemFactory
                     "Free constraints were not found in the " + ...
                     "stoichiometry: %s.", ...
                     strjoin(freeConstraintIDs(~foundFreeConstraints), ...
-                ", "));
+                    ", "));
             end
 
             systemType(freeConstraintIndices) = "independent";

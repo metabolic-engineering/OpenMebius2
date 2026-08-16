@@ -119,7 +119,7 @@ classdef ProjectOperationControllerTest < matlab.unittest.TestCase
             fixture = ProjectOperationControllerTest.fixture();
             fixture.OpenUseCase.Exception = MException( ...
                 "OpenMebius2:Test:ProjectOpenFailed", ...
-            "Project open failed.");
+                "Project open failed.");
             controller = ProjectOperationControllerTest.controller(fixture);
 
             outcome = controller.open("project");
@@ -129,7 +129,7 @@ classdef ProjectOperationControllerTest < matlab.unittest.TestCase
                 outcome.ErrorMessage, "Project open failed.");
             testCase.verifyEqual( ...
                 string(outcome.Exception.identifier), ...
-            "OpenMebius2:Test:ProjectOpenFailed");
+                "OpenMebius2:Test:ProjectOpenFailed");
 
         end
 

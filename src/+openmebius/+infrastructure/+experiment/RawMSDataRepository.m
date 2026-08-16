@@ -104,7 +104,7 @@ classdef RawMSDataRepository < handle
             if ~any(strlength(string(fragmentNames(:))) > 0)
                 error( ...
                     "OpenMebius2:RawMSDataRepository:NoFragments", ...
-                "No MS fragment names were provided for raw MS import.");
+                    "No MS fragment names were provided for raw MS import.");
             end
 
         end

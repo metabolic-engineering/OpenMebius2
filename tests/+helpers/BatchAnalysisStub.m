@@ -32,7 +32,7 @@ classdef BatchAnalysisStub < handle
             obj.applyOutcome("flux");
             obj.MessageReporter( ...
                 openmebius.core.notification.Message( ...
-                    "Flux calculation updated.", "info"));
+                "Flux calculation updated.", "info"));
             obj.ResultReporter(struct("ID", "stub-result"));
 
         end

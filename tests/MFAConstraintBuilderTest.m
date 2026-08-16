@@ -89,7 +89,7 @@ classdef MFAConstraintBuilderTest < matlab.unittest.TestCase
                 ["A"; "B"], ...
                 10), ...
                 "OpenMebius2:MFAConstraintBuilder:" + ...
-            "EffluxDimensionMismatch");
+                "EffluxDimensionMismatch");
 
         end
 
@@ -103,7 +103,7 @@ classdef MFAConstraintBuilderTest < matlab.unittest.TestCase
                 @() builder.buildRightHandSide( ...
                 model, 0.2, ["A"; "B"], [10; 3]), ...
                 "OpenMebius2:MFAConstraintMetadata:" + ...
-            "TypeDimensionMismatch");
+                "TypeDimensionMismatch");
 
         end
 
@@ -115,7 +115,7 @@ classdef MFAConstraintBuilderTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

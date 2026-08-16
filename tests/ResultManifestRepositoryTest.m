@@ -76,7 +76,7 @@ classdef ResultManifestRepositoryTest < matlab.unittest.TestCase
             testCase.verifyEqual(completed.result.sizeBytes, 16);
             testCase.verifyEqual( ...
                 string(completed.run.finishedAtUtc), ...
-            "2026-07-14T00:01:00.000Z");
+                "2026-07-14T00:01:00.000Z");
             testCase.verifyFalse(completed.run.isError);
             testCase.verifyFalse(completed.run.isCanceled);
 
@@ -169,7 +169,7 @@ classdef ResultManifestRepositoryTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 ResultManifestRepositoryTest.repositoryRoot(), ...
-            "src");
+                "src");
 
         end
 

@@ -13,7 +13,7 @@ classdef TracerConfigContext
             arguments
                 options.EditorTable table
                 options.Position (1, 2) double { ...
-                                                    mustBeInteger, mustBePositive}
+                    mustBeInteger, mustBePositive}
             end
 
             obj.EditorTable = options.EditorTable;

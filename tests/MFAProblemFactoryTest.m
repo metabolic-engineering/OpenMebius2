@@ -51,7 +51,7 @@ classdef MFAProblemFactoryTest < matlab.unittest.TestCase
                 zeros(2, 1), ...
                 zeros(2, 1), ...
                 ones(2, 1)), ...
-            "OpenMebius2:MFAProblem:SystemTypeDimensionMismatch");
+                "OpenMebius2:MFAProblem:SystemTypeDimensionMismatch");
 
         end
 
@@ -110,7 +110,7 @@ classdef MFAProblemFactoryTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 
