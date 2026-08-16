@@ -5,6 +5,7 @@ classdef EffluxPerturbationProfile
     properties (SetAccess = private)
         ReactionIDs (:, 1) string
         ReactionIndices (:, 1) double
+        CounterReactionIndices (:, 1) double
         ExperimentalValues (:, 1) double
         StandardDeviations (:, 1) double
     end
@@ -20,12 +21,15 @@ classdef EffluxPerturbationProfile
             arguments
                 options.ReactionIDs (:, 1) string = strings(0, 1)
                 options.ReactionIndices (:, 1) double = zeros(0, 1)
+                options.CounterReactionIndices (:, 1) double = ...
+                    zeros(0, 1)
                 options.ExperimentalValues (:, 1) double = zeros(0, 1)
                 options.StandardDeviations (:, 1) double = zeros(0, 1)
             end
 
             measurementCount = numel(options.ReactionIndices);
             reactionIDs = options.ReactionIDs;
+            counterReactionIndices = options.CounterReactionIndices;
 
             if isempty(reactionIDs) && measurementCount > 0
                 reactionIDs = repmat("", measurementCount, 1);
@@ -42,6 +46,31 @@ classdef EffluxPerturbationProfile
                     "OpenMebius2:EffluxPerturbationProfile:" + ...
                     "InvalidReactionID", ...
                 "Efflux reaction IDs must not be missing.");
+            end
+
+            if isempty(counterReactionIndices) && measurementCount > 0
+                counterReactionIndices = nan(measurementCount, 1);
+            elseif numel(counterReactionIndices) ~= measurementCount
+                error( ...
+                    "OpenMebius2:EffluxPerturbationProfile:" + ...
+                    "CounterReactionDimensionMismatch", ...
+                    "Efflux counter-reaction indices must match the " + ...
+                "reaction index count.");
+            end
+
+            hasCounter = ~isnan(counterReactionIndices);
+
+            if any(~isfinite(counterReactionIndices(hasCounter))) || ...
+                    any(counterReactionIndices(hasCounter) < 1) || ...
+                    any(counterReactionIndices(hasCounter) ~= ...
+                    fix(counterReactionIndices(hasCounter))) || ...
+                    any(counterReactionIndices(hasCounter) == ...
+                    options.ReactionIndices(hasCounter))
+                error( ...
+                    "OpenMebius2:EffluxPerturbationProfile:" + ...
+                    "InvalidCounterReactionIndex", ...
+                    "Efflux counter-reaction indices must identify " + ...
+                "different positive-integer flux positions.");
             end
 
             if numel(options.ExperimentalValues) ~= measurementCount || ...
@@ -88,6 +117,7 @@ classdef EffluxPerturbationProfile
 
             obj.ReactionIDs = reactionIDs;
             obj.ReactionIndices = options.ReactionIndices;
+            obj.CounterReactionIndices = counterReactionIndices;
             obj.ExperimentalValues = options.ExperimentalValues;
             obj.StandardDeviations = options.StandardDeviations;
 

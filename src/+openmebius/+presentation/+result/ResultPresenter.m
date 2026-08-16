@@ -79,8 +79,14 @@ classdef ResultPresenter < handle
                         Relative = options.Relative, ...
                         RelativeTo = options.RelativeTo);
 
-                case "Details"
-                    viewModel = obj.presentDetails( ...
+                case "MDV"
+                    viewModel = obj.presentMDV( ...
+                        result, ...
+                        batchIDs(1), ...
+                        IsDarkTheme = options.IsDarkTheme);
+
+                case "MDV (Summary)"
+                    viewModel = obj.presentMDVSummary( ...
                         result, ...
                         batchIDs(1), ...
                         IsDarkTheme = options.IsDarkTheme);
@@ -401,7 +407,7 @@ classdef ResultPresenter < handle
                 StyleRules = styleRules);
         end
 
-        function viewModel = presentDetails(obj, result, batchID, options)
+        function viewModel = presentMDV(obj, result, batchID, options)
 
             arguments
                 obj
@@ -410,13 +416,43 @@ classdef ResultPresenter < handle
                 options.IsDarkTheme (1, 1) logical = false
             end
 
-            raw = getFluxDetailed(result, batchID);
+            raw = getMDV(result, batchID);
 
             formatted = obj.formatNumericColumns(raw, 3:width(raw), "%.4f");
 
             styleRules = [
                           obj.columnStyleRules(3:width(raw), "align-right")
                           obj.detailHeatmapRules(raw, IsDarkTheme = options.IsDarkTheme)
+                          ];
+
+            viewModel = ...
+                openmebius.presentation.result.ResultTableViewModel( ...
+                Data = formatted, ...
+                RawData = raw, ...
+                ColumnEditable = false(1, width(formatted)), ...
+                StyleRules = styleRules);
+
+        end
+
+        function viewModel = presentMDVSummary(obj, result, batchID, options)
+
+            arguments
+                obj
+                result
+                batchID (1, 1) string
+                options.IsDarkTheme (1, 1) logical = false
+            end
+
+            raw = getMDVSummary(result, batchID);
+            formatted = obj.formatDisplayColumn(raw, 2, 100, "%.0f%%");
+            formatted = obj.formatDisplayColumn(formatted, 3, 1, "%.3f");
+            formatted = obj.formatDisplayColumn(formatted, 4, 1, "%.2f");
+            styleRules = [
+                          obj.columnStyleRules(2:width(raw), "align-right")
+                          obj.heatmapRules( ...
+                              raw, ...
+                              4, ...
+                              IsDarkTheme = options.IsDarkTheme)
                           ];
 
             viewModel = ...
@@ -496,6 +532,27 @@ classdef ResultPresenter < handle
 
         end
 
+        function formatted = formatDisplayColumn( ...
+                ~, tableData, column, scale, formatSpec)
+
+            formatted = tableData;
+
+            if isempty(tableData) || column > width(tableData)
+                return
+            end
+
+            values = tableData{:, column};
+
+            if ~isnumeric(values)
+                return
+            end
+
+            variableName = tableData.Properties.VariableNames{column};
+            formatted.(variableName) = compose( ...
+                formatSpec, values .* scale);
+
+        end
+
         function styleRules = chi2StyleRules(~, isPassed)
 
             isPassed = logical(isPassed(:));
@@ -550,11 +607,27 @@ classdef ResultPresenter < handle
 
         end
 
-        function styleRules = detailHeatmapRules(~, tableData, options)
+        function styleRules = detailHeatmapRules(obj, tableData, options)
+
+            arguments
+                obj
+                tableData table
+                options.IsDarkTheme (1, 1) logical = false
+            end
+
+            styleRules = obj.heatmapRules( ...
+                tableData, ...
+                5:3:width(tableData), ...
+                IsDarkTheme = options.IsDarkTheme);
+
+        end % method detailHeatmapRules
+
+        function styleRules = heatmapRules(~, tableData, columns, options)
 
             arguments
                 ~
                 tableData table
+                columns (1, :) double
                 options.IsDarkTheme (1, 1) logical = false
             end
 
@@ -571,11 +644,7 @@ classdef ResultPresenter < handle
 
             color = Color();
 
-            for c = 3:width(tableData)
-
-                if mod(c, 3) ~= 2
-                    continue
-                end
+            for c = columns
 
                 values = tableData{:, c};
 
@@ -612,7 +681,7 @@ classdef ResultPresenter < handle
 
             end
 
-        end % method detailHeatmapRules
+        end % method heatmapRules
 
         function mustBeValidHandle(~, value, name)
 

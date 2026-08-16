@@ -76,6 +76,7 @@ classdef RunConfigMapper
             viewModel.GridPoints = double(grid.points);
             viewModel.GridDelta = double(grid.delta);
             viewModel.GridIterations = double(grid.iteration);
+            viewModel.GridWorkers = double(grid.workerCount);
             viewModel.GridMinimumFluxRange = ...
                 double(grid.minimumFluxRange);
             viewModel.GridThreshold = openmebius.presentation.batch ...
@@ -174,6 +175,7 @@ classdef RunConfigMapper
             config.CIConf.grid.points = viewModel.GridPoints;
             config.CIConf.grid.delta = viewModel.GridDelta;
             config.CIConf.grid.iteration = viewModel.GridIterations;
+            config.CIConf.grid.workerCount = viewModel.GridWorkers;
             config.CIConf.grid.minimumFluxRange = ...
                 viewModel.GridMinimumFluxRange;
             config.CIConf.grid.threshold = ...

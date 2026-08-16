@@ -154,6 +154,111 @@ classdef ResultTableBuilder
             value{:, 2} = isotopeNames;
         end
 
+        function [value, message] = mdvSummary(~, data)
+
+            variableNames = [ ...
+                "Metabolite", ...
+                "E[MDV_e] - E[MDV_s]", ...
+                "W_1(MDV_e, MDV_s)", ...
+                "χ^2"];
+            value = table( ...
+                'Size', [0, numel(variableNames)], ...
+                'VariableNames', variableNames, ...
+                'VariableTypes', [ ...
+                   "string", "double", "double", "double"]);
+            message = "";
+
+            if ~isfield(data, 'RSSIdx') || isempty(data.RSSIdx)
+                message = "No flux data found in the result file.";
+                return
+            end
+
+            try
+                fieldName = "fluxResult" + ...
+                    string(sprintf("%04d", data.RSSIdx(1)));
+                simulated = double(data.(fieldName).MDV);
+                experimental = double(data.MDVExp);
+                fragmentNames = string(data.MDVExpName(:));
+                fragmentMask = logical(data.MDVFragMask);
+                numberOfRows = size(simulated, 1);
+                numberOfLabelings = size(simulated, 2);
+
+                if isvector(fragmentMask) && ...
+                        numel(fragmentMask) == numberOfRows
+                    fragmentMask = repmat( ...
+                        fragmentMask(:), 1, numberOfLabelings);
+                end
+
+                if ~isequal(size(experimental), size(simulated)) || ...
+                        numel(fragmentNames) ~= numberOfRows || ...
+                        ~isequal(size(fragmentMask), size(simulated))
+                    error("OpenMebius2:Result:InvalidMDVSummary", ...
+                        "Invalid MDV summary dimensions.");
+                end
+
+                metabolites = unique(fragmentNames, "stable");
+                selected = false(size(metabolites));
+
+                for metaboliteIndex = 1:numel(metabolites)
+                    rows = fragmentNames == metabolites(metaboliteIndex);
+                    selected(metaboliteIndex) = any( ...
+                        fragmentMask(rows, :), "all");
+                end
+
+                metabolites = metabolites(selected);
+                value = table( ...
+                    'Size', [numel(metabolites), numel(variableNames)], ...
+                    'VariableNames', variableNames, ...
+                    'VariableTypes', [ ...
+                       "string", "double", "double", "double"]);
+                value.Metabolite = metabolites;
+
+                for metaboliteIndex = 1:numel(metabolites)
+                    rows = fragmentNames == metabolites(metaboliteIndex);
+                    massIndex = (0:(sum(rows) - 1)).';
+                    expectationDifference = 0;
+                    wassersteinDistance = 0;
+                    chiSquare = 0;
+
+                    for labelingIndex = 1:numberOfLabelings
+                        activeMask = fragmentMask(rows, labelingIndex);
+
+                        if ~any(activeMask)
+                            continue
+                        end
+
+                        experimentalMDV = ...
+                            experimental(rows, labelingIndex);
+                        simulatedMDV = simulated(rows, labelingIndex);
+                        expectationDifference = expectationDifference + ...
+                            sum(massIndex .* experimentalMDV) - ...
+                            sum(massIndex .* simulatedMDV);
+                        wassersteinDistance = wassersteinDistance + ...
+                            sum(abs(cumsum( ...
+                            experimentalMDV - simulatedMDV)));
+                        residual = ( ...
+                            simulatedMDV(activeMask) - ...
+                            experimentalMDV(activeMask)) ./ 0.01;
+                        chiSquare = chiSquare + sum(residual .^ 2);
+                    end
+
+                    value{metaboliteIndex, 2:4} = [ ...
+                        expectationDifference, ...
+                        wassersteinDistance, ...
+                        chiSquare];
+                end
+
+            catch
+                value = table( ...
+                    'Size', [0, numel(variableNames)], ...
+                    'VariableNames', variableNames, ...
+                    'VariableTypes', [ ...
+                       "string", "double", "double", "double"]);
+                message = "MDV summary data is incomplete.";
+            end
+
+        end
+
         function [value, message] = fluxComparison(~, data, names, options)
 
             arguments

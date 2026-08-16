@@ -65,6 +65,79 @@ classdef ResultTableBuilderTest < matlab.unittest.TestCase
 
         end
 
+        function buildsMdvSummary(testCase)
+
+            builder = openmebius.application.result.ResultTableBuilder();
+            data = ResultTableBuilderTest.resultData([10; 20]);
+            data.MDVExp = [0.25; 0.75];
+            data.MDVExpName = ["Ala57"; "Ala57"];
+            data.MDVFragMask = [true; true];
+            data.fluxResult0001.MDV = [0.2; 0.8];
+
+            [value, message] = builder.mdvSummary(data);
+
+            testCase.verifyEqual(message, "");
+            testCase.verifyEqual( ...
+                string(value.Properties.VariableNames), ...
+                [ ...
+                 "Metabolite", ...
+                 "E[MDV_e] - E[MDV_s]", ...
+                 "W_1(MDV_e, MDV_s)", ...
+                 "χ^2"]);
+            testCase.verifyEqual(value.Metabolite, "Ala57");
+            testCase.verifyEqual( ...
+                value.("E[MDV_e] - E[MDV_s]"), -0.05, ...
+                AbsTol = 1e-12);
+            testCase.verifyEqual( ...
+                value.("W_1(MDV_e, MDV_s)"), 0.05, ...
+                AbsTol = 1e-12);
+            testCase.verifyEqual( ...
+                value.("χ^2"), 50, ...
+                AbsTol = 1e-12);
+
+        end
+
+        function sumsMdvSummaryAcrossParallelLabeling(testCase)
+
+            builder = openmebius.application.result.ResultTableBuilder();
+            data = ResultTableBuilderTest.resultData([10; 20]);
+            data.MDVExp = [0.25, 0.4; 0.75, 0.6];
+            data.MDVExpName = ["Ala57"; "Ala57"];
+            data.MDVFragMask = true(2, 2);
+            data.fluxResult0001.MDV = [0.2, 0.5; 0.8, 0.5];
+
+            [value, message] = builder.mdvSummary(data);
+
+            testCase.verifyEqual(message, "");
+            testCase.verifyEqual(value.Metabolite, "Ala57");
+            testCase.verifyEqual( ...
+                value.("E[MDV_e] - E[MDV_s]"), 0.05, ...
+                AbsTol = 1e-12);
+            testCase.verifyEqual( ...
+                value.("W_1(MDV_e, MDV_s)"), 0.15, ...
+                AbsTol = 1e-12);
+            testCase.verifyEqual( ...
+                value.("χ^2"), 250, ...
+                AbsTol = 1e-12);
+
+        end
+
+        function excludesUnobservedFragmentsFromMdvSummary(testCase)
+
+            builder = openmebius.application.result.ResultTableBuilder();
+            data = ResultTableBuilderTest.resultData([10; 20]);
+            data.MDVExp = [0.25; 0.75; 0.4; 0.6];
+            data.MDVExpName = ["Ala57"; "Ala57"; "Gly57"; "Gly57"];
+            data.MDVFragMask = [true; true; false; false];
+            data.fluxResult0001.MDV = [0.2; 0.8; 0.5; 0.5];
+
+            [value, message] = builder.mdvSummary(data);
+
+            testCase.verifyEqual(message, "");
+            testCase.verifyEqual(value.Metabolite, "Ala57");
+
+        end
+
         function buildsComparisonWithUniqueSeriesNames(testCase)
             builder = openmebius.application.result.ResultTableBuilder();
             first = ResultTableBuilderTest.resultData([10; 20]);

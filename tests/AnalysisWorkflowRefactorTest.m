@@ -440,6 +440,36 @@ classdef AnalysisWorkflowRefactorTest < matlab.unittest.TestCase
 
         end
 
+        function confidenceIntervalProgressReachesFacadeReporter(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            cleanup = onCleanup( ...
+                @() rmdir(resultDirectory, 's'));
+            input = helpers.FluxAnalysisInputStub();
+            workflow = helpers.WorkflowResultStub( ...
+                openmebius.mfa.ConfidenceIntervalWorkflowResult( ...
+                Method = "Monte Carlo", ...
+                IsCalculated = true));
+            composition = openmebius.application.analysis ...
+                .FluxAnalysisComposition( ...
+                ConfidenceIntervalApplicationWorkflow = workflow);
+            progress = helpers.AnalysisProgressRecorder();
+            analysis = openmebius.application.analysis.MFAAnalysisRun( ...
+                input, input, 1, struct, resultDirectory, ...
+                "unit-test", [], ...
+                Composition = composition, ...
+                ProgressReporter = @(completed, total) ...
+                progress.record(completed, total));
+
+            analysis.calculateConfidenceInterval();
+            workflow.invokeCallback("ProgressReporter", 2, 4);
+
+            testCase.verifyEqual(progress.Completed, 2);
+            testCase.verifyEqual(progress.Total, 4);
+
+        end
+
         function invalidConfidenceSettingsStopAtFacadeBoundary(testCase)
 
             resultDirectory = string(tempname);

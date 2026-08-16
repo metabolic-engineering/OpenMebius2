@@ -204,7 +204,12 @@ classdef BatchPresenter < handle
             status = lower(string(progress.status));
             rate = double(progress.rate);
 
-            message = obj.progressMessage(batchId, status);
+            if isfield(progress, "message") && ...
+                    strlength(string(progress.message)) > 0
+                message = string(progress.message);
+            else
+                message = obj.progressMessage(batchId, status);
+            end
 
             row = obj.findBatchRow(currentTableData, batchId);
 
@@ -220,10 +225,13 @@ classdef BatchPresenter < handle
                     "StyleKey", obj.statusToStyleKey(status));
             end
 
-            notification = ...
-                openmebius.presentation.notification.Notification.fromBatchStatus( ...
-                message, ...
-                status);
+            if status == "running"
+                notification = [];
+            else
+                notification = ...
+                    openmebius.presentation.notification.Notification ...
+                    .fromBatchStatus(message, status);
+            end
 
             viewModel = ...
                 openmebius.presentation.batch.BatchProgressViewModel( ...

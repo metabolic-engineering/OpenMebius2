@@ -30,6 +30,57 @@ classdef ResultPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function presentsMDVMode(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            result = helpers.ReportResultDataStub();
+
+            viewModel = presenter.presentMain(result, "MDV", "batch-1");
+
+            testCase.verifyEqual(viewModel.RawData.Fragment, "Ala159");
+            testCase.verifyEqual(viewModel.RawData.Estimated, 0.79);
+
+        end
+
+        function mapsLegacyDetailsModeToMDV(testCase)
+
+            mode = openmebius.presentation.result ...
+                .ResultViewMode.normalize("Details");
+
+            testCase.verifyEqual(mode, "MDV");
+
+        end
+
+        function presentsMDVSummaryMode(testCase)
+
+            presenter = openmebius.presentation.result.ResultPresenter();
+            result = helpers.ReportResultDataStub();
+
+            viewModel = presenter.presentMain( ...
+                result, "MDV (Summary)", "batch-1");
+
+            testCase.verifyEqual(viewModel.RawData.Metabolite, "Ala159");
+            testCase.verifyEqual( ...
+                viewModel.RawData.("E[MDV_e] - E[MDV_s]"), -0.01);
+            testCase.verifyEqual( ...
+                viewModel.RawData.("W_1(MDV_e, MDV_s)"), 0.01);
+            testCase.verifyEqual(viewModel.RawData.("χ^2"), 2);
+            testCase.verifyEqual( ...
+                viewModel.Data.("E[MDV_e] - E[MDV_s]"), "-1%");
+            testCase.verifyEqual( ...
+                viewModel.Data.("W_1(MDV_e, MDV_s)"), "0.010");
+            testCase.verifyEqual(viewModel.Data.("χ^2"), "2.00");
+
+            backgroundRule = viewModel.StyleRules( ...
+                string({viewModel.StyleRules.StyleKey}) == "background");
+            testCase.verifyNumElements(backgroundRule, 1);
+            testCase.verifyEqual(backgroundRule.Target, "cell");
+            testCase.verifyEqual(backgroundRule.Rows, 1);
+            testCase.verifyEqual(backgroundRule.Columns, 4);
+            testCase.verifyNotEqual(backgroundRule.Value, "");
+
+        end
+
         function presentsGeneratedReport(testCase)
 
             presenter = openmebius.presentation.result.ResultPresenter();

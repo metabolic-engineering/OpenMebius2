@@ -44,6 +44,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
                 config.CIConf.grid.intervalMode, 'automatic');
             testCase.verifyEqual( ...
                 config.CIConf.grid.executionMode, 'parallel');
+            testCase.verifyEqual(config.CIConf.grid.workerCount, 58);
             testCase.verifyEqual( ...
                 config.CIConf.grid.maximumTrial, 10);
             testCase.verifyEqual( ...
@@ -170,6 +171,17 @@ classdef BatchConfigTest < matlab.unittest.TestCase
             'OpenMebius2:BatchConfig:InvalidMember');
 
         end % validateRejectsUnknownGridExecutionMode
+
+        function validateRejectsInvalidGridWorkerCount(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.grid.workerCount = 0;
+
+            testCase.verifyError( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config), ...
+            'OpenMebius2:BatchConfig:InvalidPositiveInteger');
+
+        end % validateRejectsInvalidGridWorkerCount
 
         function validateRejectsInvalidGridMaximumTrial(testCase)
 

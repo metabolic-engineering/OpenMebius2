@@ -86,6 +86,7 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             config.CIConf.MC.calculationMethod = 'discarding';
             config.CIConf.grid.intervalMode = 'fixed-delta';
             config.CIConf.grid.executionMode = 'serial';
+            config.CIConf.grid.workerCount = 12;
 
             viewModel = ...
                 openmebius.presentation.batch.RunConfigMapper.toViewModel( ...
@@ -99,6 +100,7 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             testCase.verifyEqual(viewModel.GridThreshold, "Chi-squared");
             testCase.verifyFalse(viewModel.GridAutomaticInterval);
             testCase.verifyFalse(viewModel.GridParallelExecution);
+            testCase.verifyEqual(viewModel.GridWorkers, 12);
             testCase.verifyEqual( ...
                 viewModel.GridReactionTable.Properties.VariableNames, ...
                 {'Select', 'ID', 'Reaction'});
@@ -182,6 +184,7 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             config.CIConf.grid.points = 23;
             config.CIConf.grid.delta = 0.5;
             config.CIConf.grid.iteration = 71;
+            config.CIConf.grid.workerCount = 14;
             config.CIConf.grid.minimumFluxRange = 2e-5;
             config.CIConf.grid.threshold = 'f-distribution';
             config.CIConf.grid.reactions.select = [false; true];

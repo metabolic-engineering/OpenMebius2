@@ -244,6 +244,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             batch.Config.CIConf.algorithm = 'Grid search';
             batch.Config.CIConf.MC.iteration = 222;
             batch.Config.CIConf.grid.points = 18;
+            batch.Config.CIConf.grid.workerCount = 12;
             batch.Config.CIConf.grid.minimumFluxRange = 2e-5;
             batch.Config.CIConf.grid.intervalMode = 'automatic';
             batch.Config.CIConf.grid.executionMode = 'parallel';
@@ -256,6 +257,9 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
                 app.ThenumberofgridpointsEditField.Value, 18);
             testCase.verifyEqual( ...
                 app.MinimumFLuxRangeEditField.Value, 2e-5);
+            testCase.verifyEqual(app.ParallelworkersEditField.Value, 12);
+            testCase.verifyEqual( ...
+                app.GridLayout12_6.Parent, app.GridLayout8);
             testCase.verifyTrue( ...
                 app.DeterminegridintervalautomaticallyCheckBox.Value);
             testCase.verifyTrue(app.CheckBox.Value);
@@ -263,6 +267,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             app.MCLmaxEditField.Value = 333;
             app.ThenumberofgridpointsEditField.Value = 29;
             app.MinimumFLuxRangeEditField.Value = 3e-4;
+            app.ParallelworkersEditField.Value = 16;
             app.DeterminegridintervalautomaticallyCheckBox.Value = false;
             app.CheckBox.Value = false;
             app.GridReactionUITable.Data.Select(2) = false;
@@ -275,6 +280,8 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
                 batch.Config.CIConf.grid.points, 29);
             testCase.verifyEqual( ...
                 batch.Config.CIConf.grid.minimumFluxRange, 3e-4);
+            testCase.verifyEqual( ...
+                batch.Config.CIConf.grid.workerCount, 16);
             testCase.verifyEqual( ...
                 batch.Config.CIConf.grid.intervalMode, ...
             'fixed-delta');
@@ -370,6 +377,8 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
                 string(app.DeterminegridintervalautomaticallyCheckBox.Enable), ...
             "off");
             testCase.verifyEqual(string(app.CheckBox.Enable), "off");
+            testCase.verifyEqual( ...
+                string(app.ParallelworkersEditField.Enable), "on");
             testCase.verifyEmpty(app.GridreactionTab.Parent);
 
             app.AlgorithmCIDropDown.Value = 'Grid search';
@@ -383,6 +392,17 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             "on");
             testCase.verifyEqual(string(app.CheckBox.Enable), "on");
             testCase.verifyEqual( ...
+                string(app.ParallelworkersEditField.Enable), "on");
+            app.CheckBox.Value = false;
+            callback = app.CheckBox.ValueChangedFcn;
+            callback([], []);
+            testCase.verifyEqual( ...
+                string(app.ParallelworkersEditField.Enable), "on");
+            app.CheckBox.Value = true;
+            callback([], []);
+            testCase.verifyEqual( ...
+                string(app.ParallelworkersEditField.Enable), "on");
+            testCase.verifyEqual( ...
                 string(app.ThenumberofgridpointsEditField.Enable), "on");
             testCase.verifyEqual( ...
                 string(app.GridintervalDeltaixiEditField.Enable), "off");
@@ -394,6 +414,8 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             callback([], []);
             testCase.verifyEmpty(app.GridreactionTab.Parent);
             testCase.verifyEqual(string(app.CheckBox.Enable), "off");
+            testCase.verifyEqual( ...
+                string(app.ParallelworkersEditField.Enable), "on");
 
             app.CalcCICheckBox.Value = true;
             callback([], []);

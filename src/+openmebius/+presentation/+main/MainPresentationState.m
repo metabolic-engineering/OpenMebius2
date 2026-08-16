@@ -156,7 +156,9 @@ classdef MainPresentationState < handle
 
             arguments
                 obj (1, 1) openmebius.presentation.main.MainPresentationState
-                mode (1, 1) string {mustBeMember(mode, ["overview", "details", "comparison"])}
+                mode (1, 1) string {mustBeMember(mode, [ ...
+                    "overview", "mdv", "mdv-summary", ...
+                    "details", "comparison"])}
             end
 
             obj.ResultMode = mode;

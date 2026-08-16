@@ -129,6 +129,29 @@ classdef MFAWorkflowTest < matlab.unittest.TestCase
 
         end
 
+        function reportsConfiguredSerialResources(testCase)
+
+            observer = helpers.AnalysisMessageObserverStub();
+            workflow = openmebius.mfa.MFAWorkflow();
+
+            workflow.run( ...
+                [2, 1; 20, 10], ...
+                @(rhs) MFAWorkflowTest.createIterationResult(rhs), ...
+                IterationCount = 2, ...
+                WorkerCount = 12, ...
+                MessageReporter = @(level, message) ...
+                observer.report(level, message));
+
+            resourceMessage = observer.Messages(contains( ...
+                observer.Messages, "Optimization resources:"));
+            testCase.verifyNumElements(resourceMessage, 1);
+            testCase.verifyTrue(contains( ...
+                resourceMessage, "configuredWorkers=12"));
+            testCase.verifyTrue(contains(resourceMessage, "workers=1"));
+            testCase.verifyTrue(contains(resourceMessage, "iterations=2"));
+
+        end
+
     end
 
     methods (Static, Access = private)

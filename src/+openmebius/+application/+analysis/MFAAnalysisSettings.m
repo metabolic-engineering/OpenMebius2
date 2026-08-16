@@ -6,6 +6,8 @@ classdef MFAAnalysisSettings
             .analysis.MFAInputPreparationSettings
         InitialFluxSettings (1, 1) openmebius.mfa.InitialFluxSettings
         IterationSettings (1, 1) openmebius.mfa.MFAIterationSettings
+        UseParallel (1, 1) logical
+        WorkerCount (1, 1) double
         FVALowerBound (1, 1) double = -1000
         FVAUpperBound (1, 1) double = 1000
         InstationaryInputSpecification = []
@@ -27,6 +29,8 @@ classdef MFAAnalysisSettings
                 options.IterationSettings (1, 1) openmebius.mfa ...
                     .MFAIterationSettings = ...
                     openmebius.mfa.MFAIterationSettings()
+                options.UseParallel (1, 1) logical = false
+                options.WorkerCount (1, 1) double = 8
                 options.FVALowerBound (1, 1) double = -1000
                 options.FVAUpperBound (1, 1) double = 1000
                 options.InstationaryInputSpecification = []
@@ -40,6 +44,15 @@ classdef MFAAnalysisSettings
                     "InvalidFVABounds", ...
                     "FVA bounds must be finite and the lower bound " + ...
                 "must not exceed the upper bound.");
+            end
+
+            if ~isfinite(options.WorkerCount) || ...
+                    options.WorkerCount < 1 || ...
+                    fix(options.WorkerCount) ~= options.WorkerCount
+                error( ...
+                    "OpenMebius2:MFAAnalysisSettings:" + ...
+                    "InvalidWorkerCount", ...
+                "WorkerCount must be a positive integer.");
             end
 
             isInstationary = ...
@@ -69,6 +82,8 @@ classdef MFAAnalysisSettings
                 options.InputPreparationSettings;
             obj.InitialFluxSettings = options.InitialFluxSettings;
             obj.IterationSettings = options.IterationSettings;
+            obj.UseParallel = options.UseParallel;
+            obj.WorkerCount = options.WorkerCount;
             obj.FVALowerBound = options.FVALowerBound;
             obj.FVAUpperBound = options.FVAUpperBound;
             obj.InstationaryInputSpecification = ...

@@ -46,13 +46,13 @@ classdef ResultPlotPresenter < handle
                         IsDarkTheme = options.IsDarkTheme, ...
                         UseLogScale = options.UseLogScale);
 
-                case "Details"
-                    viewModel = obj.presentDetailsOptimizationState( ...
+                case "MDV"
+                    viewModel = obj.presentMDVOptimizationState( ...
                         result, ...
                         context, ...
                         UseLogScale = options.UseLogScale);
 
-                case "Comparison"
+                case {"MDV (Summary)", "Comparison"}
                     viewModel = ...
                         openmebius.presentation.result.ResultPlotViewModel.none();
 
@@ -67,7 +67,7 @@ classdef ResultPlotPresenter < handle
 
     methods (Access = private)
 
-        function viewModel = presentDetailsOptimizationState( ...
+        function viewModel = presentMDVOptimizationState( ...
                 obj, result, context, options)
 
             arguments
@@ -133,7 +133,7 @@ classdef ResultPlotPresenter < handle
                     SubPlot = subPlot, ...
                     Notification = notification);
 
-        end % presentDetailsOptimizationState
+        end % presentMDVOptimizationState
 
         function viewModel = presentOverview(obj, model, result, context, options)
 

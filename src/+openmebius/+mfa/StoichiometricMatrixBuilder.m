@@ -39,11 +39,12 @@ classdef StoichiometricMatrixBuilder
             substrateNames = string(metabolites.Metabolite( ...
                 string(metabolites.Type) == "substrate"));
             efflux = openmebius.mfa.StoichiometricMatrixBuilder ...
-                .findEfflux(reactions, substrateNames);
+                .findEfflux(reactionIndex, substrateNames);
             efflux = openmebius.mfa.StoichiometricMatrixBuilder ...
                 .removeIndependent(efflux, reactions);
             matrix = [matrix; openmebius.mfa.StoichiometricMatrixBuilder ...
-                          .reactionRows(efflux, reactionNames)];
+                          .effluxRows( ...
+                          efflux, reactionNames, reactionIndex)];
             rowNames = [rowNames; string(efflux(:))];
             types = [types; repmat("efflux", numel(efflux), 1)];
 
@@ -87,7 +88,8 @@ classdef StoichiometricMatrixBuilder
 
         end
 
-        function names = findEfflux(reactions, substrates)
+        function names = findEfflux(reactionIndex, substrates)
+            reactions = reactionIndex.Reactions;
             selected = false(height(reactions), 1);
 
             for i = 1:height(reactions)
@@ -96,6 +98,14 @@ classdef StoichiometricMatrixBuilder
                 compounds = [reactants(:); products(:)];
                 selected(i) = any(ismember(compounds, substrates));
             end
+
+            % A reversible source reaction is expanded into forward and
+            % reverse rows.  Both rows contain the same external
+            % metabolite, but they represent one exchange measurement.
+            % Keep the forward ID as the canonical efflux constraint; its
+            % row is represented as forward minus reverse below.
+            reverseIndices = reactionIndex.ReversiblePairs(:, 2);
+            selected(reverseIndices) = false;
 
             rowNames = string(reactions.Properties.RowNames);
             names = cellstr(rowNames(selected));
@@ -115,6 +125,30 @@ classdef StoichiometricMatrixBuilder
 
             for i = 1:numel(names)
                 rows(i, strcmp(reactionNames, names{i})) = 1;
+            end
+
+        end
+
+        function rows = effluxRows( ...
+                names, reactionNames, reactionIndex)
+
+            rows = openmebius.mfa.StoichiometricMatrixBuilder ...
+                .reactionRows(names, reactionNames);
+            reversiblePairs = reactionIndex.ReversiblePairs;
+
+            for i = 1:numel(names)
+                reactionPosition = find( ...
+                    strcmp(reactionNames, names{i}), 1);
+                [pairIndex, pairColumn] = find( ...
+                    reversiblePairs == reactionPosition, 1);
+
+                if isempty(pairIndex)
+                    continue
+                end
+
+                counterPosition = reversiblePairs( ...
+                    pairIndex, 3 - pairColumn);
+                rows(i, counterPosition) = -1;
             end
 
         end

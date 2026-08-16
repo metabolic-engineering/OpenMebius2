@@ -83,21 +83,16 @@ classdef BatchOperationController < handle
 
             function removeBatches()
 
-                statuses = batch.getBatchStatus(batchIds);
-                terminal = openmebius.domain.batch.BatchConfig ...
-                    .isTerminalStatus(statuses);
-
-                if any(terminal) && isempty(resultLocation)
+                if isempty(resultLocation)
                     error( ...
                         "OpenMebius2:BatchRemoval:" + ...
                         "MissingResultLocation", ...
-                        "A result location is required to remove " + ...
-                    "completed or failed batches.");
+                    "A result location is required to remove batches.");
                 end
 
-                for terminalId = batchIds(terminal)'
+                for batchId = batchIds'
                     obj.ArtifactRepository.deleteBatchArtifacts( ...
-                        resultLocation, terminalId);
+                        resultLocation, batchId);
                 end
 
                 for batchId = batchIds'

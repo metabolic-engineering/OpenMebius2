@@ -171,6 +171,41 @@ classdef ResultCatalog < handle
 
         end % getFluxDetailed
 
+        function tableRtn = getMDV(obj, batchID)
+
+            arguments
+                obj (1, 1) openmebius.application.result.ResultCatalog
+                batchID (1, 1) string
+            end
+
+            tableRtn = obj.getFluxDetailed(batchID);
+
+        end % getMDV
+
+        function tableRtn = getMDVSummary(obj, batchID)
+
+            arguments
+                obj (1, 1) openmebius.application.result.ResultCatalog
+                batchID (1, 1) string
+            end
+
+            data = obj.loadResultFile(batchID);
+
+            if isempty(data)
+                tableRtn = table();
+                obj.notifyGeneralMessage( ...
+                    "error", "Failed to load the result file.");
+                return
+            end
+
+            [tableRtn, message] = obj.TableBuilder.mdvSummary(data);
+
+            if message ~= ""
+                obj.notifyGeneralMessage("error", message);
+            end
+
+        end % getMDVSummary
+
         function tableRtn = getFluxComparison(obj, batchIDs, names, options)
 
             arguments

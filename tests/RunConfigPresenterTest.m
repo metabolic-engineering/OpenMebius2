@@ -136,16 +136,22 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
 
             testCase.verifyTrue(automatic.GridEnabled);
             testCase.verifyTrue(automatic.GridExecutionModeEnabled);
+            testCase.verifyTrue(automatic.GridWorkerCountEnabled);
             testCase.verifyTrue(automatic.GridPointsEnabled);
             testCase.verifyFalse(automatic.GridDeltaEnabled);
             testCase.verifyFalse(manual.GridPointsEnabled);
             testCase.verifyTrue(manual.GridDeltaEnabled);
             testCase.verifyTrue(automatic.GridReactionVisible);
 
+            viewModel.GridParallelExecution = false;
+            serial = presenter.presentControlState(viewModel);
+            testCase.verifyTrue(serial.GridWorkerCountEnabled);
+
             viewModel.CalculateCI = false;
             disabled = presenter.presentControlState(viewModel);
             testCase.verifyFalse(disabled.GridReactionVisible);
             testCase.verifyFalse(disabled.GridExecutionModeEnabled);
+            testCase.verifyTrue(disabled.GridWorkerCountEnabled);
 
         end
 

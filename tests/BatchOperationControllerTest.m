@@ -51,25 +51,6 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
             controller = openmebius.application.batch ...
                 .BatchOperationController( ...
                     ArtifactRepository = artifactRepository);
-
-            outcome = controller.remove( ...
-                batch, ["batch-a"; "batch-b"]);
-
-            testCase.verifyTrue(outcome.isSuccess());
-            testCase.verifyEqual( ...
-                batch.RemovedIds, ["batch-a"; "batch-b"]);
-            testCase.verifyEmpty(artifactRepository.DeletedBatchIds);
-
-        end
-
-        function removesTerminalBatchesAndTheirResultArtifacts(testCase)
-
-            batch = helpers.BatchOperationStub();
-            batch.Status = ["finished"; "error"];
-            artifactRepository = helpers.ResultArtifactRepositoryStub();
-            controller = openmebius.application.batch ...
-                .BatchOperationController( ...
-                    ArtifactRepository = artifactRepository);
             resultLocation = openmebius.domain.result.ResultLocation ...
                 .fromDirectory(string(tempdir));
 
@@ -78,17 +59,73 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
 
             testCase.verifyTrue(outcome.isSuccess());
             testCase.verifyEqual( ...
+                batch.RemovedIds, ["batch-a"; "batch-b"]);
+            testCase.verifyEqual( ...
                 artifactRepository.DeletedBatchIds, ...
                 ["batch-a"; "batch-b"]);
-            testCase.verifyEqual( ...
-                batch.RemovedIds, ["batch-a"; "batch-b"]);
 
         end
 
-        function requiresResultLocationForTerminalBatchRemoval(testCase)
+        function removesResultArtifactsForEveryBatchStatus(testCase)
 
             batch = helpers.BatchOperationStub();
-            batch.Status = "finished";
+            batch.Status = [ ...
+                "ready"; "finished"; "error"; "warning"; "canceled"];
+            batchIds = "batch-" + batch.Status;
+            artifactRepository = helpers.ResultArtifactRepositoryStub();
+            controller = openmebius.application.batch ...
+                .BatchOperationController( ...
+                    ArtifactRepository = artifactRepository);
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(string(tempdir));
+
+            outcome = controller.remove( ...
+                batch, batchIds, resultLocation);
+
+            testCase.verifyTrue(outcome.isSuccess());
+            testCase.verifyEqual( ...
+                artifactRepository.DeletedBatchIds, ...
+                batchIds);
+            testCase.verifyEqual(batch.RemovedIds, batchIds);
+
+        end
+
+        function removesExistingArtifactsForReadyBatch(testCase)
+
+            directory = string(tempname);
+            mkdir(directory);
+            cleanup = onCleanup(@() rmdir(directory, 's'));
+            resultLocation = openmebius.domain.result.ResultLocation ...
+                .fromDirectory(directory);
+            artifacts = resultLocation.resultArtifactFiles("batch-ready");
+
+            for artifact = artifacts'
+                fileId = fopen(artifact, 'w');
+                testCase.assertGreaterThanOrEqual(fileId, 0);
+                fileCleanup = onCleanup(@() fclose(fileId));
+                fprintf(fileId, 'test');
+                clear fileCleanup
+            end
+
+            batch = helpers.BatchOperationStub();
+            batch.Status = "ready";
+            controller = openmebius.application.batch ...
+                .BatchOperationController();
+
+            outcome = controller.remove( ...
+                batch, "batch-ready", resultLocation);
+
+            testCase.verifyTrue(outcome.isSuccess());
+            testCase.verifyFalse(any(isfile(artifacts)));
+            testCase.verifyEqual(batch.RemovedIds, "batch-ready");
+            clear cleanup
+
+        end
+
+        function requiresResultLocationForEveryBatchRemoval(testCase)
+
+            batch = helpers.BatchOperationStub();
+            batch.Status = "ready";
             controller = openmebius.application.batch ...
                 .BatchOperationController();
 

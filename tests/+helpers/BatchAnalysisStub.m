@@ -9,6 +9,7 @@ classdef BatchAnalysisStub < handle
         FinalizeCount (1, 1) double = 0
         MessageReporter (1, 1) function_handle = @(~) []
         ResultReporter (1, 1) function_handle = @(~) []
+        ProgressReporter (1, 1) function_handle = @(~, ~) []
     end
 
     methods
@@ -47,6 +48,7 @@ classdef BatchAnalysisStub < handle
 
             obj.Calls(end + 1) = "ci";
             obj.applyOutcome("ci");
+            obj.ProgressReporter(1, 4);
 
         end
 
@@ -71,6 +73,8 @@ classdef BatchAnalysisStub < handle
                     obj.MessageReporter = varargin{index + 1};
                 elseif name == "ResultReporter"
                     obj.ResultReporter = varargin{index + 1};
+                elseif name == "ProgressReporter"
+                    obj.ProgressReporter = varargin{index + 1};
                 end
             end
 

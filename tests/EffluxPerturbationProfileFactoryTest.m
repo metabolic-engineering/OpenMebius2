@@ -59,6 +59,22 @@ classdef EffluxPerturbationProfileFactoryTest < ...
 
         end
 
+        function mapsReversibleExchangeCounterpart(testCase)
+
+            model = helpers.SteadyStateModelStub();
+            model.ReactionNames = ["R1", "R1_rev"];
+            model.ReversibleReactionIndices = [1, 2];
+            factory = openmebius.mfa ...
+                .EffluxPerturbationProfileFactory();
+
+            profile = factory.create( ...
+                model, "S1", 5, 0.5, true);
+
+            testCase.verifyEqual(profile.ReactionIndices, 1);
+            testCase.verifyEqual(profile.CounterReactionIndices, 2);
+
+        end
+
         function reportsMissingReaction(testCase)
 
             model = helpers.SteadyStateModelStub();

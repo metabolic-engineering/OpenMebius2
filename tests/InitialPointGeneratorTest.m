@@ -88,6 +88,29 @@ classdef InitialPointGeneratorTest < matlab.unittest.TestCase
 
         end
 
+        function randomGenerationHonorsNetFluxInequalities(testCase)
+
+            generator = openmebius.mfa.InitialPointGenerator();
+            problem = InitialPointGeneratorTest.createProblem( ...
+                eye(2), zeros(2, 1), zeros(2, 1), ...
+                10 * ones(2, 1), true(2, 1), true(2, 1), ...
+                FluxInequalityMatrix = [1, -1; -1, 1], ...
+                FluxInequalityRightHandSide = [2; 0]);
+            randomStream = RandStream('mt19937ar', 'Seed', 42);
+
+            result = generator.generateRandom( ...
+                problem, 5, ...
+                IterationsPerBatch = 100, ...
+                MaxTime = 1, ...
+                RandomStream = randomStream);
+
+            netFlux = result.Fluxes(1, :) - result.Fluxes(2, :);
+            testCase.verifyGreaterThanOrEqual(size(result.Fluxes, 2), 5);
+            testCase.verifyGreaterThanOrEqual(netFlux, -1e-8);
+            testCase.verifyLessThanOrEqual(netFlux, 2 +1e-8);
+
+        end
+
         function findsInteriorPointInGeneratorSpace(testCase)
 
             generator = openmebius.mfa.InitialPointGenerator();
@@ -118,6 +141,23 @@ classdef InitialPointGeneratorTest < matlab.unittest.TestCase
             testCase.verifyTrue(isSuccess);
             testCase.verifyEqual(minimumStep, -0.5, 'AbsTol', 1e-12);
             testCase.verifyEqual(maximumStep, 0.5, 'AbsTol', 1e-12);
+
+        end
+
+        function stepRangeIncludesNetFluxInequalities(testCase)
+
+            generator = openmebius.mfa.InitialPointGenerator();
+
+            [minimumStep, maximumStep, isSuccess] = ...
+                generator.stepRange( ...
+                zeros(2, 1), 10 * ones(2, 1), ...
+                ones(2, 1), eye(2), zeros(2, 1), [1; 0], ...
+                InequalityMatrix = [1, -1], ...
+                InequalityRightHandSide = 2);
+
+            testCase.verifyTrue(isSuccess);
+            testCase.verifyEqual(minimumStep, -1, AbsTol = 1e-12);
+            testCase.verifyEqual(maximumStep, 2, AbsTol = 1e-12);
 
         end
 
@@ -154,6 +194,31 @@ classdef InitialPointGeneratorTest < matlab.unittest.TestCase
                 result.Fluxes, zeros(2, 3));
             testCase.verifyLessThanOrEqual( ...
                 result.Fluxes, ones(2, 3));
+
+        end
+
+        function hitAndRunHonorsNetFluxInequalities(testCase)
+
+            generator = openmebius.mfa.InitialPointGenerator();
+            problem = InitialPointGeneratorTest.createProblem( ...
+                eye(2), zeros(2, 1), zeros(2, 1), ...
+                10 * ones(2, 1), true(2, 1), true(2, 1), ...
+                FluxInequalityMatrix = [1, -1; -1, 1], ...
+                FluxInequalityRightHandSide = [2; 0]);
+            randomStream = RandStream('mt19937ar', 'Seed', 42);
+
+            result = generator.generateHitAndRun( ...
+                problem, 10, 1, ...
+                BurnIn = 0, ...
+                Thinning = 1, ...
+                MaxTime = 2, ...
+                RandomStream = randomStream);
+
+            netFlux = result.Fluxes(1, :) - result.Fluxes(2, :);
+            testCase.verifyFalse(result.IsError, result.ErrorMessage);
+            testCase.verifyEqual(size(result.Fluxes, 2), 10);
+            testCase.verifyGreaterThanOrEqual(netFlux, -1e-8);
+            testCase.verifyLessThanOrEqual(netFlux, 2 +1e-8);
 
         end
 
@@ -238,7 +303,19 @@ classdef InitialPointGeneratorTest < matlab.unittest.TestCase
 
         function problem = createProblem( ...
                 stoichiometry, rightHandSide, lowerBounds, upperBounds, ...
-                independentMask, boundaryReactionMask)
+                independentMask, boundaryReactionMask, options)
+
+            arguments
+                stoichiometry
+                rightHandSide
+                lowerBounds
+                upperBounds
+                independentMask
+                boundaryReactionMask
+                options.FluxInequalityMatrix double = []
+                options.FluxInequalityRightHandSide (:, 1) double = ...
+                    zeros(0, 1)
+            end
 
             problem = openmebius.mfa.MFAProblem( ...
                 Stoichiometry = stoichiometry, ...
@@ -246,7 +323,11 @@ classdef InitialPointGeneratorTest < matlab.unittest.TestCase
                 LowerBounds = lowerBounds, ...
                 UpperBounds = upperBounds, ...
                 IndependentMask = independentMask, ...
-                BoundaryReactionMask = boundaryReactionMask);
+                BoundaryReactionMask = boundaryReactionMask, ...
+                FluxInequalityMatrix = ...
+                options.FluxInequalityMatrix, ...
+                FluxInequalityRightHandSide = ...
+                options.FluxInequalityRightHandSide);
 
         end
 

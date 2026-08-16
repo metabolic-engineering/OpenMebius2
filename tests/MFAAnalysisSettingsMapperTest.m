@@ -31,6 +31,24 @@ classdef MFAAnalysisSettingsMapperTest < matlab.unittest.TestCase
                 mapping.Settings.InstationaryInputSpecification);
             testCase.verifyEqual(mapping.Settings.FVALowerBound, -1000);
             testCase.verifyEqual(mapping.Settings.FVAUpperBound, 1000);
+            testCase.verifyTrue(mapping.Settings.UseParallel);
+            testCase.verifyEqual( ...
+                mapping.Settings.WorkerCount, ...
+                openmebius.domain.batch.BatchConfig.defaultConfig() ...
+                .CIConf.grid.workerCount);
+
+        end
+
+        function mapsConfiguredWorkerCount(testCase)
+
+            config = struct(iteration = 3, isINSTMFA = false);
+            config.CIConf.grid.workerCount = 7;
+            mapping = openmebius.application.analysis ...
+                .MFAAnalysisSettingsMapper.tryFromBatchConfig(config);
+
+            testCase.verifyTrue(mapping.IsValid);
+            testCase.verifyTrue(mapping.Settings.UseParallel);
+            testCase.verifyEqual(mapping.Settings.WorkerCount, 7);
 
         end
 
