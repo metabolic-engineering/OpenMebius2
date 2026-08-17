@@ -69,6 +69,11 @@ MATLAB Compiler is required. By default the build runs the fast profile, checks
 App source synchronization, compiles the standalone application, and creates an
 installer.
 
+On Windows, the installer also carries required native Runtime compatibility
+files beside the application executable. This includes the proxy credential
+API needed by the R2026a agent client when a minimal MATLAB Runtime install
+omits that transitive dependency.
+
 ```matlab
 addpath("src");
 result = BuildMyApp();
