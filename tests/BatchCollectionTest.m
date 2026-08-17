@@ -196,6 +196,43 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
 
         end
 
+        function movesEntriesWhilePreservingSelectedOrder(testCase)
+
+            collection = BatchCollectionTest.emptyCollection();
+            firstId = BatchCollectionTest.addDefault(collection, "A");
+            secondId = BatchCollectionTest.addDefault(collection, "B");
+            thirdId = BatchCollectionTest.addDefault(collection, "C");
+            fourthId = BatchCollectionTest.addDefault(collection, "D");
+
+            movedUp = collection.move( ...
+                [secondId; thirdId], "up");
+            testCase.verifyTrue(movedUp);
+            testCase.verifyEqual( ...
+                collection.toTable().id, ...
+                [secondId; thirdId; firstId; fourthId]);
+
+            movedDown = collection.move( ...
+                [secondId; thirdId], "down");
+            testCase.verifyTrue(movedDown);
+            testCase.verifyEqual( ...
+                collection.toTable().id, ...
+                [firstId; secondId; thirdId; fourthId]);
+
+        end
+
+        function leavesEntriesAtCollectionBoundary(testCase)
+
+            collection = BatchCollectionTest.emptyCollection();
+            firstId = BatchCollectionTest.addDefault(collection, "A");
+            secondId = BatchCollectionTest.addDefault(collection, "B");
+
+            testCase.verifyFalse(collection.move(firstId, "up"));
+            testCase.verifyFalse(collection.move(secondId, "down"));
+            testCase.verifyEqual( ...
+                collection.toTable().id, [firstId; secondId]);
+
+        end
+
         function unknownStatusLookupRemainsNonThrowing(testCase)
 
             collection = BatchCollectionTest.emptyCollection();

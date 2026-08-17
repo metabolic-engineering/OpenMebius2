@@ -55,7 +55,7 @@ classdef TracerConfigurationServiceTest < matlab.unittest.TestCase
 
         end
 
-        function blocksEditorForModifiedTracerTable(testCase)
+        function preparesEditorFromUnsavedTracerTable(testCase)
 
             experiments = helpers.TracerConfigurationExperimentStub();
             experiments.TracerTable = table( ...
@@ -68,12 +68,11 @@ classdef TracerConfigurationServiceTest < matlab.unittest.TestCase
             decision = service.prepare( ...
                 experiments, modifiedTable, [1, 1]);
 
-            testCase.verifyFalse(decision.IsAllowed);
-            testCase.verifyFalse(experiments.Called);
+            testCase.verifyTrue(decision.IsAllowed);
+            testCase.verifyTrue(experiments.Called);
             testCase.verifyEqual( ...
-                decision.Message, ...
-                "Label table has been modified. " + ...
-                "Please save the table before editing.");
+                experiments.CurrentTracerTable, modifiedTable);
+            testCase.verifyEqual(decision.Position, [1, 1]);
 
         end
 

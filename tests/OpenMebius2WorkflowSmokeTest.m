@@ -67,12 +67,42 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
                 string(app.ProjectNameEditField.Value), ...
                 "Smoke project");
 
+            testCase.verifyEmpty(app.ModelTable.ContextMenu);
             testCase.press(app.ModelEditButton);
             testCase.verifyTrue(any(app.ModelTable.ColumnEditable));
+            testCase.assertNotEmpty(app.ModelTable.ContextMenu);
+            menuItems = app.ModelTable.ContextMenu.Children;
+            menuTexts = string({menuItems.Text});
+            addMenu = menuItems(menuTexts == "Add reaction");
+            removeMenu = menuItems(menuTexts == "Remove reaction");
+            testCase.assertNotEmpty(addMenu);
+            testCase.assertNotEmpty(removeMenu);
+            originalRowCount = height(app.ModelTable.Data);
+            app.Test_InputAnswer = "SmokeReaction";
+            addCallback = addMenu.MenuSelectedFcn;
+            addCallback(addMenu, []);
+            testCase.verifyEqual( ...
+                height(app.ModelTable.Data), originalRowCount + 1);
+            testCase.verifyEqual( ...
+                string(app.ModelTable.Data.Properties.RowNames(end)), ...
+                "SmokeReaction");
+            testCase.press(app.ModelSaveButton);
+            testCase.verifyTrue(any(app.ModelTable.ColumnEditable));
+            testCase.assertNotEmpty(app.ModelTable.ContextMenu);
+            rowStyles = app.ModelTable.StyleConfigurations;
+            rowStyles = rowStyles(string(rowStyles.Target) == "row", :);
+            highlightedRows = unique(cell2mat(rowStyles.TargetIndex));
+            testCase.verifyTrue(any( ...
+                highlightedRows == originalRowCount + 1));
+            removeCallback = removeMenu.MenuSelectedFcn;
+            removeCallback(removeMenu, []);
+            testCase.verifyEqual( ...
+                height(app.ModelTable.Data), originalRowCount);
             updatedX = app.ModelTable.Data.x(1) + 1;
             app.ModelTable.Data.x(1) = updatedX;
             testCase.press(app.ModelSaveButton);
             testCase.verifyFalse(any(app.ModelTable.ColumnEditable));
+            testCase.verifyEmpty(app.ModelTable.ContextMenu);
             savedPosition = readtable( ...
                 fullfile( ...
                 createdProject, "model", "metabolic_network.xlsx"), ...
@@ -107,6 +137,14 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.assertNotEmpty(descriptionColumn);
             testCase.assertTrue(editableColumns(nameColumn));
             testCase.assertTrue(editableColumns(descriptionColumn));
+            expectedInfo = app.ExpTable.Data{1, 1} + 0.001;
+            expectedUptake = app.UptakeTable.Data{1, 1} + 0.125;
+            expectedTracer = "12C2~1";
+            expectedDescription = "Saved automatically before Run";
+            app.ExpTable.Data{1, 1} = expectedInfo;
+            app.UptakeTable.Data{1, 1} = expectedUptake;
+            app.LabelTable.Data{1, 1} = expectedTracer;
+            app.RunTable.Data.Description(1) = expectedDescription;
             app.RunTable.Selection = [1, 1];
             app.Test_TriggerCancelDuringRun = true;
             testCase.press(app.RunRunButton);
@@ -116,6 +154,31 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.verifyEqual(string(app.RunRunButton.Text), "Run");
             testCase.verifyEqual( ...
                 app.RunTable.ColumnEditable, editableColumns);
+
+            experimentLocation = openmebius.domain.experiment ...
+                .ExperimentLocation.fromDirectory( ...
+                fullfile(analysisProject, "experiments"));
+            reloadedExperiments = openmebius.application.experiment ...
+                .ExperimentSet( ...
+                experimentLocation, ...
+                app.Test_ApplicationController.model());
+            experimentCleanup = onCleanup( ...
+                @() delete(reloadedExperiments));
+            savedInfo = reloadedExperiments.getInfoTable();
+            savedUptake = reloadedExperiments.getUptakeTable();
+            savedTracer = reloadedExperiments.getTracerTable();
+            testCase.verifyEqual( ...
+                savedInfo{1, 1}, expectedInfo, "AbsTol", 1e-12);
+            testCase.verifyEqual( ...
+                savedUptake{1, 1}, expectedUptake, "AbsTol", 1e-12);
+            testCase.verifyEqual(savedTracer{1, 1}, expectedTracer);
+            batchRepository = openmebius.infrastructure.batch ...
+                .BatchJsonRepository();
+            [savedBatch, isError, message] = batchRepository.load( ...
+                experimentLocation, "batch.json");
+            testCase.assertFalse(isError, string(message));
+            testCase.verifyEqual( ...
+                savedBatch.description(1), expectedDescription);
 
             testCase.choose(app.TabGroup, "Result");
             testCase.press(app.ResultReportButton);
@@ -376,6 +439,104 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.verifyEqual(duplicate.Experiment, source.Experiment);
             testCase.verifyEqual( ...
                 duplicate.Description, expectedDescription);
+            testCase.verifyEmpty(app.Test_Alerts);
+
+        end
+
+        function tracerPatternsRemainReadOnlyAndOpenWithoutSaving(testCase)
+
+            app = testCase.App;
+            projectDirectory = ...
+                OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli");
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, projectDirectory);
+            testCase.press(app.ProjectLoadButton);
+            testCase.choose(app.TabGroup, "Tracer");
+            testCase.verifyFalse(any(app.LabelTable.ColumnEditable));
+            testCase.verifyTrue(any(app.UptakeTable.ColumnEditable));
+            interaction = struct( ...
+                "InteractionInformation", struct( ...
+                "DisplayRow", 1, "DisplayColumn", 1));
+            openCallback = app.LabelTable.DoubleClickedFcn;
+
+            openCallback(app.LabelTable, interaction);
+            testCase.assertNotEmpty(app.TracerConfigApp);
+            editorTable = app.TracerConfigApp.UITable.Data;
+            testCase.assertGreaterThan(height(editorTable), 0);
+            editorTable.Select(:) = false;
+            editorTable.Select(end) = true;
+            editorTable.Ratio(:) = 0;
+            editorTable.Ratio(end) = 1;
+            expectedPattern = editorTable.Label(end) + "~1";
+            app.TracerConfigApp.UITable.Data = editorTable;
+            saveCallback = app.TracerConfigApp.SaveButton.ButtonPushedFcn;
+            saveCallback(app.TracerConfigApp.SaveButton, []);
+            testCase.verifyEqual( ...
+                string(app.LabelTable.Data{1, 1}), expectedPattern);
+            testCase.verifyFalse(any(app.LabelTable.ColumnEditable));
+
+            openCallback(app.LabelTable, interaction);
+            testCase.assertNotEmpty(app.TracerConfigApp);
+            testCase.verifyTrue(app.TracerConfigApp.UITable.Data.Select(end));
+            close(app.TracerConfigApp.TracerselectionconfigUIFigure);
+
+            testCase.press(app.TracerSaveButton);
+            testCase.verifyFalse(any(app.LabelTable.ColumnEditable));
+            openCallback(app.LabelTable, interaction);
+            testCase.assertNotEmpty(app.TracerConfigApp);
+            testCase.verifyTrue(app.TracerConfigApp.UITable.Data.Select(end));
+            testCase.verifyEmpty(app.Test_Alerts);
+
+        end
+
+        function movesBatchUpAndDownAndPersistsOrder(testCase)
+
+            app = testCase.App;
+            projectDirectory = ...
+                OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli");
+            experimentLocation = openmebius.domain.experiment ...
+                .ExperimentLocation.fromDirectory( ...
+                fullfile(projectDirectory, "experiments"));
+            repository = ...
+                openmebius.infrastructure.batch.BatchJsonRepository();
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, projectDirectory);
+            testCase.press(app.ProjectLoadButton);
+            originalIds = string(app.RunTable.UserData.RawData.ID);
+            testCase.assertGreaterThanOrEqual(numel(originalIds), 3);
+            moveUpMenu = findobj( ...
+                app.ContextMenuRun, 'Text', 'Move up');
+            moveDownMenu = findobj( ...
+                app.ContextMenuRun, 'Text', 'Move down');
+            testCase.assertNotEmpty(moveUpMenu);
+            testCase.assertNotEmpty(moveDownMenu);
+
+            app.RunTable.Selection = [2, 1];
+            callback = moveUpMenu.MenuSelectedFcn;
+            callback(moveUpMenu, []);
+
+            movedIds = string(app.RunTable.UserData.RawData.ID);
+            expectedMovedIds = originalIds;
+            expectedMovedIds([1, 2]) = expectedMovedIds([2, 1]);
+            testCase.verifyEqual(movedIds, expectedMovedIds);
+            testCase.verifyEqual(app.RunTable.Selection, [1, 1]);
+            [persisted, isError, message] = repository.load( ...
+                experimentLocation, "batch.json");
+            testCase.assertFalse(isError, string(message));
+            testCase.verifyEqual(string(persisted.id), expectedMovedIds);
+
+            callback = moveDownMenu.MenuSelectedFcn;
+            callback(moveDownMenu, []);
+
+            testCase.verifyEqual( ...
+                string(app.RunTable.UserData.RawData.ID), originalIds);
+            testCase.verifyEqual(app.RunTable.Selection, [2, 1]);
+            [persisted, isError, message] = repository.load( ...
+                experimentLocation, "batch.json");
+            testCase.assertFalse(isError, string(message));
+            testCase.verifyEqual(string(persisted.id), originalIds);
             testCase.verifyEmpty(app.Test_Alerts);
 
         end

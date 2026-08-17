@@ -21,6 +21,12 @@ classdef ExperimentEditServiceStub < handle
 
         end
 
+        function result = saveAll(obj, varargin)
+
+            result = obj.execute("saveAll", varargin);
+
+        end
+
         function result = copyTracerToAllEntries(obj, varargin)
 
             result = obj.execute("copyTracerToAllEntries", varargin);

@@ -211,6 +211,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProgressBarFactory openmebius.presentation.main.ProgressBarFactory
         ChildAppHost openmebius.presentation.lifecycle.ChildAppHost
         DialogService openmebius.presentation.dialog.AppDialogService
+        ModelContextMenu
         BatchConfigurationController openmebius.application.batch.BatchConfigurationController
         BatchExperimentSelectionEditorController openmebius.application.batch.BatchExperimentSelectionEditorController
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
@@ -1710,6 +1711,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             if isfield(ui, "ModelTableEditable")
                 app.applyTableEditable(app.ModelTable, ui.ModelTableEditable);
+            end
+
+            if isfield(ui, "ModelContextMenuEnabled")
+                app.applyContextMenu( ...
+                    app.ModelTable, ...
+                    app.ModelContextMenu, ...
+                    ui.ModelContextMenuEnabled);
             end
 
             % MS tab
@@ -3614,6 +3622,61 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % duplicateSelectedBatches
 
+        function moveSelectedBatches(app, direction)
+
+            arguments
+                app
+                direction (1, 1) string {mustBeMember( ...
+                    direction, ["up", "down"])}
+            end
+
+            selectedRows = app.selectedTableRows(app.RunTable);
+
+            if isempty(selectedRows)
+                app.publishMessage( ...
+                    "warning", "Please select a batch to move.");
+                return
+            end
+
+            batchData = app.getBatchOperationalData();
+            batchIds = string(batchData.ID(selectedRows));
+            [outcome, batch] = app.ApplicationController ...
+                .moveBatches(batchIds, direction, batchData);
+            app.renderBatchOperationViewModel( ...
+                app.BatchPresenter.presentMoveOutcome(outcome, batch));
+
+            if outcome.isSuccess()
+                app.selectBatchIds(batchIds);
+            end
+
+        end % moveSelectedBatches
+
+        function selectBatchIds(app, batchIds)
+
+            try
+                batchData = app.getBatchOperationalData();
+                [found, rows] = ismember( ...
+                    string(batchIds(:)), string(batchData.ID));
+                rows = rows(found);
+
+                if isempty(rows)
+                    return
+                end
+
+                if isprop(app.RunTable, 'SelectionType') && ...
+                        lower(string(app.RunTable.SelectionType)) == "row"
+                    app.RunTable.Selection = rows;
+                else
+                    app.RunTable.Selection = ...
+                        [rows, ones(numel(rows), 1)];
+                end
+
+            catch
+                % Selection restoration is best effort only.
+            end
+
+        end % selectBatchIds
+
         function context = captureResultPlotContext(app)
 
             context = struct();
@@ -3989,15 +4052,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         function loadTracerTable(app)
 
-            columnEditable = app.LabelTable.ColumnEditable;
-
-            if isempty(columnEditable)
-                columnEditable = false;
-            end
-
             viewModel = app.ExperimentPresenter.presentTracerTable( ...
-                app.ApplicationController.experiments(), ...
-                ColumnEditable = columnEditable);
+                app.ApplicationController.experiments());
             app.renderWorkspaceTable(app.LabelTable, viewModel);
 
         end % function loadTracerTable
@@ -4771,6 +4827,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.DialogService = openmebius.presentation.dialog ...
                 .AppDialogService(app.OpenMebius2UIFigure);
+            app.initializeModelContextMenu();
+            app.initializeBatchOrderContextMenu();
             dependencies = app.createMainAppDependencies();
             app.applyApplicationDependencies(dependencies);
             app.configureNotificationSinks();
@@ -4810,6 +4868,120 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % initializeMainApp
+
+        function initializeModelContextMenu(app)
+
+            app.ModelContextMenu = uicontextmenu( ...
+                app.OpenMebius2UIFigure);
+            uimenu( ...
+                app.ModelContextMenu, ...
+                Text = "Add reaction", ...
+                MenuSelectedFcn = @(~, ~) app.addModelReaction());
+            uimenu( ...
+                app.ModelContextMenu, ...
+                Text = "Remove reaction", ...
+                MenuSelectedFcn = @(~, ~) app.removeModelReactions());
+
+        end % initializeModelContextMenu
+
+        function initializeBatchOrderContextMenu(app)
+
+            uimenu( ...
+                app.ContextMenuRun, ...
+                Text = "Move up", ...
+                Separator = "on", ...
+                MenuSelectedFcn = ...
+                @(~, ~) app.moveSelectedBatches("up"));
+            uimenu( ...
+                app.ContextMenuRun, ...
+                Text = "Move down", ...
+                MenuSelectedFcn = ...
+                @(~, ~) app.moveSelectedBatches("down"));
+
+        end % initializeBatchOrderContextMenu
+
+        function addModelReaction(app)
+
+            if ~app.hasEditableColumn(app.ModelTable.ColumnEditable) || ...
+                    ~istable(app.ModelTable.Data)
+                return
+            end
+
+            modelTable = app.ModelTable.Data;
+            defaultID = openmebius.presentation.model.ModelTableEditor ...
+                .nextReactionID(modelTable);
+            [answer, isOK] = app.uiInputDlgWrap( ...
+                Prompt = "Reaction ID", ...
+                Title = "Add reaction", ...
+                Default = defaultID);
+
+            if ~isOK || isempty(answer)
+                return
+            end
+
+            selectedRows = app.selectedRows(app.ModelTable);
+
+            try
+                [modelTable, insertedRow] = ...
+                    openmebius.presentation.model.ModelTableEditor ...
+                    .addReaction(modelTable, string(answer(1)), selectedRows);
+            catch exception
+                app.publishException( ...
+                    exception, Title = "Add reaction failed", Alert = true);
+                return
+            end
+
+            app.ModelTable.Data = modelTable;
+            app.ModelTable.RowName = modelTable.Properties.RowNames;
+            app.ModelTable.Selection = [insertedRow, 1];
+            app.resetModelTableColorFormat();
+            app.publishMessage("info", "Reaction added: " + string(answer(1)));
+
+        end % addModelReaction
+
+        function removeModelReactions(app)
+
+            if ~app.hasEditableColumn(app.ModelTable.ColumnEditable) || ...
+                    ~istable(app.ModelTable.Data)
+                return
+            end
+
+            selectedRows = app.selectedRows(app.ModelTable);
+
+            if isempty(selectedRows)
+                app.publishMessage( ...
+                    "warning", "Select a reaction before removing it.");
+                return
+            end
+
+            modelTable = app.ModelTable.Data;
+            removedIDs = string( ...
+                modelTable.Properties.RowNames(selectedRows));
+
+            try
+                [modelTable, selectedRow] = ...
+                    openmebius.presentation.model.ModelTableEditor ...
+                    .removeReactions(modelTable, selectedRows);
+            catch exception
+                app.publishException( ...
+                    exception, Title = "Remove reaction failed", Alert = true);
+                return
+            end
+
+            app.ModelTable.Data = modelTable;
+            app.ModelTable.RowName = modelTable.Properties.RowNames;
+
+            if isempty(selectedRow)
+                app.ModelTable.Selection = [];
+            else
+                app.ModelTable.Selection = [selectedRow, 1];
+            end
+
+            app.resetModelTableColorFormat();
+            app.publishMessage( ...
+                "info", "Reaction removed: " + join(removedIDs, ", "));
+
+        end % removeModelReactions
 
         function browseProjectDirectory(app)
 
@@ -5107,8 +5279,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 @() app.finishPresentationRunSafely()); %#ok<NASGU>
             app.renderBatchRunViewModel( ...
                 app.BatchPresenter.presentRunStarted());
-            app.updateBatchTable();
             app.refreshPresentation();
+            snapshot = openmebius.application.batch ...
+                .BatchRunWorkspaceSnapshot( ...
+                InformationTable = app.ExpTable.Data, ...
+                UptakeTable = app.UptakeTable.Data, ...
+                TracerTable = app.LabelTable.Data, ...
+                BatchTable = app.getBatchOperationalData());
             outcome = app.ApplicationController.runBatch( ...
                 app.directoryResult, ...
                 ProgressReporter = ...
@@ -5116,7 +5293,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 NotificationReporter = ...
                 @(notification) app.publishNotification(notification), ...
                 ResultReporter = ...
-                @(resultData) app.handleResultAvailable(resultData));
+                @(resultData) app.handleResultAvailable(resultData), ...
+                WorkspaceSnapshot = snapshot);
             app.renderBatchRunViewModel( ...
                 app.BatchPresenter.presentRunOutcome(outcome));
             outcome.rethrowFailure();

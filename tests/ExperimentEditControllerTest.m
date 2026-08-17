@@ -52,6 +52,28 @@ classdef ExperimentEditControllerTest < matlab.unittest.TestCase
 
         end
 
+        function savesAllExperimentTables(testCase)
+
+            service = helpers.ExperimentEditServiceStub();
+            service.Result = struct("Messages", "All saved.");
+            controller = openmebius.application.experiment ...
+                .ExperimentEditController(Service = service);
+            infoTable = table(1, VariableNames = "Growth");
+            uptakeTable = table(2, VariableNames = "Uptake");
+            tracerTable = table("12C1~1", VariableNames = "Tracer");
+
+            outcome = controller.saveAll( ...
+                "model", "experiments", "batch", ...
+                infoTable, uptakeTable, tracerTable);
+
+            testCase.verifyTrue(outcome.isSuccess());
+            testCase.verifyEqual(service.LastOperation, "saveAll");
+            testCase.verifyEqual(service.Inputs{4}, infoTable);
+            testCase.verifyEqual(service.Inputs{5}, uptakeTable);
+            testCase.verifyEqual(service.Inputs{6}, tracerTable);
+
+        end
+
         function copiesTracerToAllEntries(testCase)
 
             service = helpers.ExperimentEditServiceStub();

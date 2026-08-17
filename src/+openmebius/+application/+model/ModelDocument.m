@@ -661,6 +661,10 @@ classdef ModelDocument < handle
                 tableModelIn = tableIn(:, ["Reaction", "Transition", "Independent"]);
                 tableXYIn = tableIn(:, ["x", "y"]);
             catch
+                if istable(tableIn)
+                    obj.errorColumnsModel = 1:height(tableIn);
+                end
+
                 recordValidationError( ...
                     obj, ...
                     "The table is not in the correct format.");
@@ -675,6 +679,7 @@ classdef ModelDocument < handle
             obj.tableXY = tableXYIn;
 
             reconstructModel(obj);
+            validateModelReactionTransition(obj);
 
             report = createValidationReport( ...
                 obj, ...
@@ -990,6 +995,22 @@ classdef ModelDocument < handle
 
         end % parseModels
 
+        function validateModelReactionTransition(obj)
+
+            if isempty(obj.modelRxn) || isempty(obj.modelTrans)
+                return
+            end
+
+            [errors, rows] = obj.Validator.validateReactionTransition( ...
+                obj.modelRxn, obj.modelTrans);
+            obj.errorColumnsModel = [obj.errorColumnsModel, rows];
+
+            for message = errors.'
+                recordValidationError(obj, message);
+            end
+
+        end % validateModelReactionTransition
+
         function parseMS(obj)
 
             [react, product, rev, err] = parseReaction(obj, obj.tableMS.Reaction);
@@ -1161,7 +1182,8 @@ classdef ModelDocument < handle
                         end
 
                         if numCarbon ~= iNumC
-                            msg = "The number of carbon in " + reaction{iRxn}{iMetabolite} + " is not consistent.";
+                            msg = "Carbon count mismatch for metabolite " + ...
+                                reaction{iRxn}{iMetabolite} + ".";
                             recordValidationError(obj, msg);
                             err = [err, iRxn]; %#ok<AGROW>
                         end

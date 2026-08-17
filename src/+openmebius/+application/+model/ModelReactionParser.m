@@ -5,53 +5,67 @@ classdef ModelReactionParser
 
         function result = parse(~, reactions)
 
-            arguments
-                ~
-                reactions cell
-            end
-
-            count = size(reactions, 1);
-            reactants = cell(count, 1);
-            products = cell(count, 1);
-            reversible = false(count, 1);
+            rowCount = size(reactions, 1);
+            reactants = cell(rowCount, 1);
+            products = cell(rowCount, 1);
+            reversible = false(rowCount, 1);
             errorRows = zeros(1, 0);
             errors = strings(0, 1);
 
-            for row = 1:count
-                if isempty(reactions(row)) || any(ismissing(reactions(row)))
+            for row = 1:rowCount
+                [expression, isText] = ...
+                    openmebius.application.model.ModelReactionParser ...
+                    .textAt(reactions, row);
+
+                if ~isText || ismissing(expression) || strtrim(expression) == ""
+                    errorRows(end + 1) = row; %#ok<AGROW>
+                    errors(end + 1, 1) = ...
+                        "Reaction format mismatch at row " + row + ...
+                        ": an expression is required."; %#ok<AGROW>
                     continue
                 end
 
-                forward = strsplit(reactions{row}, '-->');
-                reverse = strsplit(reactions{row}, '<=>');
+                expression = strtrim(expression);
+                forwardCount = count(expression, "-->");
+                reverseCount = count(expression, "<=>");
 
-                if numel(forward) == 2
-                    reactants{row} = strsplit(forward{1}, '+');
-                    products{row} = strsplit(forward{2}, '+');
-                elseif numel(reverse) == 2
-                    reactants{row} = strsplit(reverse{1}, '+');
-                    products{row} = strsplit(reverse{2}, '+');
-                    reversible(row) = true;
-                elseif isscalar(forward) && isscalar(reverse)
+                if forwardCount + reverseCount ~= 1
                     errorRows(end + 1) = row; %#ok<AGROW>
+
+                    if forwardCount + reverseCount == 0
+                        detail = "exactly one '-->' or '<=>' arrow is required";
+                    else
+                        detail = "more than one arrow was found";
+                    end
+
                     errors(end + 1, 1) = ...
-                        "The reaction " + string(reactions{row}) + ...
-                        " does not contain an arrow."; %#ok<AGROW>
-                else
-                    errorRows(end + 1) = row; %#ok<AGROW>
-                    errors(end + 1, 1) = ...
-                        "The reaction " + string(reactions{row}) + ...
-                        " contains more than one arrow."; %#ok<AGROW>
+                        "Reaction format mismatch at row " + row + ...
+                        ": " + detail + "."; %#ok<AGROW>
+                    continue
                 end
-            end
 
-            if ~isempty(errors)
-                reactants = cell(count, 1);
-                products = cell(count, 1);
-                reversible = false(count, 1);
-            else
-                reactants = strtrim(reactants);
-                products = strtrim(products);
+                reversible(row) = reverseCount == 1;
+
+                if reversible(row)
+                    sides = split(expression, "<=>");
+                else
+                    sides = split(expression, "-->");
+                end
+
+                left = strtrim(split(sides(1), "+"));
+                right = strtrim(split(sides(2), "+"));
+
+                if any(left == "") || any(right == "")
+                    errorRows(end + 1) = row; %#ok<AGROW>
+                    errors(end + 1, 1) = ...
+                        "Reaction format mismatch at row " + row + ...
+                        ": reactants and products must not be empty."; %#ok<AGROW>
+                    reversible(row) = false;
+                    continue
+                end
+
+                reactants{row} = cellstr(left).';
+                products{row} = cellstr(right).';
             end
 
             result = struct( ...
@@ -62,6 +76,34 @@ classdef ModelReactionParser
                 Errors = errors);
 
         end
+
+    end
+
+    methods (Static, Access = private)
+
+        function [value, isText] = textAt(values, row)
+
+            value = "";
+            isText = false;
+
+            try
+
+                if iscell(values)
+                    raw = values{row};
+                else
+                    raw = values(row);
+                end
+
+                if ischar(raw) || (isstring(raw) && isscalar(raw))
+                    value = string(raw);
+                    isText = true;
+                end
+
+            catch
+                isText = false;
+            end
+
+        end % textAt
 
     end
 

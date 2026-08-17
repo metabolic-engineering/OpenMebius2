@@ -68,6 +68,42 @@ classdef ExperimentEditService < handle
 
         end % saveTracer
 
+        function result = saveAll( ...
+                ~, model, experiments, batch, ...
+                infoTable, uptakeTable, tracerTable)
+
+            arguments
+                ~
+                model
+                experiments
+                batch
+                infoTable table
+                uptakeTable table
+                tracerTable table
+            end
+
+            openmebius.application.experiment.ExperimentEditService ...
+                .syncModel(model, experiments, batch);
+            openmebius.application.experiment.ExperimentEditService ...
+                .updateExperimentData(experiments, infoTable, "Info");
+            openmebius.application.experiment.ExperimentEditService ...
+                .updateExperimentData(experiments, uptakeTable, "Uptake");
+            openmebius.application.experiment.ExperimentEditService ...
+                .updateExperimentData(experiments, tracerTable, "Tracer");
+            openmebius.application.experiment.ExperimentEditService ...
+                .saveExperiments(experiments);
+
+            batch.updateExperimentalData(experiments);
+
+            result = openmebius.application.experiment ...
+                .ExperimentEditResult( ...
+                Experiments = experiments, ...
+                Batch = batch, ...
+                Messages = ...
+                "Latest experiment data saved before batch execution.");
+
+        end % saveAll
+
         function result = copyTracerToAllEntries(~, model, experiments, batch, tracerTable, selection)
 
             arguments
