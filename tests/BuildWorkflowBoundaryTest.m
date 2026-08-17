@@ -32,6 +32,20 @@ classdef BuildWorkflowBoundaryTest < matlab.unittest.TestCase
             testCase.verifyNotEmpty(plan.Version);
             testCase.verifyTrue(startsWith( ...
                 plan.InstallerName, "openmebius2-v" + plan.Version));
+
+            if ispc
+                proxyCredentialAPI = fullfile( ...
+                    matlabroot, "bin", "win64", ...
+                    "libmwflproxycredentialapi.dll");
+
+                if isfile(proxyCredentialAPI)
+                    testCase.verifyEqual( ...
+                        plan.RuntimeCompatibilityFiles, ...
+                        string(proxyCredentialAPI));
+                end
+
+            end
+
             testCase.verifyEmpty(result.BuildResults);
             testCase.verifyFalse(result.InstallerCreated);
         end
@@ -49,6 +63,10 @@ classdef BuildWorkflowBoundaryTest < matlab.unittest.TestCase
                 "OpenMebius2SourceSyncTest.m"));
             testCase.verifyTrue(contains(source, ...
                 "NotificationDispatcher"));
+            testCase.verifyTrue(contains(source, ...
+                "installerOptions.AdditionalFiles"));
+            testCase.verifyTrue(contains(source, ...
+                "Version = version"));
             testCase.verifyFalse(contains(source, "disp("));
         end
 
