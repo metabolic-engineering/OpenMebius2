@@ -169,11 +169,10 @@ classdef MainUIPolicy
                 ~isRunActive && ...
                 (~isEditing || isTracerEdit);
 
-            ui.TracerTableEditable = ...
-                isIdle;
+            ui.TracerTableEditable = false;
 
             ui.UptakeTableEditable = ...
-                ui.TracerTableEditable;
+                isIdle;
 
             % -------------------------------------------------------------
             % Batch / Run tab

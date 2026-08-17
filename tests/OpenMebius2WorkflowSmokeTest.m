@@ -137,6 +137,14 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.assertNotEmpty(descriptionColumn);
             testCase.assertTrue(editableColumns(nameColumn));
             testCase.assertTrue(editableColumns(descriptionColumn));
+            expectedInfo = app.ExpTable.Data{1, 1} + 0.001;
+            expectedUptake = app.UptakeTable.Data{1, 1} + 0.125;
+            expectedTracer = "12C2~1";
+            expectedDescription = "Saved automatically before Run";
+            app.ExpTable.Data{1, 1} = expectedInfo;
+            app.UptakeTable.Data{1, 1} = expectedUptake;
+            app.LabelTable.Data{1, 1} = expectedTracer;
+            app.RunTable.Data.Description(1) = expectedDescription;
             app.RunTable.Selection = [1, 1];
             app.Test_TriggerCancelDuringRun = true;
             testCase.press(app.RunRunButton);
@@ -146,6 +154,31 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.verifyEqual(string(app.RunRunButton.Text), "Run");
             testCase.verifyEqual( ...
                 app.RunTable.ColumnEditable, editableColumns);
+
+            experimentLocation = openmebius.domain.experiment ...
+                .ExperimentLocation.fromDirectory( ...
+                fullfile(analysisProject, "experiments"));
+            reloadedExperiments = openmebius.application.experiment ...
+                .ExperimentSet( ...
+                experimentLocation, ...
+                app.Test_ApplicationController.model());
+            experimentCleanup = onCleanup( ...
+                @() delete(reloadedExperiments));
+            savedInfo = reloadedExperiments.getInfoTable();
+            savedUptake = reloadedExperiments.getUptakeTable();
+            savedTracer = reloadedExperiments.getTracerTable();
+            testCase.verifyEqual( ...
+                savedInfo{1, 1}, expectedInfo, "AbsTol", 1e-12);
+            testCase.verifyEqual( ...
+                savedUptake{1, 1}, expectedUptake, "AbsTol", 1e-12);
+            testCase.verifyEqual(savedTracer{1, 1}, expectedTracer);
+            batchRepository = openmebius.infrastructure.batch ...
+                .BatchJsonRepository();
+            [savedBatch, isError, message] = batchRepository.load( ...
+                experimentLocation, "batch.json");
+            testCase.assertFalse(isError, string(message));
+            testCase.verifyEqual( ...
+                savedBatch.description(1), expectedDescription);
 
             testCase.choose(app.TabGroup, "Result");
             testCase.press(app.ResultReportButton);
@@ -406,6 +439,53 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.verifyEqual(duplicate.Experiment, source.Experiment);
             testCase.verifyEqual( ...
                 duplicate.Description, expectedDescription);
+            testCase.verifyEmpty(app.Test_Alerts);
+
+        end
+
+        function tracerPatternsRemainReadOnlyAndOpenWithoutSaving(testCase)
+
+            app = testCase.App;
+            projectDirectory = ...
+                OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli");
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, projectDirectory);
+            testCase.press(app.ProjectLoadButton);
+            testCase.choose(app.TabGroup, "Tracer");
+            testCase.verifyFalse(any(app.LabelTable.ColumnEditable));
+            testCase.verifyTrue(any(app.UptakeTable.ColumnEditable));
+            interaction = struct( ...
+                "InteractionInformation", struct( ...
+                "DisplayRow", 1, "DisplayColumn", 1));
+            openCallback = app.LabelTable.DoubleClickedFcn;
+
+            openCallback(app.LabelTable, interaction);
+            testCase.assertNotEmpty(app.TracerConfigApp);
+            editorTable = app.TracerConfigApp.UITable.Data;
+            testCase.assertGreaterThan(height(editorTable), 0);
+            editorTable.Select(:) = false;
+            editorTable.Select(end) = true;
+            editorTable.Ratio(:) = 0;
+            editorTable.Ratio(end) = 1;
+            expectedPattern = editorTable.Label(end) + "~1";
+            app.TracerConfigApp.UITable.Data = editorTable;
+            saveCallback = app.TracerConfigApp.SaveButton.ButtonPushedFcn;
+            saveCallback(app.TracerConfigApp.SaveButton, []);
+            testCase.verifyEqual( ...
+                string(app.LabelTable.Data{1, 1}), expectedPattern);
+            testCase.verifyFalse(any(app.LabelTable.ColumnEditable));
+
+            openCallback(app.LabelTable, interaction);
+            testCase.assertNotEmpty(app.TracerConfigApp);
+            testCase.verifyTrue(app.TracerConfigApp.UITable.Data.Select(end));
+            close(app.TracerConfigApp.TracerselectionconfigUIFigure);
+
+            testCase.press(app.TracerSaveButton);
+            testCase.verifyFalse(any(app.LabelTable.ColumnEditable));
+            openCallback(app.LabelTable, interaction);
+            testCase.assertNotEmpty(app.TracerConfigApp);
+            testCase.verifyTrue(app.TracerConfigApp.UITable.Data.Select(end));
             testCase.verifyEmpty(app.Test_Alerts);
 
         end

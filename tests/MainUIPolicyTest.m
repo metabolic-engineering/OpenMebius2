@@ -59,6 +59,24 @@ classdef MainUIPolicyTest < matlab.unittest.TestCase
 
         end
 
+        function tracerPatternTableIsAlwaysReadOnly(testCase)
+
+            state = openmebius.presentation.main ...
+                .MainPresentationState();
+            ui = openmebius.presentation.main.MainUIPolicy ...
+                .evaluate(struct("HasExperiments", true), state);
+
+            testCase.verifyFalse(ui.TracerTableEditable);
+            testCase.verifyTrue(ui.UptakeTableEditable);
+
+            state.beginBusy();
+            busy = openmebius.presentation.main.MainUIPolicy ...
+                .evaluate(struct("HasExperiments", true), state);
+            testCase.verifyFalse(busy.TracerTableEditable);
+            testCase.verifyFalse(busy.UptakeTableEditable);
+
+        end
+
     end
 
 end

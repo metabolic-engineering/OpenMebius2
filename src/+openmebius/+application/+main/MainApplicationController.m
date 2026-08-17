@@ -471,6 +471,42 @@ classdef MainApplicationController < handle
                 options.ProgressReporter (1, 1) function_handle = @(~) []
                 options.NotificationReporter (1, 1) function_handle = @(~) []
                 options.ResultReporter (1, 1) function_handle = @(~) []
+                options.WorkspaceSnapshot = []
+            end
+
+            if ~isempty(options.WorkspaceSnapshot)
+                snapshot = options.WorkspaceSnapshot;
+
+                if ~isa(snapshot, ...
+                        ['openmebius.application.batch.' ...
+                        'BatchRunWorkspaceSnapshot'])
+                    error( ...
+                        "OpenMebius2:BatchRun:InvalidWorkspaceSnapshot", ...
+                        "Batch run workspace snapshot is invalid.");
+                end
+
+                experimentOutcome = obj.ExperimentEditController.saveAll( ...
+                    obj.Session.Model, ...
+                    obj.Session.Experiments, ...
+                    obj.Session.Batch, ...
+                    snapshot.InformationTable, ...
+                    snapshot.UptakeTable, ...
+                    snapshot.TracerTable);
+
+                if experimentOutcome.isFailure()
+                    outcome = obj.batchRunPreparationFailure( ...
+                        experimentOutcome);
+                    return
+                end
+
+                batchOutcome = obj.BatchController.save( ...
+                    obj.Session.Batch, snapshot.BatchTable);
+
+                if batchOutcome.isFailure()
+                    outcome = obj.batchRunPreparationFailure(batchOutcome);
+                    return
+                end
+
             end
 
             outcome = obj.BatchRunController.run( ...
@@ -547,6 +583,16 @@ classdef MainApplicationController < handle
     end % methods
 
     methods (Access = private)
+
+        function outcome = batchRunPreparationFailure(~, operationOutcome)
+
+            outcome = openmebius.application.batch.BatchRunOutcome( ...
+                false, ...
+                seconds(0), ...
+                ErrorMessage = operationOutcome.ErrorMessage, ...
+                Exception = operationOutcome.Exception);
+
+        end % batchRunPreparationFailure
 
         function outcome = commitProjectOutcome(obj, outcome)
 
