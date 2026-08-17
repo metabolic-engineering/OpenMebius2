@@ -45,6 +45,9 @@ classdef BatchExecutionCoordinator
 
             result = openmebius.application.batch.BatchExecutionResult(true);
             numberOfBatches = height(batchTable);
+            progressTracker = openmebius.application.batch ...
+                .BatchProgressTracker( ...
+                batchTable, model, options.ProgressReporter);
 
             if numel(provenances) ~= numberOfBatches
                 error( ...
@@ -54,10 +57,6 @@ classdef BatchExecutionCoordinator
             end
 
             for i = 1:numberOfBatches
-                progress = struct( ...
-                    'id', batchTable.id(i), ...
-                    'status', "finished", ...
-                    'rate', i / numberOfBatches);
                 entryStatus = string(batchTable.config(i).status);
 
                 if openmebius.domain.batch.BatchConfig ...
@@ -66,8 +65,7 @@ classdef BatchExecutionCoordinator
                 end
 
                 if entryStatus ~= "ready"
-                    progress.status = "question";
-                    options.ProgressReporter(progress);
+                    progressTracker.reportStatus(i, "question");
                     continue
                 end
 
@@ -97,10 +95,9 @@ classdef BatchExecutionCoordinator
                     Provenance = provenance, ...
                     MessageReporter = options.MessageReporter, ...
                     ResultReporter = options.ResultReporter, ...
-                    ProgressReporter = @(completed, total) ...
-                    obj.reportAnalysisProgress( ...
-                    options.ProgressReporter, batchTable.id(i), ...
-                    i, numberOfBatches, completed, total));
+                    ProgressReporter = @(phase, completed, total) ...
+                    progressTracker.reportAnalysisProgress( ...
+                    i, phase, completed, total));
 
                 if analysisResult.isCanceled()
                     result = analysisResult;
@@ -108,44 +105,20 @@ classdef BatchExecutionCoordinator
                 end
 
                 if analysisResult.isFailure()
-                    progress.status = "error";
                     result = analysisResult;
                     batchTable.config(i).status = "error";
-                    options.ProgressReporter(progress);
+                    progressTracker.reportStatus(i, "error");
                     options.CheckpointWriter(batchTable);
                     continue
                 end
 
                 batchTable.config(i).status = "finished";
-                options.ProgressReporter(progress);
+                progressTracker.reportStatus(i, "finished");
                 options.CheckpointWriter(batchTable);
             end
 
         end % run
 
     end % methods
-
-    methods (Static, Access = private)
-
-        function reportAnalysisProgress( ...
-                reporter, batchId, batchIndex, batchCount, ...
-                completed, total)
-
-            if total <= 0
-                return
-            end
-
-            fraction = max(0, min(1, completed / total));
-            progress = struct( ...
-                'id', batchId, ...
-                'status', "running", ...
-                'rate', (batchIndex - 1 + fraction) / batchCount, ...
-                'message', "Monte Carlo: " + string(completed) + ...
-                "/" + string(total));
-            reporter(progress);
-
-        end
-
-    end % methods (Static, Access = private)
 
 end % classdef

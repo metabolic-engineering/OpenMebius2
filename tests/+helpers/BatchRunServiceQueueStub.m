@@ -41,7 +41,8 @@ classdef BatchRunServiceQueueStub < handle
             if obj.EmitCallbacks
                 obj.invokeCallback(varargin, "MessageReporter", "message");
                 obj.invokeCallback(varargin, "ResultReporter", "result");
-                obj.invokeProgressCallback(varargin, 1, 4);
+                obj.invokeProgressCallback( ...
+                    varargin, "optimization", 1, 4);
             end
 
         end
@@ -80,13 +81,14 @@ classdef BatchRunServiceQueueStub < handle
 
         end
 
-        function invokeProgressCallback(arguments, completed, total)
+        function invokeProgressCallback( ...
+                arguments, phase, completed, total)
 
             index = helpers.BatchRunServiceQueueStub ...
                 .namedArgumentIndex(arguments, "ProgressReporter");
 
             if ~isempty(index)
-                arguments{index + 1}(completed, total);
+                arguments{index + 1}(phase, completed, total);
             end
 
         end

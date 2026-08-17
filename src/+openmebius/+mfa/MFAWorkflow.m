@@ -125,7 +125,6 @@ classdef MFAWorkflow
                         break;
                     end
 
-                    options.ProgressReporter(i, iterationCount);
                     iterationResult = ...
                         iterationFunction(rightHandSides(:, i));
                     obj.validateIterationResult(iterationResult);
@@ -134,6 +133,7 @@ classdef MFAWorkflow
                     mappedMDVs{i} = ...
                         options.MDVMapper(iterationResult.MDV);
                     options.IterationCompleted(i, iterationResult);
+                    options.ProgressReporter(i, iterationCount);
 
                     if logical(options.CancellationRequested())
                         isCanceled = true;

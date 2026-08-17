@@ -34,7 +34,8 @@ classdef BatchRunService
                 options.Provenance (1, 1) struct = struct
                 options.MessageReporter (1, 1) function_handle = @(~) []
                 options.ResultReporter (1, 1) function_handle = @(~) []
-                options.ProgressReporter (1, 1) function_handle = @(~, ~) []
+                options.ProgressReporter (1, 1) function_handle = ...
+                    @(~, ~, ~) []
             end
 
             analysis = obj.AnalysisFactory.create( ...

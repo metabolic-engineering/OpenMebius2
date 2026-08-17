@@ -9,7 +9,7 @@ classdef BatchAnalysisStub < handle
         FinalizeCount (1, 1) double = 0
         MessageReporter (1, 1) function_handle = @(~) []
         ResultReporter (1, 1) function_handle = @(~) []
-        ProgressReporter (1, 1) function_handle = @(~, ~) []
+        ProgressReporter (1, 1) function_handle = @(~, ~, ~) []
     end
 
     methods
@@ -34,6 +34,9 @@ classdef BatchAnalysisStub < handle
                 openmebius.core.notification.Message( ...
                 "Flux calculation updated.", "info"));
             obj.ResultReporter(struct("ID", "stub-result"));
+            obj.ProgressReporter( ...
+                "optimization", obj.Config.iteration, ...
+                obj.Config.iteration);
 
         end
 
@@ -48,7 +51,13 @@ classdef BatchAnalysisStub < handle
 
             obj.Calls(end + 1) = "ci";
             obj.applyOutcome("ci");
-            obj.ProgressReporter(1, 4);
+            if strcmpi(obj.Config.CIConf.algorithm, 'Grid Search')
+                phase = "grid-search";
+            else
+                phase = "monte-carlo";
+            end
+
+            obj.ProgressReporter(phase, 1, 4);
 
         end
 
