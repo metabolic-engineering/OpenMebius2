@@ -67,12 +67,42 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
                 string(app.ProjectNameEditField.Value), ...
                 "Smoke project");
 
+            testCase.verifyEmpty(app.ModelTable.ContextMenu);
             testCase.press(app.ModelEditButton);
             testCase.verifyTrue(any(app.ModelTable.ColumnEditable));
+            testCase.assertNotEmpty(app.ModelTable.ContextMenu);
+            menuItems = app.ModelTable.ContextMenu.Children;
+            menuTexts = string({menuItems.Text});
+            addMenu = menuItems(menuTexts == "Add reaction");
+            removeMenu = menuItems(menuTexts == "Remove reaction");
+            testCase.assertNotEmpty(addMenu);
+            testCase.assertNotEmpty(removeMenu);
+            originalRowCount = height(app.ModelTable.Data);
+            app.Test_InputAnswer = "SmokeReaction";
+            addCallback = addMenu.MenuSelectedFcn;
+            addCallback(addMenu, []);
+            testCase.verifyEqual( ...
+                height(app.ModelTable.Data), originalRowCount + 1);
+            testCase.verifyEqual( ...
+                string(app.ModelTable.Data.Properties.RowNames(end)), ...
+                "SmokeReaction");
+            testCase.press(app.ModelSaveButton);
+            testCase.verifyTrue(any(app.ModelTable.ColumnEditable));
+            testCase.assertNotEmpty(app.ModelTable.ContextMenu);
+            rowStyles = app.ModelTable.StyleConfigurations;
+            rowStyles = rowStyles(string(rowStyles.Target) == "row", :);
+            highlightedRows = unique(cell2mat(rowStyles.TargetIndex));
+            testCase.verifyTrue(any( ...
+                highlightedRows == originalRowCount + 1));
+            removeCallback = removeMenu.MenuSelectedFcn;
+            removeCallback(removeMenu, []);
+            testCase.verifyEqual( ...
+                height(app.ModelTable.Data), originalRowCount);
             updatedX = app.ModelTable.Data.x(1) + 1;
             app.ModelTable.Data.x(1) = updatedX;
             testCase.press(app.ModelSaveButton);
             testCase.verifyFalse(any(app.ModelTable.ColumnEditable));
+            testCase.verifyEmpty(app.ModelTable.ContextMenu);
             savedPosition = readtable( ...
                 fullfile( ...
                 createdProject, "model", "metabolic_network.xlsx"), ...

@@ -231,8 +231,8 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
             testCase.verifyNotEmpty(invalidReport.ErrorMessage);
             testCase.verifyEmpty(invalidReport.InvalidRows);
 
-            validReport = model.updateModelTableGUI( ...
-                model.getModelTableGUI());
+            validTable = model.getModelTableGUI();
+            validReport = model.updateModelTableGUI(validTable);
 
             testCase.verifyTrue(validReport.IsValid);
             testCase.verifyNotEmpty(validReport.Messages);
@@ -271,6 +271,66 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
                 RefVariableNames = ["x", "y"], ...
                 RefTypes = ["double", "double"]);
             testCase.verifyEqual(savedPosition.x(1), expectedX);
+
+            clear cleanup
+
+        end
+
+
+        function modelSaveReportsAllReactionValidationCategories(testCase)
+
+            temporaryRoot = string(tempname);
+            mkdir(temporaryRoot);
+            cleanup = onCleanup(@() ...
+                ModelRepositoryTest.removeDirectory(temporaryRoot));
+            modelDirectory = fullfile(temporaryRoot, "model");
+            [wasCopied, copyMessage] = copyfile( ...
+                ModelRepositoryTest.templateModelDirectory(), ...
+                modelDirectory);
+            testCase.assertTrue(wasCopied, copyMessage);
+            repository = openmebius.infrastructure.model.ModelRepository();
+            model = repository.load( ...
+                openmebius.domain.model.ModelLocation ...
+                .fromDirectory(modelDirectory));
+            validTable = model.getModelTableGUI();
+
+            malformed = validTable;
+            malformed.Reaction{1} = 'not a reaction';
+            malformedReport = model.updateModelTableGUI(malformed);
+            testCase.verifyFalse(malformedReport.IsValid);
+            testCase.verifyTrue(any(malformedReport.InvalidRows == 1));
+            testCase.verifySubstring( ...
+                malformedReport.ErrorMessage, "Reaction format mismatch");
+
+            componentMismatch = validTable;
+            componentMismatch.Transition{1} = ...
+                'ABCDEF --> ABCDEF + A';
+            componentReport = model.updateModelTableGUI(componentMismatch);
+            testCase.verifyFalse(componentReport.IsValid);
+            testCase.verifyTrue(any(componentReport.InvalidRows == 1));
+            testCase.verifySubstring( ...
+                componentReport.ErrorMessage, ...
+                "Reaction and Transition mismatch");
+
+            carbonMismatch = validTable;
+            carbonMismatch.Transition{2} = 'ABCDE <=> ABCDEF';
+            carbonReport = model.updateModelTableGUI(carbonMismatch);
+            testCase.verifyFalse(carbonReport.IsValid);
+            testCase.verifyTrue(all(ismember([1; 2], ...
+                carbonReport.InvalidRows)));
+            testCase.verifySubstring( ...
+                carbonReport.ErrorMessage, "Carbon count mismatch");
+
+            reversibilityMismatch = validTable;
+            reversibilityMismatch.Transition{2} = 'ABCDEF --> ABCDEF';
+            reversibilityReport = ...
+                model.updateModelTableGUI(reversibilityMismatch);
+            testCase.verifyFalse(reversibilityReport.IsValid);
+            testCase.verifyTrue(any( ...
+                reversibilityReport.InvalidRows == 2));
+            testCase.verifySubstring( ...
+                reversibilityReport.ErrorMessage, ...
+                "Reversibility mismatch");
 
             clear cleanup
 

@@ -41,6 +41,24 @@ classdef MainUIPolicyTest < matlab.unittest.TestCase
 
         end
 
+        function modelContextMenuIsAvailableOnlyWhileEditingModel(testCase)
+
+            import openmebius.presentation.main.EditTarget
+
+            state = openmebius.presentation.main.MainPresentationState();
+            context = struct("HasModel", true);
+            idle = openmebius.presentation.main.MainUIPolicy ...
+                .evaluate(context, state);
+
+            state.beginEdit(EditTarget.Model);
+            editing = openmebius.presentation.main.MainUIPolicy ...
+                .evaluate(context, state);
+
+            testCase.verifyFalse(idle.ModelContextMenuEnabled);
+            testCase.verifyTrue(editing.ModelContextMenuEnabled);
+
+        end
+
     end
 
 end

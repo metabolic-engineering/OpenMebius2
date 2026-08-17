@@ -121,6 +121,9 @@ classdef MainUIPolicy
             ui.ModelSaveEnabled = ...
                 ui.ModelTableEditable;
 
+            ui.ModelContextMenuEnabled = ...
+                ui.ModelTableEditable;
+
             % -------------------------------------------------------------
             % MS tab
             % -------------------------------------------------------------

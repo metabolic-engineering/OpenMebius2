@@ -211,6 +211,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ProgressBarFactory openmebius.presentation.main.ProgressBarFactory
         ChildAppHost openmebius.presentation.lifecycle.ChildAppHost
         DialogService openmebius.presentation.dialog.AppDialogService
+        ModelContextMenu
         BatchConfigurationController openmebius.application.batch.BatchConfigurationController
         BatchExperimentSelectionEditorController openmebius.application.batch.BatchExperimentSelectionEditorController
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
@@ -1710,6 +1711,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             if isfield(ui, "ModelTableEditable")
                 app.applyTableEditable(app.ModelTable, ui.ModelTableEditable);
+            end
+
+            if isfield(ui, "ModelContextMenuEnabled")
+                app.applyContextMenu( ...
+                    app.ModelTable, ...
+                    app.ModelContextMenu, ...
+                    ui.ModelContextMenuEnabled);
             end
 
             % MS tab
@@ -4771,6 +4779,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.DialogService = openmebius.presentation.dialog ...
                 .AppDialogService(app.OpenMebius2UIFigure);
+            app.initializeModelContextMenu();
             dependencies = app.createMainAppDependencies();
             app.applyApplicationDependencies(dependencies);
             app.configureNotificationSinks();
@@ -4810,6 +4819,104 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             end
 
         end % initializeMainApp
+
+        function initializeModelContextMenu(app)
+
+            app.ModelContextMenu = uicontextmenu( ...
+                app.OpenMebius2UIFigure);
+            uimenu( ...
+                app.ModelContextMenu, ...
+                Text = "Add reaction", ...
+                MenuSelectedFcn = @(~, ~) app.addModelReaction());
+            uimenu( ...
+                app.ModelContextMenu, ...
+                Text = "Remove reaction", ...
+                MenuSelectedFcn = @(~, ~) app.removeModelReactions());
+
+        end % initializeModelContextMenu
+
+        function addModelReaction(app)
+
+            if ~app.hasEditableColumn(app.ModelTable.ColumnEditable) || ...
+                    ~istable(app.ModelTable.Data)
+                return
+            end
+
+            modelTable = app.ModelTable.Data;
+            defaultID = openmebius.presentation.model.ModelTableEditor ...
+                .nextReactionID(modelTable);
+            [answer, isOK] = app.uiInputDlgWrap( ...
+                Prompt = "Reaction ID", ...
+                Title = "Add reaction", ...
+                Default = defaultID);
+
+            if ~isOK || isempty(answer)
+                return
+            end
+
+            selectedRows = app.selectedRows(app.ModelTable);
+
+            try
+                [modelTable, insertedRow] = ...
+                    openmebius.presentation.model.ModelTableEditor ...
+                    .addReaction(modelTable, string(answer(1)), selectedRows);
+            catch exception
+                app.publishException( ...
+                    exception, Title = "Add reaction failed", Alert = true);
+                return
+            end
+
+            app.ModelTable.Data = modelTable;
+            app.ModelTable.RowName = modelTable.Properties.RowNames;
+            app.ModelTable.Selection = [insertedRow, 1];
+            app.resetModelTableColorFormat();
+            app.publishMessage("info", "Reaction added: " + string(answer(1)));
+
+        end % addModelReaction
+
+        function removeModelReactions(app)
+
+            if ~app.hasEditableColumn(app.ModelTable.ColumnEditable) || ...
+                    ~istable(app.ModelTable.Data)
+                return
+            end
+
+            selectedRows = app.selectedRows(app.ModelTable);
+
+            if isempty(selectedRows)
+                app.publishMessage( ...
+                    "warning", "Select a reaction before removing it.");
+                return
+            end
+
+            modelTable = app.ModelTable.Data;
+            removedIDs = string( ...
+                modelTable.Properties.RowNames(selectedRows));
+
+            try
+                [modelTable, selectedRow] = ...
+                    openmebius.presentation.model.ModelTableEditor ...
+                    .removeReactions(modelTable, selectedRows);
+            catch exception
+                app.publishException( ...
+                    exception, Title = "Remove reaction failed", Alert = true);
+                return
+            end
+
+            app.ModelTable.Data = modelTable;
+            app.ModelTable.RowName = modelTable.Properties.RowNames;
+
+            if isempty(selectedRow)
+                app.ModelTable.Selection = [];
+            else
+                app.ModelTable.Selection = [selectedRow, 1];
+            end
+
+            app.resetModelTableColorFormat();
+            app.publishMessage( ...
+                "info", "Reaction removed: " + join(removedIDs, ", "));
+
+        end % removeModelReactions
 
         function browseProjectDirectory(app)
 
