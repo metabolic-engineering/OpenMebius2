@@ -14,6 +14,8 @@ classdef BatchOperationStub < handle
         SavedTable table = table()
         RemovedIds (:, 1) string = strings(0, 1)
         DuplicatedIds (:, 1) string = strings(0, 1)
+        MovedIds (:, 1) string = strings(0, 1)
+        MoveDirection (1, 1) string = ""
         AddedNames (:, 1) string = strings(0, 1)
         AddedExperiments (:, 1) cell = cell(0, 1)
         AddedDescriptions (:, 1) string = strings(0, 1)
@@ -62,6 +64,14 @@ classdef BatchOperationStub < handle
 
             obj.throwIfRequested();
             obj.DuplicatedIds = string(batchIds(:));
+
+        end
+
+        function moveBatches(obj, batchIds, direction)
+
+            obj.throwIfRequested();
+            obj.MovedIds = string(batchIds(:));
+            obj.MoveDirection = string(direction);
 
         end
 

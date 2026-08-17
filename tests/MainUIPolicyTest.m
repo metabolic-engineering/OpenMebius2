@@ -41,6 +41,42 @@ classdef MainUIPolicyTest < matlab.unittest.TestCase
 
         end
 
+        function modelContextMenuIsAvailableOnlyWhileEditingModel(testCase)
+
+            import openmebius.presentation.main.EditTarget
+
+            state = openmebius.presentation.main.MainPresentationState();
+            context = struct("HasModel", true);
+            idle = openmebius.presentation.main.MainUIPolicy ...
+                .evaluate(context, state);
+
+            state.beginEdit(EditTarget.Model);
+            editing = openmebius.presentation.main.MainUIPolicy ...
+                .evaluate(context, state);
+
+            testCase.verifyFalse(idle.ModelContextMenuEnabled);
+            testCase.verifyTrue(editing.ModelContextMenuEnabled);
+
+        end
+
+        function tracerPatternTableIsAlwaysReadOnly(testCase)
+
+            state = openmebius.presentation.main ...
+                .MainPresentationState();
+            ui = openmebius.presentation.main.MainUIPolicy ...
+                .evaluate(struct("HasExperiments", true), state);
+
+            testCase.verifyFalse(ui.TracerTableEditable);
+            testCase.verifyTrue(ui.UptakeTableEditable);
+
+            state.beginBusy();
+            busy = openmebius.presentation.main.MainUIPolicy ...
+                .evaluate(struct("HasExperiments", true), state);
+            testCase.verifyFalse(busy.TracerTableEditable);
+            testCase.verifyFalse(busy.UptakeTableEditable);
+
+        end
+
     end
 
 end

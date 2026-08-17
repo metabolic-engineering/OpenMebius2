@@ -455,8 +455,21 @@ classdef ExperimentSet < handle
             %   tableRtn table
             %     The table for the tracer configuration.
 
-            % Get the tracer information
-            tableTracer = obj.tableTracersInfo;
+            tableRtn = obj.createTableTracerConfigFromTable( ...
+                xy, obj.tableTracersInfo);
+
+        end % createTableTracerConfig
+
+        function tableRtn = createTableTracerConfigFromTable( ...
+                obj, xy, tableTracer)
+            % CREATETABLETRACERCONFIGFROMTABLE Create tracer configuration
+            % from the current UI table without requiring persistence.
+
+            arguments
+                obj
+                xy (1, 2) double {mustBeInteger, mustBePositive}
+                tableTracer table
+            end
 
             numXY = size(tableTracer);
 
@@ -472,7 +485,8 @@ classdef ExperimentSet < handle
                 label = tableTracer{xy(1), xy(2)}{:};
             end
 
-            availableTracer = createAvailableTracer(obj, xy);
+            availableTracer = createAvailableTracer( ...
+                obj, xy, tableTracer);
             numAvailableTracer = length(availableTracer);
 
             vars = {'Select', 'Label', 'Ratio'};
@@ -492,11 +506,14 @@ classdef ExperimentSet < handle
 
             tableRtn = parseLabelPattern(obj, label, tableAvailableTracer);
 
-        end % tableTracerConfig
+        end % createTableTracerConfigFromTable
 
-        function cellRtn = createAvailableTracer(obj, xy)
+        function cellRtn = createAvailableTracer(obj, xy, tableTracer)
 
-            tableTracer = obj.tableTracersInfo;
+            if nargin < 3
+                tableTracer = obj.tableTracersInfo;
+            end
+
             substrates = tableTracer.Properties.VariableNames;
             substrate = substrates{xy(2)};
             tableSubstrates = obj.objModel.getSubstrateTable();

@@ -61,6 +61,27 @@ classdef ExperimentEditController < handle
 
         end % saveTracer
 
+        function outcome = saveAll( ...
+                obj, model, experiments, batch, ...
+                infoTable, uptakeTable, tracerTable)
+
+            arguments
+                obj
+                model
+                experiments
+                batch
+                infoTable table
+                uptakeTable table
+                tracerTable table
+            end
+
+            outcome = obj.execute( ...
+                @() obj.Service.saveAll( ...
+                model, experiments, batch, ...
+                infoTable, uptakeTable, tracerTable));
+
+        end % saveAll
+
         function outcome = copyTracerToAllEntries( ...
                 obj, model, experiments, batch, tracerTable, selection)
 
