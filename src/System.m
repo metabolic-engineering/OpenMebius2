@@ -14,7 +14,7 @@ classdef System < handle
             % GETCURRENTVERSION Returns the version of this application build.
             % Update this value when creating a new release tag.
 
-            version = "3.2.2";
+            version = "3.3.0";
 
         end % function version = getCurrentVersion()
 
@@ -29,7 +29,7 @@ classdef System < handle
             opts = weboptions( ...
                 "Timeout", 3, ...
                 "HeaderFields", {'User-Agent', 'OpenMebius2'} ...
-                );
+            );
 
             latestVersion = "";
 
