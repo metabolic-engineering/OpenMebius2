@@ -263,6 +263,42 @@ classdef BatchCollection < handle
 
         end % duplicate
 
+        function moved = move(obj, ids, direction)
+
+            arguments
+                obj (1, 1) openmebius.domain.batch.BatchCollection
+                ids (:, 1) string
+                direction (1, 1) string {mustBeMember( ...
+                    direction, ["up", "down"])}
+            end
+
+            obj.indicesOf(ids);
+            selected = ismember(obj.TableData.id, ids);
+            moved = false;
+
+            if direction == "up"
+                indices = 2:height(obj.TableData);
+                offset = -1;
+            else
+                indices = (height(obj.TableData) - 1):-1:1;
+                offset = 1;
+            end
+
+            for index = indices
+                adjacent = index + offset;
+
+                if selected(index) && ~selected(adjacent)
+                    obj.TableData([adjacent, index], :) = ...
+                        obj.TableData([index, adjacent], :);
+                    selected([adjacent, index]) = ...
+                        selected([index, adjacent]);
+                    moved = true;
+                end
+
+            end
+
+        end % move
+
         function edit(obj, id, name, experiments, description, config)
 
             arguments

@@ -438,6 +438,15 @@ classdef MainApplicationController < handle
 
         end
 
+        function [outcome, batch] = moveBatches( ...
+                obj, batchIds, direction, tableData)
+
+            batch = obj.Session.Batch;
+            outcome = obj.BatchController.move( ...
+                batch, batchIds, direction, tableData);
+
+        end
+
         function [outcome, batch] = applyBatchExperimentSelection( ...
                 obj, selection)
 

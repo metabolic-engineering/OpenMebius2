@@ -1109,6 +1109,25 @@ classdef BatchSession < handle
 
         end % duplicateBatches
 
+        function moved = moveBatches(obj, ids, direction)
+            % MOVEBATCHES Move selected batches one position up or down.
+
+            arguments
+                obj
+                ids (:, 1) string
+                direction (1, 1) string {mustBeMember( ...
+                    direction, ["up", "down"])}
+            end
+
+            collection = obj.batchCollection();
+            moved = collection.move(ids, direction);
+
+            if moved
+                obj.tableBatch = collection.toTable();
+            end
+
+        end % moveBatches
+
         function editBatch(obj, id, name, exp, description, config)
             % EDITBATCH Edit batch
             %

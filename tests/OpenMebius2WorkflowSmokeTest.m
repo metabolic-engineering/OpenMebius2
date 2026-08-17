@@ -410,6 +410,57 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
 
         end
 
+        function movesBatchUpAndDownAndPersistsOrder(testCase)
+
+            app = testCase.App;
+            projectDirectory = ...
+                OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli");
+            experimentLocation = openmebius.domain.experiment ...
+                .ExperimentLocation.fromDirectory( ...
+                fullfile(projectDirectory, "experiments"));
+            repository = ...
+                openmebius.infrastructure.batch.BatchJsonRepository();
+            OpenMebius2WorkflowSmokeTest.selectProject( ...
+                app, projectDirectory);
+            testCase.press(app.ProjectLoadButton);
+            originalIds = string(app.RunTable.UserData.RawData.ID);
+            testCase.assertGreaterThanOrEqual(numel(originalIds), 3);
+            moveUpMenu = findobj( ...
+                app.ContextMenuRun, 'Text', 'Move up');
+            moveDownMenu = findobj( ...
+                app.ContextMenuRun, 'Text', 'Move down');
+            testCase.assertNotEmpty(moveUpMenu);
+            testCase.assertNotEmpty(moveDownMenu);
+
+            app.RunTable.Selection = [2, 1];
+            callback = moveUpMenu.MenuSelectedFcn;
+            callback(moveUpMenu, []);
+
+            movedIds = string(app.RunTable.UserData.RawData.ID);
+            expectedMovedIds = originalIds;
+            expectedMovedIds([1, 2]) = expectedMovedIds([2, 1]);
+            testCase.verifyEqual(movedIds, expectedMovedIds);
+            testCase.verifyEqual(app.RunTable.Selection, [1, 1]);
+            [persisted, isError, message] = repository.load( ...
+                experimentLocation, "batch.json");
+            testCase.assertFalse(isError, string(message));
+            testCase.verifyEqual(string(persisted.id), expectedMovedIds);
+
+            callback = moveDownMenu.MenuSelectedFcn;
+            callback(moveDownMenu, []);
+
+            testCase.verifyEqual( ...
+                string(app.RunTable.UserData.RawData.ID), originalIds);
+            testCase.verifyEqual(app.RunTable.Selection, [2, 1]);
+            [persisted, isError, message] = repository.load( ...
+                experimentLocation, "batch.json");
+            testCase.assertFalse(isError, string(message));
+            testCase.verifyEqual(string(persisted.id), originalIds);
+            testCase.verifyEmpty(app.Test_Alerts);
+
+        end
+
         function rendersGridSearchAxesAfterWindowReload(testCase)
 
             app = testCase.App;

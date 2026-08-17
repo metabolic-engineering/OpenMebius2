@@ -158,6 +158,26 @@ classdef BatchOperationControllerTest < matlab.unittest.TestCase
 
         end
 
+        function movesAndSavesSelectedBatches(testCase)
+
+            batch = helpers.BatchOperationStub();
+            controller = openmebius.application.batch ...
+                .BatchOperationController();
+            tableData = batch.Data;
+            tableData.Description = "Edited before move";
+
+            outcome = controller.move( ...
+                batch, ["batch-a"; "batch-b"], "up", tableData);
+
+            testCase.verifyTrue(outcome.isSuccess());
+            testCase.verifyEqual( ...
+                batch.MovedIds, ["batch-a"; "batch-b"]);
+            testCase.verifyEqual(batch.MoveDirection, "up");
+            testCase.verifyEqual(batch.SavedTable, tableData);
+            testCase.verifyTrue(batch.SaveCalled);
+
+        end
+
         function capturesBatchOperationFailure(testCase)
 
             batch = helpers.BatchOperationStub();

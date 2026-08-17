@@ -156,6 +156,16 @@ classdef BatchPresenter < handle
 
         end % presentDuplicateOutcome
 
+        function viewModel = presentMoveOutcome(obj, outcome, batch)
+
+            viewModel = obj.presentOperationOutcome( ...
+                outcome, ...
+                batch, ...
+                "Batch order has been updated.", ...
+                "Batch reorder failed");
+
+        end % presentMoveOutcome
+
         function viewModel = presentExperimentSelectionOutcome( ...
                 obj, outcome, batch)
 

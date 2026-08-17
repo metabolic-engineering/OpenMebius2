@@ -69,6 +69,30 @@ classdef BatchOperationController < handle
 
         end % duplicate
 
+        function outcome = move(~, batch, batchIds, direction, tableData)
+
+            arguments
+                ~
+                batch
+                batchIds (:, 1) string
+                direction (1, 1) string {mustBeMember( ...
+                    direction, ["up", "down"])}
+                tableData table
+            end
+
+            outcome = openmebius.application.batch ...
+                .BatchOperationController.executeCommand(@moveBatches);
+
+            function moveBatches()
+
+                batch.updateBatchFromGUI(tableData);
+                batch.moveBatches(batchIds, direction);
+                batch.saveBatchFile();
+
+            end
+
+        end % move
+
         function outcome = remove(obj, batch, batchIds, resultLocation)
 
             arguments

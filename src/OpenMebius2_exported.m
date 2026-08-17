@@ -3622,6 +3622,61 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % duplicateSelectedBatches
 
+        function moveSelectedBatches(app, direction)
+
+            arguments
+                app
+                direction (1, 1) string {mustBeMember( ...
+                    direction, ["up", "down"])}
+            end
+
+            selectedRows = app.selectedTableRows(app.RunTable);
+
+            if isempty(selectedRows)
+                app.publishMessage( ...
+                    "warning", "Please select a batch to move.");
+                return
+            end
+
+            batchData = app.getBatchOperationalData();
+            batchIds = string(batchData.ID(selectedRows));
+            [outcome, batch] = app.ApplicationController ...
+                .moveBatches(batchIds, direction, batchData);
+            app.renderBatchOperationViewModel( ...
+                app.BatchPresenter.presentMoveOutcome(outcome, batch));
+
+            if outcome.isSuccess()
+                app.selectBatchIds(batchIds);
+            end
+
+        end % moveSelectedBatches
+
+        function selectBatchIds(app, batchIds)
+
+            try
+                batchData = app.getBatchOperationalData();
+                [found, rows] = ismember( ...
+                    string(batchIds(:)), string(batchData.ID));
+                rows = rows(found);
+
+                if isempty(rows)
+                    return
+                end
+
+                if isprop(app.RunTable, 'SelectionType') && ...
+                        lower(string(app.RunTable.SelectionType)) == "row"
+                    app.RunTable.Selection = rows;
+                else
+                    app.RunTable.Selection = ...
+                        [rows, ones(numel(rows), 1)];
+                end
+
+            catch
+                % Selection restoration is best effort only.
+            end
+
+        end % selectBatchIds
+
         function context = captureResultPlotContext(app)
 
             context = struct();
@@ -4780,6 +4835,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.DialogService = openmebius.presentation.dialog ...
                 .AppDialogService(app.OpenMebius2UIFigure);
             app.initializeModelContextMenu();
+            app.initializeBatchOrderContextMenu();
             dependencies = app.createMainAppDependencies();
             app.applyApplicationDependencies(dependencies);
             app.configureNotificationSinks();
@@ -4834,6 +4890,22 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 MenuSelectedFcn = @(~, ~) app.removeModelReactions());
 
         end % initializeModelContextMenu
+
+        function initializeBatchOrderContextMenu(app)
+
+            uimenu( ...
+                app.ContextMenuRun, ...
+                Text = "Move up", ...
+                Separator = "on", ...
+                MenuSelectedFcn = ...
+                @(~, ~) app.moveSelectedBatches("up"));
+            uimenu( ...
+                app.ContextMenuRun, ...
+                Text = "Move down", ...
+                MenuSelectedFcn = ...
+                @(~, ~) app.moveSelectedBatches("down"));
+
+        end % initializeBatchOrderContextMenu
 
         function addModelReaction(app)
 
