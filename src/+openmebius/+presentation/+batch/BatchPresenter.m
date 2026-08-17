@@ -7,7 +7,7 @@ classdef BatchPresenter < handle
             if obj.isInvalidHandle(batch)
                 error( ...
                     "OpenMebius2:Batch:InvalidBatchObject", ...
-                "Batch object is not valid.");
+                    "Batch object is not valid.");
             end
 
             [batchGUI, columnEditable] = getBatchForGUI(batch);
@@ -59,7 +59,7 @@ classdef BatchPresenter < handle
                 Notification = openmebius.presentation.notification ...
                 .Notification.info( ...
                 "Canceling batch jobs. " + ...
-            "It may take several minutes..."));
+                "It may take several minutes..."));
 
         end % presentCancelRequested
 
@@ -111,7 +111,7 @@ classdef BatchPresenter < handle
                 outcome, ...
                 batch, ...
                 "Batch table has been automatically filled.", ...
-            "Batch auto fill failed");
+                "Batch auto fill failed");
 
         end % presentAutoFillOutcome
 
@@ -132,7 +132,7 @@ classdef BatchPresenter < handle
                 outcome, ...
                 batch, ...
                 "Batch table has been saved.", ...
-            "Batch table save failed");
+                "Batch table save failed");
 
         end % presentSaveOutcome
 
@@ -142,7 +142,7 @@ classdef BatchPresenter < handle
                 outcome, ...
                 batch, ...
                 "Selected batch has been removed.", ...
-            "Batch removal failed");
+                "Batch removal failed");
 
         end % presentRemoveOutcome
 
@@ -152,7 +152,7 @@ classdef BatchPresenter < handle
                 outcome, ...
                 batch, ...
                 "Selected batch has been duplicated.", ...
-            "Batch duplication failed");
+                "Batch duplication failed");
 
         end % presentDuplicateOutcome
 
@@ -163,7 +163,7 @@ classdef BatchPresenter < handle
                 outcome, ...
                 batch, ...
                 "Batch experiments have been updated.", ...
-            "Batch experiment update failed");
+                "Batch experiment update failed");
 
         end % presentExperimentSelectionOutcome
 
@@ -204,7 +204,12 @@ classdef BatchPresenter < handle
             status = lower(string(progress.status));
             rate = double(progress.rate);
 
-            message = obj.progressMessage(batchId, status);
+            if isfield(progress, "message") && ...
+                    strlength(string(progress.message)) > 0
+                message = string(progress.message);
+            else
+                message = obj.progressMessage(batchId, status);
+            end
 
             row = obj.findBatchRow(currentTableData, batchId);
 
@@ -220,10 +225,13 @@ classdef BatchPresenter < handle
                     "StyleKey", obj.statusToStyleKey(status));
             end
 
-            notification = ...
-                openmebius.presentation.notification.Notification.fromBatchStatus( ...
-                message, ...
-                status);
+            if status == "running"
+                notification = [];
+            else
+                notification = ...
+                    openmebius.presentation.notification.Notification ...
+                    .fromBatchStatus(message, status);
+            end
 
             viewModel = ...
                 openmebius.presentation.batch.BatchProgressViewModel( ...

@@ -33,8 +33,8 @@ classdef LabelConfigurationLaunchController < handle
         function validateModelSource(model)
 
             requiredMethods = [ ...
-                                   "getTableLabelView", ...
-                               "getLabelStructView"];
+                "getTableLabelView", ...
+                "getLabelStructView"];
             isSupported = ~isempty(model) && isobject(model);
 
             if isSupported
@@ -52,7 +52,7 @@ classdef LabelConfigurationLaunchController < handle
                     "LabelConfigurationLaunchController:" + ...
                     "InvalidModel", ...
                     "A loaded model with label configuration " + ...
-                "accessors is required.");
+                    "accessors is required.");
             end
 
         end % validateModelSource

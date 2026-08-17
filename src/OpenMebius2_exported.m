@@ -222,6 +222,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         PreferencesApp
 
         MainInteractionSnapshot cell = {}
+        IsUpdatingResultSelection (1, 1) logical = false
 
     end % properties (Access=private)
 
@@ -1174,7 +1175,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.renderPathwayPlot(mainPlot.Pathway);
 
             else
-                cla(app.MainUIAxes);
+                app.resetResultAxes(app.MainUIAxes);
             end
 
             if isfield(subPlot, "Kind") && ...
@@ -1190,7 +1191,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.renderOptimizationRSSHistogram(subPlot);
 
             else
-                cla(app.SubUIAxes);
+                app.resetResultAxes(app.SubUIAxes);
             end
 
         end % method renderOverviewResultPlot
@@ -1296,7 +1297,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                                 bestFit(isfinite(bestFit))];
 
             if iterationCount == 0 || isempty(finiteValues)
-                cla(app.SubUIAxes);
+                app.resetResultAxes(app.SubUIAxes);
                 return
             end
 
@@ -1351,7 +1352,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             axes = app.SubUIAxes;
 
             if ~any(finiteProfile)
-                cla(axes);
+                app.resetResultAxes(axes);
                 return
             end
 
@@ -1492,7 +1493,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             if isempty(rss) || ~isscalar(threshold) || ...
                     ~isfinite(threshold) || threshold < 0
-                cla(axes);
+                app.resetResultAxes(axes);
                 return
             end
 
@@ -1596,13 +1597,18 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % prepareCartesianResultAxes
 
+        function resetResultAxes(~, axes)
+
+            legend(axes, 'off');
+            cla(axes, 'reset');
+            axes.Visible = 'on';
+
+        end % resetResultAxes
+
         function clearResultPlots(app)
 
-            cla(app.MainUIAxes);
-            cla(app.SubUIAxes);
-
-            app.MainUIAxes.Visible = 'on';
-            app.SubUIAxes.Visible = 'on';
+            app.resetResultAxes(app.MainUIAxes);
+            app.resetResultAxes(app.SubUIAxes);
 
         end % method clearResultPlots
 
@@ -4098,13 +4104,21 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                         relative = options.relative, ...
                         relativeTo = options.relativeTo);
 
-                case {"Details", "Detailed"}
+                case {"MDV", "Details", "Detailed"}
 
                     row = rows(1);
                     data = app.getResultSubRawData();
                     batchID = string(data.ID(row));
 
-                    loadResultDetailed(app, batchID);
+                    loadResultMDV(app, batchID);
+
+                case "MDV (Summary)"
+
+                    row = rows(1);
+                    data = app.getResultSubRawData();
+                    batchID = string(data.ID(row));
+
+                    loadResultMDVSummary(app, batchID);
 
                 case "Comparison"
 
@@ -4156,18 +4170,31 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method loadResultOverView
 
-        function loadResultDetailed(app, batchID)
+        function loadResultMDV(app, batchID)
 
             viewModel = app.ResultPresenter.presentMain( ...
                 app.ApplicationController.result(), ...
-                "Details", ...
+                "MDV", ...
                 batchID, ...
                 "", ...
                 IsDarkTheme = app.isDarkTheme());
 
             app.renderResultMainTable(viewModel);
 
-        end % method loadResultDetailed
+        end % method loadResultMDV
+
+        function loadResultMDVSummary(app, batchID)
+
+            viewModel = app.ResultPresenter.presentMain( ...
+                app.ApplicationController.result(), ...
+                "MDV (Summary)", ...
+                batchID, ...
+                "", ...
+                IsDarkTheme = app.isDarkTheme());
+
+            app.renderResultMainTable(viewModel);
+
+        end % method loadResultMDVSummary
 
         function loadResultComparison(app, batchIDs, names, options)
 
@@ -4304,6 +4331,28 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderResultPlot(viewModel);
 
         end % method updateResultPlot
+
+        function updateResultPlotFromSubTable(app)
+
+            if app.IsUpdatingResultSelection
+                return
+            end
+
+            app.IsUpdatingResultSelection = true;
+            cleanup = onCleanup( ...
+                @() app.finishResultSelectionUpdate());
+            app.ResultMainTable.Selection = [];
+            loadMainResultTable(app);
+            drawnow limitrate;
+            updateResultPlot(app, "SubTable");
+
+        end % method updateResultPlotFromSubTable
+
+        function finishResultSelectionUpdate(app)
+
+            app.IsUpdatingResultSelection = false;
+
+        end % method finishResultSelectionUpdate
 
         %% Private clipboard function
         function clipboardText = copyTableToClipboard(~, tableObject)
@@ -5270,11 +5319,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
+            [selectedBatchIDs, ~] = app.selectedResultIdentities();
             app.closeViewComparisonApp();
             context = openmebius.presentation.result ...
                 .ViewComparisonContext( ...
                 Presenter = presenter, ...
-                InitialCatalog = catalogViewModel);
+                InitialCatalog = catalogViewModel, ...
+                InitialBatchIDs = selectedBatchIDs);
             app.ViewComparisonApp = ViewComparison(context);
             app.attachViewComparisonListeners(app.ViewComparisonApp);
 
@@ -5862,8 +5913,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Cell selection callback: ResultSubTable
         function ResultSubTableCellSelection(app, event)
 
-            loadMainResultTable(app);
-            updateResultPlot(app, "SubTable");
+            app.updateResultPlotFromSubTable();
         end
 
         % Cell edit callback: ResultSubTable
@@ -5873,6 +5923,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Cell selection callback: ResultMainTable
         function ResultMainTableCellSelection(app, event)
+
+            if app.IsUpdatingResultSelection
+                return
+            end
 
             updateResultPlot(app, "MainTable");
         end
@@ -6707,7 +6761,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             % Create ResultDropDown
             app.ResultDropDown = uidropdown(app.GridLayout12_7);
-            app.ResultDropDown.Items = {'Overview', 'Details', 'Comparison'};
+            app.ResultDropDown.Items = {'Overview', 'MDV', 'MDV (Summary)', 'Comparison'};
             app.ResultDropDown.ValueChangedFcn = createCallbackFcn(app, @ResultDropDownValueChanged, true);
             app.ResultDropDown.Enable = 'off';
             app.ResultDropDown.Layout.Row = 1;

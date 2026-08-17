@@ -171,6 +171,41 @@ classdef ResultCatalog < handle
 
         end % getFluxDetailed
 
+        function tableRtn = getMDV(obj, batchID)
+
+            arguments
+                obj (1, 1) openmebius.application.result.ResultCatalog
+                batchID (1, 1) string
+            end
+
+            tableRtn = obj.getFluxDetailed(batchID);
+
+        end % getMDV
+
+        function tableRtn = getMDVSummary(obj, batchID)
+
+            arguments
+                obj (1, 1) openmebius.application.result.ResultCatalog
+                batchID (1, 1) string
+            end
+
+            data = obj.loadResultFile(batchID);
+
+            if isempty(data)
+                tableRtn = table();
+                obj.notifyGeneralMessage( ...
+                    "error", "Failed to load the result file.");
+                return
+            end
+
+            [tableRtn, message] = obj.TableBuilder.mdvSummary(data);
+
+            if message ~= ""
+                obj.notifyGeneralMessage("error", message);
+            end
+
+        end % getMDVSummary
+
         function tableRtn = getFluxComparison(obj, batchIDs, names, options)
 
             arguments
@@ -462,7 +497,7 @@ classdef ResultCatalog < handle
                     exportItem.BatchID, ...
                     exportItem.BatchName, ...
                     iLocation, ...
-                "xlsx");
+                    "xlsx");
 
             end % for iBatch
 
@@ -489,7 +524,7 @@ classdef ResultCatalog < handle
                 name (1, 1) string
                 directoryPath
                 fmt (1, 1) string {mustBeMember(fmt, ["xlsx", "csv"]) ...
-                                       mustBeNonempty(fmt)} = "xlsx"
+                    mustBeNonempty(fmt)} = "xlsx"
             end % arguments
 
             outputLocation = ...
@@ -577,13 +612,15 @@ classdef ResultCatalog < handle
 
                 profiles = obj.TableBuilder ...
                     .gridSearchProfiles(gridSearch);
+                profileFilePath = outputLocation.artifactFile( ...
+                    baseName + "_grid_search_profiles.xlsx");
 
                 for profileIndex = 1:numel(profiles)
                     sheetName = obj.gridSearchProfileSheetName( ...
                         profiles(profileIndex).ReactionID, ...
                         profileIndex);
                     [isSuccess, msg] = obj.exportExcelFile( ...
-                        filePath, ...
+                        profileFilePath, ...
                         profiles(profileIndex).Data, ...
                         sheetName, ...
                         WriteRowNames = false);
@@ -839,14 +876,15 @@ classdef ResultCatalog < handle
 
             safeReactionID = strip(string(reactionID));
             invalidCharacters = [ ...
-                                     ":", string(char(92)), "/", "?", "*", ...
-                                     "[", "]", "'"];
+                "<", ">", ":", string(char(34)), ...
+                string(char(92)), "/", "|", "?", "*", ...
+                "[", "]", "'"];
 
             for characterIndex = 1:numel(invalidCharacters)
                 safeReactionID = replace( ...
                     safeReactionID, ...
                     invalidCharacters(characterIndex), ...
-                "_");
+                    "_");
             end
 
             if ismissing(safeReactionID) || safeReactionID == ""
@@ -875,7 +913,7 @@ classdef ResultCatalog < handle
                 'Size', [0, 2], ...
                 'VariableNames', ["Property", "Value"], ...
                 'VariableTypes', ["string", "string"] ...
-            );
+                );
 
             id = ["Batch ID", string(data.ID)];
             tableRtn = [tableRtn; cell2table(cellstr(id), 'VariableNames', tableRtn.Properties.VariableNames)];
@@ -923,7 +961,7 @@ classdef ResultCatalog < handle
                 'VariableNames', ["Reaction", names], ...
                 'VariableTypes', [variableTypesReaction, variableTypes], ...
                 'RowNames', id ...
-            );
+                );
             tableRtn.Reaction = rxnName;
             tableRtn{:, 2:end} = dataTable;
 

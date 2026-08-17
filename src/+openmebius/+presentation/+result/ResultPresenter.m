@@ -79,8 +79,14 @@ classdef ResultPresenter < handle
                         Relative = options.Relative, ...
                         RelativeTo = options.RelativeTo);
 
-                case "Details"
-                    viewModel = obj.presentDetails( ...
+                case "MDV"
+                    viewModel = obj.presentMDV( ...
+                        result, ...
+                        batchIDs(1), ...
+                        IsDarkTheme = options.IsDarkTheme);
+
+                case "MDV (Summary)"
+                    viewModel = obj.presentMDVSummary( ...
                         result, ...
                         batchIDs(1), ...
                         IsDarkTheme = options.IsDarkTheme);
@@ -96,7 +102,7 @@ classdef ResultPresenter < handle
                 otherwise
                     error( ...
                         "OpenMebius2:Result:InvalidViewMode", ...
-                    "Unknown result view mode.");
+                        "Unknown result view mode.");
             end
 
         end
@@ -125,7 +131,7 @@ classdef ResultPresenter < handle
                             .Notification.warning( ...
                             obj.outcomeMessage( ...
                             outcome, ...
-                        "Report generation is unavailable."));
+                            "Report generation is unavailable."));
 
                     case "OpenMebius2:Report:DataUnavailable"
                         notification = ...
@@ -133,7 +139,7 @@ classdef ResultPresenter < handle
                             .Notification.error( ...
                             obj.outcomeMessage( ...
                             outcome, ...
-                        "Report data is unavailable."));
+                            "Report data is unavailable."));
 
                     otherwise
                         notification = ...
@@ -141,7 +147,7 @@ classdef ResultPresenter < handle
                             .Notification.error( ...
                             obj.outcomeMessage( ...
                             outcome, ...
-                        "Report generation failed."), ...
+                            "Report generation failed."), ...
                             Title = "Report generation failed", ...
                             ShowAlert = true);
                 end
@@ -167,17 +173,17 @@ classdef ResultPresenter < handle
             if outcome.isSuccess()
                 notifications = obj.operationNotifications( ...
                     outcome.Result, ...
-                "Result export completed successfully.");
+                    "Result export completed successfully.");
             else
                 identifier = obj.outcomeIdentifier(outcome);
                 knownIdentifiers = [ ...
-                                        "OpenMebius2:ResultExport:ResultUnavailable"
-                                    "OpenMebius2:ResultExport:EmptySelection"
-                                    "OpenMebius2:ResultExport:SelectionMismatch"
-                                    "OpenMebius2:ResultExport:OutputDirectoryUnavailable"
-                                    "OpenMebius2:ResultExport:OutputDirectoryNotFound"
-                                    "OpenMebius2:ResultExport:OutputDirectoryExists"
-                                    "OpenMebius2:ResultExport:CreateDirectoryFailed"];
+                    "OpenMebius2:ResultExport:ResultUnavailable"
+                    "OpenMebius2:ResultExport:EmptySelection"
+                    "OpenMebius2:ResultExport:SelectionMismatch"
+                    "OpenMebius2:ResultExport:OutputDirectoryUnavailable"
+                    "OpenMebius2:ResultExport:OutputDirectoryNotFound"
+                    "OpenMebius2:ResultExport:OutputDirectoryExists"
+                    "OpenMebius2:ResultExport:CreateDirectoryFailed"];
                 isKnownError = any(identifier == knownIdentifiers);
                 notification = ...
                     openmebius.presentation.notification ...
@@ -209,7 +215,7 @@ classdef ResultPresenter < handle
 
             notification = openmebius.presentation.notification ...
                 .Notification.warning( ...
-            "Please select a result to save.");
+                "Please select a result to save.");
             viewModel = openmebius.presentation.result ...
                 .ResultOperationViewModel( ...
                 Notifications = {notification});
@@ -235,9 +241,9 @@ classdef ResultPresenter < handle
             message = obj.outcomeMessage( ...
                 outcome, "Failed to load labeling suggestion.");
             knownIdentifiers = [ ...
-                                    "OpenMebius2:ResultSuggestion:SelectionRequired"
-                                "OpenMebius2:ResultSuggestion:NotAvailable"
-                                "OpenMebius2:ResultSuggestion:ResultUnavailable"];
+                "OpenMebius2:ResultSuggestion:SelectionRequired"
+                "OpenMebius2:ResultSuggestion:NotAvailable"
+                "OpenMebius2:ResultSuggestion:ResultUnavailable"];
 
             if any(identifier == knownIdentifiers)
                 notification = openmebius.presentation.notification ...
@@ -269,10 +275,10 @@ classdef ResultPresenter < handle
                 viewModel = openmebius.presentation.result ...
                     .ResultRelativeViewModel( ...
                     Notifications = { ...
-                                     openmebius.presentation.notification ...
-                                     .Notification.warning( ...
-                                     "Please select a flux to set " + ...
-                                 "relative values.")});
+                    openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                    "Please select a flux to set " + ...
+                    "relative values.")});
                 return
             end
 
@@ -288,10 +294,10 @@ classdef ResultPresenter < handle
                 viewModel = openmebius.presentation.result ...
                     .ResultRelativeViewModel( ...
                     Notifications = { ...
-                                     openmebius.presentation.notification ...
-                                     .Notification.warning( ...
-                                     "Reaction identifiers are not available " + ...
-                                 "for relative values.")});
+                    openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                    "Reaction identifiers are not available " + ...
+                    "for relative values.")});
                 return
             end
 
@@ -335,15 +341,15 @@ classdef ResultPresenter < handle
             message = obj.outcomeMessage( ...
                 outcome, "Failed to prepare the range plot.");
             warningIdentifiers = [ ...
-                                      "OpenMebius2:ResultRangePlot:SelectionRequired"
-                                  "OpenMebius2:ResultRangePlot:SelectionMismatch"
-                                  "OpenMebius2:ResultRangePlot:DuplicateSelection"
-                                  "OpenMebius2:ResultRangePlot:ResultUnavailable"
-                                  "OpenMebius2:ResultRangePlot:DataUnavailable"];
+                "OpenMebius2:ResultRangePlot:SelectionRequired"
+                "OpenMebius2:ResultRangePlot:SelectionMismatch"
+                "OpenMebius2:ResultRangePlot:DuplicateSelection"
+                "OpenMebius2:ResultRangePlot:ResultUnavailable"
+                "OpenMebius2:ResultRangePlot:DataUnavailable"];
             knownErrorIdentifiers = [ ...
-                                         "OpenMebius2:ResultRangePlot:ReactionMismatch"
-                                     "OpenMebius2:ResultRangePlot:InvalidBounds"
-                                     "OpenMebius2:ResultRangePlot:InvalidData"];
+                "OpenMebius2:ResultRangePlot:ReactionMismatch"
+                "OpenMebius2:ResultRangePlot:InvalidBounds"
+                "OpenMebius2:ResultRangePlot:InvalidData"];
 
             if any(identifier == warningIdentifiers)
                 notification = openmebius.presentation.notification ...
@@ -391,7 +397,7 @@ classdef ResultPresenter < handle
 
             styleRules = obj.columnStyleRules( ...
                 2:width(tableData), ...
-            "align-right");
+                "align-right");
 
             viewModel = ...
                 openmebius.presentation.result.ResultTableViewModel( ...
@@ -401,7 +407,7 @@ classdef ResultPresenter < handle
                 StyleRules = styleRules);
         end
 
-        function viewModel = presentDetails(obj, result, batchID, options)
+        function viewModel = presentMDV(obj, result, batchID, options)
 
             arguments
                 obj
@@ -410,14 +416,44 @@ classdef ResultPresenter < handle
                 options.IsDarkTheme (1, 1) logical = false
             end
 
-            raw = getFluxDetailed(result, batchID);
+            raw = getMDV(result, batchID);
 
             formatted = obj.formatNumericColumns(raw, 3:width(raw), "%.4f");
 
             styleRules = [
-                          obj.columnStyleRules(3:width(raw), "align-right")
-                          obj.detailHeatmapRules(raw, IsDarkTheme = options.IsDarkTheme)
-                          ];
+                obj.columnStyleRules(3:width(raw), "align-right")
+                obj.detailHeatmapRules(raw, IsDarkTheme = options.IsDarkTheme)
+                ];
+
+            viewModel = ...
+                openmebius.presentation.result.ResultTableViewModel( ...
+                Data = formatted, ...
+                RawData = raw, ...
+                ColumnEditable = false(1, width(formatted)), ...
+                StyleRules = styleRules);
+
+        end
+
+        function viewModel = presentMDVSummary(obj, result, batchID, options)
+
+            arguments
+                obj
+                result
+                batchID (1, 1) string
+                options.IsDarkTheme (1, 1) logical = false
+            end
+
+            raw = getMDVSummary(result, batchID);
+            formatted = obj.formatDisplayColumn(raw, 2, 100, "%.0f%%");
+            formatted = obj.formatDisplayColumn(formatted, 3, 1, "%.3f");
+            formatted = obj.formatDisplayColumn(formatted, 4, 1, "%.2f");
+            styleRules = [
+                obj.columnStyleRules(2:width(raw), "align-right")
+                obj.heatmapRules( ...
+                raw, ...
+                4, ...
+                IsDarkTheme = options.IsDarkTheme)
+                ];
 
             viewModel = ...
                 openmebius.presentation.result.ResultTableViewModel( ...
@@ -458,7 +494,7 @@ classdef ResultPresenter < handle
 
             styleRules = obj.columnStyleRules( ...
                 2:width(tableData), ...
-            "align-right");
+                "align-right");
 
             viewModel = ...
                 openmebius.presentation.result.ResultTableViewModel( ...
@@ -493,6 +529,27 @@ classdef ResultPresenter < handle
                 formatted{:, c} = string(formattedValues);
 
             end
+
+        end
+
+        function formatted = formatDisplayColumn( ...
+                ~, tableData, column, scale, formatSpec)
+
+            formatted = tableData;
+
+            if isempty(tableData) || column > width(tableData)
+                return
+            end
+
+            values = tableData{:, column};
+
+            if ~isnumeric(values)
+                return
+            end
+
+            variableName = tableData.Properties.VariableNames{column};
+            formatted.(variableName) = compose( ...
+                formatSpec, values .* scale);
 
         end
 
@@ -550,11 +607,27 @@ classdef ResultPresenter < handle
 
         end
 
-        function styleRules = detailHeatmapRules(~, tableData, options)
+        function styleRules = detailHeatmapRules(obj, tableData, options)
+
+            arguments
+                obj
+                tableData table
+                options.IsDarkTheme (1, 1) logical = false
+            end
+
+            styleRules = obj.heatmapRules( ...
+                tableData, ...
+                5:3:width(tableData), ...
+                IsDarkTheme = options.IsDarkTheme);
+
+        end % method detailHeatmapRules
+
+        function styleRules = heatmapRules(~, tableData, columns, options)
 
             arguments
                 ~
                 tableData table
+                columns (1, :) double
                 options.IsDarkTheme (1, 1) logical = false
             end
 
@@ -571,11 +644,7 @@ classdef ResultPresenter < handle
 
             color = Color();
 
-            for c = 3:width(tableData)
-
-                if mod(c, 3) ~= 2
-                    continue
-                end
+            for c = columns
 
                 values = tableData{:, c};
 
@@ -612,7 +681,7 @@ classdef ResultPresenter < handle
 
             end
 
-        end % method detailHeatmapRules
+        end % method heatmapRules
 
         function mustBeValidHandle(~, value, name)
 

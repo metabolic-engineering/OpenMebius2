@@ -89,7 +89,7 @@ classdef StatusPresenter
             if any(~ismember(statuses, allowed))
                 error( ...
                     "OpenMebius2:Status:InvalidStatusVector", ...
-                "Status vector contains unsupported status value.");
+                    "Status vector contains unsupported status value.");
             end
 
         end
@@ -116,7 +116,7 @@ classdef StatusPresenter
             if ~isscalar(section) || ~ismember(section, allowed)
                 error( ...
                     "OpenMebius2:Status:InvalidSection", ...
-                "Section must be one of: model, experiment, batch, result.");
+                    "Section must be one of: model, experiment, batch, result.");
             end
 
         end
@@ -131,7 +131,7 @@ classdef StatusPresenter
             if ~isscalar(status) || ~ismember(status, allowed)
                 error( ...
                     "OpenMebius2:Status:InvalidStatus", ...
-                "Status must be one of: init, running, finished, error.");
+                    "Status must be one of: init, running, finished, error.");
             end
 
         end
@@ -148,7 +148,7 @@ classdef StatusPresenter
             if isempty(idx)
                 error( ...
                     "OpenMebius2:Status:InvalidSection", ...
-                "Unknown status section.");
+                    "Unknown status section.");
             end
 
         end
@@ -181,7 +181,7 @@ classdef StatusPresenter
                 otherwise
                     error( ...
                         "OpenMebius2:Status:InvalidSection", ...
-                    "Unknown status section.");
+                        "Unknown status section.");
             end
 
         end
@@ -205,7 +205,7 @@ classdef StatusPresenter
                 otherwise
                     error( ...
                         "OpenMebius2:Status:InvalidStatus", ...
-                    "Unknown status.");
+                        "Unknown status.");
             end
 
         end

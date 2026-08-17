@@ -82,7 +82,7 @@ classdef DuplicateProjectUseCase < handle
             if parentDirectory == ""
                 error( ...
                     "OpenMebius2:ProjectDuplicate:EmptyParentDirectory", ...
-                "Project parent directory is empty.");
+                    "Project parent directory is empty.");
             end
 
             if ~isfolder(parentDirectory)
@@ -95,7 +95,7 @@ classdef DuplicateProjectUseCase < handle
             if projectDirectoryName == ""
                 error( ...
                     "OpenMebius2:ProjectDuplicate:EmptyProjectName", ...
-                "Project name cannot be empty.");
+                    "Project name cannot be empty.");
             end
 
             [projectParent, projectName, projectExtension] = ...
@@ -105,7 +105,7 @@ classdef DuplicateProjectUseCase < handle
                     projectName + projectExtension ~= projectDirectoryName
                 error( ...
                     "OpenMebius2:ProjectDuplicate:InvalidProjectName", ...
-                "Project name must not contain path separators.");
+                    "Project name must not contain path separators.");
             end
 
             projectDirectory = fullfile( ...
@@ -132,7 +132,7 @@ classdef DuplicateProjectUseCase < handle
                     destinationPath, sourcePath + string(filesep))
                 error( ...
                     "OpenMebius2:ProjectDuplicate:DestinationInsideSource", ...
-                "Project destination cannot be inside the current project.");
+                    "Project destination cannot be inside the current project.");
             end
 
         end % validateDestination

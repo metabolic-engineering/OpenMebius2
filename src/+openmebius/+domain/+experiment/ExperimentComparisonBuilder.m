@@ -9,7 +9,7 @@ classdef ExperimentComparisonBuilder
                 collection, ...
                 "tableMSNormalized", ...
                 fragmentName, ...
-            "The MS normalized table is not available.");
+                "The MS normalized table is not available.");
 
         end % buildMSNormalized
 
@@ -19,7 +19,7 @@ classdef ExperimentComparisonBuilder
                 collection, ...
                 "tableMDVBiomass", ...
                 fragmentName, ...
-            "The MDV biomass table is not available.");
+                "The MDV biomass table is not available.");
 
         end % buildMDVBiomass
 
@@ -44,7 +44,7 @@ classdef ExperimentComparisonBuilder
 
             if isempty(data)
                 result = obj.unavailableResult( ...
-                "The enrichment table is empty.");
+                    "The enrichment table is empty.");
                 return
             end
 
@@ -70,7 +70,7 @@ classdef ExperimentComparisonBuilder
 
             if collection.Count == 0
                 result = obj.unavailableSelection( ...
-                "No experiment data is available.");
+                    "No experiment data is available.");
                 return
             end
 
@@ -83,7 +83,7 @@ classdef ExperimentComparisonBuilder
                     result = obj.unavailableSelection( ...
                         "The fragment selection table is not available. " + ...
                         "Press Calculate MDV before configuring " + ...
-                    "MDV-dependent analysis.");
+                        "MDV-dependent analysis.");
                     return
                 end
 
@@ -125,7 +125,7 @@ classdef ExperimentComparisonBuilder
 
             if collection.Count == 0
                 result = obj.unavailableResult( ...
-                "No experiment data is available.");
+                    "No experiment data is available.");
                 return
             end
 
@@ -198,7 +198,7 @@ classdef ExperimentComparisonBuilder
                 error( ...
                     "OpenMebius2:ExperimentComparisonBuilder:" + ...
                     "ExpectedSingleColumn", ...
-                "Comparison source must contain exactly one column.");
+                    "Comparison source must contain exactly one column.");
             end
 
             column.Properties.VariableNames = experimentName;

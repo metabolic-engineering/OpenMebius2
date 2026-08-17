@@ -45,7 +45,7 @@ classdef BatchConfigurationControllerTest < matlab.unittest.TestCase
             testCase.verifyTrue(outcome.isFailure());
             testCase.verifyEqual( ...
                 string(outcome.Exception.identifier), ...
-            "OpenMebius2:Test:RequestFailed");
+                "OpenMebius2:Test:RequestFailed");
             testCase.verifyEqual(batch.ConfigUpdateCount, 0);
 
         end
@@ -94,7 +94,7 @@ classdef BatchConfigurationControllerTest < matlab.unittest.TestCase
 
             error( ...
                 "OpenMebius2:Test:RequestFailed", ...
-            "Request creation failed.");
+                "Request creation failed.");
             request = []; %#ok<UNRCH>
 
         end

@@ -41,6 +41,7 @@ classdef BatchRunServiceQueueStub < handle
             if obj.EmitCallbacks
                 obj.invokeCallback(varargin, "MessageReporter", "message");
                 obj.invokeCallback(varargin, "ResultReporter", "result");
+                obj.invokeProgressCallback(varargin, 1, 4);
             end
 
         end
@@ -61,9 +62,9 @@ classdef BatchRunServiceQueueStub < handle
                 otherwise
                     result = openmebius.application.batch ...
                         .BatchExecutionResult( ...
-                            false, ...
-                            ErrorMessage = ...
-                                "One or more batch jobs failed.");
+                        false, ...
+                        ErrorMessage = ...
+                        "One or more batch jobs failed.");
             end
 
         end
@@ -75,6 +76,17 @@ classdef BatchRunServiceQueueStub < handle
 
             if ~isempty(index)
                 arguments{index + 1}(payload);
+            end
+
+        end
+
+        function invokeProgressCallback(arguments, completed, total)
+
+            index = helpers.BatchRunServiceQueueStub ...
+                .namedArgumentIndex(arguments, "ProgressReporter");
+
+            if ~isempty(index)
+                arguments{index + 1}(completed, total);
             end
 
         end

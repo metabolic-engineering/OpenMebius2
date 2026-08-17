@@ -38,7 +38,7 @@ classdef ExperimentEditValidator
                         if numel(parts) ~= 2
                             report = openmebius.domain.experiment ...
                                 .ExperimentValidationReport.failure( ...
-                            "Each tracer must use the label~ratio format.");
+                                "Each tracer must use the label~ratio format.");
                             return
                         end
 
@@ -47,7 +47,7 @@ classdef ExperimentEditValidator
                         if ~isfinite(ratio) || ratio < 0 || ratio > 1
                             report = openmebius.domain.experiment ...
                                 .ExperimentValidationReport.failure( ...
-                            "Tracer ratios must be between 0 and 1.");
+                                "Tracer ratios must be between 0 and 1.");
                             return
                         end
 
@@ -55,7 +55,7 @@ classdef ExperimentEditValidator
                             report = openmebius.domain.experiment ...
                                 .ExperimentValidationReport.failure( ...
                                 "The tracer label '" + parts(1) + ...
-                            "' is not available in the model.");
+                                "' is not available in the model.");
                             return
                         end
 
@@ -90,7 +90,7 @@ classdef ExperimentEditValidator
                         any(~isfinite(values(~isnan(values))), "all")
                     report = openmebius.domain.experiment ...
                         .ExperimentValidationReport.failure( ...
-                    "Uptake values must be real finite numbers or NaN.");
+                        "Uptake values must be real finite numbers or NaN.");
                     return
                 end
 
@@ -107,7 +107,7 @@ classdef ExperimentEditValidator
             if ~istable(data) || isempty(data)
                 report = openmebius.domain.experiment ...
                     .ExperimentValidationReport.failure( ...
-                "The experiment table is empty or is not a table.");
+                    "The experiment table is empty or is not a table.");
                 return
             end
 
@@ -117,7 +117,7 @@ classdef ExperimentEditValidator
             if ~isequal(actualVariables, expectedVariables)
                 report = openmebius.domain.experiment ...
                     .ExperimentValidationReport.failure( ...
-                "The table does not have the correct variable names.");
+                    "The table does not have the correct variable names.");
                 return
             end
 
@@ -127,7 +127,7 @@ classdef ExperimentEditValidator
             if ~isequal(sort(actualSamples(:)), sort(expectedSamples(:)))
                 report = openmebius.domain.experiment ...
                     .ExperimentValidationReport.failure( ...
-                "The table does not have the correct sample names.");
+                    "The table does not have the correct sample names.");
                 return
             end
 

@@ -163,8 +163,8 @@ classdef ProjectOperationController < handle
                     Session = createResult.Session, ...
                     Artifacts = artifacts, ...
                     Messages = [ ...
-                                createResult.Messages
-                            artifacts.Messages]);
+                    createResult.Messages
+                    artifacts.Messages]);
 
             end
 

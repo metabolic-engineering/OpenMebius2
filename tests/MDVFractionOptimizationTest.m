@@ -76,7 +76,7 @@ classdef MDVFractionOptimizationTest < matlab.unittest.TestCase
                 1, 0, 0, 0, 0, 0, ...
                 0.1, ...
                 fractionBounds = [0, 1]), ...
-            "MDVCorrection:InvalidFractionBounds");
+                "MDVCorrection:InvalidFractionBounds");
 
         end
 
@@ -88,7 +88,7 @@ classdef MDVFractionOptimizationTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename("fullpath"))), ...
-            "src");
+                "src");
 
         end
 

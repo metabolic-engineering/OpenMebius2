@@ -69,7 +69,7 @@ classdef LabelConfigAction < handle
             if any(indices < 1) || any(indices > height(obj.LabelTable))
                 error( ...
                     "OpenMebius2:LabelConfig:InvalidLabelSelection", ...
-                "The selected label row is outside the table.");
+                    "The selected label row is outside the table.");
             end
 
             labels = string(obj.LabelTable{indices, 1});
@@ -106,7 +106,7 @@ classdef LabelConfigAction < handle
             if ratioIndex < 1 || ratioIndex > height(ratioTable)
                 error( ...
                     "OpenMebius2:LabelConfig:InvalidRatioSelection", ...
-                "The selected ratio row is outside the table.");
+                    "The selected ratio row is outside the table.");
             end
 
             ratioTable(ratioIndex, :) = [];
@@ -149,7 +149,7 @@ classdef LabelConfigAction < handle
                     index > height(obj.LabelTable)
                 error( ...
                     "OpenMebius2:LabelConfig:InvalidLabelSelection", ...
-                "Select a valid label row.");
+                    "Select a valid label row.");
             end
 
         end % validateLabelIndex
@@ -168,7 +168,7 @@ classdef LabelConfigAction < handle
             if ~iscell(ratioData) || size(ratioData, 2) ~= 2
                 error( ...
                     "OpenMebius2:LabelConfig:InvalidRatioTable", ...
-                "Ratio settings must contain Label and Ratio columns.");
+                    "Ratio settings must contain Label and Ratio columns.");
             end
 
             ratioTable = cell2table( ...

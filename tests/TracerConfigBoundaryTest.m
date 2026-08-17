@@ -51,7 +51,7 @@ classdef TracerConfigBoundaryTest < matlab.unittest.TestCase
 
             eventData = openmebius.presentation.experiment ...
                 .TracerConfigurationAppliedEventData( ...
-                    [2, 3], editorTable);
+                [2, 3], editorTable);
 
             testCase.verifyEqual(eventData.Position, [2, 3]);
             testCase.verifyEqual(eventData.EditorTable, editorTable);

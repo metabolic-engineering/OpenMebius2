@@ -19,6 +19,7 @@ classdef MFAAnalysisRunFactory
                 options.Provenance (1, 1) struct = struct
                 options.MessageReporter (1, 1) function_handle = @(~) []
                 options.ResultReporter (1, 1) function_handle = @(~) []
+                options.ProgressReporter (1, 1) function_handle = @(~, ~) []
             end
 
             analysis = openmebius.application.analysis.MFAAnalysisRun( ...
@@ -31,7 +32,8 @@ classdef MFAAnalysisRunFactory
                 controller, ...
                 Provenance = options.Provenance, ...
                 MessageReporter = options.MessageReporter, ...
-                ResultReporter = options.ResultReporter);
+                ResultReporter = options.ResultReporter, ...
+                ProgressReporter = options.ProgressReporter);
 
         end % create
 

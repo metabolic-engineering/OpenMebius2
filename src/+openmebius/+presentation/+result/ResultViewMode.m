@@ -11,8 +11,11 @@ classdef ResultViewMode
                 case "overview"
                     mode = "Overview";
 
-                case {"details", "detailed"}
-                    mode = "Details";
+                case {"mdv", "details", "detailed"}
+                    mode = "MDV";
+
+                case {"mdv (summary)", "mdv summary", "mdv-summary"}
+                    mode = "MDV (Summary)";
 
                 case "comparison"
                     mode = "Comparison";

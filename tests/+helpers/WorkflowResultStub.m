@@ -22,6 +22,24 @@ classdef WorkflowResultStub < handle
 
         end
 
+        function invokeCallback(obj, name, varargin)
+
+            for index = 1:numel(obj.LastArguments) - 1
+                candidate = obj.LastArguments{index};
+
+                if (ischar(candidate) || isstring(candidate)) && ...
+                        isscalar(string(candidate)) && ...
+                        string(candidate) == string(name)
+                    obj.LastArguments{index + 1}(varargin{:});
+                    return
+                end
+
+            end
+
+            error("Callback '%s' was not supplied.", string(name));
+
+        end
+
     end
 
 end

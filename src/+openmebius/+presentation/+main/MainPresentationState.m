@@ -18,13 +18,13 @@ classdef MainPresentationState < handle
 
             if obj.Activity == openmebius.presentation.main.MainActivity.Busy
                 error("OpenMebius2:Presentation:InvalidTransition", ...
-                "Another activity is already in progress.")
+                    "Another activity is already in progress.")
             end
 
             if obj.Activity == openmebius.presentation.main.MainActivity.Running
                 error( ...
                     "OpenMebius2:Presentation:AnalysisAlreadyRunning", ...
-                "Analysis is already running.");
+                    "Analysis is already running.");
             end
 
             obj.Activity = openmebius.presentation.main.MainActivity.Busy;
@@ -35,12 +35,12 @@ classdef MainPresentationState < handle
 
             if obj.Activity ~= openmebius.presentation.main.MainActivity.Idle
                 error("OpenMebius2:Presentation:InvalidTransition", ...
-                "Another activity is already in progress.")
+                    "Another activity is already in progress.")
             end
 
             if obj.EditTarget ~= openmebius.presentation.main.EditTarget.None
                 error("OpenMebius2:Presentation:InvalidTransition", ...
-                "Cannot run while a table is being edited.")
+                    "Cannot run while a table is being edited.")
             end
 
             obj.Activity = openmebius.presentation.main.MainActivity.Running;
@@ -51,12 +51,12 @@ classdef MainPresentationState < handle
 
             if obj.Activity ~= openmebius.presentation.main.MainActivity.Idle
                 error("OpenMebius2:Presentation:InvalidTransition", ...
-                "Another activity is already in progress.")
+                    "Another activity is already in progress.")
             end
 
             if obj.EditTarget ~= openmebius.presentation.main.EditTarget.None
                 error("OpenMebius2:Presentation:InvalidTransition", ...
-                "Cannot edit while another table is being edited.")
+                    "Cannot edit while another table is being edited.")
             end
 
             obj.EditTarget = target;
@@ -71,13 +71,13 @@ classdef MainPresentationState < handle
             if obj.Activity ~= MainActivity.Idle
                 error( ...
                     "OpenMebius2:Presentation:InvalidTransition", ...
-                "Another activity is already in progress.");
+                    "Another activity is already in progress.");
             end
 
             if obj.EditTarget ~= EditTarget.None
                 error( ...
                     "OpenMebius2:Presentation:InvalidTransition", ...
-                "Cannot open modal window while a table is being edited.");
+                    "Cannot open modal window while a table is being edited.");
             end
 
             obj.Activity = MainActivity.Modal;
@@ -92,13 +92,13 @@ classdef MainPresentationState < handle
             if obj.Activity ~= MainActivity.Idle
                 error( ...
                     "OpenMebius2:Presentation:InvalidTransition", ...
-                "Another activity is already in progress.");
+                    "Another activity is already in progress.");
             end
 
             if obj.EditTarget == EditTarget.None
                 error( ...
                     "OpenMebius2:Presentation:InvalidTransition", ...
-                "No edit operation is in progress.");
+                    "No edit operation is in progress.");
             end
 
             obj.Activity = MainActivity.Busy;
@@ -156,7 +156,9 @@ classdef MainPresentationState < handle
 
             arguments
                 obj (1, 1) openmebius.presentation.main.MainPresentationState
-                mode (1, 1) string {mustBeMember(mode, ["overview", "details", "comparison"])}
+                mode (1, 1) string {mustBeMember(mode, [ ...
+                    "overview", "mdv", "mdv-summary", ...
+                    "details", "comparison"])}
             end
 
             obj.ResultMode = mode;

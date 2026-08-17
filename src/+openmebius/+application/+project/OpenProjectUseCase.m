@@ -28,7 +28,7 @@ classdef OpenProjectUseCase < handle
             if projectInput == ""
                 error( ...
                     "OpenMebius2:Project:EmptyProjectDirectory", ...
-                "Project directory is empty.");
+                    "Project directory is empty.");
             end
 
             session = obj.Repository.openProject(projectInput);

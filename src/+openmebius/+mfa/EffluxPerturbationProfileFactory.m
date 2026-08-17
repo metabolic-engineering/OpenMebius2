@@ -40,7 +40,7 @@ classdef EffluxPerturbationProfileFactory
                 error( ...
                     "OpenMebius2:EffluxPerturbationProfileFactory:" + ...
                     "DimensionMismatch", ...
-                "Efflux data must match the substrate list length.");
+                    "Efflux data must match the substrate list length.");
             end
 
             selectedIndices = find(freeMask);
@@ -56,7 +56,7 @@ classdef EffluxPerturbationProfileFactory
                 error( ...
                     "OpenMebius2:EffluxPerturbationProfileFactory:" + ...
                     "DimensionMismatch", ...
-                "Efflux data must match the substrate list length.");
+                    "Efflux data must match the substrate list length.");
             end
 
             if ~ismethod(model, 'getSBefore') || ...
@@ -66,7 +66,7 @@ classdef EffluxPerturbationProfileFactory
                     "OpenMebius2:EffluxPerturbationProfileFactory:" + ...
                     "InvalidModel", ...
                     "The model must expose efflux-reaction mapping " + ...
-                "methods.");
+                    "methods.");
             end
 
             stoichiometry = model.getSBefore();
@@ -75,7 +75,7 @@ classdef EffluxPerturbationProfileFactory
                 error( ...
                     "OpenMebius2:EffluxPerturbationProfileFactory:" + ...
                     "InvalidStoichiometry", ...
-                "The model stoichiometry must be a table.");
+                    "The model stoichiometry must be a table.");
             end
 
             reactionNames = ...
@@ -83,6 +83,7 @@ classdef EffluxPerturbationProfileFactory
             measurementCount = numel(selectedIndices) + ...
                 double(options.GrowthRateFree);
             reactionIndices = nan(measurementCount, 1);
+            counterReactionIndices = nan(measurementCount, 1);
             selectedReactionIDs = strings(measurementCount, 1);
             selectedExperimentalValues = nan(measurementCount, 1);
             selectedStandardDeviations = nan(measurementCount, 1);
@@ -117,6 +118,9 @@ classdef EffluxPerturbationProfileFactory
                 end
 
                 reactionIndices(i) = reactionIndex;
+                counterReactionIndices(i) = ...
+                    openmebius.mfa.EffluxPerturbationProfileFactory ...
+                    .counterReactionIndex(model, reactionIndex);
                 selectedReactionIDs(i) = reactionID;
                 selectedExperimentalValues(i) = ...
                     experimentalValues(selectedIndices(i));
@@ -133,7 +137,7 @@ classdef EffluxPerturbationProfileFactory
                         "EffluxPerturbationProfileFactory:" + ...
                         "BiomassReactionNotFound", ...
                         "The biomass reaction required for growth-rate " + ...
-                    "perturbation was not found.");
+                        "perturbation was not found.");
                 end
 
                 reactionIndices(end) = growthRateIndex;
@@ -146,11 +150,38 @@ classdef EffluxPerturbationProfileFactory
             profile = openmebius.mfa.EffluxPerturbationProfile( ...
                 ReactionIDs = selectedReactionIDs, ...
                 ReactionIndices = reactionIndices, ...
+                CounterReactionIndices = counterReactionIndices, ...
                 ExperimentalValues = selectedExperimentalValues, ...
                 StandardDeviations = selectedStandardDeviations);
 
         end % create
 
     end % methods
+
+    methods (Static, Access = private)
+
+        function counterIndex = counterReactionIndex( ...
+                model, reactionIndex)
+
+            counterIndex = NaN;
+
+            if ~ismethod(model, 'getIdxRev')
+                return
+            end
+
+            reversiblePairs = model.getIdxRev();
+            [pairIndex, pairColumn] = find( ...
+                reversiblePairs == reactionIndex, 1);
+
+            if isempty(pairIndex)
+                return
+            end
+
+            counterIndex = reversiblePairs( ...
+                pairIndex, 3 - pairColumn);
+
+        end
+
+    end % methods (Static, Access = private)
 
 end % classdef

@@ -29,8 +29,8 @@ classdef ResultExportPlanTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 plan.ExportDirectories, ...
                 [
-                 fullfile(outputDirectory, "Batch 1_batch-1")
-                 fullfile(outputDirectory, "Batch 2_batch-2")
+                fullfile(outputDirectory, "Batch 1_batch-1")
+                fullfile(outputDirectory, "Batch 2_batch-2")
                 ]);
 
         end

@@ -14,7 +14,7 @@ classdef BatchExperimentSelection
 
             arguments
                 options.Mode (1, 1) string {mustBeMember( ...
-                                                options.Mode, ["parallel", "inst-mfa"])}
+                    options.Mode, ["parallel", "inst-mfa"])}
                 options.Experiments (:, 1) string
                 options.AddAsParallel (1, 1) logical = true
                 options.BatchId (1, 1) string = ""
@@ -27,7 +27,7 @@ classdef BatchExperimentSelection
                 error( ...
                     "OpenMebius2:BatchExperimentSelection:" + ...
                     "InvalidExperiments", ...
-                "At least one non-empty experiment is required.");
+                    "At least one non-empty experiment is required.");
             end
 
             experiments = unique(experiments, "stable");
@@ -38,7 +38,7 @@ classdef BatchExperimentSelection
                 error( ...
                     "OpenMebius2:BatchExperimentSelection:" + ...
                     "MissingBatchId", ...
-                "BatchId is required for INST-MFA editing.");
+                    "BatchId is required for INST-MFA editing.");
             end
 
             obj.Mode = options.Mode;

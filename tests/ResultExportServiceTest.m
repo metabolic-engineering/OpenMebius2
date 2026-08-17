@@ -49,8 +49,8 @@ classdef ResultExportServiceTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 exporter.ExportDirectories, ...
                 [
-                 fullfile(outputDirectory, "Batch 1_batch-1")
-                 fullfile(outputDirectory, "Batch 2_batch-2")
+                fullfile(outputDirectory, "Batch 1_batch-1")
+                fullfile(outputDirectory, "Batch 2_batch-2")
                 ]);
             testCase.verifyGreaterThanOrEqual(numel(exportResult.Messages), 1);
 

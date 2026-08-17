@@ -46,7 +46,7 @@ classdef InitialFluxWorkflowInput
                     ~ismethod(options.Model, 'getSType')
                 error( ...
                     "OpenMebius2:InitialFluxInput:InvalidModel", ...
-                "The model must expose getS() and getSType().");
+                    "The model must expose getS() and getSType().");
             end
 
             stoichiometry = options.Model.getS();
@@ -54,7 +54,7 @@ classdef InitialFluxWorkflowInput
             if ~istable(stoichiometry)
                 error( ...
                     "OpenMebius2:InitialFluxInput:InvalidStoichiometry", ...
-                "The model stoichiometry must be a table.");
+                    "The model stoichiometry must be a table.");
             end
 
             if numel(options.RightHandSide) ~= height(stoichiometry) || ...
@@ -62,13 +62,13 @@ classdef InitialFluxWorkflowInput
                     numel(options.UpperBounds) ~= width(stoichiometry)
                 error( ...
                     "OpenMebius2:InitialFluxInput:DimensionMismatch", ...
-                "Initial-flux vectors must match the stoichiometry dimensions.");
+                    "Initial-flux vectors must match the stoichiometry dimensions.");
             end
 
             if any(options.LowerBounds > options.UpperBounds)
                 error( ...
                     "OpenMebius2:InitialFluxInput:InvalidBounds", ...
-                "Flux lower bounds must not exceed upper bounds.");
+                    "Flux lower bounds must not exceed upper bounds.");
             end
 
             reversibleIndices = options.ReversibleReactionIndices;
@@ -84,13 +84,13 @@ classdef InitialFluxWorkflowInput
                     "OpenMebius2:InitialFluxInput:" + ...
                     "InvalidReversibleReactionIndices", ...
                     "Reversible reaction pairs must identify two " + ...
-                "different existing fluxes.");
+                    "different existing fluxes.");
             end
 
             if ~ismethod(options.EffluxPenalty, 'evaluate')
                 error( ...
                     "OpenMebius2:InitialFluxInput:InvalidEffluxPenalty", ...
-                "The efflux penalty must implement evaluate().");
+                    "The efflux penalty must implement evaluate().");
             end
 
             freeConstraintIDs = string(options.FreeConstraintIDs(:));
@@ -102,7 +102,7 @@ classdef InitialFluxWorkflowInput
                 error( ...
                     "OpenMebius2:InitialFluxInput:" + ...
                     "InvalidFreeConstraintIDs", ...
-                "Free constraint IDs must be nonempty and unique.");
+                    "Free constraint IDs must be nonempty and unique.");
             end
 
             obj.Model = options.Model;

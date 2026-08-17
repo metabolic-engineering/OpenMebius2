@@ -58,9 +58,9 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
             testCase.verifyTrue(isfolder(projfolder));
 
             app.Test_File = [
-                             testCase.repositoryPath( ...
-                                 "dataset", "WT_ecoli.xlsx")
-                             ];
+                testCase.repositoryPath( ...
+                "dataset", "WT_ecoli.xlsx")
+                ];
             app.Test_Files = app.Test_File;
 
             testCase.verifyTrue(app.ExpImportButton.Enable);
@@ -118,13 +118,13 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
             testCase.verifyTrue(isfolder(projfolder));
 
             app.Test_File = [
-                             testCase.repositoryPath( ...
-                                 "dataset", "WT_ecoli.xlsx")
-                             testCase.repositoryPath( ...
-                                 "dataset", "Δpgi_ecoli.xlsx")
-                             testCase.repositoryPath( ...
-                                 "dataset", "Δzwf_ecoli.xlsx")
-                             ];
+                testCase.repositoryPath( ...
+                "dataset", "WT_ecoli.xlsx")
+                testCase.repositoryPath( ...
+                "dataset", "Δpgi_ecoli.xlsx")
+                testCase.repositoryPath( ...
+                "dataset", "Δzwf_ecoli.xlsx")
+                ];
             app.Test_Files = app.Test_File;
 
             testCase.verifyTrue(app.ExpImportButton.Enable);
@@ -208,13 +208,13 @@ classdef OpenMebius2IntegratedTest < matlab.uitest.TestCase
             testCase.verifyTrue(isfolder(projfolder));
 
             app.Test_File = [
-                             testCase.repositoryPath( ...
-                                 "dataset", "WT_ecoli.xlsx")
-                             testCase.repositoryPath( ...
-                                 "dataset", "Δpgi_ecoli.xlsx")
-                             testCase.repositoryPath( ...
-                                 "dataset", "Δzwf_ecoli.xlsx")
-                             ];
+                testCase.repositoryPath( ...
+                "dataset", "WT_ecoli.xlsx")
+                testCase.repositoryPath( ...
+                "dataset", "Δpgi_ecoli.xlsx")
+                testCase.repositoryPath( ...
+                "dataset", "Δzwf_ecoli.xlsx")
+                ];
             app.Test_Files = app.Test_File;
 
             testCase.verifyTrue(app.ExpImportButton.Enable);

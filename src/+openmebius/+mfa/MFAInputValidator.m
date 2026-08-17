@@ -21,7 +21,7 @@ classdef MFAInputValidator
             if isempty(info)
                 result = ...
                     openmebius.mfa.MFAInputValidationResult.failure( ...
-                "No information available for efflux validation.");
+                    "No information available for efflux validation.");
                 return;
             end
 
@@ -30,14 +30,14 @@ classdef MFAInputValidator
             catch
                 result = ...
                     openmebius.mfa.MFAInputValidationResult.failure( ...
-                "Information table is not valid.");
+                    "Information table is not valid.");
                 return;
             end
 
             if ~all(growthRate > 0)
                 result = ...
                     openmebius.mfa.MFAInputValidationResult.failure( ...
-                "No growth rate available for efflux validation.");
+                    "No growth rate available for efflux validation.");
                 return;
             end
 
@@ -58,14 +58,14 @@ classdef MFAInputValidator
             catch
                 result = ...
                     openmebius.mfa.MFAInputValidationResult.failure( ...
-                "Model data is not valid for efflux validation.");
+                    "Model data is not valid for efflux validation.");
                 return;
             end
 
             if numel(unique(substrates)) ~= numel(substrates)
                 result = ...
                     openmebius.mfa.MFAInputValidationResult.failure( ...
-                "Substrates were duplicated.");
+                    "Substrates were duplicated.");
                 return;
             end
 
@@ -76,7 +76,7 @@ classdef MFAInputValidator
             catch
                 result = ...
                     openmebius.mfa.MFAInputValidationResult.failure( ...
-                "Efflux data is not valid.");
+                    "Efflux data is not valid.");
                 return;
             end
 
@@ -84,7 +84,7 @@ classdef MFAInputValidator
                 result = ...
                     openmebius.mfa.MFAInputValidationResult.failure( ...
                     "Some efflux values are NaN. Please check the " + ...
-                "experimental data.");
+                    "experimental data.");
                 return;
             end
 
@@ -105,7 +105,7 @@ classdef MFAInputValidator
                         result = openmebius.mfa ...
                             .MFAInputValidationResult.failure( ...
                             "Growth-rate (mu) standard deviation must " + ...
-                        "be positive and finite for perturbation.");
+                            "be positive and finite for perturbation.");
                         return;
                     end
 
@@ -145,7 +145,7 @@ classdef MFAInputValidator
             if isempty(experimentalMDV)
                 result = ...
                     openmebius.mfa.MFAInputValidationResult.failure( ...
-                "MDV experimental data is not available.");
+                    "MDV experimental data is not available.");
                 return;
             end
 
@@ -157,7 +157,7 @@ classdef MFAInputValidator
                 result = ...
                     openmebius.mfa.MFAInputValidationResult.failure( ...
                     "MDV fragment labels and mask must match the " + ...
-                "experimental data row count.");
+                    "experimental data row count.");
                 return;
             end
 

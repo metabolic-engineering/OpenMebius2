@@ -22,7 +22,7 @@ classdef OperationOutcome
             if succeeded && options.Canceled
                 error( ...
                     "OpenMebius2:OperationOutcome:InvalidState", ...
-                "A successful operation cannot be canceled.");
+                    "A successful operation cannot be canceled.");
             end
 
             obj.Succeeded = succeeded;

@@ -117,7 +117,7 @@ classdef AnalysisProvenanceBuilder
 
             error( ...
                 "OpenMebius2:AnalysisProvenanceBuilder:MissingModelPath", ...
-            "The model does not expose its source-file path.");
+                "The model does not expose its source-file path.");
 
         end % modelPath
 

@@ -8,6 +8,9 @@ classdef MFAResultSessionStub < handle
         SummaryObjectiveValues double = []
         SummaryOrder double = []
         SummaryThreshold (1, 1) double = NaN
+        InitialFluxes double = []
+        InitialRightHandSides double = []
+        InitialObjectiveValues double = []
     end
 
     methods
@@ -37,9 +40,13 @@ classdef MFAResultSessionStub < handle
 
         end
 
-        function writeInitialFlux(obj, varargin)
+        function writeInitialFlux( ...
+                obj, fluxes, rightHandSides, objectiveValues, ~)
 
             obj.record("initial");
+            obj.InitialFluxes = fluxes;
+            obj.InitialRightHandSides = rightHandSides;
+            obj.InitialObjectiveValues = objectiveValues;
 
         end
 

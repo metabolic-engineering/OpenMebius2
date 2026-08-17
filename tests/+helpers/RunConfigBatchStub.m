@@ -74,7 +74,7 @@ classdef RunConfigBatchStub < handle
             if obj.FailFragmentUpdate
                 error( ...
                     "OpenMebius2:Test:FragmentUpdateFailed", ...
-                "Fragment update failed.");
+                    "Fragment update failed.");
             end
 
         end

@@ -3,6 +3,7 @@ classdef MonteCarloConfidenceIntervalSettings
 
     properties (SetAccess = private)
         IterationCount (1, 1) double
+        WorkerCount (1, 1) double
         FixMDV (1, 1) logical
         StandardDeviation (1, 1) double
         Procedure (1, 1) openmebius.mfa ...
@@ -21,6 +22,7 @@ classdef MonteCarloConfidenceIntervalSettings
 
             arguments
                 options.IterationCount (1, 1) double = 500
+                options.WorkerCount (1, 1) double = 8
                 options.FixMDV (1, 1) logical = true
                 options.StandardDeviation (1, 1) double = 0.01
                 options.Procedure (1, 1) openmebius.mfa ...
@@ -38,6 +40,8 @@ classdef MonteCarloConfidenceIntervalSettings
 
             obj.validatePositiveInteger( ...
                 options.IterationCount, "IterationCount");
+            obj.validatePositiveInteger( ...
+                options.WorkerCount, "WorkerCount");
             obj.validateNonnegative( ...
                 options.StandardDeviation, "StandardDeviation");
             obj.validateNonnegative( ...
@@ -49,6 +53,7 @@ classdef MonteCarloConfidenceIntervalSettings
             obj.validatePositiveInteger(options.TrialCount, "TrialCount");
 
             obj.IterationCount = options.IterationCount;
+            obj.WorkerCount = options.WorkerCount;
             obj.FixMDV = options.FixMDV;
             obj.StandardDeviation = options.StandardDeviation;
             obj.Procedure = options.Procedure;

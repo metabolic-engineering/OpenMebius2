@@ -85,13 +85,13 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(result.BatchID, "batch-1");
             testCase.verifyEqual( ...
                 viewModel.SubPlot.Kind, ...
-            "optimization-rss-histogram");
+                "optimization-rss-histogram");
             testCase.verifyEqual(viewModel.SubPlot.RSS, [1; 2; 4; 8]);
             testCase.verifyEqual(viewModel.SubPlot.Threshold, 6);
             testCase.verifyFalse(viewModel.SubPlot.UseLogScale);
             testCase.verifyEqual( ...
                 viewModel.SubPlot.Title, ...
-            "Optimization state: First");
+                "Optimization state: First");
             testCase.verifyEmpty(viewModel.Notification);
 
         end
@@ -120,12 +120,12 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
 
         end
 
-        function presentsOptimizationStateInDetails(testCase)
+        function presentsOptimizationStateInMDV(testCase)
 
             presenter = openmebius.presentation.result ...
                 .ResultPlotPresenter();
             context = testCase.context();
-            context.Mode = "Details";
+            context.Mode = "MDV";
             context.SelectionSource = "SubTable";
             result = helpers.ResultPlotWorkspaceStub();
             result.OptimizationStateData = struct( ...
@@ -138,7 +138,7 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 viewModel.Kind, ...
                 openmebius.presentation.result ...
-                    .ResultPlotKind.OptimizationState);
+                .ResultPlotKind.OptimizationState);
             testCase.verifyTrue(result.OptimizationCalled);
             testCase.verifyFalse(result.Called);
             testCase.verifyEqual( ...
@@ -149,13 +149,32 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
 
         end
 
-        function clearsDetailsPlotForMainTableSelection(testCase)
+        function clearsMDVPlotForMainTableSelection(testCase)
 
             presenter = openmebius.presentation.result ...
                 .ResultPlotPresenter();
             context = testCase.context();
-            context.Mode = "Details";
+            context.Mode = "MDV";
             context.SelectionSource = "MainTable";
+            result = helpers.ResultPlotWorkspaceStub();
+
+            viewModel = presenter.present( ...
+                testCase.model(), result, context);
+
+            testCase.verifyEqual( ...
+                viewModel.Kind, ...
+                openmebius.presentation.result.ResultPlotKind.None);
+            testCase.verifyFalse(result.OptimizationCalled);
+
+        end
+
+        function clearsPlotInMDVSummary(testCase)
+
+            presenter = openmebius.presentation.result ...
+                .ResultPlotPresenter();
+            context = testCase.context();
+            context.Mode = "MDV (Summary)";
+            context.SelectionSource = "SubTable";
             result = helpers.ResultPlotWorkspaceStub();
 
             viewModel = presenter.present( ...
@@ -201,6 +220,28 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
 
         end
 
+        function clearsGridSearchPlotWhenProfileValuesAreUnavailable( ...
+                testCase)
+
+            presenter = openmebius.presentation.result ...
+                .ResultPlotPresenter();
+            result = helpers.ResultPlotWorkspaceStub();
+            data = testCase.gridSearchData();
+            data.CI.gridSearch.fixedFlux(:) = NaN;
+            data.CI.gridSearch.minimumRSS(:) = NaN;
+            result.ConfidenceIntervalData = data;
+
+            viewModel = presenter.present( ...
+                testCase.model(), result, testCase.context());
+
+            testCase.verifyEmpty(fieldnames(viewModel.SubPlot));
+            testCase.verifyEqual(viewModel.Notification.Level, "warning");
+            testCase.verifyEqual( ...
+                viewModel.Notification.Message, ...
+                "Grid-search profile values are unavailable.");
+
+        end
+
         function warnsForUnsupportedConfidenceInterval(testCase)
 
             presenter = openmebius.presentation.result ...
@@ -218,7 +259,7 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
             testCase.verifyThat( ...
                 viewModel.Notification.Message, ...
                 matlab.unittest.constraints.ContainsSubstring( ...
-            "Unsupported confidence interval"));
+                "Unsupported confidence interval"));
 
         end
 

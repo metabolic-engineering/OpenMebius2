@@ -18,10 +18,10 @@ classdef ResultDarkThemeContrastTest < matlab.unittest.TestCase
             background = [0.2, 0.2, 0.2];
             passedColor = ...
                 ResultDarkThemeContrastTest.defaultFontColor( ...
-            "styleIsPassedDark");
+                "styleIsPassedDark");
             failedColor = ...
                 ResultDarkThemeContrastTest.defaultFontColor( ...
-            "styleIsNotPassedDark");
+                "styleIsNotPassedDark");
 
             testCase.verifyGreaterThanOrEqual( ...
                 ResultDarkThemeContrastTest.contrastRatio( ...
@@ -43,34 +43,34 @@ classdef ResultDarkThemeContrastTest < matlab.unittest.TestCase
             appClass = ?OpenMebius2_exported;
 
             properties = appClass.PropertyList;
-                names = string({properties.Name});
-                property = properties(names == propertyName);
-                color = double(property.DefaultValue.FontColor);
+            names = string({properties.Name});
+            property = properties(names == propertyName);
+            color = double(property.DefaultValue.FontColor);
 
-            end
+        end
 
-            function ratio = contrastRatio(foreground, background)
+        function ratio = contrastRatio(foreground, background)
 
-                foregroundLuminance = ...
-                    ResultDarkThemeContrastTest.relativeLuminance(foreground);
-                backgroundLuminance = ...
-                    ResultDarkThemeContrastTest.relativeLuminance(background);
-                lighter = max(foregroundLuminance, backgroundLuminance);
-                darker = min(foregroundLuminance, backgroundLuminance);
-                ratio = (lighter + 0.05) / (darker + 0.05);
+            foregroundLuminance = ...
+                ResultDarkThemeContrastTest.relativeLuminance(foreground);
+            backgroundLuminance = ...
+                ResultDarkThemeContrastTest.relativeLuminance(background);
+            lighter = max(foregroundLuminance, backgroundLuminance);
+            darker = min(foregroundLuminance, backgroundLuminance);
+            ratio = (lighter + 0.05) / (darker + 0.05);
 
-            end
+        end
 
-            function luminance = relativeLuminance(rgb)
+        function luminance = relativeLuminance(rgb)
 
-                linear = rgb / 12.92;
-                nonlinearMask = rgb > 0.04045;
-                linear(nonlinearMask) = ...
-                    ((rgb(nonlinearMask) + 0.055) / 1.055) .^ 2.4;
-                luminance = dot(linear, [0.2126, 0.7152, 0.0722]);
-
-            end
+            linear = rgb / 12.92;
+            nonlinearMask = rgb > 0.04045;
+            linear(nonlinearMask) = ...
+                ((rgb(nonlinearMask) + 0.055) / 1.055) .^ 2.4;
+            luminance = dot(linear, [0.2126, 0.7152, 0.0722]);
 
         end
 
     end
+
+end

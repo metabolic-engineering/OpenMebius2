@@ -58,7 +58,7 @@ classdef FileProjectRepository < handle
             if projectInput == ""
                 error( ...
                     "OpenMebius2:Project:EmptyProjectInput", ...
-                "Project path is empty.");
+                    "Project path is empty.");
             end
 
             if isfolder(projectInput)
@@ -160,10 +160,10 @@ classdef FileProjectRepository < handle
         function ensureLayout(paths)
 
             folders = [
-                       paths.ModelDirectory
-                       paths.ExperimentDirectory
-                       paths.ResultDirectory
-                       ];
+                paths.ModelDirectory
+                paths.ExperimentDirectory
+                paths.ResultDirectory
+                ];
 
             for i = 1:numel(folders)
 
