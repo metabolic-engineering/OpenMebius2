@@ -12,7 +12,8 @@ classdef MFAAnalysisRun < handle
     properties (Access = private)
         MessageReporter (1, 1) function_handle = @(~) []
         ResultReporter (1, 1) function_handle = @(~) []
-        ProgressReporter (1, 1) function_handle = @(~, ~) []
+        ProgressReporter (1, 1) function_handle = @(~, ~, ~) []
+        ConfidenceIntervalProgressPhase (1, 1) string = "monte-carlo"
     end
 
     methods
@@ -44,13 +45,16 @@ classdef MFAAnalysisRun < handle
                 options.Provenance (1, 1) struct = struct
                 options.MessageReporter (1, 1) function_handle = @(~) []
                 options.ResultReporter (1, 1) function_handle = @(~) []
-                options.ProgressReporter (1, 1) function_handle = @(~, ~) []
+                options.ProgressReporter (1, 1) function_handle = ...
+                    @(~, ~, ~) []
             end
 
             composition = options.Composition;
             obj.MessageReporter = options.MessageReporter;
             obj.ResultReporter = options.ResultReporter;
             obj.ProgressReporter = options.ProgressReporter;
+            obj.ConfidenceIntervalProgressPhase = ...
+                obj.confidenceIntervalProgressPhase(config);
             runtimeFactory = composition.Execution.RuntimeFactory;
 
             if isempty(runtimeFactory)
@@ -153,7 +157,9 @@ classdef MFAAnalysisRun < handle
                 MessageReporter = ...
                 @(level, message) ...
                 reportAnalysisMessage(obj, level, message), ...
-                ProgressReporter = obj.ProgressReporter);
+                ProgressReporter = @(completed, total) ...
+                notifyConfidenceIntervalProgress( ...
+                obj, completed, total));
             fluxLB = workflowResult.LowerBounds;
             fluxUB = workflowResult.UpperBounds;
             output = workflowResult.Output;
@@ -220,8 +226,18 @@ classdef MFAAnalysisRun < handle
             msg = "Calculating flux distribution (iteration " + ...
                 string(iteration) + "/" + string(total) + ")";
             reportAnalysisMessage(obj, "info", msg);
+            obj.ProgressReporter( ...
+                "optimization", iteration, total);
 
         end % notifyMFAIterationProgress
+
+        function notifyConfidenceIntervalProgress( ...
+                obj, completed, total)
+
+            obj.ProgressReporter( ...
+                obj.ConfidenceIntervalProgressPhase, completed, total);
+
+        end % notifyConfidenceIntervalProgress
 
         %% Export functions
         function initializeRunMetadata(obj)
@@ -251,6 +267,25 @@ classdef MFAAnalysisRun < handle
             reportAnalysisMessage(obj, "error", message);
 
         end % handleAnalysisFailure
+
+        function phase = confidenceIntervalProgressPhase(~, config)
+
+            phase = "monte-carlo";
+
+            if ~isstruct(config) || ~isscalar(config) || ...
+                    ~isfield(config, 'CIConf') || ...
+                    ~isstruct(config.CIConf) || ...
+                    ~isfield(config.CIConf, 'algorithm')
+                return
+            end
+
+            method = lower(strtrim(string(config.CIConf.algorithm)));
+
+            if method == "grid search"
+                phase = "grid-search";
+            end
+
+        end % confidenceIntervalProgressPhase
 
     end % methods (Access = private)
 
