@@ -459,14 +459,15 @@ classdef AnalysisWorkflowRefactorTest < matlab.unittest.TestCase
                 input, input, 1, struct, resultDirectory, ...
                 "unit-test", [], ...
                 Composition = composition, ...
-                ProgressReporter = @(completed, total) ...
-                progress.record(completed, total));
+                ProgressReporter = @(phase, completed, total) ...
+                progress.record(phase, completed, total));
 
             analysis.calculateConfidenceInterval();
             workflow.invokeCallback("ProgressReporter", 2, 4);
 
             testCase.verifyEqual(progress.Completed, 2);
             testCase.verifyEqual(progress.Total, 4);
+            testCase.verifyEqual(progress.Phase, "monte-carlo");
 
         end
 

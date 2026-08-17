@@ -31,6 +31,7 @@ classdef GridSearchConfidenceIntervalSolverStub < handle
                 options.BestObjective double = NaN
                 options.InitialIndependentValues double = []
                 options.MessageReporter function_handle = @(~, ~) []
+                options.ProgressReporter function_handle = @(~, ~) []
                 options.CancellationRequested function_handle = @() false
             end
 
@@ -41,6 +42,7 @@ classdef GridSearchConfidenceIntervalSolverStub < handle
             obj.LastObjectiveThreshold = ...
                 options.ObjectiveThreshold;
             obj.LastBestObjective = options.BestObjective;
+            options.ProgressReporter(1, 1);
 
             if isempty(options.InitialIndependentValues)
                 obj.LastInitialIndependentValues = ...
