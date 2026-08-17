@@ -23,7 +23,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
 
             testCase.verifyClass( ...
                 viewModel, ...
-            'openmebius.presentation.batch.RunConfigViewModel');
+                'openmebius.presentation.batch.RunConfigViewModel');
             testCase.verifyEqual(viewModel.Iteration, 30);
             testCase.verifyEqual(viewModel.Algorithm, "SQP");
             testCase.verifyFalse(viewModel.CalculateCI);
@@ -48,7 +48,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
             testCase.verifyClass( ...
                 request, ...
                 ['openmebius.application.batch.' ...
-             'BatchConfigurationLaunchRequest']);
+                'BatchConfigurationLaunchRequest']);
             testCase.verifyEqual( ...
                 request.BatchIds, ["batch-b"; "batch-a"]);
             testCase.verifyEqual(request.TableData, tableData);
@@ -72,7 +72,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(viewModel.Session, session);
             testCase.verifyClass( ...
                 viewModel.Editor, ...
-            'openmebius.presentation.batch.RunConfigEditorViewModel');
+                'openmebius.presentation.batch.RunConfigEditorViewModel');
 
         end
 
@@ -80,7 +80,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
 
             exception = MException( ...
                 "OpenMebius2:Test:LaunchFailed", ...
-            "Launch failed.");
+                "Launch failed.");
             outcome = openmebius.application.batch ...
                 .BatchConfigurationLaunchOutcome( ...
                 false, ...
@@ -95,7 +95,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
             testCase.verifyNumElements(viewModel.Notifications, 1);
             testCase.verifyEqual( ...
                 viewModel.Notifications{1}.Title, ...
-            "Batch configuration error");
+                "Batch configuration error");
             testCase.verifyTrue(viewModel.Notifications{1}.ShowAlert);
 
         end
@@ -136,16 +136,22 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
 
             testCase.verifyTrue(automatic.GridEnabled);
             testCase.verifyTrue(automatic.GridExecutionModeEnabled);
+            testCase.verifyTrue(automatic.GridWorkerCountEnabled);
             testCase.verifyTrue(automatic.GridPointsEnabled);
             testCase.verifyFalse(automatic.GridDeltaEnabled);
             testCase.verifyFalse(manual.GridPointsEnabled);
             testCase.verifyTrue(manual.GridDeltaEnabled);
             testCase.verifyTrue(automatic.GridReactionVisible);
 
+            viewModel.GridParallelExecution = false;
+            serial = presenter.presentControlState(viewModel);
+            testCase.verifyTrue(serial.GridWorkerCountEnabled);
+
             viewModel.CalculateCI = false;
             disabled = presenter.presentControlState(viewModel);
             testCase.verifyFalse(disabled.GridReactionVisible);
             testCase.verifyFalse(disabled.GridExecutionModeEnabled);
+            testCase.verifyTrue(disabled.GridWorkerCountEnabled);
 
         end
 
@@ -178,7 +184,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
 
             testCase.verifyClass( ...
                 editor, ...
-            'openmebius.presentation.batch.RunConfigEditorViewModel');
+                'openmebius.presentation.batch.RunConfigEditorViewModel');
             testCase.verifyEqual(editor.Config.Iteration, 30);
             testCase.verifyEqual(height(editor.MSFragmentTable.Data), 2);
             testCase.verifyEqual(width(editor.MSFragmentTable.Data), 1);
@@ -254,7 +260,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
             testCase.verifyClass( ...
                 request, ...
                 ['openmebius.application.batch.' ...
-             'BatchConfigurationApplyRequest']);
+                'BatchConfigurationApplyRequest']);
             testCase.verifyEqual(request.Config.iteration, 81);
             testCase.verifyFalse(request.ApplySuggestion);
 
@@ -266,7 +272,7 @@ classdef RunConfigPresenterTest < matlab.unittest.TestCase
                 .RunConfigPresenter();
             exception = MException( ...
                 "OpenMebius2:Test:ApplyFailed", ...
-            "Apply failed.");
+                "Apply failed.");
             outcome = openmebius.application.batch ...
                 .BatchConfigurationApplyOutcome( ...
                 false, ...

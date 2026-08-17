@@ -43,7 +43,7 @@ classdef MDVCorrectionPreferenceTest < matlab.unittest.TestCase
                 numel(fixture.Preference.SupportedMethods));
             testCase.verifyTrue(any( ...
                 fixture.Preference.SupportedMethods == ...
-            "least-squares-with-fraction"));
+                "least-squares-with-fraction"));
 
         end
 
@@ -53,7 +53,7 @@ classdef MDVCorrectionPreferenceTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() fixture.Preference.setMethod("unknown"), ...
-            "OpenMebius2:MDVCorrectionPreference:InvalidMethod");
+                "OpenMebius2:MDVCorrectionPreference:InvalidMethod");
 
         end
 
@@ -82,7 +82,7 @@ classdef MDVCorrectionPreferenceTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename("fullpath"))), ...
-            "src");
+                "src");
 
         end
 

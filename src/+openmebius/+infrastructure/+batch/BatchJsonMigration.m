@@ -113,7 +113,7 @@ classdef BatchJsonMigration
                     fix(schemaVersion) ~= schemaVersion
                 error( ...
                     "OpenMebius2:BatchJsonMigration:InvalidSchemaVersion", ...
-                "Batch JSON schemaVersion must be a nonnegative integer.");
+                    "Batch JSON schemaVersion must be a nonnegative integer.");
             end
 
         end % parseSchemaVersion

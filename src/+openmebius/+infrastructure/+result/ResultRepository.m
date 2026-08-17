@@ -40,7 +40,7 @@ classdef ResultRepository < handle
             if isempty(result) || ~isvalid(result)
                 error( ...
                     "OpenMebius2:ResultRepository:InvalidResultObject", ...
-                "Failed to create ResultCatalog.");
+                    "Failed to create ResultCatalog.");
             end
 
         end % open

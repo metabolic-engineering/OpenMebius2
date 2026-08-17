@@ -45,6 +45,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
         GridLayout12_5                  matlab.ui.container.GridLayout
         MinimumFLuxRangeEditField       matlab.ui.control.NumericEditField
         MinimumfluxrangeEditFieldLabel  matlab.ui.control.Label
+        GridLayout12_6                  matlab.ui.container.GridLayout
+        ParallelworkersEditField        matlab.ui.control.NumericEditField
+        ParallelworkersEditFieldLabel   matlab.ui.control.Label
         CheckBox                        matlab.ui.control.CheckBox
         GridLayout12_4                  matlab.ui.container.GridLayout
         ThresholdDropDown               matlab.ui.control.DropDown
@@ -352,6 +355,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridintervalDeltaixiEditField.Value = viewModel.GridDelta;
             app.IterationtimesforgridsearchEditField.Value = ...
                 viewModel.GridIterations;
+            app.ParallelworkersEditField.Value = viewModel.GridWorkers;
             app.MinimumFLuxRangeEditField.Value = ...
                 viewModel.GridMinimumFluxRange;
             app.ThresholdDropDown.Value = viewModel.GridThreshold;
@@ -420,6 +424,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.DeterminegridintervalautomaticallyCheckBox.Enable = grid;
             app.CheckBox.Enable = ...
                 app.onOff(state.GridExecutionModeEnabled);
+            app.ParallelworkersEditField.Enable = ...
+                app.onOff(state.GridWorkerCountEnabled);
             app.IterationtimesforgridsearchEditField.Enable = grid;
             app.MinimumFLuxRangeEditField.Enable = grid;
             app.ThresholdDropDown.Enable = grid;
@@ -828,6 +834,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             viewModel.GridDelta = app.GridintervalDeltaixiEditField.Value;
             viewModel.GridIterations = ...
                 app.IterationtimesforgridsearchEditField.Value;
+            viewModel.GridWorkers = app.ParallelworkersEditField.Value;
             viewModel.GridMinimumFluxRange = ...
                 app.MinimumFLuxRangeEditField.Value;
             viewModel.GridThreshold = app.ThresholdDropDown.Value;
@@ -1103,6 +1110,13 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end
 
+        % Value changed function: CheckBox
+        function CheckBoxValueChanged(app, event)
+
+            app.refreshControlState();
+
+        end
+
         % Value changed function: INSTMFACheckBox
         function INSTMFACheckBoxValueChanged(app, event)
 
@@ -1254,7 +1268,9 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Create GridLayout8
             app.GridLayout8 = uigridlayout(app.GridLayout6_2);
             app.GridLayout8.ColumnWidth = {'1x'};
-            app.GridLayout8.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
+            app.GridLayout8.RowHeight = ...
+                {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', ...
+                 'fit', 'fit', '1x'};
             app.GridLayout8.Padding = [0 0 0 0];
             app.GridLayout8.Layout.Row = 1;
             app.GridLayout8.Layout.Column = 1;
@@ -1280,25 +1296,49 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.IterationSpinner.Layout.Column = 2;
             app.IterationSpinner.Value = 10;
 
+            % Create GridLayout12_6
+            app.GridLayout12_6 = uigridlayout(app.GridLayout8);
+            app.GridLayout12_6.ColumnWidth = {'7x', '3x'};
+            app.GridLayout12_6.RowHeight = {'1x'};
+            app.GridLayout12_6.Padding = [0 0 0 0];
+            app.GridLayout12_6.Layout.Row = 2;
+            app.GridLayout12_6.Layout.Column = 1;
+
+            % Create ParallelworkersEditFieldLabel
+            app.ParallelworkersEditFieldLabel = uilabel( ...
+                app.GridLayout12_6);
+            app.ParallelworkersEditFieldLabel.Layout.Row = 1;
+            app.ParallelworkersEditFieldLabel.Layout.Column = 1;
+            app.ParallelworkersEditFieldLabel.Text = 'Parallel workers';
+
+            % Create ParallelworkersEditField
+            app.ParallelworkersEditField = uieditfield( ...
+                app.GridLayout12_6, 'numeric');
+            app.ParallelworkersEditField.Limits = [1 Inf];
+            app.ParallelworkersEditField.RoundFractionalValues = 'on';
+            app.ParallelworkersEditField.Layout.Row = 1;
+            app.ParallelworkersEditField.Layout.Column = 2;
+            app.ParallelworkersEditField.Value = 58;
+
             % Create SuggestionCheckBox
             app.SuggestionCheckBox = uicheckbox(app.GridLayout8);
             app.SuggestionCheckBox.ValueChangedFcn = createCallbackFcn(app, @SuggestionCheckBoxValueChanged, true);
             app.SuggestionCheckBox.Text = 'Suggest label tracer to increase accuracy';
-            app.SuggestionCheckBox.Layout.Row = 2;
+            app.SuggestionCheckBox.Layout.Row = 3;
             app.SuggestionCheckBox.Layout.Column = 1;
 
             % Create PerturbateEffluxCheckBox
             app.PerturbateEffluxCheckBox = uicheckbox(app.GridLayout8);
             app.PerturbateEffluxCheckBox.ValueChangedFcn = createCallbackFcn(app, @PerturbateEffluxCheckBoxValueChanged, true);
             app.PerturbateEffluxCheckBox.Text = 'Perturbate efflux';
-            app.PerturbateEffluxCheckBox.Layout.Row = 3;
+            app.PerturbateEffluxCheckBox.Layout.Row = 4;
             app.PerturbateEffluxCheckBox.Layout.Column = 1;
 
             % Create CalcCICheckBox
             app.CalcCICheckBox = uicheckbox(app.GridLayout8);
             app.CalcCICheckBox.ValueChangedFcn = createCallbackFcn(app, @CalcCICheckBoxValueChanged, true);
             app.CalcCICheckBox.Text = 'Calculate confidence intervals of fluxes';
-            app.CalcCICheckBox.Layout.Row = 5;
+            app.CalcCICheckBox.Layout.Row = 6;
             app.CalcCICheckBox.Layout.Column = 1;
 
             % Create GridLayoutAlgorithm_2
@@ -1306,7 +1346,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.GridLayoutAlgorithm_2.ColumnWidth = {'6x', '4x'};
             app.GridLayoutAlgorithm_2.RowHeight = {'1x'};
             app.GridLayoutAlgorithm_2.Padding = [0 0 0 0];
-            app.GridLayoutAlgorithm_2.Layout.Row = 6;
+            app.GridLayoutAlgorithm_2.Layout.Row = 7;
             app.GridLayoutAlgorithm_2.Layout.Column = 1;
 
             % Create AlgorithmforCIcalculationDropDownLabel
@@ -1326,7 +1366,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Create DeleteResultButton
             app.DeleteResultButton = uicheckbox(app.GridLayout8);
             app.DeleteResultButton.Text = 'Delete result file when batch is canceled';
-            app.DeleteResultButton.Layout.Row = 7;
+            app.DeleteResultButton.Layout.Row = 8;
             app.DeleteResultButton.Layout.Column = 1;
             app.DeleteResultButton.Value = true;
 
@@ -1334,7 +1374,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.INSTMFACheckBox = uicheckbox(app.GridLayout8);
             app.INSTMFACheckBox.ValueChangedFcn = createCallbackFcn(app, @INSTMFACheckBoxValueChanged, true);
             app.INSTMFACheckBox.Text = 'Instrationaly-MFA instead of parallel labeling';
-            app.INSTMFACheckBox.Layout.Row = 4;
+            app.INSTMFACheckBox.Layout.Row = 5;
             app.INSTMFACheckBox.Layout.Column = 1;
 
             % Create TabGroup2
@@ -1539,7 +1579,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             % Create GridLayout11
             app.GridLayout11 = uigridlayout(app.GridsearchTab);
             app.GridLayout11.ColumnWidth = {'1x'};
-            app.GridLayout11.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
+            app.GridLayout11.RowHeight = ...
+                {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', '1x'};
             app.GridLayout11.Padding = [5 5 5 5];
 
             % Create DeterminegridintervalautomaticallyCheckBox
@@ -1637,6 +1678,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             % Create CheckBox
             app.CheckBox = uicheckbox(app.GridLayout11);
+            app.CheckBox.ValueChangedFcn = createCallbackFcn( ...
+                app, @CheckBoxValueChanged, true);
             app.CheckBox.Text = 'Execute grid search in parallel';
             app.CheckBox.Layout.Row = 2;
             app.CheckBox.Layout.Column = 1;

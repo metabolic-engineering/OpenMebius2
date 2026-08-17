@@ -150,7 +150,7 @@ classdef SteadyStateSolverTest < matlab.unittest.TestCase
 
             error( ...
                 "OpenMebius2:Test:ObjectiveFailure", ...
-            "Objective failure.");
+                "Objective failure.");
             value = NaN;
 
         end
@@ -159,7 +159,7 @@ classdef SteadyStateSolverTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

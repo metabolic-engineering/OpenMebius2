@@ -256,7 +256,7 @@ classdef Notification
             catch
                 error( ...
                     "OpenMebius2:Notification:InvalidLevel", ...
-                "Notification level must be supported.");
+                    "Notification level must be supported.");
             end
 
         end % method normalizeLevel

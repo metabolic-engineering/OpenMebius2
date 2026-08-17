@@ -9,7 +9,7 @@ classdef ModelWorkspaceValidator
             if ~all(ismember(required, string(labelTable.Properties.VariableNames)))
                 error( ...
                     "OpenMebius2:LabelConfiguration:InvalidLabelTable", ...
-                "Label settings must contain Name and Num columns.");
+                    "Label settings must contain Name and Num columns.");
             end
 
             fields = fieldnames(ratioTables);
@@ -17,7 +17,7 @@ classdef ModelWorkspaceValidator
             if numel(fields) ~= height(labelTable)
                 error( ...
                     "OpenMebius2:LabelConfiguration:RatioCountMismatch", ...
-                "A ratio table is required for each label configuration row.");
+                    "A ratio table is required for each label configuration row.");
             end
 
             for fieldIndex = 1:numel(fields)
@@ -28,7 +28,7 @@ classdef ModelWorkspaceValidator
                         string(value.Properties.VariableNames)))
                     error( ...
                         "OpenMebius2:LabelConfiguration:InvalidRatioTable", ...
-                    "Each ratio setting must contain Label and Ratio columns.");
+                        "Each ratio setting must contain Label and Ratio columns.");
                 end
 
             end

@@ -30,7 +30,7 @@ classdef EffluxPenaltyFactoryTest < matlab.unittest.TestCase
             testCase.verifyEqual(penalty.StandardDeviations, 0.5);
             testCase.verifyClass( ...
                 penalty.Profile, ...
-            'openmebius.mfa.EffluxPerturbationProfile');
+                'openmebius.mfa.EffluxPerturbationProfile');
             testCase.verifyEqual(profile, penalty.Profile);
 
         end
@@ -45,7 +45,7 @@ classdef EffluxPenaltyFactoryTest < matlab.unittest.TestCase
                 @() factory.create( ...
                 model, "S1", 3, 0.5, true), ...
                 "OpenMebius2:EffluxPerturbationProfileFactory:" + ...
-            "ReactionNotFound");
+                "ReactionNotFound");
 
         end
 
@@ -95,7 +95,7 @@ classdef EffluxPenaltyFactoryTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

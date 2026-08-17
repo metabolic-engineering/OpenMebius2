@@ -50,6 +50,28 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
 
         end
 
+        function forwardsConfidenceIntervalProgress(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.isCalcCI = true;
+            [service, analysis] = BatchRunServiceTest.createService(config);
+            progress = helpers.AnalysisProgressRecorder();
+
+            service.run( ...
+                struct, ...
+                struct, ...
+                "experiment-a", ...
+                analysis.Config, ...
+                "result-directory", ...
+                "bat_test", ...
+                ProgressReporter = @(completed, total) ...
+                progress.record(completed, total));
+
+            testCase.verifyEqual(progress.Completed, 1);
+            testCase.verifyEqual(progress.Total, 4);
+
+        end
+
         function suggestionSuppressesConfidenceInterval(testCase)
 
             config = openmebius.domain.batch.BatchConfig.defaultConfig();

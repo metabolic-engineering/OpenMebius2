@@ -10,9 +10,9 @@ classdef OpenMebius2TestMock < OpenMebius2
 
         Test_File string = fullfile(string(tempdir), "dummy.txt")
         Test_Files string = [
-                             fullfile(string(tempdir), "a.txt")
-                             fullfile(string(tempdir), "b.txt")
-                             ]
+            fullfile(string(tempdir), "a.txt")
+            fullfile(string(tempdir), "b.txt")
+            ]
         Test_GetFileOK (1, 1) logical = true
 
         Test_ConfirmAnswer (1, 1) string = "Yes"

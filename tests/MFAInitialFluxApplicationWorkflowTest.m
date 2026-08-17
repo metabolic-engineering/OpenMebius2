@@ -46,10 +46,10 @@ classdef MFAInitialFluxApplicationWorkflowTest < matlab.unittest.TestCase
                 fixture.InitialWorkflow.LastInput.SubstrateEMUs, {1; 2});
             testCase.verifyClass( ...
                 fixture.InitialWorkflow.LastInput.Settings, ...
-            'openmebius.mfa.InitialFluxSettings');
+                'openmebius.mfa.InitialFluxSettings');
             testCase.verifyClass( ...
                 fixture.InitialWorkflow.LastInput.EffluxProfile, ...
-            'openmebius.mfa.EffluxPerturbationProfile');
+                'openmebius.mfa.EffluxPerturbationProfile');
             testCase.verifyEmpty( ...
                 fixture.InitialWorkflow.LastInput ...
                 .ReversibleReactionIndices);
@@ -81,7 +81,7 @@ classdef MFAInitialFluxApplicationWorkflowTest < matlab.unittest.TestCase
             testCase.verifyEqual(fixture.Messages.Levels, "error");
             testCase.verifyTrue(contains( ...
                 fixture.Messages.Messages, ...
-            "vectors must match"));
+                "vectors must match"));
 
         end
 
@@ -101,7 +101,7 @@ classdef MFAInitialFluxApplicationWorkflowTest < matlab.unittest.TestCase
             testCase.verifyFalse(result.IsError);
             testCase.verifyEqual( ...
                 fixture.InitialWorkflow.LastInput.FreeConstraintIDs, ...
-            "biomass");
+                "biomass");
 
         end
 
@@ -201,7 +201,7 @@ classdef MFAInitialFluxApplicationWorkflowTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

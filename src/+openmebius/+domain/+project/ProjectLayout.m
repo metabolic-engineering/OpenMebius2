@@ -49,9 +49,9 @@ classdef ProjectLayout
             import openmebius.domain.project.ProjectLayout
 
             names = [
-                     ProjectLayout.SettingFileName
-                     ProjectLayout.LegacySettingFileName
-                     ];
+                ProjectLayout.SettingFileName
+                ProjectLayout.LegacySettingFileName
+                ];
 
         end % method settingFileNames
 
@@ -71,10 +71,10 @@ classdef ProjectLayout
             import openmebius.domain.project.ProjectLayout
 
             names = [
-                     ProjectLayout.ModelDirectoryName
-                     ProjectLayout.ExperimentDirectoryName
-                     ProjectLayout.ResultDirectoryName
-                     ];
+                ProjectLayout.ModelDirectoryName
+                ProjectLayout.ExperimentDirectoryName
+                ProjectLayout.ResultDirectoryName
+                ];
 
         end % method dataDirectoryNames
 

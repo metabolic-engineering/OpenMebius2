@@ -10,7 +10,7 @@ classdef RoutingPolicy < handle
         CliConsoleMinimumLevel (1, 1) string = "info"
         UiLogMinimumLevel (1, 1) string = "info"
         SlackCodes (:, 1) string = [ ...
-                                        "batch.completed"; "batch.failed"; "batch.canceled"]
+            "batch.completed"; "batch.failed"; "batch.canceled"]
     end
 
     methods
@@ -26,7 +26,7 @@ classdef RoutingPolicy < handle
                 options.CliConsoleMinimumLevel (1, 1) string = "info"
                 options.UiLogMinimumLevel (1, 1) string = "info"
                 options.SlackCodes (:, 1) string = [ ...
-                                                        "batch.completed"; "batch.failed"; "batch.canceled"]
+                    "batch.completed"; "batch.failed"; "batch.canceled"]
             end
 
             mode = lower(strtrim(options.Mode));

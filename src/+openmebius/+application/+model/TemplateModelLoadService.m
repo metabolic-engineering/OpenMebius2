@@ -30,9 +30,9 @@ classdef TemplateModelLoadService < handle
             model = obj.ModelRepository.load(modelLocation);
 
             messages = [
-                        "Model folder found in " + modelLocation.Directory
-                        "Model loaded successfully."
-                        ];
+                "Model folder found in " + modelLocation.Directory
+                "Model loaded successfully."
+                ];
 
             result = openmebius.application.model.TemplateModelLoadResult( ...
                 Model = model, ...
@@ -52,7 +52,7 @@ classdef TemplateModelLoadService < handle
             if modelDirectory == ""
                 error( ...
                     "OpenMebius2:TemplateModel:EmptyDirectory", ...
-                "Template model directory is empty.");
+                    "Template model directory is empty.");
             end
 
             if ~isfolder(modelDirectory)

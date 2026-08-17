@@ -48,6 +48,21 @@ classdef EffluxPenaltyTest < matlab.unittest.TestCase
 
         end
 
+        function evaluatesReversibleExchangeAsNetFlux(testCase)
+
+            profile = openmebius.mfa.EffluxPerturbationProfile( ...
+                ReactionIndices = 1, ...
+                CounterReactionIndices = 2, ...
+                ExperimentalValues = 5, ...
+                StandardDeviations = 0.5);
+            penalty = openmebius.mfa.EffluxPenalty( ...
+                Profile = profile);
+
+            testCase.verifyEqual(penalty.evaluate([7; 2]), 0);
+            testCase.verifyEqual(penalty.evaluate([7; 1]), 4);
+
+        end
+
         function rejectsNonpositiveStandardDeviation(testCase)
 
             testCase.verifyError( ...
@@ -55,7 +70,7 @@ classdef EffluxPenaltyTest < matlab.unittest.TestCase
                 ReactionIndices = 1, ...
                 ExperimentalValues = 1, ...
                 StandardDeviations = 0), ...
-            "OpenMebius2:EffluxPenalty:InvalidStandardDeviation");
+                "OpenMebius2:EffluxPenalty:InvalidStandardDeviation");
 
         end
 
@@ -67,7 +82,7 @@ classdef EffluxPenaltyTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

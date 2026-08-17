@@ -27,7 +27,7 @@ classdef BatchRunPresenterTest < matlab.unittest.TestCase
             testCase.verifyThat( ...
                 canceling.Notification.Message, ...
                 matlab.unittest.constraints.ContainsSubstring( ...
-            "Canceling batch jobs"));
+                "Canceling batch jobs"));
 
         end
 
@@ -48,7 +48,7 @@ classdef BatchRunPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(finished.ElapsedTime, elapsedTime);
             testCase.verifyEqual( ...
                 finished.Notification.Message, ...
-            "All batch jobs are completed.");
+                "All batch jobs are completed.");
             testCase.verifyEqual(canceled.SectionStatus, "finished");
             testCase.verifyEqual(canceled.CompletionStatus, "canceled");
 
@@ -111,6 +111,29 @@ classdef BatchRunPresenterTest < matlab.unittest.TestCase
             testCase.verifyEqual(viewModel.Status, "canceled");
             testCase.verifyEqual(viewModel.StyleRules.StyleKey, "warning");
             testCase.verifyEqual(viewModel.Notification.Level, "warning");
+
+        end
+
+        function presentsRunningAnalysisProgressWithoutNotification(testCase)
+
+            presenter = openmebius.presentation.batch.BatchPresenter();
+            progress = struct( ...
+                id = "bat_1", ...
+                status = "running", ...
+                rate = 0.25, ...
+                message = "Monte Carlo: 1/4");
+            currentTable = table( ...
+                "bat_1", ...
+                "Batch 1", ...
+                'VariableNames', ["ID", "Name"]);
+
+            viewModel = presenter.presentProgress( ...
+                progress, currentTable);
+
+            testCase.verifyEqual(viewModel.Rate, 0.25);
+            testCase.verifyEqual(viewModel.Message, "Monte Carlo: 1/4");
+            testCase.verifyEqual(viewModel.StyleRules.StyleKey, "info");
+            testCase.verifyEmpty(viewModel.Notification);
 
         end
 

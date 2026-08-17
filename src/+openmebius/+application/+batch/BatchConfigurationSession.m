@@ -26,13 +26,13 @@ classdef BatchConfigurationSession < handle
             if isempty(batchIds) || any(strlength(batchIds) == 0)
                 error( ...
                     "OpenMebius2:BatchConfigurationSession:InvalidBatchIds", ...
-                "At least one nonempty batch ID is required.");
+                    "At least one nonempty batch ID is required.");
             end
 
             if numel(unique(batchIds, "stable")) ~= numel(batchIds)
                 error( ...
                     "OpenMebius2:BatchConfigurationSession:DuplicateBatchIds", ...
-                "Batch configuration selection contains duplicate IDs.");
+                    "Batch configuration selection contains duplicate IDs.");
             end
 
             obj.BatchSource = batchSource;
@@ -158,7 +158,7 @@ classdef BatchConfigurationSession < handle
             if obj.isReadOnly()
                 error( ...
                     "OpenMebius2:BatchConfigurationSession:ReadOnly", ...
-                "Finished or failed batch configuration is read-only.");
+                    "Finished or failed batch configuration is read-only.");
             end
 
             originalConfigs = obj.configs();

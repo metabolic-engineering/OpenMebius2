@@ -71,7 +71,7 @@ classdef ShimadzuAsciiParser
             if ~all(ismember(required, string(data.Properties.VariableNames)))
                 error( ...
                     "OpenMebius2:ShimadzuAsciiParser:InvalidColumns", ...
-                "Shimadzu data must contain Name, Area, and Height columns.");
+                    "Shimadzu data must contain Name, Area, and Height columns.");
             end
 
             numericValues = data{:, ["Area", "Height"]};

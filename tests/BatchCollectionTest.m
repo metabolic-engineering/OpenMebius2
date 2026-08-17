@@ -51,7 +51,7 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
                 {["exp-a"; "exp-b"]}, ...
                 "description", ...
                 config, ...
-            "sha256:result");
+                "sha256:result");
             duplicateAdded = collection.addRecovered( ...
                 "bat_recovered", "Duplicate", {"exp-c"}, "", config);
 
@@ -204,10 +204,10 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
                 collection.statusesFor("missing"), "unknown");
             testCase.verifyError( ...
                 @() collection.configFor("missing"), ...
-            "OpenMebius2:BatchCollection:BatchNotFound");
+                "OpenMebius2:BatchCollection:BatchNotFound");
             testCase.verifyError( ...
                 @() collection.experimentsFor("missing"), ...
-            "OpenMebius2:BatchCollection:BatchNotFound");
+                "OpenMebius2:BatchCollection:BatchNotFound");
 
         end
 
@@ -215,7 +215,7 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchCollection(table), ...
-            "OpenMebius2:BatchCollection:InvalidSchema");
+                "OpenMebius2:BatchCollection:InvalidSchema");
 
         end
 
@@ -244,7 +244,7 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

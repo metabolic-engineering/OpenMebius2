@@ -47,7 +47,7 @@ classdef ExperimentRepository < handle
             if isempty(experiments) || ~isvalid(experiments)
                 error( ...
                     "OpenMebius2:ExperimentRepository:InvalidExperimentObject", ...
-                "Failed to create ExperimentSet.");
+                    "Failed to create ExperimentSet.");
             end
 
         end % load
@@ -75,7 +75,7 @@ classdef ExperimentRepository < handle
                 error( ...
                     "OpenMebius2:ExperimentRepository:" + ...
                     "InvalidExperimentObject", ...
-                "Failed to initialize ExperimentSet.");
+                    "Failed to initialize ExperimentSet.");
             end
 
         end % initialize

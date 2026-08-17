@@ -2,14 +2,30 @@ classdef MonteCarloConfidenceIntervalSolver
     % MONTECARLOCONFIDENCEINTERVALSOLVER
     % Runs perturbed-MDV optimizations and calculates cumulative bounds.
 
+    properties (SetAccess = private)
+        ParallelPoolManager
+    end
+
     methods
 
+        function obj = MonteCarloConfidenceIntervalSolver(options)
+
+            arguments
+                options.ParallelPoolManager = openmebius.mfa ...
+                    .GridSearchParallelPoolManager()
+            end
+
+            obj.ParallelPoolManager = options.ParallelPoolManager;
+
+        end % constructor
+
         function result = solve( ...
-                ~, experimentalMDV, fluxCount, settings, ...
+                obj, experimentalMDV, fluxCount, settings, ...
                 iterationFunction, reversibleReactionIndices, options)
 
             arguments
-                ~
+                obj (1, 1) openmebius.mfa ...
+                    .MonteCarloConfidenceIntervalSolver
                 experimentalMDV (:, :) double
                 fluxCount (1, 1) double
                 settings (1, 1) openmebius.mfa ...
@@ -18,6 +34,8 @@ classdef MonteCarloConfidenceIntervalSolver
                 reversibleReactionIndices (:, 2) double = zeros(0, 2)
                 options.UseParallel (1, 1) logical = true
                 options.MessageReporter (1, 1) function_handle = ...
+                    @(~, ~) []
+                options.ProgressReporter (1, 1) function_handle = ...
                     @(~, ~) []
                 options.CancellationRequested (1, 1) function_handle = ...
                     @() false
@@ -35,7 +53,43 @@ classdef MonteCarloConfidenceIntervalSolver
                 iterationCount);
             sampledFluxes = nan(fluxCount, iterationCount);
             messageReporter = options.MessageReporter;
+            progressReporter = options.ProgressReporter;
             cancellationRequested = options.CancellationRequested;
+            completedCount = 0;
+            [physicalCoreCount, logicalProcessorCount] = ...
+                obj.ParallelPoolManager.processorCounts();
+            workerCount = 1;
+
+            if options.UseParallel
+                requestedWorkerCount = obj.ParallelPoolManager ...
+                    .requestedWorkerCount( ...
+                    logicalProcessorCount, ...
+                    settings.WorkerCount, ...
+                    iterationCount);
+                workerCount = obj.ParallelPoolManager ...
+                    .ensureProcessPool(requestedWorkerCount);
+
+                if workerCount ~= requestedWorkerCount
+                    error( ...
+                        "OpenMebius2:MonteCarloCI:" + ...
+                        "ParallelWorkerCountMismatch", ...
+                        "The process pool started with %d workers " + ...
+                        "instead of the requested %d.", ...
+                        workerCount, requestedWorkerCount);
+                end
+            end
+
+            messageReporter( ...
+                "info", ...
+                "Monte Carlo resources: physicalCores=" + ...
+                string(physicalCoreCount) + ...
+                ", logicalProcessors=" + ...
+                string(logicalProcessorCount) + ...
+                ", configuredWorkers=" + ...
+                string(settings.WorkerCount) + ...
+                ", workers=" + string(workerCount) + ...
+                ", iterations=" + string(iterationCount) + ".");
+            progressReporter(0, iterationCount);
 
             if options.UseParallel
                 % Callbacks supplied by the desktop application can close
@@ -43,6 +97,8 @@ classdef MonteCarloConfidenceIntervalSolver
                 % to a parallel worker; client-side lifecycle messages are
                 % still reported before and after this sampling phase.
                 workerMessageReporter = @(~, ~) [];
+                progressQueue = parallel.pool.DataQueue;
+                afterEach(progressQueue, @reportIterationCompleted);
 
                 parfor i = 1:iterationCount
                     [perturbedMDVs(:, :, i), sampledFluxes(:, i)] = ...
@@ -54,6 +110,7 @@ classdef MonteCarloConfidenceIntervalSolver
                         fluxCount, ...
                         i, ...
                         workerMessageReporter);
+                    send(progressQueue, 1);
                 end
 
             else
@@ -68,6 +125,7 @@ classdef MonteCarloConfidenceIntervalSolver
                         fluxCount, ...
                         i, ...
                         messageReporter);
+                    reportIterationCompleted([]);
                 end
 
             end
@@ -95,6 +153,13 @@ classdef MonteCarloConfidenceIntervalSolver
                 IterationCount = iterationCount, ...
                 ElapsedTime = toc(tStart), ...
                 IsCanceled = isCanceled);
+
+            function reportIterationCompleted(~)
+
+                completedCount = completedCount + 1;
+                progressReporter(completedCount, iterationCount);
+
+            end
 
         end % solve
 
@@ -199,7 +264,7 @@ classdef MonteCarloConfidenceIntervalSolver
                     fluxCount < 1 || fix(fluxCount) ~= fluxCount
                 error( ...
                     "OpenMebius2:MonteCarloCI:InvalidFluxCount", ...
-                "The sampled flux count must be a positive integer.");
+                    "The sampled flux count must be a positive integer.");
             end
 
             if ~isscalar(confidenceLevel) || ...
@@ -208,7 +273,7 @@ classdef MonteCarloConfidenceIntervalSolver
                 error( ...
                     "OpenMebius2:MonteCarloCI:" + ...
                     "InvalidConfidenceLevel", ...
-                "The confidence level must be between zero and one.");
+                    "The confidence level must be between zero and one.");
             end
 
             if ~settings.CalculationMethod.isDiscarding()
@@ -216,7 +281,7 @@ classdef MonteCarloConfidenceIntervalSolver
                     "OpenMebius2:MonteCarloCI:" + ...
                     "MethodNotImplemented", ...
                     "Mean-varianced confidence intervals are " + ...
-                "not implemented yet.");
+                    "not implemented yet.");
             end
 
         end % validateInputs
@@ -224,12 +289,12 @@ classdef MonteCarloConfidenceIntervalSolver
         function flux = extractFlux(iterationResult, fluxCount)
 
             if ~isa(iterationResult, ...
-                'openmebius.mfa.MFAIterationResult')
+                    'openmebius.mfa.MFAIterationResult')
                 error( ...
                     "OpenMebius2:MonteCarloCI:" + ...
                     "InvalidIterationResult", ...
                     "The iteration function must return an " + ...
-                "MFAIterationResult.");
+                    "MFAIterationResult.");
             end
 
             flux = iterationResult.Flux(:);
@@ -238,7 +303,7 @@ classdef MonteCarloConfidenceIntervalSolver
                 error( ...
                     "OpenMebius2:MonteCarloCI:FluxSizeMismatch", ...
                     "Each Monte Carlo iteration must return the " + ...
-                "configured number of fluxes.");
+                    "configured number of fluxes.");
             end
 
         end % extractFlux
@@ -259,7 +324,7 @@ classdef MonteCarloConfidenceIntervalSolver
             if ~calculationMethod.isDiscarding()
                 error( ...
                     "OpenMebius2:MonteCarloCI:UnknownMethod", ...
-                "Unknown confidence-interval calculation method.");
+                    "Unknown confidence-interval calculation method.");
             end
 
             fluxes = rmmissing(fluxes, 2);

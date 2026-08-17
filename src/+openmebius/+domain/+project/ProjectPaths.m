@@ -67,9 +67,9 @@ classdef ProjectPaths < openmebius.domain.project.ProjectLayout
         function filePaths = settingFileCandidates(obj)
 
             filePaths = [
-                         obj.SettingFile
-                         obj.LegacySettingFile
-                         ];
+                obj.SettingFile
+                obj.LegacySettingFile
+                ];
 
         end % method settingFileCandidates
 

@@ -6,7 +6,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             sourcePath = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
             addpath(sourcePath);
 
         end % addSourcePath
@@ -44,6 +44,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
                 config.CIConf.grid.intervalMode, 'automatic');
             testCase.verifyEqual( ...
                 config.CIConf.grid.executionMode, 'parallel');
+            testCase.verifyEqual(config.CIConf.grid.workerCount, 58);
             testCase.verifyEqual( ...
                 config.CIConf.grid.maximumTrial, 10);
             testCase.verifyEqual( ...
@@ -78,7 +79,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidPositiveInteger');
+                'OpenMebius2:BatchConfig:InvalidPositiveInteger');
 
         end % validateRejectsInvalidIteration
 
@@ -89,7 +90,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidLogical');
+                'OpenMebius2:BatchConfig:InvalidLogical');
 
         end
 
@@ -100,7 +101,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidPositiveNumber');
+                'OpenMebius2:BatchConfig:InvalidPositiveNumber');
 
         end
 
@@ -111,7 +112,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidMember');
+                'OpenMebius2:BatchConfig:InvalidMember');
 
         end % validateRejectsUnknownAlgorithm
 
@@ -122,7 +123,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidMember');
+                'OpenMebius2:BatchConfig:InvalidMember');
 
         end % validateRejectsInvalidStatus
 
@@ -134,7 +135,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidFluxBounds');
+                'OpenMebius2:BatchConfig:InvalidFluxBounds');
 
         end % validateRejectsInvalidFluxBounds
 
@@ -145,7 +146,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidPositiveInteger');
+                'OpenMebius2:BatchConfig:InvalidPositiveInteger');
 
         end % validateRejectsInvalidNestedCIConfig
 
@@ -156,7 +157,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidMember');
+                'OpenMebius2:BatchConfig:InvalidMember');
 
         end % validateRejectsUnknownGridIntervalMode
 
@@ -167,9 +168,20 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidMember');
+                'OpenMebius2:BatchConfig:InvalidMember');
 
         end % validateRejectsUnknownGridExecutionMode
+
+        function validateRejectsInvalidGridWorkerCount(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.grid.workerCount = 0;
+
+            testCase.verifyError( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config), ...
+                'OpenMebius2:BatchConfig:InvalidPositiveInteger');
+
+        end % validateRejectsInvalidGridWorkerCount
 
         function validateRejectsInvalidGridMaximumTrial(testCase)
 
@@ -178,7 +190,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidPositiveInteger');
+                'OpenMebius2:BatchConfig:InvalidPositiveInteger');
 
         end % validateRejectsInvalidGridMaximumTrial
 
@@ -189,7 +201,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidNonnegativeNumber');
+                'OpenMebius2:BatchConfig:InvalidNonnegativeNumber');
 
         end % validateRejectsNegativeMinimumFluxRange
 
@@ -201,7 +213,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
                 'OpenMebius2:BatchConfig:' + ...
-            "AutomaticGridPointCountMustBeEven");
+                "AutomaticGridPointCountMustBeEven");
 
         end % validateRejectsOddAutomaticGridPointCount
 
@@ -214,7 +226,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:GridReactionSizeMismatch');
+                'OpenMebius2:BatchConfig:GridReactionSizeMismatch');
 
         end % validateRejectsMismatchedGridReactionValues
 
@@ -225,7 +237,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidLogical');
+                'OpenMebius2:BatchConfig:InvalidLogical');
 
         end % validateRejectsInvalidLogical
 
@@ -250,7 +262,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
-            'OpenMebius2:BatchConfig:InvalidFiniteNumber');
+                'OpenMebius2:BatchConfig:InvalidFiniteNumber');
 
         end % validateRejectsInfiniteEffluxStandardDeviation
 
@@ -278,7 +290,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
             testCase.verifyError( ...
                 @() openmebius.infrastructure.batch.BatchJsonMapper.toTable( ...
                 batchData), ...
-            'OpenMebius2:BatchConfig:InvalidPositiveInteger');
+                'OpenMebius2:BatchConfig:InvalidPositiveInteger');
 
         end % mapperRejectsInvalidBatchConfig
 

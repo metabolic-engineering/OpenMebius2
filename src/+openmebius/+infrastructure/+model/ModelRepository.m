@@ -93,7 +93,7 @@ classdef ModelRepository < handle
             if isempty(model) || ~isvalid(model)
                 error( ...
                     "OpenMebius2:ModelRepository:InvalidModelObject", ...
-                "Failed to create the metabolic model.");
+                    "Failed to create the metabolic model.");
             end
 
         end % load
@@ -187,7 +187,7 @@ classdef ModelRepository < handle
                     numel(sheetNames) ~= numel(writeRowNames)
                 error( ...
                     "OpenMebius2:ModelRepository:InvalidModelSheets", ...
-                "Model sheet names, tables, and row-name flags must align.");
+                    "Model sheet names, tables, and row-name flags must align.");
             end
 
             pathFile = modelLocation.modelFile(fileName, fileType);
@@ -320,7 +320,7 @@ classdef ModelRepository < handle
             catch
                 error( ...
                     "OpenMebius2:ModelRepository:PathwayReadFailed", ...
-                "The pathway image could not be loaded.");
+                    "The pathway image could not be loaded.");
             end
 
         end % readPathwayImage

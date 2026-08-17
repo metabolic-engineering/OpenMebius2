@@ -43,7 +43,7 @@ classdef PreferencesIntegrationTest < matlab.unittest.TestCase
 
             testCase.verifyTrue(any(strcmp( ...
                 app.MDVcorrectionDropDown.ItemsData, ...
-            "least-squares-with-fraction")));
+                "least-squares-with-fraction")));
             app.MDVcorrectionDropDown.Value = ...
                 "least-squares-with-fraction";
             closeCallback = app.CloseButton.ButtonPushedFcn;
@@ -57,7 +57,7 @@ classdef PreferencesIntegrationTest < matlab.unittest.TestCase
                 unlockedViewModel.UiState.MainInteractionEnabled);
             testCase.verifyEqual( ...
                 preference.getMethod(), ...
-            "least-squares-with-fraction");
+                "least-squares-with-fraction");
 
             function recordNotification(~, ~)
 
@@ -85,13 +85,13 @@ end % classdef
 
 function deleteIfValid(app)
 
-    try
+try
 
-        if isvalid(app)
-            delete(app);
-        end
-
-    catch
+    if isvalid(app)
+        delete(app);
     end
+
+catch
+end
 
 end

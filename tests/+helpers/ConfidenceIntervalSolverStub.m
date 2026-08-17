@@ -12,6 +12,19 @@ classdef ConfidenceIntervalSolverStub < handle
 
             obj.CallCount = obj.CallCount + 1;
             iterationFunction(experimentalMDV);
+
+            for index = 1:numel(varargin) - 1
+                name = varargin{index};
+
+                if (ischar(name) || isstring(name)) && ...
+                        isscalar(string(name)) && ...
+                        string(name) == "ProgressReporter"
+                    varargin{index + 1}(1, 1);
+                    break
+                end
+
+            end
+
             result = ...
                 openmebius.mfa.MonteCarloConfidenceIntervalResult( ...
                 LowerBounds = zeros(fluxCount, 1), ...

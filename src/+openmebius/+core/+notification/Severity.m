@@ -6,8 +6,8 @@ classdef Severity
         function levels = levels()
 
             levels = [ ...
-                          "debug", "info", "success", "notice", ...
-                          "warning", "error", "fatal"];
+                "debug", "info", "success", "notice", ...
+                "warning", "error", "fatal"];
 
         end % levels
 

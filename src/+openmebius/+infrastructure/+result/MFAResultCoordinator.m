@@ -339,7 +339,7 @@ classdef MFAResultCoordinator
             elseif ~isstruct(result) || ~isscalar(result)
                 error( ...
                     "OpenMebius2:MFAResultCoordinator:InvalidResult", ...
-                "The MFA result state must be a scalar struct.");
+                    "The MFA result state must be a scalar struct.");
             end
 
         end % normalizeResult

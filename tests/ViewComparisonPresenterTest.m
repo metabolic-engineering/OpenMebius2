@@ -54,6 +54,7 @@ classdef ViewComparisonPresenterTest < matlab.unittest.TestCase
                 ["batch-b"; "batch-a"]);
 
             testCase.verifyTrue(catalogViewModel.IsAvailable);
+            testCase.verifyEqual(catalogViewModel.BatchNames, ["A"; "B"]);
             testCase.verifyEqual(catalogViewModel.Contents, ...
                 ["FVA"; "CI"]);
             testCase.verifyTrue(plotViewModel.IsAvailable);

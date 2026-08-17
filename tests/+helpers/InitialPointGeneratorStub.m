@@ -10,6 +10,7 @@ classdef InitialPointGeneratorStub < handle
         RetryFluxes (:, :) double = zeros(0, 0)
         RetryRightHandSides (:, :) double = zeros(0, 0)
         GenerationCount (1, 1) double = 0
+        DelaySeconds (1, 1) double = 0
     end
 
     methods
@@ -25,6 +26,7 @@ classdef InitialPointGeneratorStub < handle
                 options.ErrorMessage (1, 1) string = ""
                 options.RetryFluxes double = zeros(0, 0)
                 options.RetryRightHandSides double = zeros(0, 0)
+                options.DelaySeconds (1, 1) double = 0
             end
 
             obj.Fluxes = fluxes;
@@ -34,6 +36,7 @@ classdef InitialPointGeneratorStub < handle
             obj.ErrorMessage = options.ErrorMessage;
             obj.RetryFluxes = options.RetryFluxes;
             obj.RetryRightHandSides = options.RetryRightHandSides;
+            obj.DelaySeconds = options.DelaySeconds;
 
         end
 
@@ -41,6 +44,7 @@ classdef InitialPointGeneratorStub < handle
 
             obj.LastProblem = problem;
             obj.GenerationCount = obj.GenerationCount + 1;
+            pause(obj.DelaySeconds);
             result = obj.result();
 
         end
@@ -50,6 +54,7 @@ classdef InitialPointGeneratorStub < handle
 
             obj.LastProblem = problem;
             obj.GenerationCount = obj.GenerationCount + 1;
+            pause(obj.DelaySeconds);
             result = obj.result();
 
         end

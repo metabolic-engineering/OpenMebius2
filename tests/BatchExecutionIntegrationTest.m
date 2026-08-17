@@ -42,7 +42,7 @@ classdef BatchExecutionIntegrationTest < matlab.unittest.TestCase
                 openmebius.infrastructure.batch.BatchJsonRepository();
             [storedTable, isError, message] = repository.load( ...
                 experiments.getExperimentLocation(), ...
-            "batch.json");
+                "batch.json");
             testCase.assertFalse(isError, string(message));
             storedTable.contentHash = "sha256:stored-before-upgrade";
             repository.save( ...
@@ -60,7 +60,7 @@ classdef BatchExecutionIntegrationTest < matlab.unittest.TestCase
                 string(reopenedTable.config.status), "finished");
             testCase.verifyEqual( ...
                 reopenedTable.contentHash, ...
-            "sha256:stored-before-upgrade");
+                "sha256:stored-before-upgrade");
 
             result = reopenedBatch.runBatch(resultDirectory);
             tableAfterRun = reopenedBatch.getBatch();
@@ -71,7 +71,7 @@ classdef BatchExecutionIntegrationTest < matlab.unittest.TestCase
                 string(tableAfterRun.config.status), "finished");
             testCase.verifyEqual( ...
                 tableAfterRun.contentHash, ...
-            "sha256:stored-before-upgrade");
+                "sha256:stored-before-upgrade");
 
         end
 
@@ -150,7 +150,7 @@ classdef BatchExecutionIntegrationTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

@@ -102,7 +102,7 @@ classdef SteadyStateOptionsMapperTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 warnings, ...
                 "Unknown FMINCON algorithm 'not-an-algorithm'. " + ...
-            "Using sqp.");
+                "Using sqp.");
 
         end
 
@@ -114,7 +114,7 @@ classdef SteadyStateOptionsMapperTest < matlab.unittest.TestCase
 
             path = fullfile( ...
                 fileparts(fileparts(mfilename('fullpath'))), ...
-            'src');
+                'src');
 
         end
 

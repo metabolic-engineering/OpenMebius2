@@ -33,6 +33,8 @@ classdef ResultRangePlotService < handle
             lowerBounds = nan(numberOfReactions, numberOfBatches);
             upperBounds = nan(numberOfReactions, numberOfBatches);
             bestFits = nan(numberOfReactions, numberOfBatches);
+            reversedDirections = false( ...
+                numberOfReactions, numberOfBatches);
             usedFvaBounds = false;
 
             for batchIndex = 1:numberOfBatches
@@ -43,7 +45,7 @@ classdef ResultRangePlotService < handle
                 if ~all(isPresent) || numel(currentIDs) ~= numberOfReactions
                     error( ...
                         "OpenMebius2:ResultRangePlot:ReactionMismatch", ...
-                    "Selected results do not contain the same reactions.");
+                        "Selected results do not contain the same reactions.");
                 end
 
                 overview = overview(rowOrder, :);
@@ -59,9 +61,21 @@ classdef ResultRangePlotService < handle
                 upper(canUseFallback) = fvaUpper(canUseFallback);
                 usedFvaBounds = usedFvaBounds || any(canUseFallback);
 
+                crossesZeroTowardReverse = lower .* upper < 0 & ...
+                    abs(lower) > abs(upper);
+                isEntirelyReverse = lower < 0 & upper < 0;
+                shouldReverse = crossesZeroTowardReverse | ...
+                    isEntirelyReverse;
+                originalLower = lower(shouldReverse);
+                lower(shouldReverse) = -upper(shouldReverse);
+                upper(shouldReverse) = -originalLower;
+                flux = double(overview.Flux);
+                flux(shouldReverse) = -flux(shouldReverse);
+
                 lowerBounds(:, batchIndex) = lower;
                 upperBounds(:, batchIndex) = upper;
-                bestFits(:, batchIndex) = double(overview.Flux);
+                bestFits(:, batchIndex) = flux;
+                reversedDirections(:, batchIndex) = shouldReverse;
             end
 
             validRows = all( ...
@@ -71,7 +85,7 @@ classdef ResultRangePlotService < handle
                 error( ...
                     "OpenMebius2:ResultRangePlot:DataUnavailable", ...
                     "No finite confidence or FVA bounds are available " + ...
-                "for the selected results.");
+                    "for the selected results.");
             end
 
             if any( ...
@@ -80,7 +94,7 @@ classdef ResultRangePlotService < handle
                 error( ...
                     "OpenMebius2:ResultRangePlot:InvalidBounds", ...
                     "A result contains a lower bound greater than its " + ...
-                "upper bound.");
+                    "upper bound.");
             end
 
             excludedCount = sum(~validRows);
@@ -88,9 +102,11 @@ classdef ResultRangePlotService < handle
             lowerBounds = lowerBounds(validRows, :);
             upperBounds = upperBounds(validRows, :);
             bestFits = bestFits(validRows, :);
+            reversedRows = any( ...
+                reversedDirections(validRows, :), 2);
             reactionNames = openmebius.application.result ...
                 .ResultRangePlotService.reactionLabels( ...
-                overviews{1}, validRows, reactionIDs);
+                overviews{1}, validRows, reactionIDs, reversedRows);
             seriesNames = openmebius.application.result ...
                 .ResultRangePlotService.uniqueSeriesNames(batchNames);
 
@@ -148,19 +164,19 @@ classdef ResultRangePlotService < handle
             if isempty(batchIDs)
                 error( ...
                     "OpenMebius2:ResultRangePlot:SelectionRequired", ...
-                "Please select at least one result to plot ranges.");
+                    "Please select at least one result to plot ranges.");
             end
 
             if numel(batchIDs) ~= numel(batchNames)
                 error( ...
                     "OpenMebius2:ResultRangePlot:SelectionMismatch", ...
-                "Selected result IDs and names do not match.");
+                    "Selected result IDs and names do not match.");
             end
 
             if numel(unique(batchIDs)) ~= numel(batchIDs)
                 error( ...
                     "OpenMebius2:ResultRangePlot:DuplicateSelection", ...
-                "Each selected result must be unique.");
+                    "Each selected result must be unique.");
             end
 
         end % validateSelection
@@ -170,13 +186,13 @@ classdef ResultRangePlotService < handle
             if isempty(result)
                 error( ...
                     "OpenMebius2:ResultRangePlot:ResultUnavailable", ...
-                "Result data is not available.");
+                    "Result data is not available.");
             end
 
             if isa(result, "handle") && ~isvalid(result)
                 error( ...
                     "OpenMebius2:ResultRangePlot:ResultUnavailable", ...
-                "Result data is not available.");
+                    "Result data is not available.");
             end
 
         end % validateResult
@@ -184,8 +200,8 @@ classdef ResultRangePlotService < handle
         function validateOverview(overview, batchID)
 
             requiredVariables = [ ...
-                                     "Reaction", "Flux", "LB", "UB", ...
-                                     "LB (FVA)", "UB (FVA)"];
+                "Reaction", "Flux", "LB", "UB", ...
+                "LB (FVA)", "UB (FVA)"];
 
             if ~istable(overview) || isempty(overview) || ...
                     ~all(ismember( ...
@@ -204,15 +220,21 @@ classdef ResultRangePlotService < handle
                     any(strlength(reactionIDs) == 0)
                 error( ...
                     "OpenMebius2:ResultRangePlot:InvalidData", ...
-                "Flux range data contains invalid reaction IDs.");
+                    "Flux range data contains invalid reaction IDs.");
             end
 
         end % validateOverview
 
-        function labels = reactionLabels(overview, validRows, reactionIDs)
+        function labels = reactionLabels( ...
+                overview, validRows, reactionIDs, reversedRows)
 
             reactionNames = string(overview.Reaction(validRows));
             reactionNames = reactionNames(:);
+            [reversedNames, isReversible] = openmebius.domain.model ...
+                .ReactionExpression.reverseReversible(reactionNames);
+            useReversedName = reversedRows & isReversible;
+            reactionNames(useReversedName) = ...
+                reversedNames(useReversedName);
             labels = reactionIDs;
             hasName = strlength(strtrim(reactionNames)) > 0;
             labels(hasName) = reactionIDs(hasName) + ...

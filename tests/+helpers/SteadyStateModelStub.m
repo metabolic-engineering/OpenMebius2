@@ -4,6 +4,7 @@ classdef SteadyStateModelStub < handle
         ReactionNames (1, :) string = ["R1", "R2"]
         SubstrateReactionIDs (1, :) string = ["R1", "R2"]
         Metabolites (:, 1) string = ["A"; "B"]
+        ReversibleReactionIndices (:, 2) double = zeros(0, 2)
     end
 
     methods
@@ -40,6 +41,12 @@ classdef SteadyStateModelStub < handle
         function metabolites = getMetaboliteTableMetabolite(obj)
 
             metabolites = obj.Metabolites;
+
+        end
+
+        function indices = getIdxRev(obj)
+
+            indices = obj.ReversibleReactionIndices;
 
         end
 

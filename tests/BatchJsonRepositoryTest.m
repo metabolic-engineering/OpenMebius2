@@ -186,7 +186,7 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
 
             if fid < 0
                 error("BatchJsonRepositoryTest:OpenFailed", ...
-                      "Failed to open test file: %s", pathFile);
+                    "Failed to open test file: %s", pathFile);
             end
 
             cleanup = onCleanup(@() fclose(fid));
