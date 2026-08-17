@@ -394,8 +394,7 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.choose(app.TabGroup, "Result");
             testCase.verifyNotEmpty(app.ResultSubTable.Data);
 
-            app.ResultSubTable.Selection = [1, 1];
-            app.testResultSubTableCellSelection();
+            testCase.choose(app.ResultSubTable, [1, 1]);
             testCase.verifyNotEmpty(app.ResultMainTable.Data);
             testCase.verifyNotEmpty(app.SubUIAxes.Children);
             testCase.verifyEqual( ...
@@ -475,6 +474,15 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
                 string(app.SubUIAxes.XTickMode), "auto");
             testCase.verifyEqual( ...
                 string(app.SubUIAxes.YTickMode), "auto");
+
+            testCase.choose(app.ResultSubTable, [2, 1]);
+            testCase.verifyEmpty(app.ResultMainTable.Selection);
+            testCase.verifyNotEmpty(findobj( ...
+                app.SubUIAxes, 'Type', 'histogram'));
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.XLabel.String), "RSS");
+            testCase.verifyEqual( ...
+                string(app.SubUIAxes.YLabel.String), "Frequency");
 
             unavailableRow = find( ...
                 string(app.ResultMainTable.RowName) == "r1", 1);

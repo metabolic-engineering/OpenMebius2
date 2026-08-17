@@ -4,6 +4,7 @@ classdef ViewComparisonCatalogViewModel
     properties (SetAccess = private)
         IsAvailable (1, 1) logical
         BatchIDs (:, 1) string
+        BatchNames (:, 1) string
         ExperimentNames (:, 1) string
         Contents (:, 1) string
         Notifications (:, 1) cell
@@ -16,6 +17,7 @@ classdef ViewComparisonCatalogViewModel
             arguments
                 options.IsAvailable (1, 1) logical = false
                 options.BatchIDs (:, 1) string = strings(0, 1)
+                options.BatchNames (:, 1) string = strings(0, 1)
                 options.ExperimentNames (:, 1) string = strings(0, 1)
                 options.Contents (:, 1) string = strings(0, 1)
                 options.Notifications (:, 1) cell = cell(0, 1)
@@ -23,6 +25,7 @@ classdef ViewComparisonCatalogViewModel
 
             obj.IsAvailable = options.IsAvailable;
             obj.BatchIDs = options.BatchIDs;
+            obj.BatchNames = options.BatchNames;
             obj.ExperimentNames = options.ExperimentNames;
             obj.Contents = options.Contents;
             obj.Notifications = options.Notifications;

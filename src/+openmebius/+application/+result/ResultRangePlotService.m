@@ -33,6 +33,8 @@ classdef ResultRangePlotService < handle
             lowerBounds = nan(numberOfReactions, numberOfBatches);
             upperBounds = nan(numberOfReactions, numberOfBatches);
             bestFits = nan(numberOfReactions, numberOfBatches);
+            reversedDirections = false( ...
+                numberOfReactions, numberOfBatches);
             usedFvaBounds = false;
 
             for batchIndex = 1:numberOfBatches
@@ -59,9 +61,21 @@ classdef ResultRangePlotService < handle
                 upper(canUseFallback) = fvaUpper(canUseFallback);
                 usedFvaBounds = usedFvaBounds || any(canUseFallback);
 
+                crossesZeroTowardReverse = lower .* upper < 0 & ...
+                    abs(lower) > abs(upper);
+                isEntirelyReverse = lower < 0 & upper < 0;
+                shouldReverse = crossesZeroTowardReverse | ...
+                    isEntirelyReverse;
+                originalLower = lower(shouldReverse);
+                lower(shouldReverse) = -upper(shouldReverse);
+                upper(shouldReverse) = -originalLower;
+                flux = double(overview.Flux);
+                flux(shouldReverse) = -flux(shouldReverse);
+
                 lowerBounds(:, batchIndex) = lower;
                 upperBounds(:, batchIndex) = upper;
-                bestFits(:, batchIndex) = double(overview.Flux);
+                bestFits(:, batchIndex) = flux;
+                reversedDirections(:, batchIndex) = shouldReverse;
             end
 
             validRows = all( ...
@@ -88,9 +102,11 @@ classdef ResultRangePlotService < handle
             lowerBounds = lowerBounds(validRows, :);
             upperBounds = upperBounds(validRows, :);
             bestFits = bestFits(validRows, :);
+            reversedRows = any( ...
+                reversedDirections(validRows, :), 2);
             reactionNames = openmebius.application.result ...
                 .ResultRangePlotService.reactionLabels( ...
-                overviews{1}, validRows, reactionIDs);
+                overviews{1}, validRows, reactionIDs, reversedRows);
             seriesNames = openmebius.application.result ...
                 .ResultRangePlotService.uniqueSeriesNames(batchNames);
 
@@ -209,10 +225,16 @@ classdef ResultRangePlotService < handle
 
         end % validateOverview
 
-        function labels = reactionLabels(overview, validRows, reactionIDs)
+        function labels = reactionLabels( ...
+                overview, validRows, reactionIDs, reversedRows)
 
             reactionNames = string(overview.Reaction(validRows));
             reactionNames = reactionNames(:);
+            [reversedNames, isReversible] = openmebius.domain.model ...
+                .ReactionExpression.reverseReversible(reactionNames);
+            useReversedName = reversedRows & isReversible;
+            reactionNames(useReversedName) = ...
+                reversedNames(useReversedName);
             labels = reactionIDs;
             hasName = strlength(strtrim(reactionNames)) > 0;
             labels(hasName) = reactionIDs(hasName) + ...

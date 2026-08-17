@@ -222,6 +222,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         PreferencesApp
 
         MainInteractionSnapshot cell = {}
+        IsUpdatingResultSelection (1, 1) logical = false
 
     end % properties (Access=private)
 
@@ -4331,6 +4332,28 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method updateResultPlot
 
+        function updateResultPlotFromSubTable(app)
+
+            if app.IsUpdatingResultSelection
+                return
+            end
+
+            app.IsUpdatingResultSelection = true;
+            cleanup = onCleanup( ...
+                @() app.finishResultSelectionUpdate());
+            app.ResultMainTable.Selection = [];
+            loadMainResultTable(app);
+            drawnow limitrate;
+            updateResultPlot(app, "SubTable");
+
+        end % method updateResultPlotFromSubTable
+
+        function finishResultSelectionUpdate(app)
+
+            app.IsUpdatingResultSelection = false;
+
+        end % method finishResultSelectionUpdate
+
         %% Private clipboard function
         function clipboardText = copyTableToClipboard(~, tableObject)
             % COPYTABLETOCLIPBOARD Copy the specified table content to clipboard
@@ -5296,11 +5319,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 return
             end
 
+            [selectedBatchIDs, ~] = app.selectedResultIdentities();
             app.closeViewComparisonApp();
             context = openmebius.presentation.result ...
                 .ViewComparisonContext( ...
                 Presenter = presenter, ...
-                InitialCatalog = catalogViewModel);
+                InitialCatalog = catalogViewModel, ...
+                InitialBatchIDs = selectedBatchIDs);
             app.ViewComparisonApp = ViewComparison(context);
             app.attachViewComparisonListeners(app.ViewComparisonApp);
 
@@ -5888,8 +5913,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Cell selection callback: ResultSubTable
         function ResultSubTableCellSelection(app, event)
 
-            loadMainResultTable(app);
-            updateResultPlot(app, "SubTable");
+            app.updateResultPlotFromSubTable();
         end
 
         % Cell edit callback: ResultSubTable
@@ -5899,6 +5923,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         % Cell selection callback: ResultMainTable
         function ResultMainTableCellSelection(app, event)
+
+            if app.IsUpdatingResultSelection
+                return
+            end
 
             updateResultPlot(app, "MainTable");
         end

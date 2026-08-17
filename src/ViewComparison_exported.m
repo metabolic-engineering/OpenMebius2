@@ -20,6 +20,8 @@ classdef ViewComparison_exported < matlab.apps.AppBase
         Action openmebius.presentation.result.ViewComparisonAction
         PlotViewModel
         StyleTable table = table()
+        CatalogBatchIDs (:, 1) string = strings(0, 1)
+        InitialBatchIDs (:, 1) string = strings(0, 1)
         IsInitializing (1, 1) logical = false
         UIFontDropDown matlab.ui.control.DropDown
         UIFontSizeEditField matlab.ui.control.NumericEditField
@@ -63,9 +65,10 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             app.FluxUITable.ColumnEditable = [false false];
             app.FluxUITable.ColumnWidth = {'fit', '1x'};
             app.FluxUITable.RowName = {};
-            app.ColorUITable.ColumnName = {'Batch ID', 'Hex', 'Pattern'};
-            app.ColorUITable.ColumnEditable = [false true true];
-            app.ColorUITable.ColumnWidth = {'1x', 'fit', 'fit'};
+            app.ColorUITable.ColumnName = ...
+                {'Batch ID', 'Name', 'Hex', 'Pattern'};
+            app.ColorUITable.ColumnEditable = [false true true true];
+            app.ColorUITable.ColumnWidth = {'1x', '1x', 'fit', 'fit'};
             app.ColorUITable.RowName = {};
             app.ColorUITable.Tooltip = [ ...
                 'Patterns: solid, outline, diagonal, ' ...
@@ -162,8 +165,11 @@ classdef ViewComparison_exported < matlab.apps.AppBase
         function applyCatalog(app, viewModel)
 
             app.requestNotifications(viewModel.Notifications);
+            app.CatalogBatchIDs = viewModel.BatchIDs;
+            displayBatchIDs = openmebius.presentation ...
+                .IdentifierFormatter.short(viewModel.BatchIDs);
             batchData = table( ...
-                viewModel.BatchIDs, ...
+                displayBatchIDs, ...
                 viewModel.ExperimentNames, ...
                 viewModel.Contents, ...
                 'VariableNames', {'ID', 'Experiment', 'Contents'});
@@ -185,11 +191,16 @@ classdef ViewComparison_exported < matlab.apps.AppBase
 
             app.StyleTable = table( ...
                 viewModel.BatchIDs, ...
+                viewModel.BatchNames, ...
                 colors, ...
                 repmat("solid", count, 1), ...
-                'VariableNames', {'BatchID', 'Hex', 'Pattern'});
+                'VariableNames', {'BatchID', 'Name', 'Hex', 'Pattern'});
+            [isSelected, selection] = ismember( ...
+                app.InitialBatchIDs, app.CatalogBatchIDs);
+            selection = unique(selection(isSelected), "stable");
+
             app.IsInitializing = true;
-            app.BatchUITable.Selection = 1:count;
+            app.BatchUITable.Selection = selection(:)';
             app.IsInitializing = false;
             app.updateSelectedBatches();
 
@@ -202,15 +213,15 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             end
 
             selectedRows = app.selectedRows(app.BatchUITable);
-            batchData = app.BatchUITable.Data;
 
-            if isempty(selectedRows) || isempty(batchData)
+            if isempty(selectedRows) || isempty(app.CatalogBatchIDs)
                 app.ColorUITable.Data = table();
+                app.ColorUITable.UserData = strings(0, 1);
                 app.clearPlotData();
                 return
             end
 
-            batchIDs = string(batchData.ID(selectedRows));
+            batchIDs = app.CatalogBatchIDs(selectedRows);
             app.updateColorTable(batchIDs);
             viewModel = app.Presenter.presentSelection(batchIDs);
             app.requestNotifications(viewModel.Notifications);
@@ -237,10 +248,19 @@ classdef ViewComparison_exported < matlab.apps.AppBase
 
             if ~all(isPresent)
                 app.ColorUITable.Data = table();
+                app.ColorUITable.UserData = strings(0, 1);
                 return
             end
 
-            app.ColorUITable.Data = app.StyleTable(indices, :);
+            displayBatchIDs = openmebius.presentation ...
+                .IdentifierFormatter.short(batchIDs);
+            app.ColorUITable.Data = table( ...
+                displayBatchIDs, ...
+                app.StyleTable.Name(indices), ...
+                app.StyleTable.Hex(indices), ...
+                app.StyleTable.Pattern(indices), ...
+                'VariableNames', {'BatchID', 'Name', 'Hex', 'Pattern'});
+            app.ColorUITable.UserData = batchIDs;
 
         end % updateColorTable
 
@@ -346,6 +366,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
                     BestfitTriangleMarkerSize = markerSize, ...
                     Colors = styles.Hex, ...
                     Patterns = styles.Pattern, ...
+                    SeriesNames = styles.Name, ...
                     FontSize = fontSize, ...
                     ReactionNames = reactionNames);
                 title(app.UIAxes, 'Flux range comparison');
@@ -439,17 +460,21 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             isValid = true;
 
             if column == 2
+                isValid = strlength(strtrim(string(data.Name(row)))) > 0;
+            elseif column == 3
                 colorObject = Color();
                 isValid = all(isValidColorHex( ...
                     colorObject, reshape(string(data.Hex), 1, [])));
-            elseif column == 3
+            elseif column == 4
                 isValid = app.isValidPattern(string(data.Pattern(row)));
             end
 
             if ~isValid
                 if column == 2
-                    data.Hex(row) = string(event.PreviousData);
+                    data.Name(row) = string(event.PreviousData);
                 elseif column == 3
+                    data.Hex(row) = string(event.PreviousData);
+                elseif column == 4
                     data.Pattern(row) = string(event.PreviousData);
                 end
 
@@ -457,16 +482,21 @@ classdef ViewComparison_exported < matlab.apps.AppBase
                 app.requestNotification( ...
                     openmebius.presentation.notification ...
                     .Notification.warning( ...
-                    "Enter a #RRGGBB color and a supported pattern.", ...
+                    "Enter a name, #RRGGBB color, and a " + ...
+                    "supported pattern.", ...
                     Title = "Invalid plot style"));
                 return
             end
 
+            rawBatchIDs = string(app.ColorUITable.UserData);
+
             for styleIndex = 1:height(data)
                 target = find( ...
-                    app.StyleTable.BatchID == data.BatchID(styleIndex), 1);
+                    app.StyleTable.BatchID == rawBatchIDs(styleIndex), 1);
 
                 if ~isempty(target)
+                    app.StyleTable.Name(target) = ...
+                        string(data.Name(styleIndex));
                     app.StyleTable.Hex(target) = string(data.Hex(styleIndex));
                     app.StyleTable.Pattern(target) = ...
                         string(data.Pattern(styleIndex));
@@ -523,6 +553,8 @@ classdef ViewComparison_exported < matlab.apps.AppBase
         function clearComparison(app)
 
             app.ColorUITable.Data = table();
+            app.ColorUITable.UserData = strings(0, 1);
+            app.CatalogBatchIDs = strings(0, 1);
             app.StyleTable = table();
             app.clearPlotData();
 
@@ -728,6 +760,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             app.IsInitializing = true;
             app.Presenter = context.Presenter;
             app.Action = context.Action;
+            app.InitialBatchIDs = context.InitialBatchIDs;
             app.configureComponents();
             app.IsInitializing = false;
             app.applyCatalog(context.InitialCatalog);

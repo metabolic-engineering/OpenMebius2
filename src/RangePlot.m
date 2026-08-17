@@ -18,6 +18,7 @@ arguments
     options.LegendNumColumns (1, 1) double = 4
     options.Patterns = []
     options.ReactionNames = []
+    options.SeriesNames = []
     options.threshold double = 1e-6
     options.Debug logical = false
     options.NotificationReporter (1, 1) function_handle = @(~) []
@@ -43,6 +44,19 @@ end
 
 nPattern = width(UB);
 nRxn = height(UB);
+
+if isempty(options.SeriesNames)
+    seriesNames = string(UB.Properties.VariableNames);
+else
+    seriesNames = string(options.SeriesNames(:));
+
+    if numel(seriesNames) ~= nPattern
+        error( ...
+            "OpenMebius2:RangePlot:SeriesNameCountMismatch", ...
+            "SeriesNames must contain one name per plotted series.");
+    end
+
+end
 
 if isempty(options.Colors)
     colors = lines(nPattern);
@@ -87,18 +101,15 @@ if ~isempty(BF) && ~(istable(BF) && height(BF) == 0)
 
         end
 
-        if width(BF) == 1
-            tmp = BF{:, 1};
-
-            if isnumeric(tmp) && numel(tmp) == nRxn
-                hasBestfitSingle = true;
-                bestfitVec = tmp(:);
+        if width(BF) == nPattern
+            if nPattern == 1
+                tfCol = true;
+                locCol = 1;
+            else
+                bfVars = string(BF.Properties.VariableNames);
+                ubVars = string(UB.Properties.VariableNames);
+                [tfCol, locCol] = ismember(ubVars, bfVars);
             end
-
-        else
-            bfVars = string(BF.Properties.VariableNames);
-            ubVars = string(UB.Properties.VariableNames);
-            [tfCol, locCol] = ismember(ubVars, bfVars);
 
             if all(tfCol)
                 tmp = BF{:, locCol};
@@ -108,6 +119,14 @@ if ~isempty(BF) && ~(istable(BF) && height(BF) == 0)
                     bestfitMat = tmp;
                 end
 
+            end
+
+        elseif width(BF) == 1
+            tmp = BF{:, 1};
+
+            if isnumeric(tmp) && numel(tmp) == nRxn
+                hasBestfitSingle = true;
+                bestfitVec = tmp(:);
             end
 
         end
@@ -319,7 +338,7 @@ for iData = 1:nPattern
         'MarkerSize', 10, ...
         'MarkerFaceColor', legendFaceColor, ...
         'MarkerEdgeColor', colors(iData, :), ...
-        'DisplayName', UB.Properties.VariableNames{iData}, ...
+        'DisplayName', seriesNames(iData), ...
         'Parent', g);
 
     dummy(iData).Tag = sprintf("RangePlotLegendDummy_%04d", iData);
