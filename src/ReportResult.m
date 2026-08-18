@@ -50,6 +50,10 @@ classdef ReportResult < handle
 
         function build(obj)
 
+            % Keep the deployment license override alive for the entire
+            % report build, including DOM and Report API calls in helpers.
+            makeDOMCompilable();
+
             obj.setupReport();
             temporaryFileCleanup = onCleanup(@() ...
                 ReportResult.deleteIfExists(obj.TemporaryOutputPath));

@@ -45,6 +45,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             app.IterationSpinner.Value = 7;
             app.CalcCICheckBox.Value = true;
             app.MaxIterationsEditField.Value = 99;
+            app.EnforceFluxBoundsCheckBox.Value = true;
             app.MCLmaxEditField_2.Value = 9;
 
             callback = app.GeneralRestoreDefaultButton.ButtonPushedFcn;
@@ -54,6 +55,8 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             testCase.verifyFalse(app.CalcCICheckBox.Value);
             testCase.verifyEqual( ...
                 app.MaxIterationsEditField.Value, 2000);
+            testCase.verifyFalse( ...
+                app.EnforceFluxBoundsCheckBox.Value);
             testCase.verifyEqual(app.MCLmaxEditField_2.Value, 3);
             testCase.verifyEqual(app.EffluxUITable.Data, efflux);
             testCase.verifyEqual(app.LabelTable.Data, suggestion);
@@ -102,6 +105,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             app.FiniteDifferenceStepSizeEditField.Value = 6e-6;
             app.SearchOptimalFiniteDifferenceStepSizeCheckBox.Value = ...
                 false;
+            app.EnforceFluxBoundsCheckBox.Value = true;
             app.MCLmaxEditField_2.Value = 4.5;
 
             callback = app.OptimizationCloseButton.ButtonPushedFcn;
@@ -130,6 +134,8 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             testCase.verifyFalse( ...
                 batch.Config.fmincon ...
                 .finiteDifferenceStepSizeSearch.enabled);
+            testCase.verifyTrue( ...
+                batch.Config.fmincon.enforceFluxBounds);
             testCase.verifyEqual( ...
                 batch.Config.initialFlux ...
                 .freeEffluxSeedSigmaMultiplier, 4.5);

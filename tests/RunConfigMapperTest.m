@@ -162,6 +162,7 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
             config.fmincon.finiteDifferenceType = 'forward';
             config.fmincon.finiteDifferenceStepSize = 6e-6;
             config.fmincon.finiteDifferenceStepSizeSearch.enabled = false;
+            config.fmincon.enforceFluxBounds = true;
             config.initialFlux.freeEffluxSeedSigmaMultiplier = 4.5;
             config.suggestNextFlux = true;
             config.perturbateEfflux = true;

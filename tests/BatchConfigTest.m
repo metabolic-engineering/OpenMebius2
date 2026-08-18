@@ -36,6 +36,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
                 config.initialFlux.freeEffluxSeedSigmaMultiplier, 3);
             testCase.verifyEqual(config.status, 'ready');
             testCase.verifyTrue(isfield(config, 'fmincon'));
+            testCase.verifyFalse(config.fmincon.enforceFluxBounds);
             testCase.verifyTrue(isfield(config, 'GA'));
             testCase.verifyTrue(isfield(config, 'CIConf'));
             testCase.verifyTrue( ...
@@ -52,6 +53,17 @@ classdef BatchConfigTest < matlab.unittest.TestCase
             testCase.verifyTrue(isfield(config, 'INSTMFA'));
 
         end % normalizeFillsMissingFieldsAndValidates
+
+        function validateRejectsInvalidFluxBoundEnforcement(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.fmincon.enforceFluxBounds = 2;
+
+            testCase.verifyError( ...
+                @() openmebius.domain.batch.BatchConfig.validate(config), ...
+                'OpenMebius2:BatchConfig:InvalidLogical');
+
+        end
 
         function normalizeMigratesLegacyGridMode(testCase)
 

@@ -92,6 +92,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         MCLmaxEditField_2               matlab.ui.control.NumericEditField
         EditFieldLabel_2                matlab.ui.control.Label
         SearchOptimalFiniteDifferenceStepSizeCheckBox  matlab.ui.control.CheckBox
+        EnforceFluxBoundsCheckBox       matlab.ui.control.CheckBox
         GridLayout24                    matlab.ui.container.GridLayout
         GridLayout10_17                 matlab.ui.container.GridLayout
         FiniteDifferenceStepSizeEditField  matlab.ui.control.NumericEditField
@@ -305,6 +306,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.LargeScaleCheckBox.Value = viewModel.LargeScale;
             app.FluxLBEditField.Value = viewModel.FluxLowerBound;
             app.FluxUBEditField.Value = viewModel.FluxUpperBound;
+            app.EnforceFluxBoundsCheckBox.Value = ...
+                viewModel.EnforceFluxBounds;
             app.MaxFunctionEvaluationsEditField.Value = ...
                 viewModel.FminconMaxFunctionEvaluations;
             app.MaxIterationsEditField.Value = ...
@@ -786,6 +789,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             viewModel.LargeScale = app.LargeScaleCheckBox.Value;
             viewModel.FluxLowerBound = app.FluxLBEditField.Value;
             viewModel.FluxUpperBound = app.FluxUBEditField.Value;
+            viewModel.EnforceFluxBounds = ...
+                app.EnforceFluxBoundsCheckBox.Value;
             viewModel.FminconMaxFunctionEvaluations = ...
                 app.MaxFunctionEvaluationsEditField.Value;
             viewModel.FminconMaxIterations = ...
@@ -2097,12 +2102,21 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.SearchOptimalFiniteDifferenceStepSizeCheckBox.Layout.Column = 1;
             app.SearchOptimalFiniteDifferenceStepSizeCheckBox.Value = true;
 
+            % Create EnforceFluxBoundsCheckBox
+            app.EnforceFluxBoundsCheckBox = uicheckbox(app.GridLayout26);
+            app.EnforceFluxBoundsCheckBox.Text = ...
+                'Enforce FVA flux bounds in MFA optimization';
+            app.EnforceFluxBoundsCheckBox.Tooltip = ...
+                'Apply FVA-derived lower and upper bounds as hard constraints.';
+            app.EnforceFluxBoundsCheckBox.Layout.Row = 2;
+            app.EnforceFluxBoundsCheckBox.Layout.Column = 1;
+
             % Create GridLayout10_19
             app.GridLayout10_19 = uigridlayout(app.GridLayout26);
             app.GridLayout10_19.ColumnWidth = {'7x', '3x'};
             app.GridLayout10_19.RowHeight = {'1x'};
             app.GridLayout10_19.Padding = [0 0 0 0];
-            app.GridLayout10_19.Layout.Row = 2;
+            app.GridLayout10_19.Layout.Row = 3;
             app.GridLayout10_19.Layout.Column = 1;
 
             % Create EditFieldLabel_2
