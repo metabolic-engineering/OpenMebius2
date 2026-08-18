@@ -13,6 +13,7 @@ classdef SteadyStateOptions
         FiniteDifferenceType (1, 1) string
         FiniteDifferenceStepSize (1, 1) double
         ScaleProblem (1, 1) string
+        EnforceFluxBounds (1, 1) logical
         RejectWorseThanInitial (1, 1) logical
         ObjectiveIncreaseTolerance (1, 1) double
         InitialFeasibilityTolerance (1, 1) double
@@ -48,6 +49,7 @@ classdef SteadyStateOptions
                 options.FiniteDifferenceStepSize (1, 1) double ...
                     {mustBePositive} = 1e-6
                 options.ScaleProblem (1, 1) string = "obj-and-constr"
+                options.EnforceFluxBounds (1, 1) logical = false
                 options.RejectWorseThanInitial (1, 1) logical = true
                 options.ObjectiveIncreaseTolerance (1, 1) double ...
                     {mustBeNonnegative} = 1e-6
@@ -72,6 +74,7 @@ classdef SteadyStateOptions
             obj.FiniteDifferenceStepSize = ...
                 options.FiniteDifferenceStepSize;
             obj.ScaleProblem = options.ScaleProblem;
+            obj.EnforceFluxBounds = options.EnforceFluxBounds;
             obj.RejectWorseThanInitial = options.RejectWorseThanInitial;
             obj.ObjectiveIncreaseTolerance = ...
                 options.ObjectiveIncreaseTolerance;

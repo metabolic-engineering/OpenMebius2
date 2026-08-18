@@ -19,6 +19,7 @@ classdef SteadyStateOptionsTest < matlab.unittest.TestCase
             testCase.verifyEqual(options.Algorithm, "sqp");
             testCase.verifyEqual(options.MaxFunctionEvaluations, 1000000);
             testCase.verifyEqual(options.FiniteDifferenceType, "central");
+            testCase.verifyFalse(options.EnforceFluxBounds);
 
         end
 

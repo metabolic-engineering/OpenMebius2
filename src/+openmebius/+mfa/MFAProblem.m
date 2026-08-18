@@ -190,8 +190,13 @@ classdef MFAProblem
             [additionalMatrix, additionalRightHandSide] = ...
                 obj.fluxInequalitiesInIndependentSpace( ...
                 BaseRightHandSide = options.BaseRightHandSide);
-            finiteLowerMask = isfinite(obj.LowerBounds);
-            finiteUpperMask = isfinite(obj.UpperBounds);
+            fixedBoundMask = isfinite(obj.LowerBounds) & ...
+                isfinite(obj.UpperBounds) & ...
+                obj.LowerBounds == obj.UpperBounds;
+            finiteLowerMask = ...
+                isfinite(obj.LowerBounds) & ~fixedBoundMask;
+            finiteUpperMask = ...
+                isfinite(obj.UpperBounds) & ~fixedBoundMask;
             inequalityMatrix = [ ...
                 -fluxCoefficient(finiteLowerMask, :); ...
                 fluxCoefficient(finiteUpperMask, :); ...
@@ -205,6 +210,33 @@ classdef MFAProblem
 
         end % fluxBoundInequalities
 
+        function [equalityMatrix, equalityRightHandSide] = ...
+                fluxBoundEqualities(obj, options)
+
+            arguments
+                obj (1, 1) openmebius.mfa.MFAProblem
+                options.BaseRightHandSide (:, 1) double = ...
+                    obj.RightHandSide
+            end
+
+            obj.validateRightHandSide(options.BaseRightHandSide);
+            independentCount = nnz(obj.IndependentMask);
+            selector = zeros(numel(obj.RightHandSide), independentCount);
+            selector(obj.IndependentMask, :) = eye(independentCount);
+            fixedRightHandSide = options.BaseRightHandSide;
+            fixedRightHandSide(obj.IndependentMask) = 0;
+            fluxOffset = obj.Stoichiometry \ fixedRightHandSide;
+            fluxCoefficient = obj.Stoichiometry \ selector;
+            fixedBoundMask = isfinite(obj.LowerBounds) & ...
+                isfinite(obj.UpperBounds) & ...
+                obj.LowerBounds == obj.UpperBounds;
+            equalityMatrix = fluxCoefficient(fixedBoundMask, :);
+            equalityRightHandSide = ...
+                obj.LowerBounds(fixedBoundMask) - ...
+                fluxOffset(fixedBoundMask);
+
+        end % fluxBoundEqualities
+
         function [inequalityMatrix, inequalityRightHandSide] = ...
                 nonnegativeFluxInequalities(obj, options)
 
@@ -214,9 +246,21 @@ classdef MFAProblem
                     obj.RightHandSide
             end
 
-            [inequalityMatrix, inequalityRightHandSide] = ...
-                obj.fluxBoundInequalities( ...
+            obj.validateRightHandSide(options.BaseRightHandSide);
+            independentCount = nnz(obj.IndependentMask);
+            selector = zeros(numel(obj.RightHandSide), independentCount);
+            selector(obj.IndependentMask, :) = eye(independentCount);
+            fixedRightHandSide = options.BaseRightHandSide;
+            fixedRightHandSide(obj.IndependentMask) = 0;
+            fluxOffset = obj.Stoichiometry \ fixedRightHandSide;
+            fluxCoefficient = obj.Stoichiometry \ selector;
+            [additionalMatrix, additionalRightHandSide] = ...
+                obj.fluxInequalitiesInIndependentSpace( ...
                 BaseRightHandSide = options.BaseRightHandSide);
+            inequalityMatrix = [ ...
+                -fluxCoefficient; additionalMatrix];
+            inequalityRightHandSide = [ ...
+                fluxOffset; additionalRightHandSide];
 
         end % nonnegativeFluxInequalities
 

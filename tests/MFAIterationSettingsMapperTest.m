@@ -19,6 +19,7 @@ classdef MFAIterationSettingsMapperTest < matlab.unittest.TestCase
             config.optimizationMethod = "hybrid";
             config.algorithm = "IPMs";
             config.fmincon.maxIterations = 321;
+            config.fmincon.enforceFluxBounds = true;
 
             settings = openmebius.application.analysis ...
                 .MFAIterationSettingsMapper.fromBatchConfig(config);
@@ -37,6 +38,8 @@ classdef MFAIterationSettingsMapperTest < matlab.unittest.TestCase
                 settings.SolverOptions.Algorithm, "interior-point");
             testCase.verifyEqual( ...
                 settings.SolverOptions.MaxIterations, 321);
+            testCase.verifyTrue( ...
+                settings.SolverOptions.EnforceFluxBounds);
             testCase.verifyEmpty(settings.OptionWarnings);
 
         end
