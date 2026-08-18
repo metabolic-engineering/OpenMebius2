@@ -127,9 +127,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ContextMenuResultSelect         matlab.ui.container.ContextMenu
         RangeplotMenu                   matlab.ui.container.Menu
         ViewsuggestionMenu              matlab.ui.container.Menu
+        ViewinformationMenu             matlab.ui.container.Menu
         ContextMenu3                    matlab.ui.container.ContextMenu
         CopythistracerforallentriesMenu  matlab.ui.container.Menu
     end
+
 
 
 
@@ -4807,6 +4809,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 .AppDialogService(app.OpenMebius2UIFigure);
             app.initializeModelContextMenu();
             app.initializeBatchOrderContextMenu();
+            app.initializeResultContextMenu();
             dependencies = app.createMainAppDependencies();
             app.applyApplicationDependencies(dependencies);
             app.configureNotificationSinks();
@@ -4877,6 +4880,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 @(~, ~) app.moveSelectedBatches("down"));
 
         end % initializeBatchOrderContextMenu
+
+        function initializeResultContextMenu(app)
+
+            app.ViewinformationMenu.MenuSelectedFcn = ...
+                @(~, ~) app.showResultInformation();
+
+        end % initializeResultContextMenu
 
         function addModelReaction(app)
 
@@ -5497,6 +5507,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % showSuggestion
 
+        function showResultInformation(app)
+
+            [batchIDs, batchNames] = app.selectedResultIdentities();
+            outcome = app.ApplicationController.loadResultInformation( ...
+                batchIDs, batchNames);
+            app.renderResultOperationViewModel( ...
+                app.ResultPresenter.presentInformationOutcome(outcome));
+
+        end % showResultInformation
+
         function copySelectedTracer(app)
 
             selected = app.LabelTable.Selection;
@@ -5731,6 +5751,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method onPreferencesClosed
 
     end % methods (Access = private)
+
 
 
 
@@ -7065,6 +7086,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ViewsuggestionMenu = uimenu(app.ContextMenuResultSelect);
             app.ViewsuggestionMenu.MenuSelectedFcn = createCallbackFcn(app, @ViewsuggestionMenuSelected, true);
             app.ViewsuggestionMenu.Text = 'View suggestion';
+
+            % Create ViewinformationMenu
+            app.ViewinformationMenu = uimenu(app.ContextMenuResultSelect);
+            app.ViewinformationMenu.Separator = 'on';
+            app.ViewinformationMenu.Text = 'View information';
 
             % Assign app.ContextMenuResultSelect
             app.ResultSubTable.ContextMenu = app.ContextMenuResultSelect;

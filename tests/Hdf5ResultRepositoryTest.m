@@ -333,6 +333,11 @@ classdef Hdf5ResultRepositoryTest < matlab.unittest.TestCase
                 snapshot.Description, metadata.batchDescription);
             testCase.verifyEqual(snapshot.ConfigJson, metadata.configJson);
             testCase.verifyEqual(snapshot.ContentHash, metadata.contentHash);
+            testCase.verifyEqual( ...
+                snapshot.StartedAtUtc, metadata.startedAtUtc);
+            testCase.verifyEqual( ...
+                snapshot.FinishedAtUtc, ...
+                "2026-07-14T00:01:00.000Z");
             testCase.verifyEqual(snapshot.Status, "finished");
 
             clear cleanup
