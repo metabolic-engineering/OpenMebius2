@@ -35,17 +35,18 @@ classdef MFAProblemTest < matlab.unittest.TestCase
 
         end
 
-        function createsEquivalentNonnegativeFluxConstraints(testCase)
+        function createsEquivalentFluxBoundConstraints(testCase)
 
             problem = MFAProblemTest.createProblem();
             [matrix, rightHandSide] = ...
-                problem.nonnegativeFluxInequalities();
+                problem.fluxBoundInequalities();
             independentValue = 0.25;
             flux = problem.solveFlux(independentValue);
 
             testCase.verifyEqual( ...
                 matrix * independentValue - rightHandSide, ...
-                -flux, ...
+                [problem.LowerBounds - flux; ...
+                flux - problem.UpperBounds], ...
                 'AbsTol', 1e-12);
 
         end
@@ -80,13 +81,13 @@ classdef MFAProblemTest < matlab.unittest.TestCase
             [matrix, rightHandSide] = ...
                 problem.fluxInequalitiesInIndependentSpace();
             [allMatrix, allRightHandSide] = ...
-                problem.nonnegativeFluxInequalities();
+                problem.fluxBoundInequalities();
 
             testCase.verifyEqual(matrix, 1);
             testCase.verifyEqual(rightHandSide, 0.75);
-            testCase.verifyEqual(allMatrix, [0; -1; 1]);
+            testCase.verifyEqual(allMatrix, [0; -1; 0; 1; 1]);
             testCase.verifyEqual( ...
-                allRightHandSide, [5; 0; 0.75]);
+                allRightHandSide, [5; 0; 5; 10; 0.75]);
 
         end
 
