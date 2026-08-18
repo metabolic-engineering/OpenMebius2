@@ -46,7 +46,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
                 config.CIConf.grid.executionMode, 'parallel');
             testCase.verifyEqual(config.CIConf.grid.workerCount, 58);
             testCase.verifyEqual( ...
-                config.CIConf.grid.maximumTrial, 10);
+                config.CIConf.grid.maximumTrial, 15);
             testCase.verifyEqual( ...
                 config.CIConf.grid.minimumFluxRange, 1e-6);
             testCase.verifyTrue(isfield(config, 'INSTMFA'));

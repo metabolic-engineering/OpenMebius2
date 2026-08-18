@@ -86,7 +86,7 @@ classdef BatchConfig
             config.CIConf.grid.points = 10;
             config.CIConf.grid.iteration = config.iteration;
             config.CIConf.grid.workerCount = 58;
-            config.CIConf.grid.maximumTrial = 10;
+            config.CIConf.grid.maximumTrial = 15;
             config.CIConf.grid.minimumFluxRange = 1e-6;
             config.CIConf.grid.alpha = 0.05;
             config.CIConf.grid.intervalMode = 'automatic';
