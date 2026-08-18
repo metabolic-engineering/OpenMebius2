@@ -125,14 +125,6 @@ classdef ResultPresenter < handle
                 identifier = obj.outcomeIdentifier(outcome);
 
                 switch identifier
-                    case "OpenMebius2:Report:UnavailableInDeployed"
-                        notification = ...
-                            openmebius.presentation.notification ...
-                            .Notification.warning( ...
-                            obj.outcomeMessage( ...
-                            outcome, ...
-                            "Report generation is unavailable."));
-
                     case "OpenMebius2:Report:DataUnavailable"
                         notification = ...
                             openmebius.presentation.notification ...
@@ -369,9 +361,151 @@ classdef ResultPresenter < handle
 
         end % presentRangePlotOutcome
 
+        function viewModel = presentInformationOutcome(obj, outcome)
+
+            arguments
+                obj
+                outcome (1, 1) openmebius.application.result ...
+                    .ResultOperationOutcome
+            end
+
+            if outcome.isSuccess()
+                notification = openmebius.presentation.notification ...
+                    .Notification.info( ...
+                    obj.formatResultInformation(outcome.Result), ...
+                    Title = "Batch information");
+            else
+                identifier = obj.outcomeIdentifier(outcome);
+                message = obj.outcomeMessage( ...
+                    outcome, "Failed to load batch information.");
+                warningIdentifiers = [ ...
+                    "OpenMebius2:ResultInformation:SelectionRequired"
+                    "OpenMebius2:ResultInformation:ResultUnavailable"
+                    "OpenMebius2:ResultInformation:DataUnavailable"];
+
+                if any(identifier == warningIdentifiers)
+                    notification = openmebius.presentation.notification ...
+                        .Notification.warning(message);
+                else
+                    notification = openmebius.presentation.notification ...
+                        .Notification.error( ...
+                        message, ...
+                        Title = "Batch information failed", ...
+                        ShowAlert = true);
+                end
+
+            end
+
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                Notifications = {notification});
+
+        end % presentInformationOutcome
+
     end
 
     methods (Access = private)
+
+        function text = formatResultInformation(obj, information)
+
+            experiments = "N/A";
+
+            if ~isempty(information.ExperimentNames)
+                experiments = strjoin(information.ExperimentNames, ", ");
+            end
+
+            lines = [ ...
+                "Batch information"
+                "  Batch ID: " + information.BatchID
+                "  Start time (UTC): " + ...
+                obj.availableText(information.StartedAtUtc)
+                "  End time (UTC): " + ...
+                obj.availableText(information.FinishedAtUtc)
+                "  Elapsed time: " + ...
+                obj.elapsedText(information.ElapsedSeconds)
+                "  Exp: " + experiments
+                "  Name: " + obj.availableText(information.BatchName)
+                "  Description: " + ...
+                obj.availableText(information.Description)
+                "  Settings different from current defaults:"];
+
+            if ~information.SettingsAvailable
+                lines(end + 1, 1) = "    N/A";
+            elseif isempty(information.DifferentSettings)
+                lines(end + 1, 1) = "    (none)";
+            else
+                lines = [ ...
+                    lines; ...
+                    "    " + information.DifferentSettings(:)];
+            end
+
+            lines = [ ...
+                lines
+                "  Degrees of freedom:"
+                "    MDV: " + ...
+                obj.numericText(information.MDVDegreesOfFreedom)];
+
+            if information.HasEffluxContribution
+                lines(end + 1, 1) = "    Efflux: " + ...
+                    obj.numericText( ...
+                    information.EffluxDegreesOfFreedom);
+            end
+
+            lines(end + 1, 1) = "    Model: " + ...
+                obj.numericText(information.ModelDegreesOfFreedom);
+            lines = [ ...
+                lines
+                "  RSS contribution:"
+                "    MDV: " + ...
+                obj.numericText(information.MDVRSSContribution)];
+
+            if information.HasEffluxContribution
+                lines(end + 1, 1) = "    Efflux: " + ...
+                    obj.numericText( ...
+                    information.EffluxRSSContribution);
+            end
+
+            lines(end + 1, 1) = "  Chi-square test threshold: " + ...
+                obj.numericText(information.ChiSquareThreshold);
+            text = join(lines, newline);
+
+        end % formatResultInformation
+
+        function text = availableText(~, value)
+
+            value = string(value);
+
+            if isempty(value) || ismissing(value(1)) || ...
+                    strlength(value(1)) == 0
+                text = "N/A";
+            else
+                text = value(1);
+            end
+
+        end % availableText
+
+        function text = elapsedText(~, elapsedSeconds)
+
+            if ~isfinite(elapsedSeconds) || elapsedSeconds < 0
+                text = "N/A";
+                return
+            end
+
+            value = seconds(elapsedSeconds);
+            value.Format = "hh:mm:ss.SSS";
+            text = string(value);
+
+        end % elapsedText
+
+        function text = numericText(~, value)
+
+            if ~isscalar(value) || ~isfinite(value)
+                text = "N/A";
+            else
+                text = string(compose("%.6g", value));
+            end
+
+        end % numericText
 
         function viewModel = presentOverview(obj, result, batchID, options)
 
