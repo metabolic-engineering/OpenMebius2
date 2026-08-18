@@ -151,6 +151,25 @@ classdef ReportResultTest < matlab.unittest.TestCase
 
         end
 
+        function keepsCompilerSupportActiveForEntireReportBuild(testCase)
+
+            source = string(fileread(fullfile( ...
+                ReportResultTest.sourcePath(), "ReportResult.m")));
+            initializerPosition = strfind( ...
+                source, "makeDOMCompilable();");
+            buildStartPosition = strfind(source, "function build(obj)");
+            setupCallPosition = strfind(source, "obj.setupReport();");
+
+            testCase.verifyNotEmpty(initializerPosition);
+            testCase.verifyNotEmpty(buildStartPosition);
+            testCase.verifyNotEmpty(setupCallPosition);
+            testCase.verifyGreaterThan( ...
+                initializerPosition(1), buildStartPosition(1));
+            testCase.verifyLessThan( ...
+                initializerPosition(1), setupCallPosition(1));
+
+        end
+
     end
 
     methods (Static, Access = private)

@@ -7,6 +7,7 @@ classdef RunConfigViewModel
         LargeScale (1, 1) logical = false
         FluxLowerBound (1, 1) double = -1000
         FluxUpperBound (1, 1) double = 1000
+        EnforceFluxBounds (1, 1) logical = false
         FminconMaxFunctionEvaluations (1, 1) double = 1000000
         FminconMaxIterations (1, 1) double = 2000
         FminconFunctionTolerance (1, 1) double = 1e-6

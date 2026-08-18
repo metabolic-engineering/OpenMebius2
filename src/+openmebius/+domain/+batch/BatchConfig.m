@@ -44,6 +44,7 @@ classdef BatchConfig
             config.fmincon.finiteDifferenceStepSizeSearch.includeConfiguredStep = true;
             config.fmincon.finiteDifferenceStepSizeSearch.maxCandidates = 6;
             config.fmincon.scaleProblem = 'obj-and-constr';
+            config.fmincon.enforceFluxBounds = false;
             config.fmincon.rejectWorseThanInitial = true;
             config.fmincon.objectiveIncreaseTolerance = 1e-6;
             config.fmincon.initialFeasibilityTolerance = 1e-7;
@@ -360,6 +361,8 @@ classdef BatchConfig
                 config, ...
                 'fmincon.scaleProblem', ...
                 ["none", "obj-and-constr"]);
+            BatchConfig.mustBeLogical( ...
+                config, 'fmincon.enforceFluxBounds');
             BatchConfig.mustBeLogical(config, 'fmincon.rejectWorseThanInitial');
             BatchConfig.mustBeNonnegativeNumber( ...
                 config, ...

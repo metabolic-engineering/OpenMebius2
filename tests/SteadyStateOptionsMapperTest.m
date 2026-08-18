@@ -20,6 +20,7 @@ classdef SteadyStateOptionsMapperTest < matlab.unittest.TestCase
             testCase.verifyEqual(options.Algorithm, "sqp");
             testCase.verifyEqual(options.MaxFunctionEvaluations, 1000000);
             testCase.verifyEqual(options.FiniteDifferenceType, "central");
+            testCase.verifyFalse(options.EnforceFluxBounds);
             testCase.verifyEqual( ...
                 options.finiteDifferenceStepSizes(), ...
                 [1e-6; 1e-3; 1e-4; 1e-5; 1e-7]);
@@ -75,6 +76,7 @@ classdef SteadyStateOptionsMapperTest < matlab.unittest.TestCase
             config.fmincon.finiteDifferenceType = 'forward';
             config.fmincon.finiteDifferenceStepSize = 6e-6;
             config.fmincon.finiteDifferenceStepSizeSearch.enabled = false;
+            config.fmincon.enforceFluxBounds = true;
 
             options = openmebius.application.analysis ...
                 .SteadyStateOptionsMapper.fromBatchConfig(config);
@@ -88,6 +90,7 @@ classdef SteadyStateOptionsMapperTest < matlab.unittest.TestCase
             testCase.verifyEqual(options.FiniteDifferenceType, "forward");
             testCase.verifyEqual(options.FiniteDifferenceStepSize, 6e-6);
             testCase.verifyFalse(options.StepSizeSearchEnabled);
+            testCase.verifyTrue(options.EnforceFluxBounds);
 
         end
 

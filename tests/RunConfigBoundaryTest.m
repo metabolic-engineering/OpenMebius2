@@ -26,6 +26,8 @@ classdef RunConfigBoundaryTest < matlab.unittest.TestCase
             testCase.verifyFalse(contains(source, "Session.primaryConfig("));
             testCase.verifyFalse(contains(source, "MSFragmentTableMapper"));
             testCase.verifyTrue(contains(source, "RunConfigPresenter"));
+            testCase.verifyTrue(contains( ...
+                source, "EnforceFluxBoundsCheckBox"));
             testCase.verifyTrue(contains(source, "renderTableViewModel"));
             testCase.verifyTrue( ...
                 contains(source, "BatchConfigurationController"));
