@@ -127,9 +127,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ContextMenuResultSelect         matlab.ui.container.ContextMenu
         RangeplotMenu                   matlab.ui.container.Menu
         ViewsuggestionMenu              matlab.ui.container.Menu
+        ViewinformationMenu             matlab.ui.container.Menu
         ContextMenu3                    matlab.ui.container.ContextMenu
         CopythistracerforallentriesMenu  matlab.ui.container.Menu
     end
+
 
 
 
@@ -1377,42 +1379,20 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             axes.XLim = xLimits;
             hold(axes, 'on');
 
-            hasFVALegendEntry = false;
+            fvaRegionLower = max(fvaLowerBound, xLimits(1));
+            fvaRegionUpper = min(fvaUpperBound, xLimits(2));
 
-            if fvaLowerBound > xLimits(1)
-                lowerShadeUpper = min(fvaLowerBound, xLimits(2));
+            if fvaRegionLower < fvaRegionUpper
                 patch( ...
                     axes, ...
-                    [xLimits(1), lowerShadeUpper, ...
-                     lowerShadeUpper, xLimits(1)], ...
+                    [fvaRegionLower, fvaRegionUpper, ...
+                     fvaRegionUpper, fvaRegionLower], ...
                     [yLimits(1), yLimits(1), ...
                      yLimits(2), yLimits(2)], ...
-                    [0.85, 0.85, 0.85], ...
+                    [0.75, 0.88, 0.78], ...
                     'EdgeColor', 'none', ...
-                    'FaceAlpha', 0.65, ...
-                    'DisplayName', 'Outside FVA');
-                hasFVALegendEntry = true;
-            end
-
-            if fvaUpperBound < xLimits(2)
-                upperShadeLower = max(fvaUpperBound, xLimits(1));
-                visibility = 'off';
-
-                if ~hasFVALegendEntry
-                    visibility = 'on';
-                end
-
-                patch( ...
-                    axes, ...
-                    [upperShadeLower, xLimits(2), ...
-                     xLimits(2), upperShadeLower], ...
-                    [yLimits(1), yLimits(1), ...
-                     yLimits(2), yLimits(2)], ...
-                    [0.85, 0.85, 0.85], ...
-                    'EdgeColor', 'none', ...
-                    'FaceAlpha', 0.65, ...
-                    'HandleVisibility', visibility, ...
-                    'DisplayName', 'Outside FVA');
+                    'FaceAlpha', 0.35, ...
+                    'DisplayName', 'FVA range');
             end
 
             if isfield(plotData, "TrialX") && ...
@@ -4829,6 +4809,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 .AppDialogService(app.OpenMebius2UIFigure);
             app.initializeModelContextMenu();
             app.initializeBatchOrderContextMenu();
+            app.initializeResultContextMenu();
             dependencies = app.createMainAppDependencies();
             app.applyApplicationDependencies(dependencies);
             app.configureNotificationSinks();
@@ -4899,6 +4880,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 @(~, ~) app.moveSelectedBatches("down"));
 
         end % initializeBatchOrderContextMenu
+
+        function initializeResultContextMenu(app)
+
+            app.ViewinformationMenu.MenuSelectedFcn = ...
+                @(~, ~) app.showResultInformation();
+
+        end % initializeResultContextMenu
 
         function addModelReaction(app)
 
@@ -5519,6 +5507,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % showSuggestion
 
+        function showResultInformation(app)
+
+            [batchIDs, batchNames] = app.selectedResultIdentities();
+            outcome = app.ApplicationController.loadResultInformation( ...
+                batchIDs, batchNames);
+            app.renderResultOperationViewModel( ...
+                app.ResultPresenter.presentInformationOutcome(outcome));
+
+        end % showResultInformation
+
         function copySelectedTracer(app)
 
             selected = app.LabelTable.Selection;
@@ -5753,6 +5751,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method onPreferencesClosed
 
     end % methods (Access = private)
+
 
 
 
@@ -7087,6 +7086,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.ViewsuggestionMenu = uimenu(app.ContextMenuResultSelect);
             app.ViewsuggestionMenu.MenuSelectedFcn = createCallbackFcn(app, @ViewsuggestionMenuSelected, true);
             app.ViewsuggestionMenu.Text = 'View suggestion';
+
+            % Create ViewinformationMenu
+            app.ViewinformationMenu = uimenu(app.ContextMenuResultSelect);
+            app.ViewinformationMenu.Separator = 'on';
+            app.ViewinformationMenu.Text = 'View information';
 
             % Assign app.ContextMenuResultSelect
             app.ResultSubTable.ContextMenu = app.ContextMenuResultSelect;

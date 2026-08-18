@@ -30,7 +30,7 @@ classdef GridSearchConfidenceIntervalSettings
                 options.PointCount (1, 1) double = 10
                 options.IterationCount (1, 1) double = 30
                 options.WorkerCount (1, 1) double = 8
-                options.MaximumTrial (1, 1) double = 10
+                options.MaximumTrial (1, 1) double = 15
                 options.MinimumFluxRange (1, 1) double = 1e-6
                 options.Alpha (1, 1) double = 0.05
             end

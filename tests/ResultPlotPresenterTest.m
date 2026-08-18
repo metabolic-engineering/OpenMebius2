@@ -168,7 +168,7 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
 
         end
 
-        function clearsPlotInMDVSummary(testCase)
+        function presentsOptimizationStateInMDVSummary(testCase)
 
             presenter = openmebius.presentation.result ...
                 .ResultPlotPresenter();
@@ -176,14 +176,23 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
             context.Mode = "MDV (Summary)";
             context.SelectionSource = "SubTable";
             result = helpers.ResultPlotWorkspaceStub();
+            result.OptimizationStateData = struct( ...
+                "RSS", [2, 4, 8], ...
+                "threshold", 6);
 
             viewModel = presenter.present( ...
                 testCase.model(), result, context);
 
             testCase.verifyEqual( ...
                 viewModel.Kind, ...
-                openmebius.presentation.result.ResultPlotKind.None);
-            testCase.verifyFalse(result.OptimizationCalled);
+                openmebius.presentation.result ...
+                .ResultPlotKind.OptimizationState);
+            testCase.verifyTrue(result.OptimizationCalled);
+            testCase.verifyEqual( ...
+                viewModel.SubPlot.Kind, ...
+                "optimization-rss-histogram");
+            testCase.verifyEqual(viewModel.SubPlot.RSS, [2; 4; 8]);
+            testCase.verifyEqual(viewModel.SubPlot.Threshold, 6);
 
         end
 

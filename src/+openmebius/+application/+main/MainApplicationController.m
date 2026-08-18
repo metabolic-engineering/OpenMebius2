@@ -580,6 +580,24 @@ classdef MainApplicationController < handle
 
         end
 
+        function outcome = loadResultInformation( ...
+                obj, batchIDs, batchNames)
+
+            outcome = obj.resultCommand(@loadInformation);
+
+            function value = loadInformation()
+
+                modelDegreesOfFreedom = obj.Session.Model.getDOF();
+                value = obj.ResultController.loadInformation( ...
+                    obj.Session.Result, ...
+                    batchIDs, ...
+                    batchNames, ...
+                    modelDegreesOfFreedom);
+
+            end
+
+        end % loadResultInformation
+
     end % methods
 
     methods (Access = private)

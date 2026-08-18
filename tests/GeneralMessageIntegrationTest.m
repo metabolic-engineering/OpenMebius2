@@ -82,6 +82,36 @@ classdef GeneralMessageIntegrationTest < matlab.unittest.TestCase
 
         end
 
+        function comparisonExceptionIsPublishedAsPassiveError(testCase)
+
+            resultDirectory = string(tempname);
+            mkdir(resultDirectory);
+            cleanup = onCleanup(@() ...
+                GeneralMessageIntegrationTest.removeDirectories( ...
+                resultDirectory));
+            observer = helpers.AnalysisNotificationObserverStub();
+            queryService = helpers.ResultComparisonQueryServiceStub();
+            result = openmebius.application.result.ResultCatalog( ...
+                resultDirectory, ...
+                NotificationReporter = ...
+                @(notification) observer.publish(notification), ...
+                QueryService = queryService, ...
+                TableBuilder = helpers.FailingResultTableBuilderStub());
+
+            comparison = result.getFluxComparison( ...
+                ["first", "second"], ["First", "Second"]);
+
+            testCase.verifyEmpty(comparison);
+            testCase.verifyEqual(observer.LastEvent.Level, "error");
+            testCase.verifyEqual( ...
+                observer.LastEvent.Code, "result.comparison.failed");
+            testCase.verifyEqual( ...
+                observer.LastEvent.Attention, "passive");
+            testCase.verifyTrue(contains( ...
+                observer.LastEvent.Text, "synthetic comparison failure"));
+
+        end
+
     end
 
     methods (Static, Access = private)

@@ -284,26 +284,38 @@ classdef ResultTableBuilder
                 'Size', [0, numberOfResults], ...
                 'VariableNames', names, ...
                 'VariableTypes', repmat("double", 1, numberOfResults));
+            referenceModelIDs = strings(0, 1);
+            referenceModelReactions = strings(0, 1);
 
             for resultIndex = 1:numberOfResults
                 item = data{resultIndex};
+                [flux, modelIDs, modelReactions, itemMessage] = ...
+                    openmebius.application.result.ResultTableBuilder ...
+                    .comparisonData(item);
 
-                if ~isfield(item, 'RSSIdx') || isempty(item.RSSIdx)
-                    continue
+                if itemMessage ~= ""
+                    value = table();
+                    message = itemMessage;
+                    return
                 end
 
-                fieldName = "fluxResult" + ...
-                    string(sprintf("%04d", item.RSSIdx(1)));
-                flux = item.(fieldName).fluxFwd;
-
                 if resultIndex == 1
+                    referenceModelIDs = modelIDs;
+                    referenceModelReactions = modelReactions;
                     value = table( ...
                         'Size', [numel(flux), numberOfResults + 1], ...
                         'VariableNames', ["Reaction", names], ...
                         'VariableTypes', [ ...
                         "string", repmat("double", 1, numberOfResults)], ...
-                        'RowNames', [item.model.modelID; "biomass"]);
-                    value.Reaction = [item.model.modelReaction; ""];
+                        'RowNames', [modelIDs; "biomass"]);
+                    value.Reaction = [modelReactions; ""];
+                elseif ~isequal(modelIDs, referenceModelIDs) || ...
+                        ~isequal( ...
+                        modelReactions, referenceModelReactions)
+                    value = table();
+                    message = "The selected results use different " + ...
+                        "models and cannot be compared.";
+                    return
                 end
 
                 value.(names(resultIndex)) = flux;
@@ -511,6 +523,49 @@ classdef ResultTableBuilder
     end
 
     methods (Static, Access = private)
+
+        function [flux, modelIDs, modelReactions, message] = ...
+                comparisonData(item)
+
+            flux = zeros(0, 1);
+            modelIDs = strings(0, 1);
+            modelReactions = strings(0, 1);
+            message = "Result data required for comparison is incomplete.";
+
+            if ~isstruct(item) || ...
+                    ~isfield(item, "RSSIdx") || isempty(item.RSSIdx) || ...
+                    ~isfield(item, "model") || ~isstruct(item.model) || ...
+                    ~isfield(item.model, "modelID") || ...
+                    ~isfield(item.model, "modelReaction")
+                return
+            end
+
+            fieldName = "fluxResult" + ...
+                string(sprintf("%04d", item.RSSIdx(1)));
+
+            if ~isfield(item, fieldName) || ...
+                    ~isstruct(item.(fieldName)) || ...
+                    ~isfield(item.(fieldName), "fluxFwd") || ...
+                    ~isnumeric(item.(fieldName).fluxFwd)
+                return
+            end
+
+            flux = double(item.(fieldName).fluxFwd(:));
+            modelIDs = string(item.model.modelID(:));
+            modelReactions = string(item.model.modelReaction(:));
+
+            if numel(modelIDs) ~= numel(modelReactions) || ...
+                    numel(flux) ~= numel(modelIDs) + 1
+                flux = zeros(0, 1);
+                modelIDs = strings(0, 1);
+                modelReactions = strings(0, 1);
+                message = "Result data is incompatible with its model.";
+                return
+            end
+
+            message = "";
+
+        end
 
         function values = uniqueNames(values)
             original = values;

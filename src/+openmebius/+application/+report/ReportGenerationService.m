@@ -35,8 +35,8 @@ classdef ReportGenerationService < handle
                 options.OpenReport (1, 1) logical = true
             end
 
-            openmebius.application.report.ReportGenerationService ...
-                .validateRuntime(options.IsDeployed);
+            % IsDeployed is retained for API compatibility. Report generation
+            % follows the same path in MATLAB and compiled applications.
             openmebius.application.report.ReportGenerationService ...
                 .validateResultLocation(resultLocation);
             openmebius.application.report.ReportGenerationService ...
@@ -75,16 +75,6 @@ classdef ReportGenerationService < handle
     end
 
     methods (Static, Access = private)
-
-        function validateRuntime(isDeployedRuntime)
-
-            if isDeployedRuntime
-                error( ...
-                    "OpenMebius2:Report:UnavailableInDeployed", ...
-                    "Report generation is not available in the deployed version.");
-            end
-
-        end
 
         function validateResultLocation(resultLocation)
 
