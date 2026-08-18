@@ -154,6 +154,54 @@ classdef ResultTableBuilderTest < matlab.unittest.TestCase
             testCase.verifyEqual(value.sample_2, [30; 40]);
         end
 
+        function rejectsComparisonWithDifferentModelSizes(testCase)
+            builder = openmebius.application.result.ResultTableBuilder();
+            first = ResultTableBuilderTest.resultData([10; 20]);
+            second = ResultTableBuilderTest.resultData([30; 40; 50]);
+            second.model.modelID = ["R1"; "R2"];
+            second.model.modelReaction = ["A -> B"; "B -> C"];
+
+            [value, message] = builder.fluxComparison( ...
+                {first, second}, ["first", "second"]);
+
+            testCase.verifyEmpty(value);
+            testCase.verifyEqual( ...
+                message, ...
+                "The selected results use different models and " + ...
+                "cannot be compared.");
+        end
+
+        function rejectsComparisonWithDifferentModelDefinitions(testCase)
+            builder = openmebius.application.result.ResultTableBuilder();
+            first = ResultTableBuilderTest.resultData([10; 20]);
+            second = ResultTableBuilderTest.resultData([30; 40]);
+            second.model.modelReaction = "A -> C";
+
+            [value, message] = builder.fluxComparison( ...
+                {first, second}, ["first", "second"]);
+
+            testCase.verifyEmpty(value);
+            testCase.verifyEqual( ...
+                message, ...
+                "The selected results use different models and " + ...
+                "cannot be compared.");
+        end
+
+        function rejectsComparisonWithIncompleteResultData(testCase)
+            builder = openmebius.application.result.ResultTableBuilder();
+            first = ResultTableBuilderTest.resultData([10; 20]);
+            second = ResultTableBuilderTest.resultData([30; 40]);
+            second.RSSIdx = [];
+
+            [value, message] = builder.fluxComparison( ...
+                {first, second}, ["first", "second"]);
+
+            testCase.verifyEmpty(value);
+            testCase.verifyEqual( ...
+                message, ...
+                "Result data required for comparison is incomplete.");
+        end
+
         function buildsGridSearchLongTable(testCase)
 
             builder = openmebius.application.result.ResultTableBuilder();
