@@ -109,6 +109,34 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
 
         end % savesSchemaVersionedDocumentAtomically
 
+        function preservesSingleMSExperimentAcrossJsonRoundTrip(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.isSelectMSFragment = true;
+            config.MS.fragment = 'custom';
+            config.MS.fragmentList = ["fragment-a"; "fragment-b"];
+            config.MS.expList = "WT_ecoli";
+            config.MS.customFragment = [true; false];
+            batchData = struct( ...
+                'id', "batch-id-1", ...
+                'name', "batch-name-1", ...
+                'exp', "WT_ecoli", ...
+                'description', "MS JSON round-trip test", ...
+                'config', config);
+            decoded = jsondecode(jsonencode(batchData));
+
+            batchTable = ...
+                openmebius.infrastructure.batch.BatchJsonMapper.toTable( ...
+                decoded);
+            actual = batchTable.config.MS;
+
+            testCase.verifyEqual(actual.expList, "WT_ecoli");
+            testCase.verifyEqual( ...
+                actual.fragmentList, ["fragment-a"; "fragment-b"]);
+            testCase.verifyEqual(actual.customFragment, [true; false]);
+
+        end % preservesSingleMSExperimentAcrossJsonRoundTrip
+
         function returnsEmptyTableWhenBatchFileIsMissing(testCase)
 
             [experimentLocation, cleanupGuard] = ...

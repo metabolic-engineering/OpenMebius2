@@ -137,6 +137,14 @@ classdef BatchConfig
                 config, ...
                 baseConfig);
 
+            % jsondecode restores a scalar JSON string as a character
+            % vector. Convert before reshaping so a single fragment or
+            % experiment name is not split into one entry per character.
+            config.MS.fragmentList = string(config.MS.fragmentList);
+            config.MS.fragmentList = config.MS.fragmentList(:);
+            config.MS.expList = string(config.MS.expList);
+            config.MS.expList = reshape(config.MS.expList, 1, []);
+
             % JSON encodes NaN as null, which jsondecode restores as an
             % empty value. Canonicalize the unset scalar before validation.
             if isempty(config.efflux.muSD)
