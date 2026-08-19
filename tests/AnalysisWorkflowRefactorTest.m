@@ -675,6 +675,18 @@ classdef AnalysisWorkflowRefactorTest < matlab.unittest.TestCase
 
             testCase.verifyEqual(solver.CallCount, 1);
             testCase.verifyEqual(observer.RightHandSide, [7; 0.8]);
+            firstTrial = solver.invokeTrialIteration( ...
+                [0.2; 0.8], 1, 1);
+            secondTrial = solver.invokeTrialIteration( ...
+                [0.2; 0.8], 1, 2);
+            thirdTrial = solver.invokeTrialIteration( ...
+                [0.2; 0.8], 1, 3);
+            testCase.verifyEqual(firstTrial.Flux, [7; 0.8]);
+            testCase.verifyEqual(secondTrial.Flux, [7; 0.1]);
+            testCase.verifyNotEqual(thirdTrial.Flux, firstTrial.Flux);
+            testCase.verifyNotEqual(thirdTrial.Flux, secondTrial.Flux);
+            testCase.verifyGreaterThan(thirdTrial.Flux(2), 0.1);
+            testCase.verifyLessThan(thirdTrial.Flux(2), 0.8);
             testCase.verifyTrue(result.IsCalculated);
             testCase.verifyFalse(result.IsError);
             testCase.verifyEqual(result.LowerBounds, zeros(2, 1));

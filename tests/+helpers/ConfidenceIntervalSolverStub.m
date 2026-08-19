@@ -2,6 +2,7 @@ classdef ConfidenceIntervalSolverStub < handle
 
     properties (SetAccess = private)
         CallCount (1, 1) double = 0
+        TrialIterationFunction = []
     end
 
     methods
@@ -17,10 +18,14 @@ classdef ConfidenceIntervalSolverStub < handle
                 name = varargin{index};
 
                 if (ischar(name) || isstring(name)) && ...
-                        isscalar(string(name)) && ...
-                        string(name) == "ProgressReporter"
-                    varargin{index + 1}(1, 1);
-                    break
+                        isscalar(string(name))
+                    switch string(name)
+                        case "TrialIterationFunction"
+                            obj.TrialIterationFunction = ...
+                                varargin{index + 1};
+                        case "ProgressReporter"
+                            varargin{index + 1}(1, 1);
+                    end
                 end
 
             end
@@ -37,6 +42,18 @@ classdef ConfidenceIntervalSolverStub < handle
                 Fluxes = zeros(fluxCount, 1), ...
                 IterationCount = 1, ...
                 ElapsedTime = 2);
+
+        end
+
+        function result = invokeTrialIteration( ...
+                obj, mdv, sampleIndex, trialIndex)
+
+            if isempty(obj.TrialIterationFunction)
+                error("TrialIterationFunction was not supplied.");
+            end
+
+            result = obj.TrialIterationFunction( ...
+                mdv, sampleIndex, trialIndex);
 
         end
 
