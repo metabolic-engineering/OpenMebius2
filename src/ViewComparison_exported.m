@@ -2,17 +2,33 @@ classdef ViewComparison_exported < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        UIFigure        matlab.ui.Figure
-        GridLayout      matlab.ui.container.GridLayout
-        GridLayout3     matlab.ui.container.GridLayout
-        GridLayout4     matlab.ui.container.GridLayout
-        ColorUITable    matlab.ui.control.Table
-        FluxUITable     matlab.ui.control.Table
-        BatchUITable    matlab.ui.control.Table
-        UIAxes          matlab.ui.control.UIAxes
-        GridLayout2     matlab.ui.container.GridLayout
-        SaveplotButton  matlab.ui.control.Button
-        CloseButton     matlab.ui.control.Button
+        UIFigure                matlab.ui.Figure
+        GridLayout              matlab.ui.container.GridLayout
+        GridLayout3             matlab.ui.container.GridLayout
+        GridLayout5             matlab.ui.container.GridLayout
+        GridLayout10            matlab.ui.container.GridLayout
+        BestfitSizeEditField    matlab.ui.control.NumericEditField
+        BestfitSizeEditFieldLabel  matlab.ui.control.Label
+        GridLayout9             matlab.ui.container.GridLayout
+        BestfitColorEditField   matlab.ui.control.EditField
+        BestfitColorEditFieldLabel  matlab.ui.control.Label
+        GridLayout8             matlab.ui.container.GridLayout
+        BestfitStyleDropDown    matlab.ui.control.DropDown
+        BestfitStyleDropDownLabel  matlab.ui.control.Label
+        GridLayout7             matlab.ui.container.GridLayout
+        FontsizeEditField       matlab.ui.control.NumericEditField
+        FontsizeEditFieldLabel  matlab.ui.control.Label
+        GridLayout6             matlab.ui.container.GridLayout
+        UIfontDropDown          matlab.ui.control.DropDown
+        UIfontDropDownLabel     matlab.ui.control.Label
+        GridLayout4             matlab.ui.container.GridLayout
+        ColorUITable            matlab.ui.control.Table
+        FluxUITable             matlab.ui.control.Table
+        BatchUITable            matlab.ui.control.Table
+        UIAxes                  matlab.ui.control.UIAxes
+        GridLayout2             matlab.ui.container.GridLayout
+        SaveplotButton          matlab.ui.control.Button
+        CloseButton             matlab.ui.control.Button
     end
 
     properties (Access = private)
@@ -23,11 +39,6 @@ classdef ViewComparison_exported < matlab.apps.AppBase
         CatalogBatchIDs (:, 1) string = strings(0, 1)
         InitialBatchIDs (:, 1) string = strings(0, 1)
         IsInitializing (1, 1) logical = false
-        UIFontDropDown matlab.ui.control.DropDown
-        UIFontSizeEditField matlab.ui.control.NumericEditField
-        BestfitStyleDropDown matlab.ui.control.DropDown
-        BestfitColorEditField matlab.ui.control.EditField
-        BestfitSizeEditField matlab.ui.control.NumericEditField
     end
 
     events
@@ -55,7 +66,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
                 @(~, event) app.savePlot(event);
             app.CloseButton.ButtonPushedFcn = ...
                 @(~, event) app.closeRequested(event);
-            app.createDisplayOptionControls();
+            app.configureDisplayOptionControls();
 
             app.BatchUITable.ColumnName = {'ID', 'Exp name', 'Contents'};
             app.BatchUITable.ColumnEditable = [false false false];
@@ -84,10 +95,8 @@ classdef ViewComparison_exported < matlab.apps.AppBase
 
         end % configureComponents
 
-        function createDisplayOptionControls(app)
+        function configureDisplayOptionControls(app)
 
-            app.GridLayout2.ColumnWidth = ...
-                {'1.5x', '0.7x', '1x', '1x', '0.7x', 'fit', 'fit'};
             fontList = unique(string(listfonts));
             fontList(fontList == "") = [];
 
@@ -101,66 +110,20 @@ classdef ViewComparison_exported < matlab.apps.AppBase
                 defaultFont = fontList(1);
             end
 
-            fontLayout = app.optionLayout(1, 'UI font');
-            app.UIFontDropDown = uidropdown(fontLayout, ...
-                'Items', cellstr(fontList), ...
-                'Value', char(defaultFont), ...
-                'ValueChangedFcn', ...
-                @(~, event) app.displayOptionsChanged(event));
-            app.UIFontDropDown.Layout.Row = 2;
-            sizeLayout = app.optionLayout(2, 'Font size');
-            app.UIFontSizeEditField = uieditfield( ...
-                sizeLayout, ...
-                'numeric', ...
-                'Value', 10, ...
-                'Limits', [6 72], ...
-                'ValueChangedFcn', ...
-                @(~, event) app.displayOptionsChanged(event));
-            app.UIFontSizeEditField.Layout.Row = 2;
-            styleLayout = app.optionLayout(3, 'Best fit');
-            app.BestfitStyleDropDown = uidropdown( ...
-                styleLayout, ...
-                'Items', {'triangle', 'diamond', 'none'}, ...
-                'Value', 'triangle', ...
-                'ValueChangedFcn', ...
-                @(~, event) app.displayOptionsChanged(event));
-            app.BestfitStyleDropDown.Layout.Row = 2;
-            colorLayout = app.optionLayout(4, 'Best fit color');
-            app.BestfitColorEditField = uieditfield( ...
-                colorLayout, ...
-                'text', ...
-                'Value', 'series', ...
-                'Tooltip', 'Use "series" or a #RRGGBB color.', ...
-                'ValueChangedFcn', ...
-                @(~, event) app.bestfitColorChanged(event));
-            app.BestfitColorEditField.Layout.Row = 2;
-            markerSizeLayout = app.optionLayout(5, 'Marker size');
-            app.BestfitSizeEditField = uieditfield( ...
-                markerSizeLayout, ...
-                'numeric', ...
-                'Value', 8, ...
-                'Limits', [1 40], ...
-                'ValueChangedFcn', ...
-                @(~, event) app.displayOptionsChanged(event));
-            app.BestfitSizeEditField.Layout.Row = 2;
+            app.UIfontDropDown.Items = cellstr(fontList);
+            app.UIfontDropDown.Value = char(defaultFont);
+            app.UIfontDropDown.ValueChangedFcn = ...
+                @(~, event) app.displayOptionsChanged(event);
+            app.FontsizeEditField.ValueChangedFcn = ...
+                @(~, event) app.displayOptionsChanged(event);
+            app.BestfitStyleDropDown.ValueChangedFcn = ...
+                @(~, event) app.displayOptionsChanged(event);
+            app.BestfitColorEditField.ValueChangedFcn = ...
+                @(~, event) app.bestfitColorChanged(event);
+            app.BestfitSizeEditField.ValueChangedFcn = ...
+                @(~, event) app.displayOptionsChanged(event);
 
-        end % createDisplayOptionControls
-
-        function layout = optionLayout(app, column, labelText)
-
-            layout = uigridlayout(app.GridLayout2, [2 1]);
-            layout.RowHeight = {'fit', 'fit'};
-            layout.ColumnWidth = {'1x'};
-            layout.Padding = [2 0 2 0];
-            layout.RowSpacing = 2;
-            layout.Layout.Row = 1;
-            layout.Layout.Column = column;
-            label = uilabel(layout, ...
-                'Text', labelText, ...
-                'HorizontalAlignment', 'center');
-            label.Layout.Row = 1;
-
-        end % optionLayout
+        end % configureDisplayOptionControls
 
         function applyCatalog(app, viewModel)
 
@@ -350,7 +313,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             missingNames = strlength(strtrim(reactionNames)) == 0;
             reactionIDs = app.PlotViewModel.ReactionIDs(reactionRows);
             reactionNames(missingNames) = reactionIDs(missingNames);
-            fontSize = app.UIFontSizeEditField.Value;
+            fontSize = app.FontsizeEditField.Value;
             markerSize = app.BestfitSizeEditField.Value;
 
             try
@@ -423,13 +386,13 @@ classdef ViewComparison_exported < matlab.apps.AppBase
 
         function applyUIFont(app)
 
-            if isempty(app.UIFontDropDown) || ...
-                    isempty(app.UIFontSizeEditField)
+            if isempty(app.UIfontDropDown) || ...
+                    isempty(app.FontsizeEditField)
                 return
             end
 
-            fontName = app.UIFontDropDown.Value;
-            fontSize = app.UIFontSizeEditField.Value;
+            fontName = app.UIfontDropDown.Value;
+            fontSize = app.FontsizeEditField.Value;
             fontObjects = findall(app.UIFigure, '-property', 'FontName');
 
             for objectIndex = 1:numel(fontObjects)
@@ -644,8 +607,8 @@ classdef ViewComparison_exported < matlab.apps.AppBase
                 'WidthPx', 1600, ...
                 'HeightPx', 1200, ...
                 'DPI', 300, ...
-                'FontSize', app.UIFontSizeEditField.Value, ...
-                'FontName', app.UIFontDropDown.Value, ...
+                'FontSize', app.FontsizeEditField.Value, ...
+                'FontName', app.UIfontDropDown.Value, ...
                 'Format', 'png');
             fontList = unique(string(listfonts));
             fontList(fontList == "") = [];
@@ -764,10 +727,8 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             app.configureComponents();
             app.IsInitializing = false;
             app.applyCatalog(context.InitialCatalog);
-
-        end % startupFcn
-
-    end % methods (Access = private)
+        end
+    end
 
     % Component initialization
     methods (Access = private)
@@ -777,7 +738,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 1080 640];
+            app.UIFigure.Position = [100 100 1280 640];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create GridLayout
@@ -806,7 +767,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
 
             % Create GridLayout3
             app.GridLayout3 = uigridlayout(app.GridLayout);
-            app.GridLayout3.ColumnWidth = {'1x', '1x', '2x'};
+            app.GridLayout3.ColumnWidth = {'1x', '1x', '1x', '2x'};
             app.GridLayout3.RowHeight = {'1x'};
             app.GridLayout3.Layout.Row = 1;
             app.GridLayout3.Layout.Column = 1;
@@ -818,7 +779,7 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             ylabel(app.UIAxes, 'Y')
             zlabel(app.UIAxes, 'Z')
             app.UIAxes.Layout.Row = 1;
-            app.UIAxes.Layout.Column = 3;
+            app.UIAxes.Layout.Column = 4;
 
             % Create BatchUITable
             app.BatchUITable = uitable(app.GridLayout3);
@@ -847,6 +808,122 @@ classdef ViewComparison_exported < matlab.apps.AppBase
             app.ColorUITable.RowName = {};
             app.ColorUITable.Layout.Row = 2;
             app.ColorUITable.Layout.Column = 1;
+
+            % Create GridLayout5
+            app.GridLayout5 = uigridlayout(app.GridLayout3);
+            app.GridLayout5.ColumnWidth = {'1x'};
+            app.GridLayout5.RowHeight = {'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit', 'fit'};
+            app.GridLayout5.Padding = [0 0 0 0];
+            app.GridLayout5.Layout.Row = 1;
+            app.GridLayout5.Layout.Column = 3;
+
+            % Create GridLayout6
+            app.GridLayout6 = uigridlayout(app.GridLayout5);
+            app.GridLayout6.ColumnWidth = {'3x', '7x'};
+            app.GridLayout6.RowHeight = {'1x'};
+            app.GridLayout6.Padding = [0 0 0 0];
+            app.GridLayout6.Layout.Row = 1;
+            app.GridLayout6.Layout.Column = 1;
+
+            % Create UIfontDropDownLabel
+            app.UIfontDropDownLabel = uilabel(app.GridLayout6);
+            app.UIfontDropDownLabel.Layout.Row = 1;
+            app.UIfontDropDownLabel.Layout.Column = 1;
+            app.UIfontDropDownLabel.Text = 'UI font';
+
+            % Create UIfontDropDown
+            app.UIfontDropDown = uidropdown(app.GridLayout6);
+            app.UIfontDropDown.Items = {};
+            app.UIfontDropDown.Layout.Row = 1;
+            app.UIfontDropDown.Layout.Column = 2;
+            app.UIfontDropDown.Value = {};
+
+            % Create GridLayout7
+            app.GridLayout7 = uigridlayout(app.GridLayout5);
+            app.GridLayout7.ColumnWidth = {'3x', '7x'};
+            app.GridLayout7.RowHeight = {'1x'};
+            app.GridLayout7.Padding = [0 0 0 0];
+            app.GridLayout7.Layout.Row = 2;
+            app.GridLayout7.Layout.Column = 1;
+
+            % Create FontsizeEditFieldLabel
+            app.FontsizeEditFieldLabel = uilabel(app.GridLayout7);
+            app.FontsizeEditFieldLabel.Layout.Row = 1;
+            app.FontsizeEditFieldLabel.Layout.Column = 1;
+            app.FontsizeEditFieldLabel.Text = 'Font size';
+
+            % Create FontsizeEditField
+            app.FontsizeEditField = uieditfield(app.GridLayout7, 'numeric');
+            app.FontsizeEditField.Limits = [6 72];
+            app.FontsizeEditField.Layout.Row = 1;
+            app.FontsizeEditField.Layout.Column = 2;
+            app.FontsizeEditField.Value = 10;
+
+            % Create GridLayout8
+            app.GridLayout8 = uigridlayout(app.GridLayout5);
+            app.GridLayout8.ColumnWidth = {'3x', '7x'};
+            app.GridLayout8.RowHeight = {'1x'};
+            app.GridLayout8.Padding = [0 0 0 0];
+            app.GridLayout8.Layout.Row = 3;
+            app.GridLayout8.Layout.Column = 1;
+
+            % Create BestfitStyleDropDownLabel
+            app.BestfitStyleDropDownLabel = uilabel(app.GridLayout8);
+            app.BestfitStyleDropDownLabel.Layout.Row = 1;
+            app.BestfitStyleDropDownLabel.Layout.Column = 1;
+            app.BestfitStyleDropDownLabel.Text = 'Best fit';
+
+            % Create BestfitStyleDropDown
+            app.BestfitStyleDropDown = uidropdown(app.GridLayout8);
+            app.BestfitStyleDropDown.Items = ...
+                {'triangle', 'diamond', 'none'};
+            app.BestfitStyleDropDown.Layout.Row = 1;
+            app.BestfitStyleDropDown.Layout.Column = 2;
+            app.BestfitStyleDropDown.Value = 'triangle';
+
+            % Create GridLayout9
+            app.GridLayout9 = uigridlayout(app.GridLayout5);
+            app.GridLayout9.ColumnWidth = {'3x', '7x'};
+            app.GridLayout9.RowHeight = {'1x'};
+            app.GridLayout9.Padding = [0 0 0 0];
+            app.GridLayout9.Layout.Row = 4;
+            app.GridLayout9.Layout.Column = 1;
+
+            % Create BestfitColorEditFieldLabel
+            app.BestfitColorEditFieldLabel = uilabel(app.GridLayout9);
+            app.BestfitColorEditFieldLabel.Layout.Row = 1;
+            app.BestfitColorEditFieldLabel.Layout.Column = 1;
+            app.BestfitColorEditFieldLabel.Text = 'Best fit color';
+
+            % Create BestfitColorEditField
+            app.BestfitColorEditField = uieditfield(app.GridLayout9, 'text');
+            app.BestfitColorEditField.Tooltip = ...
+                {'Use "series" or a #RRGGBB color.'};
+            app.BestfitColorEditField.Layout.Row = 1;
+            app.BestfitColorEditField.Layout.Column = 2;
+            app.BestfitColorEditField.Value = 'series';
+
+            % Create GridLayout10
+            app.GridLayout10 = uigridlayout(app.GridLayout5);
+            app.GridLayout10.ColumnWidth = {'3x', '7x'};
+            app.GridLayout10.RowHeight = {'1x'};
+            app.GridLayout10.Padding = [0 0 0 0];
+            app.GridLayout10.Layout.Row = 5;
+            app.GridLayout10.Layout.Column = 1;
+
+            % Create BestfitSizeEditFieldLabel
+            app.BestfitSizeEditFieldLabel = uilabel(app.GridLayout10);
+            app.BestfitSizeEditFieldLabel.Layout.Row = 1;
+            app.BestfitSizeEditFieldLabel.Layout.Column = 1;
+            app.BestfitSizeEditFieldLabel.Text = 'Marker size';
+
+            % Create BestfitSizeEditField
+            app.BestfitSizeEditField = ...
+                uieditfield(app.GridLayout10, 'numeric');
+            app.BestfitSizeEditField.Limits = [1 40];
+            app.BestfitSizeEditField.Layout.Row = 1;
+            app.BestfitSizeEditField.Layout.Column = 2;
+            app.BestfitSizeEditField.Value = 8;
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

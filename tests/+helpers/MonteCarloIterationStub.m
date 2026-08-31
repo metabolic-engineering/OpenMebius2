@@ -4,6 +4,8 @@ classdef MonteCarloIterationStub < handle
         Fluxes (:, :) double
         ObjectiveValues (1, :) double
         CallCount (1, 1) double = 0
+        SampleIndices (1, :) double = zeros(1, 0)
+        TrialIndices (1, :) double = zeros(1, 0)
     end
 
     methods
@@ -30,6 +32,15 @@ classdef MonteCarloIterationStub < handle
                 MDV = mdv, ...
                 ObjectiveValue = obj.ObjectiveValues(index), ...
                 ExitFlag = 1);
+
+        end
+
+        function result = runTrial( ...
+                obj, mdv, sampleIndex, trialIndex)
+
+            obj.SampleIndices(end + 1) = sampleIndex;
+            obj.TrialIndices(end + 1) = trialIndex;
+            result = obj.run(mdv);
 
         end
 

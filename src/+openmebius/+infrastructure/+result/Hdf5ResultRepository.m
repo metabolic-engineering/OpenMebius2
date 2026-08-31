@@ -215,6 +215,7 @@ classdef Hdf5ResultRepository < handle
             data = struct;
             data.RSS = h5read(filePath, "/RSS");
             data.threshold = h5read(filePath, "/threshold");
+            data.ExitFlags = obj.readOptimizationExitFlags(filePath);
 
         end % readOptimizationState
 
@@ -436,6 +437,30 @@ classdef Hdf5ResultRepository < handle
     end % methods
 
     methods (Access = private)
+
+        function exitFlags = readOptimizationExitFlags( ...
+                obj, filePath)
+
+            iterationIndices = double(obj.readOptionalDataset( ...
+                filePath, "/RSSIndex", []));
+            iterationIndices = iterationIndices(:);
+            exitFlags = nan(numel(iterationIndices), 1);
+
+            for iterationIndex = 1:numel(iterationIndices)
+                iterationName = string(sprintf( ...
+                    "%04d", iterationIndices(iterationIndex)));
+                pathData = "/fluxResult/" + iterationName + ...
+                    "/exitflag";
+                value = double(obj.readOptionalDataset( ...
+                    filePath, pathData, NaN));
+
+                if isscalar(value)
+                    exitFlags(iterationIndex) = value;
+                end
+
+            end
+
+        end % readOptimizationExitFlags
 
         function data = readGridSearchData(obj, filePath)
 

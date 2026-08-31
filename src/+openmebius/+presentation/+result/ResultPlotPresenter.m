@@ -113,11 +113,22 @@ classdef ResultPlotPresenter < handle
                 batchName = batchNames(selectedResultRow);
             end
 
-            [subPlot, notification] = obj.presentOptimizationState( ...
-                result, ...
-                batchIDs(selectedResultRow), ...
-                batchName, ...
-                options.UseLogScale);
+            subPlotType = obj.selectedSubPlotType( ...
+                context, "rss-histogram");
+
+            if subPlotType == "exitflag-pie"
+                [subPlot, notification] = ...
+                    obj.presentOptimizationExitFlags( ...
+                    result, ...
+                    batchIDs(selectedResultRow), ...
+                    batchName);
+            else
+                [subPlot, notification] = obj.presentOptimizationState( ...
+                    result, ...
+                    batchIDs(selectedResultRow), ...
+                    batchName, ...
+                    options.UseLogScale);
+            end
 
             if isempty(fieldnames(subPlot))
                 viewModel = ...
@@ -209,6 +220,15 @@ classdef ResultPlotPresenter < handle
                 selectionSource = string(context.SelectionSource);
             end
 
+            defaultSubPlotType = "confidence-interval";
+
+            if selectionSource == "SubTable"
+                defaultSubPlotType = "rss-histogram";
+            end
+
+            subPlotType = obj.selectedSubPlotType( ...
+                context, defaultSubPlotType);
+
             if selectionSource == "SubTable"
                 batchName = batchIDs(selectedResultRow);
 
@@ -218,11 +238,20 @@ classdef ResultPlotPresenter < handle
                     batchName = batchNames(selectedResultRow);
                 end
 
-                [subPlot, notification] = obj.presentOptimizationState( ...
-                    result, ...
-                    batchIDs(selectedResultRow), ...
-                    batchName, ...
-                    options.UseLogScale);
+                if subPlotType == "exitflag-pie"
+                    [subPlot, notification] = ...
+                        obj.presentOptimizationExitFlags( ...
+                        result, ...
+                        batchIDs(selectedResultRow), ...
+                        batchName);
+                else
+                    [subPlot, notification] = ...
+                        obj.presentOptimizationState( ...
+                        result, ...
+                        batchIDs(selectedResultRow), ...
+                        batchName, ...
+                        options.UseLogScale);
+                end
 
             elseif ~isempty(context.SelectedMainRows)
                 selectedFluxRow = context.SelectedMainRows(1);
@@ -230,10 +259,29 @@ classdef ResultPlotPresenter < handle
                 if obj.isValidRow(selectedFluxRow, numel(rxnIDs))
                     rxnID = rxnIDs(selectedFluxRow);
                     highlightReactionIDs = rxnID;
-                    ciData = getCIReaction( ...
-                        result, batchIDs(selectedResultRow), rxnID);
-                    [subPlot, notification] = ...
-                        obj.presentConfidenceInterval(ciData, rxnID);
+
+                    if subPlotType == "exitflag-pie"
+                        batchName = batchIDs(selectedResultRow);
+
+                        if any(string( ...
+                                context.SubTableData.Properties ...
+                                .VariableNames) == "Name")
+                            batchNames = string( ...
+                                context.SubTableData.Name);
+                            batchName = batchNames(selectedResultRow);
+                        end
+
+                        [subPlot, notification] = ...
+                            obj.presentOptimizationExitFlags( ...
+                            result, ...
+                            batchIDs(selectedResultRow), ...
+                            batchName);
+                    else
+                        ciData = getCIReaction( ...
+                            result, batchIDs(selectedResultRow), rxnID);
+                        [subPlot, notification] = ...
+                            obj.presentConfidenceInterval(ciData, rxnID);
+                    end
                 end
 
             end
@@ -355,6 +403,54 @@ classdef ResultPlotPresenter < handle
             plotData.Title = "Optimization state: " + batchName;
 
         end % presentOptimizationState
+
+        function [plotData, notification] = ...
+                presentOptimizationExitFlags( ...
+                ~, result, batchID, batchName)
+
+            plotData = struct();
+            notification = [];
+
+            try
+                data = getOptimizationState(result, batchID);
+            catch
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                    "Exitflag data could not be loaded.");
+                return
+            end
+
+            if isempty(data) || ~isstruct(data) || ~isscalar(data) || ...
+                    ~isfield(data, "ExitFlags")
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                    "Exitflag data is unavailable.");
+                return
+            end
+
+            exitFlags = double(data.ExitFlags(:));
+            exitFlags = exitFlags(isfinite(exitFlags));
+
+            if isempty(exitFlags)
+                notification = openmebius.presentation.notification ...
+                    .Notification.warning( ...
+                    "Exitflag data is unavailable.");
+                return
+            end
+
+            [flags, ~, groups] = unique(exitFlags, "sorted");
+            counts = accumarray(groups, 1);
+            percentages = 100 .* counts ./ sum(counts);
+            labels = "Exitflag " + compose("%g", flags) + ...
+                ": " + string(counts) + " (" + ...
+                compose("%.1f", percentages) + "%)";
+            plotData.Kind = "optimization-exitflag-pie";
+            plotData.ExitFlags = flags;
+            plotData.Counts = counts;
+            plotData.Labels = labels;
+            plotData.Title = "Exitflag by iteration: " + batchName;
+
+        end % presentOptimizationExitFlags
 
         function [plotData, notification] = ...
                 presentMonteCarloConfidenceInterval( ...
@@ -567,6 +663,26 @@ classdef ResultPlotPresenter < handle
                 row == fix(row) && row >= 1 && row <= rowCount;
 
         end % isValidRow
+
+        function subPlotType = selectedSubPlotType( ...
+                ~, context, defaultType)
+
+            subPlotType = string(defaultType);
+
+            if ~isfield(context, "SubPlotType") || ...
+                    ~isscalar(context.SubPlotType)
+                return
+            end
+
+            requestedType = string(context.SubPlotType);
+
+            if ismissing(requestedType) || requestedType == ""
+                return
+            end
+
+            subPlotType = requestedType;
+
+        end % selectedSubPlotType
 
         function tf = isInvalidHandle(~, value)
 

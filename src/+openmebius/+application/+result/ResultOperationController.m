@@ -7,6 +7,7 @@ classdef ResultOperationController < handle
         ResultSuggestionService
         ResultRangePlotService
         ResultInformationService
+        ResultDiffService
     end
 
     methods
@@ -24,6 +25,8 @@ classdef ResultOperationController < handle
                     openmebius.application.result.ResultRangePlotService()
                 options.ResultInformationService = ...
                     openmebius.application.result.ResultInformationService()
+                options.ResultDiffService = ...
+                    openmebius.application.result.ResultDiffService()
             end
 
             obj.ResultExportService = options.ResultExportService;
@@ -35,6 +38,7 @@ classdef ResultOperationController < handle
                 options.ResultRangePlotService;
             obj.ResultInformationService = ...
                 options.ResultInformationService;
+            obj.ResultDiffService = options.ResultDiffService;
 
         end % constructor
 
@@ -131,6 +135,22 @@ classdef ResultOperationController < handle
                 modelDegreesOfFreedom));
 
         end % loadInformation
+
+        function outcome = compareSettings( ...
+                obj, result, batchIDs, batchNames)
+
+            arguments
+                obj
+                result
+                batchIDs (:, 1) string
+                batchNames (:, 1) string
+            end
+
+            outcome = obj.execute( ...
+                @() obj.ResultDiffService.compare( ...
+                result, batchIDs, batchNames));
+
+        end % compareSettings
 
     end % methods
 
