@@ -598,6 +598,20 @@ classdef MainApplicationController < handle
 
         end % loadResultInformation
 
+        function outcome = compareResultSettings( ...
+                obj, batchIDs, batchNames)
+
+            outcome = obj.resultCommand(@compareSettings);
+
+            function value = compareSettings()
+
+                value = obj.ResultController.compareSettings( ...
+                    obj.Session.Result, batchIDs, batchNames);
+
+            end
+
+        end % compareResultSettings
+
     end % methods
 
     methods (Access = private)

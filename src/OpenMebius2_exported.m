@@ -22,6 +22,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         AboutOpenMebius2Menu            matlab.ui.container.Menu
         GridLayout                      matlab.ui.container.GridLayout
         GridLayout10                    matlab.ui.container.GridLayout
+        GridLayout17                    matlab.ui.container.GridLayout
+        SubplottypeDropDown             matlab.ui.control.DropDown
+        SubplottypeDropDownLabel        matlab.ui.control.Label
         SubUIAxes                       matlab.ui.control.UIAxes
         MainUIAxes                      matlab.ui.control.UIAxes
         GridLayout9                     matlab.ui.container.GridLayout
@@ -135,6 +138,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
 
 
+
     properties (Access = public)
 
         typeSimulation (1, 1) string {mustBeMember(typeSimulation, ["MDV", "Flux", "Label"])} = "Flux";
@@ -214,6 +218,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         ChildAppHost openmebius.presentation.lifecycle.ChildAppHost
         DialogService openmebius.presentation.dialog.AppDialogService
         ModelContextMenu
+        ResultDiffMenu
         BatchConfigurationController openmebius.application.batch.BatchConfigurationController
         BatchExperimentSelectionEditorController openmebius.application.batch.BatchExperimentSelectionEditorController
         ExperimentEditController openmebius.application.experiment.ExperimentEditController
@@ -1108,6 +1113,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             removeStyle(app.ResultSubTable);
 
             app.ResultSubTable.Data = viewModel.Data;
+            app.updateResultDiffMenuVisibility();
 
             try
                 app.ResultSubTable.UserData = struct( ...
@@ -1158,7 +1164,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
                 case openmebius.presentation.result.ResultPlotKind.OptimizationState
                     app.clearResultPlots();
-                    app.renderOptimizationRSSHistogram(viewModel.SubPlot);
+                    app.renderResultSubPlot(viewModel.SubPlot);
 
                 otherwise
                     app.clearResultPlots();
@@ -1181,23 +1187,36 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 app.resetResultAxes(app.MainUIAxes);
             end
 
-            if isfield(subPlot, "Kind") && ...
-                    subPlot.Kind == "monte-carlo-ci"
-                app.renderMonteCarloConfidenceInterval(subPlot);
-
-            elseif isfield(subPlot, "Kind") && ...
-                    subPlot.Kind == "grid-search-profile"
-                app.renderGridSearchProfile(subPlot);
-
-            elseif isfield(subPlot, "Kind") && ...
-                    subPlot.Kind == "optimization-rss-histogram"
-                app.renderOptimizationRSSHistogram(subPlot);
-
-            else
-                app.resetResultAxes(app.SubUIAxes);
-            end
+            app.renderResultSubPlot(subPlot);
 
         end % method renderOverviewResultPlot
+
+        function renderResultSubPlot(app, subPlot)
+
+            if ~isfield(subPlot, "Kind")
+                app.resetResultAxes(app.SubUIAxes);
+                return
+            end
+
+            switch subPlot.Kind
+
+                case "monte-carlo-ci"
+                    app.renderMonteCarloConfidenceInterval(subPlot);
+
+                case "grid-search-profile"
+                    app.renderGridSearchProfile(subPlot);
+
+                case "optimization-rss-histogram"
+                    app.renderOptimizationRSSHistogram(subPlot);
+
+                case "optimization-exitflag-pie"
+                    app.renderOptimizationExitFlagPie(subPlot);
+
+                otherwise
+                    app.resetResultAxes(app.SubUIAxes);
+            end
+
+        end % renderResultSubPlot
 
         function renderPathwayPlot(app, viewModel)
 
@@ -1561,6 +1580,41 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % renderOptimizationRSSHistogram
 
+        function renderOptimizationExitFlagPie(app, plotData)
+
+            counts = double(plotData.Counts(:));
+            axes = app.SubUIAxes;
+
+            if isempty(counts) || any(~isfinite(counts)) || ...
+                    any(counts <= 0)
+                app.resetResultAxes(axes);
+                return
+            end
+
+            labels = string(plotData.Labels(:));
+
+            if numel(labels) ~= numel(counts)
+                labels = "Exitflag " + string(1:numel(counts));
+                labels = labels(:);
+            end
+
+            legend(axes, 'off');
+            cla(axes, 'reset');
+            axes.Visible = 'on';
+            axes.FontSize = 16;
+            axes.FontName = 'Arial';
+            pie(axes, counts, cellstr(labels));
+            slices = findobj(axes, 'Type', 'patch');
+
+            for sliceIndex = 1:numel(slices)
+                slices(sliceIndex).Tag = 'ExitflagPieSlice';
+            end
+
+            title(axes, plotData.Title);
+            axis(axes, 'equal');
+
+        end % renderOptimizationExitFlagPie
+
         function prepareCartesianResultAxes(~, axes)
 
             axes.Visible = 'on';
@@ -1820,6 +1874,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             if isfield(ui, "ResultEnabled")
                 value = app.onOff(ui.ResultEnabled);
                 app.ResultDropDown.Enable = value;
+                app.SubplottypeDropDown.Enable = app.onOff( ...
+                    ui.ResultEnabled && ...
+                    ~isempty(app.SubplottypeDropDown.Items));
                 app.ResultMainTable.Enable = value;
                 app.ResultSubTable.Enable = value;
                 app.ResultReportButton.Enable = value;
@@ -3662,6 +3719,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             context = struct();
 
             context.Mode = string(app.ResultDropDown.Value);
+            context.SubPlotType = ...
+                app.safeStringScalar(app.SubplottypeDropDown.Value);
 
             context.SelectedMainRows = ...
                 app.selectedTableRows(app.ResultMainTable);
@@ -4297,6 +4356,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 removeStyle(tableObject);
             end
 
+            app.SubplottypeDropDown.Items = {};
+            app.SubplottypeDropDown.ItemsData = {};
+            app.SubplottypeDropDown.Value = {};
+            app.SubplottypeDropDown.Enable = 'off';
+
             axesObjects = {app.MainUIAxes, app.SubUIAxes};
 
             for axesIndex = 1:numel(axesObjects)
@@ -4357,6 +4421,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 selectionSource = "";
             end
 
+            selectionSource = app.resolveResultSelectionSource( ...
+                string(selectionSource));
+            app.updateSubPlotTypeOptions(selectionSource);
+
             context = app.captureResultPlotContext();
             context.SelectionSource = string(selectionSource);
             viewModel = app.ResultPlotPresenter.present( ...
@@ -4367,6 +4435,63 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.renderResultPlot(viewModel);
 
         end % method updateResultPlot
+
+        function selectionSource = resolveResultSelectionSource( ...
+                app, requestedSource)
+
+            selectionSource = string(requestedSource);
+
+            if selectionSource ~= ""
+                return
+            end
+
+            if ~isempty(app.selectedTableRows(app.ResultMainTable))
+                selectionSource = "MainTable";
+            elseif ~isempty(app.selectedTableRows(app.ResultSubTable))
+                selectionSource = "SubTable";
+            end
+
+        end % resolveResultSelectionSource
+
+        function updateSubPlotTypeOptions(app, selectionSource)
+
+            labels = strings(0, 1);
+            values = strings(0, 1);
+            mode = openmebius.presentation.result.ResultViewMode ...
+                .normalize(string(app.ResultDropDown.Value));
+
+            if selectionSource == "SubTable" && ...
+                    any(mode == ["Overview", "MDV", "MDV (Summary)"])
+                labels = ["Histogram"; "Exitflag"];
+                values = ["rss-histogram"; "exitflag-pie"];
+            elseif selectionSource == "MainTable" && mode == "Overview"
+                labels = ["Grid / MCMC"; "Exitflag"];
+                values = ["confidence-interval"; "exitflag-pie"];
+            end
+
+            previousValue = ...
+                app.safeStringScalar(app.SubplottypeDropDown.Value);
+
+            if isempty(values)
+                app.SubplottypeDropDown.Items = {};
+                app.SubplottypeDropDown.ItemsData = {};
+                app.SubplottypeDropDown.Value = {};
+                app.SubplottypeDropDown.Enable = 'off';
+                return
+            end
+
+            app.SubplottypeDropDown.Items = cellstr(labels);
+            app.SubplottypeDropDown.ItemsData = cellstr(values);
+
+            if any(values == previousValue)
+                app.SubplottypeDropDown.Value = char(previousValue);
+            else
+                app.SubplottypeDropDown.Value = char(values(1));
+            end
+
+            app.SubplottypeDropDown.Enable = 'on';
+
+        end % updateSubPlotTypeOptions
 
         function updateResultPlotFromSubTable(app)
 
@@ -4807,6 +4932,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.DialogService = openmebius.presentation.dialog ...
                 .AppDialogService(app.OpenMebius2UIFigure);
+            app.initializeSubPlotTypeControl();
             app.initializeModelContextMenu();
             app.initializeBatchOrderContextMenu();
             app.initializeResultContextMenu();
@@ -4850,6 +4976,17 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % initializeMainApp
 
+        function initializeSubPlotTypeControl(app)
+
+            app.SubplottypeDropDown.Items = {};
+            app.SubplottypeDropDown.ItemsData = {};
+            app.SubplottypeDropDown.Value = {};
+            app.SubplottypeDropDown.Enable = 'off';
+            app.SubplottypeDropDown.ValueChangedFcn = ...
+                @(~, ~) app.updateResultPlot();
+
+        end % initializeSubPlotTypeControl
+
         function initializeModelContextMenu(app)
 
             app.ModelContextMenu = uicontextmenu( ...
@@ -4885,8 +5022,28 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
             app.ViewinformationMenu.MenuSelectedFcn = ...
                 @(~, ~) app.showResultInformation();
+            app.ContextMenuResultSelect.ContextMenuOpeningFcn = ...
+                @(~, ~) app.updateResultDiffMenuVisibility();
+            app.ResultDiffMenu = uimenu( ...
+                app.ContextMenuResultSelect, ...
+                Text = "Diff", ...
+                Visible = "off", ...
+                MenuSelectedFcn = @(~, ~) app.showResultDiff());
 
         end % initializeResultContextMenu
+
+        function updateResultDiffMenuVisibility(app)
+
+            if isempty(app.ResultDiffMenu) || ...
+                    ~isvalid(app.ResultDiffMenu)
+                return
+            end
+
+            selectedRows = app.selectedTableRows(app.ResultSubTable);
+            app.ResultDiffMenu.Visible = ...
+                app.onOff(numel(selectedRows) == 2);
+
+        end % updateResultDiffMenuVisibility
 
         function addModelReaction(app)
 
@@ -5517,6 +5674,16 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % showResultInformation
 
+        function showResultDiff(app)
+
+            [batchIDs, batchNames] = app.selectedResultIdentities();
+            outcome = app.ApplicationController.compareResultSettings( ...
+                batchIDs, batchNames);
+            app.renderResultOperationViewModel( ...
+                app.ResultPresenter.presentDiffOutcome(outcome));
+
+        end % showResultDiff
+
         function copySelectedTracer(app)
 
             selected = app.LabelTable.Selection;
@@ -5751,6 +5918,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method onPreferencesClosed
 
     end % methods (Access = private)
+
 
 
 
@@ -6090,6 +6258,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Cell selection callback: ResultSubTable
         function ResultSubTableCellSelection(app, event)
 
+            app.updateResultDiffMenuVisibility();
             app.updateResultPlotFromSubTable();
         end
 
@@ -6985,7 +7154,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             % Create GridLayout10
             app.GridLayout10 = uigridlayout(app.GridLayout);
             app.GridLayout10.ColumnWidth = {'1x'};
-            app.GridLayout10.RowHeight = {'6x', '4x'};
+            app.GridLayout10.RowHeight = {'6x', '4x', 'fit'};
             app.GridLayout10.Padding = [0 0 0 0];
             app.GridLayout10.Layout.Row = 1;
             app.GridLayout10.Layout.Column = 3;
@@ -7009,6 +7178,26 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.SubUIAxes.Layout.Row = 2;
             app.SubUIAxes.Layout.Column = 1;
             app.SubUIAxes.Visible = 'off';
+
+            % Create GridLayout17
+            app.GridLayout17 = uigridlayout(app.GridLayout10);
+            app.GridLayout17.ColumnWidth = {'1x', '1x', '1x', '1x'};
+            app.GridLayout17.RowHeight = {'1x'};
+            app.GridLayout17.Layout.Row = 3;
+            app.GridLayout17.Layout.Column = 1;
+
+            % Create SubplottypeDropDownLabel
+            app.SubplottypeDropDownLabel = uilabel(app.GridLayout17);
+            app.SubplottypeDropDownLabel.Layout.Row = 1;
+            app.SubplottypeDropDownLabel.Layout.Column = 3;
+            app.SubplottypeDropDownLabel.Text = 'Sub plot type';
+
+            % Create SubplottypeDropDown
+            app.SubplottypeDropDown = uidropdown(app.GridLayout17);
+            app.SubplottypeDropDown.Items = {};
+            app.SubplottypeDropDown.Layout.Row = 1;
+            app.SubplottypeDropDown.Layout.Column = 4;
+            app.SubplottypeDropDown.Value = {};
 
             % Create ContextMenu
             app.ContextMenu = uicontextmenu(app.OpenMebius2UIFigure);
