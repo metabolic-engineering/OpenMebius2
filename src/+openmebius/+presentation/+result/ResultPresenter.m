@@ -402,6 +402,49 @@ classdef ResultPresenter < handle
 
         end % presentInformationOutcome
 
+        function viewModel = presentDiffOutcome(obj, outcome)
+
+            arguments
+                obj
+                outcome (1, 1) openmebius.application.result ...
+                    .ResultOperationOutcome
+            end
+
+            if outcome.isSuccess()
+                notification = openmebius.presentation.notification ...
+                    .Notification.info( ...
+                    obj.formatResultDiff(outcome.Result), ...
+                    Title = "Analysis condition diff");
+            else
+                identifier = obj.outcomeIdentifier(outcome);
+                message = obj.outcomeMessage( ...
+                    outcome, "Failed to compare analysis settings.");
+                warningIdentifiers = [ ...
+                    "OpenMebius2:ResultDiff:SelectionRequired"
+                    "OpenMebius2:ResultDiff:DuplicateSelection"
+                    "OpenMebius2:ResultDiff:ResultUnavailable"
+                    "OpenMebius2:ResultDiff:DataUnavailable"
+                    "OpenMebius2:ResultDiff:InvalidData"];
+
+                if any(identifier == warningIdentifiers)
+                    notification = openmebius.presentation.notification ...
+                        .Notification.warning(message);
+                else
+                    notification = openmebius.presentation.notification ...
+                        .Notification.error( ...
+                        message, ...
+                        Title = "Analysis condition diff failed", ...
+                        ShowAlert = true);
+                end
+
+            end
+
+            viewModel = openmebius.presentation.result ...
+                .ResultOperationViewModel( ...
+                Notifications = {notification});
+
+        end % presentDiffOutcome
+
     end
 
     methods (Access = private)
@@ -470,6 +513,28 @@ classdef ResultPresenter < handle
             text = join(lines, newline);
 
         end % formatResultInformation
+
+        function text = formatResultDiff(~, comparison)
+
+            lines = [ ...
+                "Analysis condition diff"
+                "  First: " + comparison.BatchNames(1) + ...
+                " (" + comparison.BatchIDs(1) + ")"
+                "  Second: " + comparison.BatchNames(2) + ...
+                " (" + comparison.BatchIDs(2) + ")"
+                "  Differences:"];
+
+            if isempty(comparison.Differences)
+                lines(end + 1, 1) = "    (none)";
+            else
+                lines = [ ...
+                    lines; ...
+                    "    " + comparison.Differences(:)];
+            end
+
+            text = join(lines, newline);
+
+        end % formatResultDiff
 
         function text = availableText(~, value)
 
