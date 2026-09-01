@@ -17,6 +17,7 @@ classdef Preferences_exported < matlab.apps.AppBase
         CalculationTab              matlab.ui.container.Tab
         GridLayout2_2               matlab.ui.container.GridLayout
         GridLayout5                 matlab.ui.container.GridLayout
+        CheckBox                    matlab.ui.control.CheckBox
         GridLayout6                 matlab.ui.container.GridLayout
         MDVcorrectionDropDown       matlab.ui.control.DropDown
         MDVcorrectionDropDownLabel  matlab.ui.control.Label
@@ -100,6 +101,8 @@ classdef Preferences_exported < matlab.apps.AppBase
                 cellstr(app.MDVCorrectionPreference.SupportedMethods);
             app.MDVcorrectionDropDown.Value = char( ...
                 app.MDVCorrectionPreference.getMethod());
+            app.CheckBox.Value = app.MDVCorrectionPreference ...
+                .getEnforceEnrichmentCalculation();
 
         end % loadMDVCorrectionPreference
 
@@ -112,6 +115,9 @@ classdef Preferences_exported < matlab.apps.AppBase
 
             app.MDVCorrectionPreference.setMethod( ...
                 string(app.MDVcorrectionDropDown.Value));
+            app.MDVCorrectionPreference ...
+                .setEnforceEnrichmentCalculation( ...
+                logical(app.CheckBox.Value));
 
         end % saveMDVCorrectionPreference
 
@@ -342,7 +348,7 @@ classdef Preferences_exported < matlab.apps.AppBase
             % Create GridLayout5
             app.GridLayout5 = uigridlayout(app.GridLayout2_2);
             app.GridLayout5.ColumnWidth = {'1x'};
-            app.GridLayout5.RowHeight = {'fit', '1x', '1x', '1x', '1x', '1x'};
+            app.GridLayout5.RowHeight = {'fit', 'fit', '1x', '1x', '1x', '1x'};
             app.GridLayout5.Padding = [0 0 0 0];
             app.GridLayout5.Layout.Row = 1;
             app.GridLayout5.Layout.Column = 1;
@@ -366,6 +372,12 @@ classdef Preferences_exported < matlab.apps.AppBase
             app.MDVcorrectionDropDown.Layout.Row = 1;
             app.MDVcorrectionDropDown.Layout.Column = 2;
             app.MDVcorrectionDropDown.Value = 'Skew method';
+
+            % Create CheckBox
+            app.CheckBox = uicheckbox(app.GridLayout5);
+            app.CheckBox.Text = 'Enforce enrichment calculation';
+            app.CheckBox.Layout.Row = 2;
+            app.CheckBox.Layout.Column = 1;
 
             % Create GridLayout4
             app.GridLayout4 = uigridlayout(app.GridLayout);

@@ -46,6 +46,7 @@ classdef PreferencesIntegrationTest < matlab.unittest.TestCase
                 "least-squares-with-fraction")));
             app.MDVcorrectionDropDown.Value = ...
                 "least-squares-with-fraction";
+            app.CheckBox.Value = true;
             closeCallback = app.CloseButton.ButtonPushedFcn;
             closeCallback(app.CloseButton, []);
 
@@ -58,6 +59,8 @@ classdef PreferencesIntegrationTest < matlab.unittest.TestCase
             testCase.verifyEqual( ...
                 preference.getMethod(), ...
                 "least-squares-with-fraction");
+            testCase.verifyTrue( ...
+                preference.getEnforceEnrichmentCalculation());
 
             function recordNotification(~, ~)
 

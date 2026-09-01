@@ -4,6 +4,7 @@ classdef ExperimentMDVCalculator
     properties (SetAccess = private)
         MDVTolerance (1, 1) double
         NaturalIsotopeCorrectionMethod (1, 1) string
+        EnforceEnrichmentCalculation (1, 1) logical
         FractionStandardDeviation (1, 1) double
         FractionBounds (1, 2) double
     end
@@ -15,6 +16,7 @@ classdef ExperimentMDVCalculator
 
     properties (Access = private)
         NaturalIsotopeCorrectionMethodProvider
+        EnforceEnrichmentCalculationProvider
     end
 
     methods
@@ -26,6 +28,8 @@ classdef ExperimentMDVCalculator
                 options.NaturalIsotopeCorrectionMethod (1, 1) string = ...
                     "skew"
                 options.NaturalIsotopeCorrectionMethodProvider = []
+                options.EnforceEnrichmentCalculation (1, 1) logical = false
+                options.EnforceEnrichmentCalculationProvider = []
                 options.FractionStandardDeviation (1, 1) double ...
                     {mustBePositive, mustBeFinite} = 1
                 options.FractionBounds (1, 2) double ...
@@ -42,11 +46,26 @@ classdef ExperimentMDVCalculator
                     "The correction method provider must be a function handle.");
             end
 
+            if ~isempty(options.EnforceEnrichmentCalculationProvider) && ...
+                    ~isa( ...
+                    options.EnforceEnrichmentCalculationProvider, ...
+                    "function_handle")
+                error( ...
+                    "OpenMebius2:ExperimentMDVCalculator:" + ...
+                    "InvalidEnforceEnrichmentProvider", ...
+                    "The enforce-enrichment provider must be a " + ...
+                    "function handle.");
+            end
+
             obj.MDVTolerance = options.MDVTolerance;
             obj.NaturalIsotopeCorrectionMethod = ...
                 options.NaturalIsotopeCorrectionMethod;
             obj.NaturalIsotopeCorrectionMethodProvider = ...
                 options.NaturalIsotopeCorrectionMethodProvider;
+            obj.EnforceEnrichmentCalculation = ...
+                options.EnforceEnrichmentCalculation;
+            obj.EnforceEnrichmentCalculationProvider = ...
+                options.EnforceEnrichmentCalculationProvider;
             obj.FractionStandardDeviation = ...
                 options.FractionStandardDeviation;
             obj.FractionBounds = options.FractionBounds;
@@ -87,7 +106,7 @@ classdef ExperimentMDVCalculator
                     input.ExperimentInfo);
             end
 
-            [mdvBiomass, mdvErrors] = ...
+            [mdvBiomass, mdvErrors, thresholdOnlyErrors] = ...
                 obj.validateBiomassMDV(mdvBiomass);
 
             if correctionMethod == obj.FractionOptimizedCorrectionMethod
@@ -95,10 +114,19 @@ classdef ExperimentMDVCalculator
                 mdv = mdvBiomass;
             end
 
+            forcedEnrichmentErrors = false(size(mdvErrors));
+            enrichmentExclusionErrors = mdvErrors;
+
+            if obj.resolveEnforceEnrichmentCalculation()
+                forcedEnrichmentErrors = thresholdOnlyErrors;
+                enrichmentExclusionErrors(thresholdOnlyErrors) = false;
+            end
+
             [enrichment, enrichmentErrors, warnings] = ...
                 obj.createEnrichment( ...
                 mdvBiomass, ...
-                mdvErrors, ...
+                enrichmentExclusionErrors, ...
+                forcedEnrichmentErrors, ...
                 input.MSMetaboliteTable);
             selection = obj.createFragmentSelection( ...
                 mdvBiomass, ...
@@ -119,7 +147,8 @@ classdef ExperimentMDVCalculator
 
         end % calculate
 
-        function [mdv, errors] = validateBiomassMDV(obj, mdvBiomass)
+        function [mdv, errors, thresholdOnlyErrors] = ...
+                validateBiomassMDV(obj, mdvBiomass)
 
             arguments
                 obj
@@ -129,14 +158,19 @@ classdef ExperimentMDVCalculator
             numFragments = width(mdvBiomass);
             mdv = mdvBiomass;
             errors = false(1, numFragments);
+            thresholdOnlyErrors = false(1, numFragments);
 
             for iFragment = 1:numFragments
                 fragment = mdvBiomass{:, iFragment};
                 fragment(isnan(fragment)) = 0;
 
-                if abs(sum(fragment) - 1) > 1e-6 || ...
-                        any(fragment < obj.MDVTolerance)
+                invalidTotal = abs(sum(fragment) - 1) > 1e-6;
+                belowTolerance = any(fragment < obj.MDVTolerance);
+
+                if invalidTotal || belowTolerance
                     errors(iFragment) = true;
+                    thresholdOnlyErrors(iFragment) = ...
+                        belowTolerance && ~invalidTotal;
                     continue
                 end
 
@@ -348,17 +382,19 @@ classdef ExperimentMDVCalculator
         end % correctBiomass
 
         function [enrichment, errors, warnings] = createEnrichment( ...
-                obj, mdv, mdvErrors, msMetaboliteTable)
+                obj, mdv, exclusionErrors, forcedErrors, ...
+                msMetaboliteTable)
 
-            if isempty(mdv) || isempty(mdvErrors)
+            if isempty(mdv) || isempty(exclusionErrors)
                 error( ...
                     "OpenMebius2:ExperimentMDVCalculator:EmptyMDV", ...
                     "The MDV data is empty.");
             end
 
-            validMDV = mdv(:, ~mdvErrors);
+            validMask = ~exclusionErrors;
+            validMDV = mdv(:, validMask);
             numFragments = width(validMDV);
-            errors = false(numFragments, 1);
+            errors = forcedErrors(validMask).';
             warnings = strings(numFragments, 1);
             numWarnings = 0;
             enrichment = array2table( ...
@@ -446,13 +482,30 @@ classdef ExperimentMDVCalculator
 
         end % resolveNaturalIsotopeCorrectionMethod
 
+        function enabled = resolveEnforceEnrichmentCalculation(obj)
+
+            enabled = obj.EnforceEnrichmentCalculation;
+
+            if ~isempty(obj.EnforceEnrichmentCalculationProvider)
+                enabled = obj.EnforceEnrichmentCalculationProvider();
+            end
+
+            if ~islogical(enabled) || ~isscalar(enabled)
+                error( ...
+                    "OpenMebius2:ExperimentMDVCalculator:" + ...
+                    "InvalidEnforceEnrichmentPreference", ...
+                    "Enforce enrichment calculation must be a scalar " + ...
+                    "logical value.");
+            end
+
+        end % resolveEnforceEnrichmentCalculation
+
         function enrichment = calculateEnrichment(~, numCarbon, mdv)
 
             arguments
                 ~
                 numCarbon (1, 1) double {mustBePositive, mustBeInteger}
-                mdv (:, 1) double {mustBeNonnegative, ...
-                    mustBeLessThanOrEqual(mdv, 1)}
+                mdv (:, 1) double
             end
 
             enrichment = sum(mdv(1:numCarbon + 1) .* (0:numCarbon)') / ...

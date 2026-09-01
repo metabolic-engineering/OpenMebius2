@@ -17,6 +17,26 @@ classdef MDVCorrectionPreferenceTest < matlab.unittest.TestCase
             fixture = testCase.createFixture();
 
             testCase.verifyEqual(fixture.Preference.getMethod(), "skew");
+            testCase.verifyFalse( ...
+                fixture.Preference.getEnforceEnrichmentCalculation());
+
+        end
+
+        function persistsEnforceEnrichmentCalculation(testCase)
+
+            fixture = testCase.createFixture();
+            fixture.Preference.setEnforceEnrichmentCalculation(true);
+            reloaded = openmebius.infrastructure.preferences ...
+                .MDVCorrectionPreference( ...
+                StorageDirectory = fixture.Directory);
+
+            testCase.verifyTrue( ...
+                reloaded.getEnforceEnrichmentCalculation());
+
+            reloaded.setEnforceEnrichmentCalculation(false);
+
+            testCase.verifyFalse( ...
+                fixture.Preference.getEnforceEnrichmentCalculation());
 
         end
 
