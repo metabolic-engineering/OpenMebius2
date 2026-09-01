@@ -49,6 +49,47 @@ classdef MSViewActionTest < matlab.unittest.TestCase
 
         end
 
+        function emptyEnrichmentTableRendersWithoutColumnWidthError(testCase)
+
+            experiments = helpers.MSViewExperimentsStub();
+            experiments.Enrichment = table();
+            experiments.EnrichmentErrors = false(0, 0);
+            context = MSViewActionTest.context(experiments, 1);
+            app = MSView_exported(context);
+            cleanup = onCleanup( ...
+                @() MSViewActionTest.deleteIfValid(app));
+
+            app.TableTypeDropDown.Value = 'Enrichment';
+            callback = app.TableTypeDropDown.ValueChangedFcn;
+            callback([], []);
+
+            testCase.verifyEmpty(app.MSTable.Data);
+            testCase.verifyEqual(app.MSTable.ColumnWidth, {'auto'});
+
+        end
+
+        function missingEnrichmentColumnRendersWithoutColorIndexError(testCase)
+
+            experiments = helpers.MSViewExperimentsStub();
+            experiments.Enrichment.B(:) = nan;
+            experiments.EnrichmentErrors(:, 2) = true;
+            context = MSViewActionTest.context(experiments, 1);
+            app = MSView_exported(context);
+            cleanup = onCleanup( ...
+                @() MSViewActionTest.deleteIfValid(app));
+
+            app.TableTypeDropDown.Value = 'Enrichment';
+            callback = app.TableTypeDropDown.ValueChangedFcn;
+            callback([], []);
+
+            testCase.verifyEqual(app.MSTable.Data, experiments.Enrichment);
+            testCase.verifyTrue(all(isnan(app.MSTable.Data.B)));
+            testCase.verifyEqual( ...
+                app.MSTable.ColumnWidth, ...
+                {100, 100});
+
+        end
+
         function closePublishesEvent(testCase)
 
             context = MSViewActionTest.context( ...

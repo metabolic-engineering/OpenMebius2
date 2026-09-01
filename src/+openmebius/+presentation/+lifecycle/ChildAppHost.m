@@ -3,17 +3,36 @@ classdef ChildAppHost < handle
 
     properties (Access = private)
         Entries containers.Map
+        ExceptionHandler = []
     end
 
     methods
 
-        function obj = ChildAppHost()
+        function obj = ChildAppHost(options)
+
+            arguments
+                options.ExceptionHandler = []
+            end
 
             obj.Entries = containers.Map( ...
                 'KeyType', 'char', ...
                 'ValueType', 'any');
+            obj.setExceptionHandler(options.ExceptionHandler);
 
         end % constructor
+
+        function setExceptionHandler(obj, exceptionHandler)
+
+            if ~isempty(exceptionHandler) && ...
+                    ~isa(exceptionHandler, 'function_handle')
+                error( ...
+                    "OpenMebius2:ChildAppHost:InvalidExceptionHandler", ...
+                    "ExceptionHandler must be a function handle or empty.");
+            end
+
+            obj.ExceptionHandler = exceptionHandler;
+
+        end % setExceptionHandler
 
         function attach(obj, key, childApp, subscriptions)
 
@@ -40,6 +59,11 @@ classdef ChildAppHost < handle
             catch exception
                 obj.deleteListeners(listeners);
                 rethrow(exception);
+            end
+
+            if ~isempty(obj.ExceptionHandler)
+                openmebius.presentation.notification.UiCallbackGuard ...
+                    .install(childApp, obj.ExceptionHandler);
             end
 
             obj.Entries(char(key)) = struct( ...

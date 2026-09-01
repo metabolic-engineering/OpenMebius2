@@ -49,6 +49,8 @@ classdef NotificationBoundaryTest < matlab.unittest.TestCase
             testCase.verifyTrue(contains(source, "publishNotification"));
             testCase.verifyTrue(contains( ...
                 source, "configureNotificationSinks"));
+            testCase.verifyTrue(contains(source, "UiCallbackGuard"));
+            testCase.verifyTrue(contains(source, "reportStartupException"));
             testCase.verifyFalse(contains(source, "function LogText("));
             testCase.verifyFalse(contains(source, "function LogTextDate("));
             testCase.verifyFalse(contains(source, "configureDefaultDiary"));
