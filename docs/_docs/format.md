@@ -162,6 +162,16 @@ The repository can reconstruct missing derived sheets from available inputs.
 Derived sheets are persisted when the experiment is saved. Older aliases for
 derived sheet names are resolved by `ExperimentWorkbookStore`.
 
+If enrichment cannot be calculated for only some experiments, comparison views
+retain the available experiments and show the unavailable experiment columns as
+missing values. The Console identifies those experiments and suggests checking
+`ODi`, `ODf`, and the biomass-corrected MDV data.
+
+`Enforce enrichment calculation` in Preferences includes fragments whose
+biomass-corrected MDV contains values below the configured MDV tolerance, as
+long as the MDV total remains valid. Forced enrichment values retain an error
+flag so that comparison views can distinguish them from validated values.
+
 When `Least squares with fraction` is selected in Preferences, natural-isotope
 and biomass carryover correction are solved jointly. In this mode `MDV` and
 `MDV (biomass)` intentionally contain the same optimized values. The

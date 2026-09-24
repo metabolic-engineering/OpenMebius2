@@ -55,6 +55,55 @@ classdef ExperimentComparisonBuilderTest < matlab.unittest.TestCase
 
         end
 
+        function keepsAvailableEnrichmentWhenOneExperimentIsMissing(testCase)
+
+            collection = ExperimentComparisonBuilderTest.collection();
+            data = collection.Data;
+            data.ExpB_xlsx = rmfield( ...
+                data.ExpB_xlsx, "tableEnrichment");
+            collection.replaceData(data);
+            builder = openmebius.domain.experiment ...
+                .ExperimentComparisonBuilder();
+
+            result = builder.buildEnrichment(collection);
+
+            testCase.verifyTrue(result.IsAvailable);
+            testCase.verifyEqual( ...
+                string(result.Data.Properties.VariableNames), ...
+                ["ExpA", "ExpB"]);
+            testCase.verifyEqual( ...
+                result.Data.ExpA, ...
+                [0.2; 1.2], ...
+                AbsTol = 1e-12);
+            testCase.verifyTrue(all(isnan(result.Data.ExpB)));
+            testCase.verifyEqual( ...
+                result.ErrorMask, ...
+                [false, true; true, true]);
+            testCase.verifyTrue(contains(result.Message, "ExpB"));
+
+        end
+
+        function reportsUnavailableWhenAllEnrichmentIsMissing(testCase)
+
+            collection = ExperimentComparisonBuilderTest.collection();
+            data = collection.Data;
+            data.ExpA_xlsx = rmfield( ...
+                data.ExpA_xlsx, "tableEnrichment");
+            data.ExpB_xlsx = rmfield( ...
+                data.ExpB_xlsx, "tableEnrichment");
+            collection.replaceData(data);
+            builder = openmebius.domain.experiment ...
+                .ExperimentComparisonBuilder();
+
+            result = builder.buildEnrichment(collection);
+
+            testCase.verifyFalse(result.IsAvailable);
+            testCase.verifyEmpty(result.Data);
+            testCase.verifyTrue(contains(result.Message, "ExpA"));
+            testCase.verifyTrue(contains(result.Message, "ExpB"));
+
+        end
+
         function buildsSelectionTables(testCase)
 
             builder = openmebius.domain.experiment ...

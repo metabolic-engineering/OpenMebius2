@@ -843,7 +843,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 ExperimentSelectionController = ...
                 app.BatchExperimentSelectionEditorController, ...
                 ExperimentSelectionPresenter = ...
-                app.BatchExperimentSelectionEditorPresenter);
+                app.BatchExperimentSelectionEditorPresenter, ...
+                ChildAppHost = openmebius.presentation.lifecycle ...
+                .ChildAppHost( ...
+                ExceptionHandler = @(exception) ...
+                app.reportUnexpectedUiException(exception)));
             app.RunConfigApp = RunConfig(context);
             app.attachRunConfigListeners(app.RunConfigApp);
 
@@ -2735,11 +2739,49 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % method publishException
 
+        function reportUnexpectedUiException(app, exception)
+
+            app.publishException( ...
+                exception, ...
+                Title = "Unexpected UI error");
+
+        end % reportUnexpectedUiException
+
+        function reportStartupException(app, exception)
+
+            try
+                diagnosticText = string(getReport( ...
+                    exception, "extended", "hyperlinks", "off"));
+                text = openmebius.infrastructure.logging.Logger ...
+                    .formatDatedLines(diagnosticText, "error");
+                app.LogTextArea.Value = [app.LogTextArea.Value; text(:)];
+                scroll(app.LogTextArea, "bottom");
+                drawnow limitrate
+            catch
+
+                try
+                    app.LogTextArea.Value = cellstr( ...
+                        "Startup error: " + string(exception.message));
+                catch
+                    % Startup failure reporting must never open a dialog.
+                end
+
+            end
+
+        end % reportStartupException
+
         function renderLogNotification(app, message)
+
+            displayText = message.Text;
+
+            if message.DiagnosticText ~= ""
+                displayText = displayText + newline + ...
+                    message.DiagnosticText;
+            end
 
             text = openmebius.infrastructure.logging.Logger ...
                 .formatDatedLines( ...
-                message.Text, ...
+                displayText, ...
                 message.Level, ...
                 Timestamp = message.Timestamp);
             values = [app.LogTextArea.Value; text(:)];
@@ -4941,6 +4983,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.configureNotificationSinks();
             app.ApplicationController.setNotificationReporter( ...
                 app.NotificationDispatcher.reporter());
+            exceptionHandler = ...
+                @(exception) app.reportUnexpectedUiException(exception);
+            app.ChildAppHost.setExceptionHandler(exceptionHandler);
+            openmebius.presentation.notification.UiCallbackGuard ...
+                .install(app, exceptionHandler);
 
             if nargin < 2
                 filepath = "";
@@ -5933,7 +5980,11 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                 filepath = "";
             end
 
-            app.initializeMainApp(filepath);
+            try
+                app.initializeMainApp(filepath);
+            catch exception
+                app.reportStartupException(exception);
+            end
         end
 
         % Close request function: OpenMebius2UIFigure
@@ -6396,7 +6447,13 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         % Menu selected function: ViewlogsMenu
         function ViewlogsMenuSelected(app, event)
 
-            app.LogApp = AppLogs();
+            app.LogApp = AppLogs( ...
+                app.NotificationDispatcher.reporter());
+            openmebius.presentation.notification.UiCallbackGuard ...
+                .install( ...
+                app.LogApp, ...
+                @(exception) ...
+                app.reportUnexpectedUiException(exception));
         end
 
         % Key press function: OpenMebius2UIFigure

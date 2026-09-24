@@ -844,6 +844,8 @@ classdef ExperimentSet < handle
 
             if ~result.IsAvailable
                 updateMsg(obj, result.Message, "Error", obj.logLevel);
+            elseif result.Message ~= ""
+                updateMsg(obj, result.Message, "Warning", obj.logLevel);
             end
 
             tableRtn = result.Data;

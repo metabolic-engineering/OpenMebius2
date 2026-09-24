@@ -31,29 +31,41 @@ classdef ExperimentComparisonBuilder
                     .ExperimentCollection
             end
 
-            missingMessage = ...
-                "The enrichment table is not available. " + ...
-                "Press Calculate MDV before viewing enrichment data.";
-            [data, isAvailable] = obj.combineSingleColumn( ...
+            [data, missingExperiments] = obj.combineSingleColumn( ...
                 collection, "tableEnrichment");
 
-            if ~isAvailable
-                result = obj.unavailableResult(missingMessage);
+            if collection.Count == 0
+                result = obj.unavailableResult( ...
+                    "No experiment data is available.");
                 return
             end
 
             if isempty(data)
                 result = obj.unavailableResult( ...
-                    "The enrichment table is empty.");
+                    "Enrichment is unavailable for all experiments: " + ...
+                    join(missingExperiments, ", ") + ". " + ...
+                    "Verify ODi, ODf, and biomass-corrected MDV data, " + ...
+                    "then calculate MDV again.");
                 return
             end
 
             values = data{:, :};
             errorMask = values < 0 | values > 1 | isnan(values);
+            message = "";
+
+            if ~isempty(missingExperiments)
+                message = ...
+                    "Enrichment is unavailable for: " + ...
+                    join(missingExperiments, ", ") + ". " + ...
+                    "Missing values are shown in the table. " + ...
+                    "Verify ODi, ODf, and biomass-corrected MDV data.";
+            end
+
             result = openmebius.domain.experiment ...
                 .ExperimentComparisonResult( ...
                 Data = data, ...
-                ErrorMask = errorMask);
+                ErrorMask = errorMask, ...
+                Message = message);
 
         end % buildEnrichment
 
@@ -165,11 +177,11 @@ classdef ExperimentComparisonBuilder
 
         end % buildFragment
 
-        function [combined, isAvailable] = combineSingleColumn( ...
+        function [combined, missingExperiments] = combineSingleColumn( ...
                 obj, collection, tableField)
 
             combined = table();
-            isAvailable = collection.Count > 0;
+            missingExperiments = strings(0, 1);
 
             for iExperiment = 1:collection.Count
                 fieldName = collection.FieldNames(iExperiment);
@@ -177,9 +189,9 @@ classdef ExperimentComparisonBuilder
 
                 if ~isfield(experiment, tableField) || ...
                         isempty(experiment.(tableField))
-                    combined = table();
-                    isAvailable = false;
-                    return
+                    missingExperiments(end + 1, 1) = ...
+                        collection.FileBaseNames(iExperiment);
+                    continue
                 end
 
                 column = obj.prepareColumn( ...
@@ -189,6 +201,24 @@ classdef ExperimentComparisonBuilder
             end
 
             combined = obj.restoreRowNames(combined);
+
+            if isempty(combined)
+                return
+            end
+
+            for iExperiment = 1:collection.Count
+                experimentName = collection.FileBaseNames(iExperiment);
+
+                if ismember( ...
+                        experimentName, ...
+                        string(combined.Properties.VariableNames))
+                    continue
+                end
+
+                combined.(experimentName) = nan(height(combined), 1);
+            end
+
+            combined = combined(:, collection.FileBaseNames);
 
         end % combineSingleColumn
 

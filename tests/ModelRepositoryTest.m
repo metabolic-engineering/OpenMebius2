@@ -12,6 +12,47 @@ classdef ModelRepositoryTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function savingShorterModelRemovesStaleRows(testCase)
+
+            modelDirectory = string(tempname);
+            mkdir(modelDirectory);
+            cleanup = onCleanup(@() ...
+                ModelRepositoryTest.removeDirectory(modelDirectory));
+            location = openmebius.domain.model.ModelLocation(modelDirectory);
+            path = location.modelFile("metabolic_network", "xlsx");
+            model = table( ...
+                {'Subs_A --> A'; 'A --> B'; 'Subs_B --> B'}, ...
+                {'a --> a'; 'a --> a'; 'a --> a'}, ...
+                false(3, 1), ...
+                VariableNames = ["Reaction", "Transition", "Independent"], ...
+                RowNames = {'EX_A'; 'internal'; 'EX_B'});
+            position = table([1; 2; 3], [4; 5; 6], ...
+                VariableNames = ["x", "y"], ...
+                RowNames = model.Properties.RowNames);
+            info = table("Strain", "test", ...
+                VariableNames = ["Information", "Value"]);
+            writetable(model, path, Sheet = "model", WriteRowNames = true);
+            writetable(position, path, Sheet = "position", WriteRowNames = true);
+            writetable(info, path, Sheet = "info");
+            model(2, :) = [];
+            position(2, :) = [];
+            repository = openmebius.infrastructure.model.ModelRepository();
+
+            repository.writeModelSheets(location, "metabolic_network", ...
+                "xlsx", ["model", "position"], {model, position}, [true, true]);
+
+            for sheet = ["model", "position"]
+                saved = readcell(path, Sheet = sheet);
+                testCase.verifyEqual(size(saved, 1), 3);
+                testCase.verifyEqual(string(saved(2:end, 1)), ["EX_A"; "EX_B"]);
+            end
+
+            testCase.verifyEqual(readtable(path, Sheet = "info", ...
+                TextType = "string"), info);
+            clear cleanup
+
+        end
+
         function loadCreatesMetabolicModel(testCase)
 
             repository = openmebius.infrastructure.model.ModelRepository();
