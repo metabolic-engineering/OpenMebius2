@@ -14,6 +14,9 @@ classdef MDVCorrectionPreference < handle
             "Skew least squares", ...
             "Least squares with fraction"]
         PreferenceFileName = "mdv_correction_method.txt"
+        DefaultEnforceEnrichmentCalculation = false
+        EnforceEnrichmentCalculationPreferenceFileName = ...
+            "enforce_enrichment_calculation.txt"
     end
 
     properties (SetAccess = private)
@@ -67,36 +70,49 @@ classdef MDVCorrectionPreference < handle
         function setMethod(obj, method)
 
             method = obj.validateMethod(method);
-            obj.ensureStorageDirectory();
-
-            temporaryPath = string(tempname(char(obj.StorageDirectory))) + ...
-                ".txt";
-            temporaryCleanup = onCleanup( ...
-                @() obj.deleteIfPresent(temporaryPath));
-            fileID = fopen(temporaryPath, "w");
-
-            if fileID < 0
-                error( ...
-                    "OpenMebius2:MDVCorrectionPreference:WriteFailed", ...
-                    "Could not open the MDV correction preference for writing.");
-            end
-
-            fileCleanup = onCleanup(@() obj.closeIfOpen(fileID));
-            fprintf(fileID, "%s", method);
-            fclose(fileID);
-            clear fileCleanup
-
-            [wasMoved, moveMessage] = movefile( ...
-                temporaryPath, obj.preferenceFile(), "f");
-
-            if ~wasMoved
-                error( ...
-                    "OpenMebius2:MDVCorrectionPreference:WriteFailed", ...
-                    "Could not save the MDV correction preference: %s", ...
-                    moveMessage);
-            end
+            obj.writePreference(obj.preferenceFile(), method);
 
         end % setMethod
+
+        function enabled = getEnforceEnrichmentCalculation(obj)
+
+            path = obj.enforceEnrichmentCalculationPreferenceFile();
+
+            if ~isfile(path)
+                enabled = obj.DefaultEnforceEnrichmentCalculation;
+                return
+            end
+
+            try
+                value = lower(strtrim(string(fileread(path))));
+                value = value(1);
+            catch
+                enabled = obj.DefaultEnforceEnrichmentCalculation;
+                return
+            end
+
+            if any(value == ["1", "true", "on"])
+                enabled = true;
+            elseif any(value == ["0", "false", "off"])
+                enabled = false;
+            else
+                enabled = obj.DefaultEnforceEnrichmentCalculation;
+            end
+
+        end % getEnforceEnrichmentCalculation
+
+        function setEnforceEnrichmentCalculation(obj, enabled)
+
+            arguments
+                obj
+                enabled (1, 1) logical
+            end
+
+            obj.writePreference( ...
+                obj.enforceEnrichmentCalculationPreferenceFile(), ...
+                string(enabled));
+
+        end % setEnforceEnrichmentCalculation
 
         function path = preferenceFile(obj)
 
@@ -105,6 +121,14 @@ classdef MDVCorrectionPreference < handle
                 obj.PreferenceFileName);
 
         end % preferenceFile
+
+        function path = enforceEnrichmentCalculationPreferenceFile(obj)
+
+            path = fullfile( ...
+                obj.StorageDirectory, ...
+                obj.EnforceEnrichmentCalculationPreferenceFileName);
+
+        end % enforceEnrichmentCalculationPreferenceFile
 
     end % methods
 
@@ -141,6 +165,38 @@ classdef MDVCorrectionPreference < handle
             end
 
         end % ensureStorageDirectory
+
+        function writePreference(obj, path, value)
+
+            obj.ensureStorageDirectory();
+            temporaryPath = string(tempname(char(obj.StorageDirectory))) + ...
+                ".txt";
+            temporaryCleanup = onCleanup( ...
+                @() obj.deleteIfPresent(temporaryPath));
+            fileID = fopen(temporaryPath, "w");
+
+            if fileID < 0
+                error( ...
+                    "OpenMebius2:MDVCorrectionPreference:WriteFailed", ...
+                    "Could not open the MDV correction preference for writing.");
+            end
+
+            fileCleanup = onCleanup(@() obj.closeIfOpen(fileID));
+            fprintf(fileID, "%s", value);
+            fclose(fileID);
+            clear fileCleanup
+
+            [wasMoved, moveMessage] = movefile( ...
+                temporaryPath, path, "f");
+
+            if ~wasMoved
+                error( ...
+                    "OpenMebius2:MDVCorrectionPreference:WriteFailed", ...
+                    "Could not save the MDV correction preference: %s", ...
+                    moveMessage);
+            end
+
+        end % writePreference
 
     end % methods (Access = private)
 

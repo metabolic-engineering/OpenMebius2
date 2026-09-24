@@ -94,7 +94,7 @@ classdef MSView_exported < matlab.apps.AppBase
             removeStyle(app.MSTable);
             drawnow();
 
-            if viewModel.UseHeatmap
+            if viewModel.UseHeatmap && width(tableMS) > 0
                 numRow = height(tableMS);
                 numCol = width(tableMS);
                 app.MSTable.ColumnWidth = repmat({100}, 1, numCol);

@@ -58,6 +58,8 @@ classdef ExcelFileStore
                 sheetName (1, 1) string = ""
                 options.WriteRowNames (1, 1) logical = true
                 options.WriteVariableNames (1, 1) logical = true
+                options.WriteMode (1, 1) string {mustBeMember( ...
+                    options.WriteMode, ["inplace", "overwritesheet"])} = "inplace"
             end
 
             isSuccess = true;
@@ -70,6 +72,7 @@ classdef ExcelFileStore
                     "Sheet", sheetName, ...
                     "WriteRowNames", options.WriteRowNames, ...
                     "WriteVariableNames", options.WriteVariableNames, ...
+                    "WriteMode", options.WriteMode, ...
                     "PreserveFormat", true);
             catch ME
                 isSuccess = false;

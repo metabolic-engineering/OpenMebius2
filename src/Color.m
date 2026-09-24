@@ -24,9 +24,16 @@ classdef Color < handle
 
             obj.setColorHex(256, "color", options.color, "isDark", options.isDark);
 
-            % Replace nan values with 0
-            minValues = min(values);
-            values(isnan(values)) = minValues;
+            finiteValues = values(isfinite(values));
+
+            if isempty(finiteValues)
+                values(:) = 0;
+            else
+                values(~isfinite(values)) = min(finiteValues);
+            end
+
+            % Colormap indices must remain within the normalized range.
+            values = min(max(values, 0), 1);
 
             hex = obj.cm(round(values * (length(obj.cm) - 1)) + 1);
 

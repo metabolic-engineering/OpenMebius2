@@ -82,7 +82,7 @@ cannot fail the application operation.
 | File | `debug` and above; explicit append with size-based rotation |
 | Console | `warning` and above; normal output uses stdout, failures use stderr |
 | UI log | `info` and above, excluding progress and developer-only messages |
-| UI alert | Action-required information/success messages and fatal messages; warnings/errors remain in the UI log only |
+| UI alert | Action-required non-failure messages; warnings, errors, and fatal failures remain in the UI log only |
 | Slack | Allow-listed terminal batch event codes only |
 
 UI sinks are registered after the App Designer controls exist and removed when
@@ -107,6 +107,14 @@ presentation state and delegates artifact access through
 | One MFA execution | `MFAAnalysisRun`, `MFAAnalysisController`, `MFAResultSession` |
 | Stoichiometric state | `StoichiometricNetwork`, `StoichiometricReactionIndex`, `StoichiometricConstraintModel` |
 | EMU construction and evaluation | `EMUNetworkBuilder`, `EMUMatrixBuilder`, `EMUMDVCalculator` |
+
+After initial-flux generation and scoring, `MFAInitialFluxApplicationWorkflow`
+retains only the first `IterationCount` ranked candidates in its return value
+and `MFAAnalysisRunContext`. Surplus fluxes, right-hand sides, and objective
+values are released before checkpoint persistence and nonlinear optimization,
+so parallel iteration callbacks do not capture unused initial candidates.
+If fewer candidates are available, all are retained for the existing reduced
+iteration run. Candidate generation and ranking are unchanged.
 
 # Repository boundary
 

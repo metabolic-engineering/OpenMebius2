@@ -107,6 +107,19 @@ classdef MFAInitialFluxApplicationWorkflow
                 options.CancellationRequested);
 
             if ~result.IsError && ~result.IsCanceled
+                if size(result.RightHandSides, 2) > settings.IterationCount
+                    % The generator has already ranked the candidates.
+                    % Release unused candidates before returning or storing
+                    % the context that is captured by parallel iterations.
+                    indices = 1:settings.IterationCount;
+                    result = openmebius.mfa.InitialFluxWorkflowResult ...
+                        .success( ...
+                        Problem = result.Problem, ...
+                        Fluxes = result.Fluxes(:, indices), ...
+                        RightHandSides = result.RightHandSides(:, indices), ...
+                        ObjectiveValues = result.ObjectiveValues(indices));
+                end
+
                 runContext.setInitialResult(result);
             end
 
