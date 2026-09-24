@@ -108,6 +108,14 @@ presentation state and delegates artifact access through
 | Stoichiometric state | `StoichiometricNetwork`, `StoichiometricReactionIndex`, `StoichiometricConstraintModel` |
 | EMU construction and evaluation | `EMUNetworkBuilder`, `EMUMatrixBuilder`, `EMUMDVCalculator` |
 
+After initial-flux generation and scoring, `MFAInitialFluxApplicationWorkflow`
+retains only the first `IterationCount` ranked candidates in its return value
+and `MFAAnalysisRunContext`. Surplus fluxes, right-hand sides, and objective
+values are released before checkpoint persistence and nonlinear optimization,
+so parallel iteration callbacks do not capture unused initial candidates.
+If fewer candidates are available, all are retained for the existing reduced
+iteration run. Candidate generation and ranking are unchanged.
+
 # Repository boundary
 
 `ModelLocation`, `ExperimentLocation`, and `ResultLocation` are immutable path

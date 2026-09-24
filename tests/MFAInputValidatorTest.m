@@ -146,7 +146,9 @@ classdef MFAInputValidatorTest < matlab.unittest.TestCase
 
             testCase.verifyFalse(result.IsValid);
             testCase.verifyEqual( ...
-                result.ErrorMessage, "Substrates were duplicated.");
+                result.ErrorMessage, ...
+                "Substrates were duplicated: A (reactions: EX_A, EX_B). " + ...
+                "Check the model sheet for duplicate exchange reactions.");
 
         end
 

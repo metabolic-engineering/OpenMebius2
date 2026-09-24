@@ -63,9 +63,23 @@ classdef MFAInputValidator
             end
 
             if numel(unique(substrates)) ~= numel(substrates)
+                duplicates = strings(0, 1);
+
+                for substrate = unique(substrates, "stable").'
+                    reactionIDs = effluxReactionIDs(substrates == substrate);
+
+                    if numel(reactionIDs) > 1
+                        duplicates(end + 1, 1) = substrate + ...
+                            " (reactions: " + strjoin(reactionIDs, ", ") + ")";
+                    end
+
+                end
+
                 result = ...
                     openmebius.mfa.MFAInputValidationResult.failure( ...
-                    "Substrates were duplicated.");
+                    "Substrates were duplicated: " + ...
+                    strjoin(duplicates, "; ") + ...
+                    ". Check the model sheet for duplicate exchange reactions.");
                 return;
             end
 
