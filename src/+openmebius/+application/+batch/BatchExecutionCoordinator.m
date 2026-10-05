@@ -115,6 +115,8 @@ classdef BatchExecutionCoordinator
                 batchTable.config(i).status = "finished";
                 progressTracker.reportStatus(i, "finished");
                 options.CheckpointWriter(batchTable);
+                % Publish after persisting status and all CI/suggestion phases.
+                options.ResultReporter(struct('ID', batchTable.id(i)));
             end
 
         end % run

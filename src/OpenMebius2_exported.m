@@ -1109,44 +1109,35 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method renderResultMainTable
 
         function renderResultSubTable(app, viewModel)
-
             if isempty(viewModel)
                 return
             end
-
-            removeStyle(app.ResultSubTable);
-
-            app.ResultSubTable.Data = viewModel.Data;
-            app.updateResultDiffMenuVisibility();
-
-            try
-                app.ResultSubTable.UserData = struct( ...
-                    "RawData", viewModel.RawData);
-            catch
-                % Fall back to the displayed table on older releases.
+            previous = app.getResultSubRawData();
+            selected = app.selectedTableRows(app.ResultSubTable);
+            selectedIDs = strings(0, 1);
+            if istable(previous) && any(string(previous.Properties.VariableNames) == "ID")
+                selected = selected(selected <= height(previous));
+                selectedIDs = string(previous.ID(selected));
             end
-
+            openmebius.presentation.result.ResultTableRenderer.updateIndexData( ...
+                app.ResultSubTable, viewModel.Data, viewModel.RawData);
             if isempty(viewModel.Data)
                 app.ResultSubTable.ColumnName = [];
                 app.ResultSubTable.RowName = [];
                 app.ResultSubTable.ColumnEditable = false;
-                return
+                app.ResultSubTable.Selection = [];
+            else
+                app.ResultSubTable.ColumnName = viewModel.Data.Properties.VariableNames;
+                app.ResultSubTable.RowName = viewModel.Data.Properties.RowNames;
+                app.ResultSubTable.ColumnEditable = viewModel.ColumnEditable;
+                [found, rows] = ismember(selectedIDs, string(viewModel.RawData.ID));
+                if ~isequal(app.selectedTableRows(app.ResultSubTable), rows(found))
+                    app.ResultSubTable.Selection = rows(found);
+                end
             end
-
-            app.ResultSubTable.ColumnName = ...
-                viewModel.Data.Properties.VariableNames;
-
-            app.ResultSubTable.RowName = ...
-                viewModel.Data.Properties.RowNames;
-
-            app.ResultSubTable.ColumnEditable = ...
-                viewModel.ColumnEditable;
-
-            app.applyResultStyleRules( ...
-                app.ResultSubTable, ...
-                viewModel.StyleRules);
-
-        end % method renderResultSubTable
+            app.applyResultStyleRules(app.ResultSubTable, viewModel.StyleRules);
+            app.updateResultDiffMenuVisibility();
+        end % renderResultSubTable
 
         function renderResultPlot(app, viewModel)
 
@@ -1167,7 +1158,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
                     app.renderOverviewResultPlot(viewModel);
 
                 case openmebius.presentation.result.ResultPlotKind.OptimizationState
-                    app.clearResultPlots();
+                    app.resetResultAxes(app.MainUIAxes);
                     app.renderResultSubPlot(viewModel.SubPlot);
 
                 otherwise
@@ -1223,67 +1214,8 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % renderResultSubPlot
 
         function renderPathwayPlot(app, viewModel)
-
-            axes = app.MainUIAxes;
-            cla(axes);
-
-            if isempty(viewModel) || isempty(viewModel.Image)
-                return
-            end
-
-            pathwayImage = viewModel.Image;
-
-            if viewModel.IsDarkTheme
-                pathwayImage = app.convertPathwayImageForDarkTheme( ...
-                    pathwayImage);
-            end
-
-            pathwayGraphic = image( ...
-                axes, pathwayImage, 'HitTest', 'off');
-            imageRatio = size(pathwayImage, 1) / ...
-                size(pathwayImage, 2);
-            axes.DataAspectRatio = [1 imageRatio 1];
-            axes.Visible = 'off';
-            axis(axes, 'image');
-            title(axes, 'Metabolic Pathway');
-            xlabel(axes, '');
-            ylabel(axes, '');
-            axes.HitTest = 'on';
-            axes.PickableParts = 'all';
-            axes.ContextMenu = app.ContextMenu;
-            pathwayGraphic.ContextMenu = app.ContextMenu;
-
-            if viewModel.IsDarkTheme
-                labelColor = '#FFFFFF';
-            else
-                labelColor = '#000000';
-            end
-
-            for labelIndex = 1:numel(viewModel.Labels)
-
-                if ~isfinite(viewModel.X(labelIndex)) || ...
-                        ~isfinite(viewModel.Y(labelIndex))
-                    continue
-                end
-
-                if viewModel.Highlight(labelIndex)
-                    color = '#009E73';
-                    weight = 'bold';
-                else
-                    color = labelColor;
-                    weight = 'normal';
-                end
-
-                text( ...
-                    axes, ...
-                    viewModel.X(labelIndex), ...
-                    viewModel.Y(labelIndex), ...
-                    viewModel.Labels(labelIndex), ...
-                    'Color', color, ...
-                    'FontSize', 14, ...
-                    'FontWeight', weight);
-            end
-
+            openmebius.presentation.result.ResultPlotRenderer.pathway( ...
+                app.MainUIAxes, viewModel, app.ContextMenu);
         end % renderPathwayPlot
 
         function imageOut = convertPathwayImageForDarkTheme(~, imageIn)
@@ -1311,312 +1243,23 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % convertPathwayImageForDarkTheme
 
         function renderMonteCarloConfidenceInterval(app, plotData)
-
-            lowerBounds = double(plotData.LowerBounds(:)');
-            upperBounds = double(plotData.UpperBounds(:)');
-            bestFit = double(plotData.BestFit);
-            iterationCount = numel(lowerBounds);
-
-            finiteValues = [ ...
-                                lowerBounds(isfinite(lowerBounds)), ...
-                                upperBounds(isfinite(upperBounds)), ...
-                                bestFit(isfinite(bestFit))];
-
-            if iterationCount == 0 || isempty(finiteValues)
-                app.resetResultAxes(app.SubUIAxes);
-                return
-            end
-
-            yMinimum = min(finiteValues);
-            yMaximum = max(finiteValues);
-            yMargin = max(0.1 * (yMaximum - yMinimum), 0.1);
-            iterations = 1:iterationCount;
-            axes = app.SubUIAxes;
-
-            cla(axes);
-            app.prepareCartesianResultAxes(axes);
-            axes.FontSize = 16;
-            axes.FontName = 'Arial';
-            axes.XLim = [0 iterationCount + 1];
-            axes.YLim = [yMinimum - yMargin yMaximum + yMargin];
-            axes.XLabel.String = "Iteration";
-            axes.YLabel.String = "Flux";
-            axes.Title.String = plotData.Title;
-            axes.XTick = 0:100:iterationCount;
-            axes.XTickLabel = string(axes.XTick);
-            axes.XTickLabelRotation = 0;
-
-            hold(axes, 'on');
-            plot( ...
-                axes, iterations, repmat(bestFit, size(iterations)), ...
-                '-', ...
-                'Color', "#E69F00", ...
-                'LineWidth', 3, ...
-                'DisplayName', 'Best Fit');
-            plot( ...
-                axes, iterations, lowerBounds, ...
-                '-', ...
-                'Color', "#56B4E9", ...
-                'LineWidth', 3, ...
-                'DisplayName', 'Flux LB');
-            plot( ...
-                axes, iterations, upperBounds, ...
-                '-', ...
-                'Color', "#009E73", ...
-                'LineWidth', 3, ...
-                'DisplayName', 'Flux UB');
-            legend(axes, 'show', 'Location', 'best');
-            hold(axes, 'off');
-
+            openmebius.presentation.result.ResultPlotRenderer.monteCarlo( ...
+                app.SubUIAxes, plotData);
         end % renderMonteCarloConfidenceInterval
 
         function renderGridSearchProfile(app, plotData)
-
-            profileX = double(plotData.X(:));
-            profileRSS = double(plotData.Y(:));
-            finiteProfile = isfinite(profileX) & isfinite(profileRSS);
-            axes = app.SubUIAxes;
-
-            if ~any(finiteProfile)
-                app.resetResultAxes(axes);
-                return
-            end
-
-            profileX = profileX(finiteProfile);
-            profileRSS = profileRSS(finiteProfile);
-            cla(axes);
-            app.prepareCartesianResultAxes(axes);
-            axes.FontSize = 16;
-            axes.FontName = 'Arial';
-            axes.XLabel.String = "Fixed flux";
-            axes.YLabel.String = "RSS";
-            axes.Title.String = plotData.Title;
-            axes.XGrid = 'on';
-            axes.YGrid = 'on';
-            yLimits = double(plotData.YLimits(:)).';
-            axes.YLim = yLimits;
-
-            fvaLowerBound = double(plotData.FVALowerBound);
-            fvaUpperBound = double(plotData.FVAUpperBound);
-            xLimits = double(plotData.XLimits(:)).';
-            axes.XLim = xLimits;
-            hold(axes, 'on');
-
-            fvaRegionLower = max(fvaLowerBound, xLimits(1));
-            fvaRegionUpper = min(fvaUpperBound, xLimits(2));
-
-            if fvaRegionLower < fvaRegionUpper
-                patch( ...
-                    axes, ...
-                    [fvaRegionLower, fvaRegionUpper, ...
-                     fvaRegionUpper, fvaRegionLower], ...
-                    [yLimits(1), yLimits(1), ...
-                     yLimits(2), yLimits(2)], ...
-                    [0.75, 0.88, 0.78], ...
-                    'EdgeColor', 'none', ...
-                    'FaceAlpha', 0.35, ...
-                    'DisplayName', 'FVA range');
-            end
-
-            if isfield(plotData, "TrialX") && ...
-                    isfield(plotData, "TrialRSS")
-                trialX = double(plotData.TrialX(:));
-                trialRSS = double(plotData.TrialRSS(:));
-                finiteTrials = isfinite(trialX) & isfinite(trialRSS);
-
-                if any(finiteTrials)
-                    scatter( ...
-                        axes, ...
-                        trialX(finiteTrials), ...
-                        trialRSS(finiteTrials), ...
-                        18, ...
-                        [0.7 0.7 0.7], ...
-                        'filled', ...
-                        'DisplayName', 'Trials');
-                end
-
-            end
-
-            plot( ...
-                axes, ...
-                profileX, ...
-                profileRSS, ...
-                '-o', ...
-                'Color', "#0072B2", ...
-                'MarkerFaceColor', "#0072B2", ...
-                'LineWidth', 2.5, ...
-                'DisplayName', 'Minimum RSS');
-
-            if isfield(plotData, "ObjectiveThreshold") && ...
-                    isscalar(plotData.ObjectiveThreshold) && ...
-                    isfinite(plotData.ObjectiveThreshold)
-                yline( ...
-                    axes, ...
-                    double(plotData.ObjectiveThreshold), ...
-                    '--', ...
-                    'Color', "#D55E00", ...
-                    'LineWidth', 2, ...
-                    'DisplayName', 'Objective threshold');
-            end
-
-            if isfield(plotData, "LowerBound") && ...
-                    isscalar(plotData.LowerBound) && ...
-                    isfinite(plotData.LowerBound)
-                xline( ...
-                    axes, ...
-                    double(plotData.LowerBound), ...
-                    ':', ...
-                    'Color', "#009E73", ...
-                    'LineWidth', 1.5, ...
-                    'DisplayName', 'CI lower bound');
-            end
-
-            if isfield(plotData, "UpperBound") && ...
-                    isscalar(plotData.UpperBound) && ...
-                    isfinite(plotData.UpperBound)
-                xline( ...
-                    axes, ...
-                    double(plotData.UpperBound), ...
-                    ':', ...
-                    'Color', "#CC79A7", ...
-                    'LineWidth', 1.5, ...
-                    'DisplayName', 'CI upper bound');
-            end
-
-            legend(axes, 'show', 'Location', 'best');
-            hold(axes, 'off');
-
+            openmebius.presentation.result.ResultPlotRenderer.gridSearch( ...
+                app.SubUIAxes, plotData);
         end % renderGridSearchProfile
 
         function renderOptimizationRSSHistogram(app, plotData)
-
-            rss = double(plotData.RSS(:));
-            rss = rss(isfinite(rss) & rss >= 0);
-            threshold = double(plotData.Threshold);
-            axes = app.SubUIAxes;
-
-            if isempty(rss) || ~isscalar(threshold) || ...
-                    ~isfinite(threshold) || threshold < 0
-                app.resetResultAxes(axes);
-                return
-            end
-
-            cla(axes);
-            app.prepareCartesianResultAxes(axes);
-            axes.FontSize = 16;
-            axes.FontName = 'Arial';
-            axes.XLabel.String = "RSS";
-            axes.YLabel.String = "Frequency";
-            axes.Title.String = plotData.Title;
-            axes.XGrid = 'on';
-            axes.YGrid = 'on';
-            useLogScale = isfield(plotData, "UseLogScale") && ...
-                isscalar(plotData.UseLogScale) && plotData.UseLogScale;
-            rssForPlot = rss;
-            histogramArguments = {'BinMethod', 'fd'};
-
-            if useLogScale
-                positiveRSS = rss(rss > 0);
-
-                if ~isempty(positiveRSS)
-                    lowerEdge = min(positiveRSS);
-
-                    if any(rss == 0)
-                        lowerEdge = max(lowerEdge / 10, realmin('double'));
-                        rssForPlot(rssForPlot == 0) = lowerEdge;
-                    end
-
-                    upperEdge = max(rssForPlot);
-
-                    if lowerEdge < upperEdge
-                        [~, logBinEdges] = histcounts( ...
-                            log10(rssForPlot), 'BinMethod', 'fd');
-                        histogramArguments = { ...
-                            'BinEdges', 10 .^ logBinEdges};
-                    end
-
-                    axes.XScale = 'log';
-                end
-
-            end
-
-            hold(axes, 'on');
-            histogram( ...
-                axes, ...
-                rssForPlot, ...
-                histogramArguments{:}, ...
-                'FaceColor', "#0072B2", ...
-                'EdgeColor', 'none', ...
-                'DisplayName', 'RSS');
-
-            if strcmp(axes.XScale, 'linear') || threshold > 0
-                xline( ...
-                    axes, ...
-                    threshold, ...
-                    '-', ...
-                    'Color', "#D55E00", ...
-                    'LineWidth', 2, ...
-                    'DisplayName', 'Threshold');
-            end
-
-            maximumValue = max([rssForPlot; threshold]);
-            alpha = 0.05 * maximumValue;
-
-            if alpha == 0
-                alpha = 0.05;
-            end
-
-            upperXLimit = maximumValue + alpha;
-
-            if strcmp(axes.XScale, 'linear')
-                axes.XLim = [0, upperXLimit];
-            else
-                currentXLimits = axes.XLim;
-
-                if currentXLimits(1) < upperXLimit
-                    axes.XLim = [currentXLimits(1), upperXLimit];
-                end
-
-            end
-
-            legend(axes, 'show', 'Location', 'best');
-            hold(axes, 'off');
-
+            openmebius.presentation.result.ResultPlotRenderer.optimizationRSS( ...
+                app.SubUIAxes, plotData);
         end % renderOptimizationRSSHistogram
 
         function renderOptimizationExitFlagPie(app, plotData)
-
-            counts = double(plotData.Counts(:));
-            axes = app.SubUIAxes;
-
-            if isempty(counts) || any(~isfinite(counts)) || ...
-                    any(counts <= 0)
-                app.resetResultAxes(axes);
-                return
-            end
-
-            labels = string(plotData.Labels(:));
-
-            if numel(labels) ~= numel(counts)
-                labels = "Exitflag " + string(1:numel(counts));
-                labels = labels(:);
-            end
-
-            legend(axes, 'off');
-            cla(axes, 'reset');
-            axes.Visible = 'on';
-            axes.FontSize = 16;
-            axes.FontName = 'Arial';
-            pie(axes, counts, cellstr(labels));
-            slices = findobj(axes, 'Type', 'patch');
-
-            for sliceIndex = 1:numel(slices)
-                slices(sliceIndex).Tag = 'ExitflagPieSlice';
-            end
-
-            title(axes, plotData.Title);
-            axis(axes, 'equal');
-
+            openmebius.presentation.result.ResultPlotRenderer.exitFlags( ...
+                app.SubUIAxes, plotData);
         end % renderOptimizationExitFlagPie
 
         function prepareCartesianResultAxes(~, axes)
@@ -1637,11 +1280,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % prepareCartesianResultAxes
 
         function resetResultAxes(~, axes)
-
-            legend(axes, 'off');
-            cla(axes, 'reset');
-            axes.Visible = 'on';
-
+            openmebius.presentation.result.ResultPlotRenderer.clear(axes);
         end % resetResultAxes
 
         function clearResultPlots(app)
@@ -3458,24 +3097,9 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method renderExperimentImportResult
 
         function applyBatchStyleRules(app, styleRules)
-
-            if isempty(styleRules)
-                return
-            end
-
-            for i = 1:numel(styleRules)
-
-                style = app.batchStyleFromKey(styleRules(i).StyleKey);
-
-                addStyle( ...
-                    app.RunTable, ...
-                    style, ...
-                    'cell', ...
-                    [styleRules(i).Rows, styleRules(i).Columns]);
-
-            end
-
-        end % method applyBatchStyleRules
+            openmebius.presentation.result.ResultTableRenderer.batchStyles( ...
+                app.RunTable, styleRules, @(key) app.batchStyleFromKey(key));
+        end % applyBatchStyleRules
 
         function style = batchStyleFromKey(app, styleKey)
 
@@ -3541,49 +3165,10 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end % method resultStyleFromRule
 
         function applyResultStyleRules(app, tableObject, styleRules)
-
-            if isempty(styleRules)
-                return
-            end
-
-            for i = 1:numel(styleRules)
-
-                style = app.resultStyleFromRule(styleRules(i));
-
-                target = char(styleRules(i).Target);
-
-                switch string(styleRules(i).Target)
-
-                    case "cell"
-                        addStyle( ...
-                            tableObject, ...
-                            style, ...
-                            target, ...
-                            [styleRules(i).Rows, styleRules(i).Columns]);
-
-                    case "column"
-                        addStyle( ...
-                            tableObject, ...
-                            style, ...
-                            target, ...
-                            styleRules(i).Columns);
-
-                    case "row"
-                        addStyle( ...
-                            tableObject, ...
-                            style, ...
-                            target, ...
-                            styleRules(i).Rows);
-
-                    otherwise
-                        error( ...
-                            "OpenMebius2:Result:InvalidStyleTarget", ...
-                            "Unknown style target: %s", string(styleRules(i).Target));
-                end
-
-            end
-
-        end % method applyResultStyleRules
+            openmebius.presentation.result.ResultTableRenderer.resultStyles( ...
+                tableObject, styleRules, @(rule) app.resultStyleFromRule(rule), ...
+                app.isDarkTheme());
+        end % applyResultStyleRules
 
         function progressBar = getProgressBar(app)
 
@@ -4448,14 +4033,29 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
         end
 
         %% Private update function
-        function handleResultAvailable(app, ~)
-
-            loadResult(app);
-
-            % Drawnow
-            drawnow;
-
-        end % function handleResultAvailable
+        function handleResultAvailable(app, resultData)
+            result = app.ApplicationController.result();
+            if isempty(result) || ~isvalid(result)
+                return
+            end
+            ids = strings(0, 1);
+            if isstruct(resultData) && isfield(resultData, 'ID')
+                ids = string(resultData.ID);
+            end
+            result.invalidateCache(ids);
+            [selectedIDs, ~] = app.selectedResultIdentities();
+            source = app.resolveResultSelectionSource("");
+            loadSubResultTable(app);
+            if isempty(app.selectedTableRows(app.ResultSubTable))
+                app.renderResultMainTable( ...
+                    openmebius.presentation.result.ResultTableViewModel());
+                app.clearResultPlots();
+            elseif isempty(ids) || any(ismember(selectedIDs, ids))
+                loadMainResultTable(app);
+                updateResultPlot(app, source);
+            end
+            drawnow limitrate;
+        end % handleResultAvailable
 
         function updateResultPlot(app, selectionSource)
 

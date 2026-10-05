@@ -22,7 +22,7 @@ classdef ResultIndexStub < handle
 
         end
 
-        function [data, mask] = loadResultFiles(obj, batchIds)
+        function [data, mask] = loadResultSummaries(obj, batchIds)
 
             obj.RequestedIDs = batchIds;
             data = repmat({struct()}, size(batchIds));

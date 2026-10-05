@@ -368,7 +368,7 @@ classdef ResultPlotPresenter < handle
             notification = [];
 
             try
-                data = getOptimizationState(result, batchID);
+                data = getOptimizationState(result, batchID, IncludeExitFlags = false);
             catch
                 notification = openmebius.presentation.notification ...
                     .Notification.warning( ...
@@ -472,8 +472,15 @@ classdef ResultPlotPresenter < handle
                     return
                 end
 
-                lowerBounds = double(data.CI.fluxLB(reactionIndex, :));
-                upperBounds = double(data.CI.fluxUB(reactionIndex, :));
+                boundsRow = reactionIndex;
+                if isfield(data.CI, "reactionIndex")
+                    if data.CI.reactionIndex ~= reactionIndex
+                        error("OpenMebius2:Result:ReactionMismatch", "CI reaction does not match selection.");
+                    end
+                    boundsRow = 1;
+                end
+                lowerBounds = double(data.CI.fluxLB(boundsRow, :));
+                upperBounds = double(data.CI.fluxUB(boundsRow, :));
                 bestFit = double(data.fluxFwd(reactionIndex));
                 plotTitle = reactionID;
 

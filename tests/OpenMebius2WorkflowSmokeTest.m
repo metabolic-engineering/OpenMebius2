@@ -541,6 +541,36 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
 
         end
 
+        function reloadsChangedResultWithoutLosingSelectionOrGraphics(testCase)
+            app = testCase.App;
+            project = OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli_grid_search");
+            OpenMebius2WorkflowSmokeTest.selectProject(app, project);
+            testCase.press(app.ProjectLoadButton);
+            testCase.choose(app.TabGroup, "Result");
+            testCase.choose(app.ResultSubTable, [1, 1]);
+            data = app.ResultSubTable.UserData.RawData;
+            id = string(data.ID(1));
+            imageHandle = findobj(app.MainUIAxes, 'Type', 'image');
+            histogramHandle = findobj(app.SubUIAxes, 'Type', 'histogram');
+            testCase.assertNotEmpty(imageHandle);
+            testCase.assertNotEmpty(histogramHandle);
+            resultPath = fullfile(project, 'results', id + ".h5");
+            rss = h5read(resultPath, '/RSS');
+            h5write(resultPath, '/RSS', rss + 1);
+            testCase.press(app.ResultReloadButton);
+            testCase.verifyEqual(app.ResultSubTable.Selection, 1);
+            testCase.verifyEqual(app.ResultSubTable.UserData.RawData.RSS(1), min(rss) + 1);
+            testCase.verifyTrue(isvalid(imageHandle));
+            testCase.verifyTrue(isvalid(histogramHandle));
+            testCase.verifyEqual(sort(histogramHandle.Data(:)), sort(rss(:) + 1));
+            delete(resultPath);
+            testCase.press(app.ResultReloadButton);
+            testCase.verifyFalse(any(string(app.ResultSubTable.UserData.RawData.ID) == id));
+            testCase.verifyEmpty(app.ResultMainTable.Data);
+            testCase.verifyEmpty(app.SubUIAxes.Children);
+        end
+
         function rendersGridSearchAxesAfterWindowReload(testCase)
 
             app = testCase.App;

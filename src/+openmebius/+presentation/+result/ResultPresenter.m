@@ -15,7 +15,7 @@ classdef ResultPresenter < handle
             finishedBatchGUI = batchGUI(finishedMask, :);
             finishedBatchIDs = batchIDs(finishedMask);
 
-            [data, dataMask] = loadResultFiles(result, finishedBatchIDs);
+            [data, dataMask] = loadResultSummaries(result, finishedBatchIDs);
 
             if isempty(data(dataMask))
                 viewModel = ...

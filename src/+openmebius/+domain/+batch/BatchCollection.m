@@ -89,18 +89,11 @@ classdef BatchCollection < handle
             end
 
             ids = string(ids(:));
-            statuses = strings(size(ids));
-
-            for i = 1:numel(ids)
-                index = find(obj.TableData.id == ids(i), 1);
-
-                if isempty(index)
-                    statuses(i) = "unknown";
-                else
-                    statuses(i) = ...
-                        string(obj.TableData.config(index).status);
-                end
-
+            statuses = repmat("unknown", size(ids));
+            [found, indices] = ismember(ids, obj.TableData.id);
+            if any(found)
+                configs = obj.TableData.config(indices(found));
+                statuses(found) = string({configs.status});
             end
 
         end % statusesFor

@@ -116,6 +116,7 @@ classdef ResultPlotPresenterTest < matlab.unittest.TestCase
                 UseLogScale = true);
 
             testCase.verifyFalse(defaultViewModel.SubPlot.UseLogScale);
+            testCase.verifyFalse(result.IncludeExitFlags);
             testCase.verifyTrue(logViewModel.SubPlot.UseLogScale);
 
         end
