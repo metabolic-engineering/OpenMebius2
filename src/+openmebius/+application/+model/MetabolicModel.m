@@ -387,6 +387,7 @@ classdef MetabolicModel < handle
             structTracer = obj.getLabelStructView();
             fieldName = fieldnames(structTracer);
             maximumCNumber = max(cell2mat(tableTracer.Num));
+            substrateEMUsByLabel = struct();
 
             msg = "Constructing substrate EMUs...";
             reportMessage(obj, msg, "Info");
@@ -400,9 +401,11 @@ classdef MetabolicModel < handle
                 iEMU = substrateEMUs( ...
                     obj, iTracerLabel, iTracerRatio, numAtom = maximumCNumber);
 
-                obj.structSubstrateEMU.(fieldName{i}) = iEMU;
+                substrateEMUsByLabel.(fieldName{i}) = iEMU;
 
             end % for i
+
+            obj.structSubstrateEMU = substrateEMUsByLabel;
 
         end % substrateEMUsAll
 
