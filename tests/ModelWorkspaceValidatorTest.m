@@ -11,6 +11,49 @@ classdef ModelWorkspaceValidatorTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function acceptsCustomLabelMatchingCarbonCount(~)
+
+            validator = openmebius.application.model.ModelWorkspaceValidator();
+            labels = table({'Custom'}, {6}, VariableNames = {'Name', 'Num'});
+            ratios = struct(Custom = table( ...
+                {'#111111'; '#000000'}, [0.8; 0.2], ...
+                VariableNames = {'Label', 'Ratio'}));
+
+            validator.validateLabelConfiguration(labels, ratios);
+
+        end
+
+        function rejectsPatternsThatWouldProduceWrongSizedSubstrateEMUs(testCase)
+
+            validator = openmebius.application.model.ModelWorkspaceValidator();
+            labels = table({'Custom'}, {6}, VariableNames = {'Name', 'Num'});
+            invalidPatterns = {{'#1'}, {'#'}, {'pattern'}, ...
+                {'#000002'}, cell(0, 1), {'#111111'; '#0'}};
+            for index = 1:numel(invalidPatterns)
+                patterns = invalidPatterns{index};
+                ratios = struct(Custom = table(patterns, ones(numel(patterns), 1), ...
+                    VariableNames = {'Label', 'Ratio'}));
+                testCase.verifyError( ...
+                    @() validator.validateLabelConfiguration(labels, ratios), ...
+                    "OpenMebius2:LabelConfiguration:InvalidLabelPattern");
+            end
+
+        end
+
+        function rejectsInvalidLabelCarbonCount(testCase)
+
+            validator = openmebius.application.model.ModelWorkspaceValidator();
+            ratios = struct(Custom = table({'#1'}, 1, ...
+                VariableNames = {'Label', 'Ratio'}));
+            for count = [0, -1, 1.5, nan, inf]
+                labels = table({'Custom'}, {count}, VariableNames = {'Name', 'Num'});
+                testCase.verifyError( ...
+                    @() validator.validateLabelConfiguration(labels, ratios), ...
+                    "OpenMebius2:LabelConfiguration:InvalidCarbonCount");
+            end
+
+        end
+
         function acceptsMatchingReactionAndTransition(testCase)
 
             validator = openmebius.application.model ...
