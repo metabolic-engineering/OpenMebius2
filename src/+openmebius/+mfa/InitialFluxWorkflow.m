@@ -52,7 +52,8 @@ classdef InitialFluxWorkflow
                 options.IterationsPerBatch (1, 1) double = 1e5
                 options.BurnIn (1, 1) double = 2000
                 options.Thinning (1, 1) double = 10
-                options.MaxTime (1, 1) double = 600
+                options.MaxTime (1, 1) double ...
+                    {mustBePositive, mustBeFinite} = input.Settings.MaxTime
                 options.Seed (1, 1) double = 0
                 options.MessageReporter (1, 1) function_handle = ...
                     @(~, ~) []

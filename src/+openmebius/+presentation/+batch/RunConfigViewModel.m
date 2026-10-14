@@ -3,6 +3,7 @@ classdef RunConfigViewModel
 
     properties
         Iteration (1, 1) double = 30
+        InitialFluxMaxTime (1, 1) double = 600
         Algorithm (1, 1) string = "SQP"
         LargeScale (1, 1) logical = false
         FluxLowerBound (1, 1) double = -1000

@@ -46,6 +46,7 @@ classdef BatchConfigTest < matlab.unittest.TestCase
                 struct('iteration', 7));
 
             testCase.verifyEqual(config.iteration, 7);
+            testCase.verifyEqual(config.initialFlux.maxTime, 600);
             testCase.verifyTrue( ...
                 config.initialFlux.restrictFreeEffluxSeeds);
             testCase.verifyEqual( ...
@@ -119,6 +120,18 @@ classdef BatchConfigTest < matlab.unittest.TestCase
             testCase.verifyError( ...
                 @() openmebius.domain.batch.BatchConfig.validate(config), ...
                 'OpenMebius2:BatchConfig:InvalidLogical');
+
+        end
+
+        function validatesInitialFluxTimeout(testCase)
+
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            for value = [0, -1, Inf, NaN]
+                config.initialFlux.maxTime = value;
+                testCase.verifyError( ...
+                    @() openmebius.domain.batch.BatchConfig.validate(config), ...
+                    'OpenMebius2:BatchConfig:InvalidPositiveNumber');
+            end
 
         end
 

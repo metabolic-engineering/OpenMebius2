@@ -9,6 +9,7 @@ classdef RunConfigMapper
             config = openmebius.domain.batch.BatchConfig.normalize(config);
             viewModel = openmebius.presentation.batch.RunConfigViewModel();
             viewModel.Iteration = double(config.iteration);
+            viewModel.InitialFluxMaxTime = double(config.initialFlux.maxTime);
             viewModel.InheritedOptimization = strlength(string(config.inheritedFrom)) > 0;
             viewModel.Algorithm = openmebius.presentation.batch ...
                 .RunConfigMapper.algorithmToView(config.algorithm);
@@ -108,6 +109,7 @@ classdef RunConfigMapper
             config = openmebius.domain.batch.BatchConfig.normalize( ...
                 currentConfig);
             config.iteration = viewModel.Iteration;
+            config.initialFlux.maxTime = viewModel.InitialFluxMaxTime;
             config.algorithm = openmebius.presentation.batch ...
                 .RunConfigMapper.algorithmToConfig(viewModel.Algorithm);
             config.largeScale = viewModel.LargeScale;

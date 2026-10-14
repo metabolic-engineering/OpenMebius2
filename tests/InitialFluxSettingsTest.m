@@ -32,6 +32,7 @@ classdef InitialFluxSettingsTest < matlab.unittest.TestCase
 
             testCase.verifyEqual(settings.IterationCount, 30);
             testCase.verifyTrue(settings.RestrictFreeEffluxSeeds);
+            testCase.verifyEqual(settings.MaxTime, 600);
             testCase.verifyEqual( ...
                 settings.FreeEffluxSeedSigmaMultiplier, 3);
 
@@ -47,6 +48,16 @@ classdef InitialFluxSettingsTest < matlab.unittest.TestCase
                     @() openmebius.mfa.InitialFluxSettings( ...
                     FreeEffluxSeedSigmaMultiplier = value), ...
                     errorID);
+            end
+
+        end
+
+        function rejectsInvalidTimeout(testCase)
+
+            for value = [0, -1, Inf, NaN, 1 + 2i]
+                testCase.verifyError( ...
+                    @() openmebius.mfa.InitialFluxSettings(MaxTime = value), ...
+                    "OpenMebius2:InitialFluxSettings:InvalidMaxTime");
             end
 
         end

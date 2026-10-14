@@ -88,6 +88,7 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
                 openmebius.infrastructure.batch.BatchJsonMapper.toTable( ...
                 testCase.legacyBatchData());
             batchTable.contentHash = "sha256:test-content";
+            batchTable.config.initialFlux.maxTime = 123.5;
 
             repository.save(experimentLocation, "batch.json", batchTable);
 
@@ -120,6 +121,7 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
                 loadedTable.config.iteration, ...
                 batchTable.config.iteration);
             testCase.verifyTrue(isfield(loadedTable.config, 'INSTMFA'));
+            testCase.verifyEqual(loadedTable.config.initialFlux.maxTime, 123.5);
 
         end % savesSchemaVersionedDocumentAtomically
 

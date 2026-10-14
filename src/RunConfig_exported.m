@@ -185,6 +185,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         IsReadOnly (1, 1) logical = false
         IsInherited (1, 1) logical = false
         GridParallelIterationsCheckBox matlab.ui.control.CheckBox
+        InitialFluxTimeoutEditField matlab.ui.control.NumericEditField
     end
 
     events
@@ -219,6 +220,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
         function initializeView(app, context)
 
             app.initializeGridParallelIterationsControl();
+            app.initializeInitialFluxTimeoutControl();
             app.Session = context.Session;
             app.Presenter = context.Presenter;
             app.Controller = context.ConfigurationController;
@@ -364,6 +366,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.IterationtimesforgridsearchEditField.Value = ...
                 viewModel.GridIterations;
             app.ParallelworkersEditField.Value = viewModel.GridWorkers;
+            app.InitialFluxTimeoutEditField.Value = viewModel.InitialFluxMaxTime;
             app.MinimumFLuxRangeEditField.Value = ...
                 viewModel.GridMinimumFluxRange;
             app.ThresholdDropDown.Value = viewModel.GridThreshold;
@@ -462,6 +465,42 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % renderControlState
 
+        function initializeInitialFluxTimeoutControl(app)
+            % Add an editable runtime control below Parallel workers.
+            parent = app.GridLayout12_6.Parent;
+            row = app.GridLayout12_6.Layout.Row + 1;
+            rows = parent.RowHeight;
+            parent.RowHeight = [rows(1:row-1), {'fit'}, rows(row:end)];
+            children = parent.Children;
+            for index = 1:numel(children)
+                child = children(index);
+                if child.Layout.Row(1) >= row
+                    child.Layout.Row = child.Layout.Row + 1;
+                end
+            end
+
+            layout = uigridlayout(parent, [1, 2]);
+            layout.ColumnWidth = app.GridLayout12_6.ColumnWidth;
+            layout.RowHeight = {'1x'};
+            layout.Padding = [0 0 0 0];
+            layout.Layout.Row = row;
+            layout.Layout.Column = app.GridLayout12_6.Layout.Column;
+            label = uilabel(layout);
+            label.Text = 'Timeout (s)';
+            label.Tooltip = 'Initial flux search timeout in seconds.';
+            label.Layout.Row = 1;
+            label.Layout.Column = 1;
+            app.InitialFluxTimeoutEditField = uieditfield(layout, 'numeric');
+            app.InitialFluxTimeoutEditField.Value = 600;
+            app.InitialFluxTimeoutEditField.Limits = [0 Inf];
+            app.InitialFluxTimeoutEditField.LowerLimitInclusive = 'off';
+            app.InitialFluxTimeoutEditField.UpperLimitInclusive = 'off';
+            app.InitialFluxTimeoutEditField.Tag = 'InitialFluxTimeout';
+            app.InitialFluxTimeoutEditField.Tooltip = label.Tooltip;
+            app.InitialFluxTimeoutEditField.Layout.Row = 1;
+            app.InitialFluxTimeoutEditField.Layout.Column = 2;
+        end
+
         function initializeGridParallelIterationsControl(app)
             % Runtime controls leave App Designer's component model intact.
             rows = app.GridLayout11.RowHeight;
@@ -487,6 +526,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
                 return
             end
             app.IterationSpinner.Enable = 'off';
+            app.InitialFluxTimeoutEditField.Enable = 'off';
             app.PerturbateEffluxCheckBox.Enable = 'off';
             app.INSTMFACheckBox.Enable = 'off';
             app.DeleteResultButton.Enable = 'off';
@@ -902,6 +942,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             viewModel.GridIterations = ...
                 app.IterationtimesforgridsearchEditField.Value;
             viewModel.GridWorkers = app.ParallelworkersEditField.Value;
+            viewModel.InitialFluxMaxTime = app.InitialFluxTimeoutEditField.Value;
             viewModel.GridMinimumFluxRange = ...
                 app.MinimumFLuxRangeEditField.Value;
             viewModel.GridThreshold = app.ThresholdDropDown.Value;

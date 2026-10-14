@@ -221,6 +221,14 @@ The current Batch schema is version 2:
 `contentHash` is not shown in the GUI and represents semantic analysis inputs;
 it excludes random state and transient runtime fields.
 
+`initialFlux.maxTime` is the initial-flux search timeout in seconds. It must
+be a positive finite number and defaults to `600`, including when loading
+older configurations without this field. The General tab exposes it as
+**Timeout (s)** directly below **Parallel workers**. It controls the existing
+sampling/retry time checks; candidate scoring and solver calls can finish
+after that interval. Inherited batches retain the source value because
+they reuse initial fluxes and optimization results.
+
 `CIConf.grid.parallelIterations` defaults to `false`. When grid parallel
 execution is enabled, `false` distributes reactions across workers; `true`
 processes reactions and grid points sequentially and distributes the

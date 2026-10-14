@@ -9,6 +9,7 @@ classdef BatchConfig
             % Flux calculation configuration
             config = struct;
             config.iteration = 30;
+            config.initialFlux.maxTime = 600;
             config.initialFlux.restrictFreeEffluxSeeds = true;
             config.initialFlux.freeEffluxSeedSigmaMultiplier = 3;
             config.perturbateEfflux = false;
@@ -261,6 +262,7 @@ classdef BatchConfig
             import openmebius.domain.batch.BatchConfig
 
             BatchConfig.mustBeStruct(config, 'initialFlux');
+            BatchConfig.mustBePositiveNumber(config, 'initialFlux.maxTime');
             BatchConfig.mustBeLogical( ...
                 config, ...
                 'initialFlux.restrictFreeEffluxSeeds');
