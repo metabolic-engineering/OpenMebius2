@@ -14,6 +14,53 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function timeoutLoadsBelowWorkersAndSavesInBothApps(testCase)
+
+            constructors = {@RunConfig_exported, @RunConfig};
+            for index = 1:numel(constructors)
+                batch = helpers.RunConfigBatchStub();
+                batch.Config.initialFlux.maxTime = 123.5;
+                session = RunConfigActionTest.createSession(batch);
+                app = RunConfigActionTest.createApp( ...
+                    session, constructors{index});
+                cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+                field = findall(app.BatchconfigUIFigure, ...
+                    'Tag', 'InitialFluxTimeout');
+                testCase.assertNumElements(field, 1);
+                testCase.verifyEqual(field.Value, 123.5);
+                testCase.verifyEqual(string(field.Enable), "on");
+                testCase.verifyEqual(field.Parent.Parent, ...
+                    app.ParallelworkersEditField.Parent.Parent);
+                testCase.verifyEqual(field.Parent.Layout.Row, ...
+                    app.ParallelworkersEditField.Parent.Layout.Row + 1);
+                field.Value = 75.25;
+
+                callback = app.GeneralCloseButton.ButtonPushedFcn;
+                callback([], []);
+
+                testCase.verifyFalse(isvalid(app));
+                testCase.verifyEqual(batch.Config.initialFlux.maxTime, 75.25);
+                settings = openmebius.application.analysis ...
+                    .InitialFluxSettingsMapper.fromBatchConfig(batch.Config);
+                testCase.verifyEqual(settings.MaxTime, 75.25);
+                clear cleanup
+            end
+
+        end
+
+        function inheritedBatchDisablesInitialFluxTimeout(testCase)
+
+            batch = helpers.RunConfigBatchStub();
+            batch.Config.inheritedFrom = 'bat_source';
+            session = RunConfigActionTest.createSession(batch);
+            app = RunConfigActionTest.createApp(session);
+            cleanup = onCleanup(@() RunConfigActionTest.deleteIfValid(app));
+            field = findall(app.BatchconfigUIFigure, ...
+                'Tag', 'InitialFluxTimeout');
+            testCase.verifyEqual(string(field.Enable), "off");
+
+        end
+
         function restoresDefaultsWithoutSavingPreservedTables(testCase)
 
             batch = helpers.RunConfigBatchStub();
@@ -47,6 +94,9 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             app.MaxIterationsEditField.Value = 99;
             app.EnforceFluxBoundsCheckBox.Value = true;
             app.MCLmaxEditField_2.Value = 9;
+            timeoutField = findall(app.BatchconfigUIFigure, ...
+                'Tag', 'InitialFluxTimeout');
+            timeoutField.Value = 90;
 
             callback = app.GeneralRestoreDefaultButton.ButtonPushedFcn;
             callback([], []);
@@ -58,6 +108,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             testCase.verifyFalse( ...
                 app.EnforceFluxBoundsCheckBox.Value);
             testCase.verifyEqual(app.MCLmaxEditField_2.Value, 3);
+            testCase.verifyEqual(timeoutField.Value, 600);
             testCase.verifyEqual(app.EffluxUITable.Data, efflux);
             testCase.verifyEqual(app.LabelTable.Data, suggestion);
             testCase.verifyEqual(app.INSTMFAPoolUITable.Data, pool);
@@ -179,6 +230,9 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
             recorder.attach(app);
 
             testCase.verifyEqual(string(app.IterationSpinner.Enable), "off");
+            timeoutField = findall(app.BatchconfigUIFigure, ...
+                'Tag', 'InitialFluxTimeout');
+            testCase.verifyEqual(string(timeoutField.Enable), "off");
             testCase.verifyEqual(string(app.CalcCICheckBox.Enable), "off");
             testCase.verifyEqual(string(app.MSTable.Enable), "off");
             testCase.verifyFalse(any(app.MSTable.ColumnEditable));
@@ -465,7 +519,11 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
 
     methods (Static, Access = private)
 
-        function app = createApp(session)
+        function app = createApp(session, constructor)
+
+            if nargin < 2
+                constructor = @RunConfig_exported;
+            end
 
             presenter = openmebius.presentation.batch ...
                 .RunConfigPresenter();
@@ -492,7 +550,7 @@ classdef RunConfigActionTest < matlab.unittest.TestCase
                 selectionController, ...
                 ExperimentSelectionPresenter = ...
                 selectionPresenter);
-            app = RunConfig_exported(context);
+            app = constructor(context);
 
         end % createApp
 

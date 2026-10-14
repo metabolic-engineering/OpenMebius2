@@ -13,6 +13,49 @@ classdef GridSearchConfidenceIntervalSolverTest < ...
 
     methods (Test)
 
+        function parallelIterationsMatchSerialProfilesForBothIntervals(testCase)
+            cleanup = onCleanup(@() GridSearchConfidenceIntervalSolverTest.deleteCurrentPool());
+            problem = openmebius.mfa.MFAProblem( ...
+                Stoichiometry = eye(2), RightHandSide = [5; 0.5], ...
+                LowerBounds = [0; 0], UpperBounds = [10; 1], ...
+                IndependentMask = [false; true], BoundaryReactionMask = [false; true]);
+            for automatic = [false, true]
+                interval = openmebius.mfa.GridSearchIntervalMode.FixedDelta;
+                if automatic
+                    interval = openmebius.mfa.GridSearchIntervalMode.Automatic;
+                end
+                baseline = [];
+                for parallelIterations = [false, true]
+                    execution = openmebius.mfa.GridSearchExecutionMode.Serial;
+                    if parallelIterations
+                        execution = openmebius.mfa.GridSearchExecutionMode.Parallel;
+                    end
+                    settings = openmebius.mfa.GridSearchConfidenceIntervalSettings( ...
+                        IntervalMode = interval, ExecutionMode = execution, ...
+                        ParallelIterations = parallelIterations, Delta = 0.25, ...
+                        PointCount = 4, IterationCount = 2, WorkerCount = 2, MaximumTrial = 3);
+                    result = openmebius.mfa.GridSearchConfidenceIntervalSolver().solve( ...
+                        problem, [5; 0.5], [5; 0.5], settings, ...
+                        @(Aeq, beq, seed) GridSearchConfidenceIntervalSolverTest ...
+                        .evaluateWorkerPoint(Aeq, beq, seed, parallelIterations), ...
+                        zeros(0, 2), ProfileFluxIndices = 2, ...
+                        ObjectiveThreshold = 1, BestObjective = 0, ...
+                        InitialIndependentValues = [0.4, 0.6]);
+                    if parallelIterations
+                        testCase.verifyEqual(result.LowerBounds, baseline.LowerBounds);
+                        testCase.verifyEqual(result.UpperBounds, baseline.UpperBounds);
+                        testCase.verifyEqual(result.ProfileData.FixedFluxValues, baseline.ProfileData.FixedFluxValues);
+                        testCase.verifyEqual(result.ProfileData.MinimumSumOfSquares, baseline.ProfileData.MinimumSumOfSquares);
+                        pool = gcp('nocreate');
+                        [~, logicalCount] = openmebius.mfa.GridSearchParallelPoolManager.processorCounts();
+                        testCase.verifyEqual(pool.NumWorkers, min(logicalCount, 2));
+                    else
+                        baseline = result;
+                    end
+                end
+            end
+        end
+
         function automaticModeBisectsThenProfilesBothSides(testCase)
 
             problem = openmebius.mfa.MFAProblem( ...
@@ -536,6 +579,12 @@ classdef GridSearchConfidenceIntervalSolverTest < ...
     end
 
     methods (Static, Access = private)
+
+        function result = evaluateWorkerPoint(Aeq, beq, seed, expectWorker)
+            assert(isempty(getCurrentTask()) ~= expectWorker, ...
+                'Grid iterations ran at the wrong parallel level.');
+            result = GridSearchConfidenceIntervalSolverTest.evaluateProfilePoint(Aeq, beq, seed);
+        end
 
         function [problem, settings] = extensionFixture()
 

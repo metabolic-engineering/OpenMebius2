@@ -47,6 +47,13 @@ classdef BatchAnalysisStub < handle
 
         end
 
+        function restoreFluxDistribution(obj)
+
+            obj.Calls(end + 1) = "restore";
+            obj.applyOutcome("restore");
+
+        end
+
         function calculateConfidenceInterval(obj)
 
             obj.Calls(end + 1) = "ci";

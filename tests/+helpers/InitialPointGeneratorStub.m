@@ -7,6 +7,7 @@ classdef InitialPointGeneratorStub < handle
         IsError (1, 1) logical = false
         ErrorMessage (1, 1) string = ""
         LastProblem = []
+        LastOptions (1, 1) struct = struct()
         RetryFluxes (:, :) double = zeros(0, 0)
         RetryRightHandSides (:, :) double = zeros(0, 0)
         GenerationCount (1, 1) double = 0
@@ -43,6 +44,7 @@ classdef InitialPointGeneratorStub < handle
         function result = generateRandom(obj, problem, ~, varargin)
 
             obj.LastProblem = problem;
+            obj.LastOptions = struct(varargin{:});
             obj.GenerationCount = obj.GenerationCount + 1;
             pause(obj.DelaySeconds);
             result = obj.result();
@@ -53,6 +55,7 @@ classdef InitialPointGeneratorStub < handle
                 obj, problem, ~, ~, varargin)
 
             obj.LastProblem = problem;
+            obj.LastOptions = struct(varargin{:});
             obj.GenerationCount = obj.GenerationCount + 1;
             pause(obj.DelaySeconds);
             result = obj.result();

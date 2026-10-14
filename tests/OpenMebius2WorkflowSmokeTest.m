@@ -443,6 +443,31 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
 
         end
 
+        function inheritsSelectedResultThroughContextMenu(testCase)
+            app = testCase.App;
+            projectDirectory = OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli");
+            OpenMebius2WorkflowSmokeTest.selectProject(app, projectDirectory);
+            testCase.press(app.ProjectLoadButton);
+            before = app.RunTable.UserData.RawData;
+            sourceId = string(before.ID(2));
+            app.RunTable.Selection = [2, 1];
+            menu = findobj(app.ContextMenuRun, 'Tag', 'InheritThisBatch');
+            testCase.assertNumElements(menu, 1);
+            callback = menu.MenuSelectedFcn;
+            callback(menu, []);
+            after = app.RunTable.UserData.RawData;
+            testCase.assertEqual(height(after), height(before) + 1);
+            newId = string(after.ID(end));
+            testCase.verifyNotEqual(newId, sourceId);
+            location = openmebius.domain.result.ResultLocation(fullfile(projectDirectory, 'results'));
+            repository = openmebius.infrastructure.result.InheritedResultRepository();
+            snapshot = repository.load(location, newId);
+            testCase.verifyEqual(snapshot.SourceID, sourceId);
+            testCase.verifyEqual(snapshot.Data.RSS, h5read(location.resultFile(sourceId), '/RSS'));
+            testCase.verifyEmpty(app.Test_Alerts);
+        end
+
         function tracerPatternsRemainReadOnlyAndOpenWithoutSaving(testCase)
 
             app = testCase.App;

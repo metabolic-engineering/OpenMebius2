@@ -15,6 +15,20 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function inheritanceAndGridParallelismSurviveJsonRoundTrip(testCase)
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.inheritedFrom = 'bat_source';
+            config.CIConf.grid.parallelIterations = true;
+            collection = openmebius.domain.batch.BatchCollection( ...
+                openmebius.infrastructure.batch.BatchJsonMapper.emptyTable());
+            id = collection.add('Inherited', {"exp-a"}, '', config);
+            json = openmebius.infrastructure.batch.BatchJsonMapper.toJsonData(collection.toTable());
+            restored = openmebius.infrastructure.batch.BatchJsonMapper.toTable(jsondecode(jsonencode(json)));
+            testCase.verifyEqual(restored.id, id);
+            testCase.verifyEqual(string(restored.config.inheritedFrom), "bat_source");
+            testCase.verifyTrue(restored.config.CIConf.grid.parallelIterations);
+        end
+
         function migratesLegacyArrayToCurrentSchema(testCase)
 
             legacyData = testCase.legacyBatchData();
@@ -74,6 +88,7 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
                 openmebius.infrastructure.batch.BatchJsonMapper.toTable( ...
                 testCase.legacyBatchData());
             batchTable.contentHash = "sha256:test-content";
+            batchTable.config.initialFlux.maxTime = 123.5;
 
             repository.save(experimentLocation, "batch.json", batchTable);
 
@@ -106,6 +121,7 @@ classdef BatchJsonRepositoryTest < matlab.unittest.TestCase
                 loadedTable.config.iteration, ...
                 batchTable.config.iteration);
             testCase.verifyTrue(isfield(loadedTable.config, 'INSTMFA'));
+            testCase.verifyEqual(loadedTable.config.initialFlux.maxTime, 123.5);
 
         end % savesSchemaVersionedDocumentAtomically
 

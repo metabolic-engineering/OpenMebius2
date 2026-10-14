@@ -4,6 +4,7 @@ classdef InitialFluxSettings
 
     properties (SetAccess = private)
         IterationCount (1, 1) double
+        MaxTime (1, 1) double
         RestrictFreeEffluxSeeds (1, 1) logical
         FreeEffluxSeedSigmaMultiplier (1, 1) double
     end
@@ -14,6 +15,7 @@ classdef InitialFluxSettings
 
             arguments
                 options.IterationCount (1, 1) double = 30
+                options.MaxTime (1, 1) double = 600
                 options.RestrictFreeEffluxSeeds (1, 1) logical = true
                 options.FreeEffluxSeedSigmaMultiplier ...
                     (1, 1) double = 3
@@ -29,6 +31,14 @@ classdef InitialFluxSettings
                     "positive integer.");
             end
 
+            if ~isreal(options.MaxTime) || ...
+                    ~isfinite(options.MaxTime) || options.MaxTime <= 0
+                error( ...
+                    "OpenMebius2:InitialFluxSettings:InvalidMaxTime", ...
+                    "The initial-flux timeout must be positive and " + ...
+                    "finite, in seconds.");
+            end
+
             if ~isfinite(options.FreeEffluxSeedSigmaMultiplier) || ...
                     options.FreeEffluxSeedSigmaMultiplier <= 0
                 error( ...
@@ -39,6 +49,7 @@ classdef InitialFluxSettings
             end
 
             obj.IterationCount = options.IterationCount;
+            obj.MaxTime = options.MaxTime;
             obj.RestrictFreeEffluxSeeds = ...
                 options.RestrictFreeEffluxSeeds;
             obj.FreeEffluxSeedSigmaMultiplier = ...

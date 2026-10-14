@@ -165,6 +165,13 @@ classdef BatchConfigurationSession < handle
 
             try
                 obj.BatchSource.updateBatchConfig(obj.BatchIds, config);
+                inheritedIds = obj.BatchIds(arrayfun( ...
+                    @openmebius.domain.batch.InheritedBatchConfig.isInherited, ...
+                    originalConfigs));
+                if ~isempty(inheritedIds) && ~isempty(fragmentSelections)
+                    fragmentSelections = fragmentSelections(~ismember( ...
+                        string({fragmentSelections.BatchID}), inheritedIds));
+                end
                 obj.BatchSource.updateBatchMSFragmentSelections( ...
                     fragmentSelections);
 

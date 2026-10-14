@@ -3,6 +3,7 @@ classdef RunConfigViewModel
 
     properties
         Iteration (1, 1) double = 30
+        InitialFluxMaxTime (1, 1) double = 600
         Algorithm (1, 1) string = "SQP"
         LargeScale (1, 1) logical = false
         FluxLowerBound (1, 1) double = -1000
@@ -36,6 +37,8 @@ classdef RunConfigViewModel
 
         GridAutomaticInterval (1, 1) logical = true
         GridParallelExecution (1, 1) logical = true
+        GridParallelIterations (1, 1) logical = false
+        InheritedOptimization (1, 1) logical = false
         GridPoints (1, 1) double = 10
         GridDelta (1, 1) double = 1
         GridIterations (1, 1) double = 30

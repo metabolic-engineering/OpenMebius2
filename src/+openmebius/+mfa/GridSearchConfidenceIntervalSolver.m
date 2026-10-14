@@ -117,6 +117,16 @@ classdef GridSearchConfidenceIntervalSolver
             progressReporter = options.ProgressReporter;
             progressReporter(0, progressTotal);
             useParallel = settings.ExecutionMode.isParallel();
+            parallelIterations = useParallel && settings.ParallelIterations;
+            parallelTasks = profileCount;
+            if parallelIterations
+                parallelTasks = settings.IterationCount;
+            end
+            iterationFunction = evaluationFunction;
+            evaluationFunction = @(Aeq, beq, candidates) ...
+                openmebius.mfa.GridSearchConfidenceIntervalSolver ...
+                .evaluateTrials(iterationFunction, Aeq, beq, ...
+                candidates, parallelIterations);
             [physicalCoreCount, logicalProcessorCount] = ...
                 obj.ParallelPoolManager.processorCounts();
 
@@ -125,7 +135,7 @@ classdef GridSearchConfidenceIntervalSolver
                     obj.ParallelPoolManager.requestedWorkerCount( ...
                     logicalProcessorCount, ...
                     settings.WorkerCount, ...
-                    profileCount);
+                    parallelTasks);
             else
                 requestedWorkerCount = 1;
             end
@@ -167,7 +177,7 @@ classdef GridSearchConfidenceIntervalSolver
                 "Calculating grid-search profiles for " + ...
                 string(profileCount) + " fluxes.");
 
-            if useParallel
+            if useParallel && ~parallelIterations
                 progressQueue = parallel.pool.DataQueue;
                 afterEach(progressQueue, @reportProfileCompleted);
 
@@ -911,7 +921,6 @@ classdef GridSearchConfidenceIntervalSolver
                 initialCandidates ...
                 )
 
-            objectives = nan(1, trialCount);
             candidateCount = size(initialCandidates, 2);
             [equalityMatrix, equalityRightHandSide] = ...
                 problem.fixedFluxEqualities( ...
@@ -919,25 +928,42 @@ classdef GridSearchConfidenceIntervalSolver
                 target, ...
                 BaseRightHandSide = baseRightHandSide);
 
-            for trial = 1:trialCount
-                candidate = initialCandidates( ...
-                    :, mod(trial - 1, candidateCount) + 1);
-                iterationResult = evaluationFunction( ...
-                    equalityMatrix, ...
-                    equalityRightHandSide, ...
-                    candidate);
-
-                if ~isa(iterationResult, ...
-                        "openmebius.mfa.MFAIterationResult") || ...
-                        iterationResult.IsError || ...
-                        ~isfinite(iterationResult.ObjectiveValue)
-                    continue
-                end
-
-                objectives(trial) = iterationResult.ObjectiveValue;
-            end
+            candidates = initialCandidates(:, mod(0:trialCount-1, candidateCount) + 1);
+            objectives = evaluationFunction( ...
+                equalityMatrix, equalityRightHandSide, candidates);
 
         end % evaluateTarget
+
+        function objectives = evaluateTrials(evaluate, Aeq, beq, candidates, useParallel)
+
+            trialCount = size(candidates, 2);
+            objectives = nan(1, trialCount);
+            if useParallel
+                parfor trial = 1:trialCount
+                    objectives(trial) = openmebius.mfa ...
+                        .GridSearchConfidenceIntervalSolver.evaluateTrial( ...
+                        evaluate, Aeq, beq, candidates(:, trial));
+                end
+            else
+                for trial = 1:trialCount
+                    objectives(trial) = openmebius.mfa ...
+                        .GridSearchConfidenceIntervalSolver.evaluateTrial( ...
+                        evaluate, Aeq, beq, candidates(:, trial));
+                end
+            end
+
+        end
+
+        function objective = evaluateTrial(evaluate, Aeq, beq, candidate)
+
+            result = evaluate(Aeq, beq, candidate);
+            objective = NaN;
+            if isa(result, 'openmebius.mfa.MFAIterationResult') && ...
+                    ~result.IsError && isfinite(result.ObjectiveValue)
+                objective = result.ObjectiveValue;
+            end
+
+        end
 
         function weights = profileWeights( ...
                 fullFluxCount, outputIndex, reversiblePairs)
