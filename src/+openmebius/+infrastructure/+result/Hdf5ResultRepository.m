@@ -4,6 +4,56 @@ classdef Hdf5ResultRepository < handle
 
     methods
 
+        function data = readResultSummary(obj, resultLocation, id)
+            % The index only needs the minimum RSS, not iteration payloads.
+            filePath = obj.requireResultFile(resultLocation, id);
+            data.ID = h5read(filePath, "/ID");
+            data.status = h5read(filePath, "/status");
+            data.RSS = NaN;
+            data.threshold = NaN;
+            if numel(data.status) >= 2 && data.status(2)
+                data.RSS = min(h5read(filePath, "/RSS"), [], "all");
+                data.threshold = h5read(filePath, "/threshold");
+            end
+        end
+
+        function data = readBestFit(obj, resultLocation, id, options)
+            arguments
+                obj
+                resultLocation openmebius.domain.result.ResultLocation
+                id (1, 1) string
+                options.IncludeMDV (1, 1) logical = false
+            end
+            filePath = obj.requireResultFile(resultLocation, id);
+            data.ID = h5read(filePath, "/ID");
+            data.status = h5read(filePath, "/status");
+            if data.status(1)
+                data.model.modelID = h5read(filePath, "/model/modelID");
+                data.model.modelReaction = h5read(filePath, "/model/modelReaction");
+                data.fluxVariability.fluxUBFwd = h5read(filePath, "/fluxVariability/fluxUBFwd");
+                data.fluxVariability.fluxLBFwd = h5read(filePath, "/fluxVariability/fluxLBFwd");
+                if options.IncludeMDV
+                    data.MDVExp = h5read(filePath, "/MDVExp");
+                    data.MDVExpName = h5read(filePath, "/MDVFragList");
+                    data.MDVFragMask = h5read(filePath, "/MDVFragMask");
+                end
+            end
+            if data.status(2)
+                data.RSSIdx = obj.readFirstElement(filePath, "/RSSIndex");
+                iteration = compose("%04d", data.RSSIdx);
+                field = "fluxResult" + iteration;
+                address = "/fluxResult/" + iteration;
+                data.(field).fluxFwd = h5read(filePath, address + "/fluxFwd");
+                if options.IncludeMDV
+                    data.(field).MDV = h5read(filePath, address + "/MDV");
+                end
+            end
+            if data.status(3)
+                data.fluxLB = h5read(filePath, "/fluxLB");
+                data.fluxUB = h5read(filePath, "/fluxUB");
+            end
+        end
+
         function data = readResultData(obj, resultLocation, id, options)
 
             arguments
@@ -176,7 +226,7 @@ classdef Hdf5ResultRepository < handle
                 filePath, "/fluxVariability/fluxUBFwd");
             data.fluxVariability.fluxLBFwd = h5read( ...
                 filePath, "/fluxVariability/fluxLBFwd");
-            data.RSSIdx = h5read(filePath, "/RSSIndex");
+            data.RSSIdx = obj.readFirstElement(filePath, "/RSSIndex");
             iterationName = string(sprintf("%04d", data.RSSIdx(1)));
             data.fluxFwd = h5read( ...
                 filePath, "/fluxResult/" + iterationName + "/fluxFwd");
@@ -184,24 +234,29 @@ classdef Hdf5ResultRepository < handle
             data.fluxUB = h5read(filePath, "/fluxUB");
             data.CI.algorithm = string(h5read(filePath, "/CI/algorithm"));
 
+            reactionIndex = find([string(data.model.modelID(:)); "biomass"] == reactionId, 1);
+            if isempty(reactionIndex)
+                data = [];
+                return
+            end
+            data.CI.reactionIndex = reactionIndex;
+
             if data.CI.algorithm == "Monte Carlo"
-                data.CI.flux = h5read(filePath, "/CI/fluxes");
-                data.CI.fluxLB = h5read(filePath, "/CI/fluxLB");
-                data.CI.fluxUB = h5read(filePath, "/CI/fluxUB");
+                data.CI.fluxLB = obj.readRow(filePath, "/CI/fluxLB", reactionIndex);
+                data.CI.fluxUB = obj.readRow(filePath, "/CI/fluxUB", reactionIndex);
             elseif data.CI.algorithm == "Grid search"
-                data.CI.fluxLB = h5read(filePath, "/CI/fluxLB");
-                data.CI.fluxUB = h5read(filePath, "/CI/fluxUB");
-                data.CI.gridSearch = obj.readGridSearchData(filePath);
+                data.CI.gridSearch = obj.readGridSearchData(filePath, reactionIndex);
             end
 
         end % readConfidenceInterval
 
-        function data = readOptimizationState(obj, resultLocation, id)
+        function data = readOptimizationState(obj, resultLocation, id, options)
 
             arguments
                 obj
                 resultLocation openmebius.domain.result.ResultLocation
                 id (1, 1) string
+                options.IncludeExitFlags (1, 1) logical = true
             end
 
             filePath = obj.requireResultFile(resultLocation, id);
@@ -215,7 +270,9 @@ classdef Hdf5ResultRepository < handle
             data = struct;
             data.RSS = h5read(filePath, "/RSS");
             data.threshold = h5read(filePath, "/threshold");
-            data.ExitFlags = obj.readOptimizationExitFlags(filePath);
+            if options.IncludeExitFlags
+                data.ExitFlags = obj.readOptimizationExitFlags(filePath);
+            end
 
         end % readOptimizationState
 
@@ -462,7 +519,7 @@ classdef Hdf5ResultRepository < handle
 
         end % readOptimizationExitFlags
 
-        function data = readGridSearchData(obj, filePath)
+        function data = readGridSearchData(obj, filePath, reactionIndex)
 
             basePath = "/CI/gridSearch";
             data = struct;
@@ -470,11 +527,23 @@ classdef Hdf5ResultRepository < handle
                 filePath, basePath + "/fluxIndices"));
             data.reactionIDs = string(h5read( ...
                 filePath, basePath + "/reactionIDs"));
-            data.fixedFlux = h5read( ...
-                filePath, basePath + "/fixedFlux");
-            data.RSS = h5read(filePath, basePath + "/RSS");
-            data.minimumRSS = h5read( ...
-                filePath, basePath + "/minimumRSS");
+            if nargin >= 3
+                profileIndex = find(data.fluxIndices == reactionIndex, 1);
+                if isempty(profileIndex)
+                    data.fluxIndices = [];
+                    data.reactionIDs = strings(0, 1);
+                    return
+                end
+                data.fluxIndices = data.fluxIndices(profileIndex);
+                data.reactionIDs = data.reactionIDs(profileIndex);
+                data.fixedFlux = obj.readRow(filePath, basePath + "/fixedFlux", profileIndex);
+                data.RSS = obj.readRow(filePath, basePath + "/RSS", profileIndex);
+                data.minimumRSS = obj.readRow(filePath, basePath + "/minimumRSS", profileIndex);
+            else
+                data.fixedFlux = h5read(filePath, basePath + "/fixedFlux");
+                data.RSS = h5read(filePath, basePath + "/RSS");
+                data.minimumRSS = h5read(filePath, basePath + "/minimumRSS");
+            end
             data.bestObjective = h5read( ...
                 filePath, basePath + "/bestObjective");
             data.objectiveThreshold = h5read( ...
@@ -502,6 +571,21 @@ classdef Hdf5ResultRepository < handle
                 filePath, basePath + "/elapsedTime");
 
         end % readGridSearchData
+
+        function value = readFirstElement(~, filePath, path)
+            info = h5info(filePath, path);
+            rank = numel(info.Dataspace.Size);
+            value = h5read(filePath, path, ones(1, rank), ones(1, rank));
+        end
+
+        function value = readRow(~, filePath, path, row)
+            info = h5info(filePath, path);
+            count = info.Dataspace.Size;
+            start = ones(size(count));
+            start(1) = row;
+            count(1) = 1;
+            value = h5read(filePath, path, start, count);
+        end
 
         function value = metadataValue(~, metadata, fieldName, defaultValue)
 

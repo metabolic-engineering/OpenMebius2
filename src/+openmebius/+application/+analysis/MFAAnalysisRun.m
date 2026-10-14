@@ -136,6 +136,19 @@ classdef MFAAnalysisRun < handle
 
         end % calculateFluxDistribution
 
+        function restoreFluxDistribution(obj)
+            initializeRunMetadata(obj);
+            cleanup = onCleanup(@() finalizeRun(obj));
+            if obj.isError
+                return
+            end
+            result = obj.AnalysisController.restoreFluxDistribution( ...
+                MessageReporter = @(level, message) reportAnalysisMessage(obj, level, message));
+            if ~result.IsError && ~result.IsCanceled
+                obj.ResultReporter(obj.AnalysisController.ResultSession.Result);
+            end
+        end
+
         function [fluxLB, fluxUB, output] = calculateConfidenceInterval(obj, options)
             % CALCULATECONFIDENCEINTERVAL Calculate the confidence interval.
             %

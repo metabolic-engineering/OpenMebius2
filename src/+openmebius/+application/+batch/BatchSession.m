@@ -755,7 +755,18 @@ classdef BatchSession < handle
             batchNow = batch(:, {'ID', 'Name', 'Experiment', 'Description'});
 
             % Convert experiment column to cell
-            batchNow.Experiment = cellfun(@(x) strsplit(x, "; "), batchNow.Experiment, 'UniformOutput', false);
+            batchNow.Experiment = arrayfun(@(value) strsplit(value, "; "), ...
+                string(batchNow.Experiment), 'UniformOutput', false);
+            % Inherited optimization is tied to the original experiments.
+            for index = 1:height(obj.tableBatch)
+                if openmebius.domain.batch.InheritedBatchConfig ...
+                        .isInherited(obj.tableBatch.config(index))
+                    row = find(string(batchNow.ID) == obj.tableBatch.id(index), 1);
+                    if ~isempty(row)
+                        batchNow.Experiment(row) = obj.tableBatch.exp(index);
+                    end
+                end
+            end
 
             obj.tableBatch(:, {'id', 'name', 'exp', 'description'}) = batchNow;
 
@@ -1108,6 +1119,53 @@ classdef BatchSession < handle
             updateContentHash(obj, newIds);
 
         end % duplicateBatches
+
+        function newIds = inheritBatches(obj, sourceIds, resultLocation, repository, options)
+            arguments
+                obj
+                sourceIds (:, 1) string
+                resultLocation
+                repository = openmebius.infrastructure.result.InheritedResultRepository()
+                options.ProgressReporter (1, 1) function_handle = @(~) []
+            end
+            original = obj.tableBatch;
+            collection = obj.batchCollection();
+            newIds = strings(numel(sourceIds), 1);
+            snapshots = cell(numel(sourceIds), 1);
+            for index = 1:numel(sourceIds)
+                source = find(original.id == sourceIds(index), 1);
+                if isempty(source)
+                    error('OpenMebius2:Inheritance:MissingBatch', ...
+                        'Batch %s no longer exists.', sourceIds(index));
+                end
+                snapshots{index} = repository.readSource(resultLocation, sourceIds(index), ...
+                    original.config(source), original.exp{source}, ...
+                    ProgressReporter = options.ProgressReporter);
+                config = snapshots{index}.Config;
+                config.status = 'ready';
+                config.deleteResultFile = true;
+                config.inheritedFrom = char(sourceIds(index));
+                newIds(index) = collection.add(original.name(source), ...
+                    {snapshots{index}.Experiments}, original.description(source), config);
+            end
+            try
+                for index = 1:numel(newIds)
+                    repository.save(resultLocation, newIds(index), snapshots{index}, ...
+                        ProgressReporter = options.ProgressReporter);
+                end
+                options.ProgressReporter("Saving the new batch...");
+                obj.tableBatch = collection.toTable();
+                updateContentHash(obj, newIds);
+                obj.saveBatchFile();
+            catch exception
+                obj.tableBatch = original;
+                artifacts = openmebius.infrastructure.result.ResultArtifactRepository();
+                for index = 1:numel(newIds)
+                    artifacts.deleteBatchArtifacts(resultLocation, newIds(index));
+                end
+                rethrow(exception);
+            end
+        end
 
         function moved = moveBatches(obj, ids, direction)
             % MOVEBATCHES Move selected batches one position up or down.

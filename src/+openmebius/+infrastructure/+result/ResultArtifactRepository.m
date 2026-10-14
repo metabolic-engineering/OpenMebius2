@@ -4,16 +4,21 @@ classdef ResultArtifactRepository
     methods
 
         function deletedFiles = deleteBatchArtifacts( ...
-                ~, resultLocation, batchId)
+                ~, resultLocation, batchId, options)
 
             arguments
                 ~
                 resultLocation (1, 1) ...
                     openmebius.domain.result.ResultLocation
                 batchId (1, 1) string
+                options.PreserveInheritance (1, 1) logical = false
             end
 
-            artifacts = resultLocation.resultArtifactFiles(batchId);
+            artifacts = [resultLocation.resultArtifactFiles(batchId); ...
+                resultLocation.inheritanceFile(batchId)];
+            if options.PreserveInheritance
+                artifacts(artifacts == resultLocation.inheritanceFile(batchId)) = [];
+            end
             deleted = false(size(artifacts));
 
             for i = 1:numel(artifacts)

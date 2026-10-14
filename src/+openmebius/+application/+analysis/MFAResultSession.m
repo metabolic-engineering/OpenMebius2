@@ -45,6 +45,24 @@ classdef MFAResultSession < handle
 
         end
 
+        function isCanceled = restoreOptimization(obj, data, resultID, options)
+            arguments
+                obj
+                data
+                resultID
+                options.ProgressReporter function_handle = @(~, ~) []
+                options.CancellationRequested function_handle = @() false
+            end
+            [obj.Result, obj.Progress, isSuccess, message, isCanceled] = ...
+                obj.Coordinator.restoreOptimization(data, resultID, ...
+                ProgressReporter = options.ProgressReporter, ...
+                CancellationRequested = options.CancellationRequested);
+            obj.reportFailure(isSuccess, message);
+            if ~isSuccess
+                error('OpenMebius2:Inheritance:WriteFailed', '%s', message);
+            end
+        end
+
         function writeModel(obj, modelTable, reversibleModelTable)
 
             [obj.Result, obj.Progress, isSuccess, message] = ...

@@ -12,6 +12,17 @@ classdef BatchProgressTrackerTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function inheritedBatchCountsOnlyOptionalWork(testCase)
+            tableValue = BatchProgressTrackerTest.batchTable("ready");
+            tableValue.config.inheritedFrom = 'bat_source';
+            tableValue.config.isCalcCI = true;
+            tableValue.config.CIConf.MC.iteration = 4;
+            tracker = openmebius.application.batch.BatchProgressTracker(tableValue, struct);
+            tracker.reportAnalysisProgress(1, 'monte-carlo', 2, 4);
+            testCase.verifyEqual(tracker.PhaseTotals(1, 1), 0);
+            testCase.verifyEqual(tracker.rate(), 0.5);
+        end
+
         function excludesFinishedBatchesAndWeightsOptimization(testCase)
 
             tableValue = BatchProgressTrackerTest.batchTable( ...

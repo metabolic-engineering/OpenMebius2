@@ -58,6 +58,10 @@ classdef MigrationCompatibilityTest < matlab.unittest.TestCase
 
             testCase.verifyFalse(isError, string(message));
             testCase.verifyEqual(height(batchTable), 3);
+            for index = 1:numel(batchTable.config)
+                testCase.verifyEqual( ...
+                    batchTable.config(index).initialFlux.maxTime, 600);
+            end
             testCase.verifyTrue(all(batchTable.contentHash == ""));
             testCase.verifyFalse( ...
                 isfield(batchTable.config(1), "random"));

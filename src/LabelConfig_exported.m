@@ -81,6 +81,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
                 return
             end
 
+            app.updateLabelTable();
             message = app.Action.removeLabels(selection(:, 1));
             app.LabelTable.Data = app.Action.LabelTable;
             app.lockRatioTable();
@@ -103,6 +104,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
 
         function lockRatioTable(app)
 
+            app.idxLabel = [];
             app.RatioTable.Enable = 'off';
             app.RatioTable.Data = {};
 
@@ -154,6 +156,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
         % Button pushed function: AddLabelButton
         function AddLabelButtonPushed(app, event)
 
+            app.updateLabelTable();
             message = app.Action.addLabel();
             app.LabelTable.Data = app.Action.LabelTable;
             app.requestInfo(message);
@@ -203,7 +206,7 @@ classdef LabelConfig_exported < matlab.apps.AppBase
         % Display data changed function: RatioTable
         function RatioTableDisplayDataChanged(app, event)
 
-            updateRatioTable(app);
+            % Display updates do not edit the stored ratio settings.
         end
 
         % Cell edit callback: RatioTable

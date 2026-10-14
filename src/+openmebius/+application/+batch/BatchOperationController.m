@@ -69,6 +69,24 @@ classdef BatchOperationController < handle
 
         end % duplicate
 
+        function outcome = inherit(~, batch, batchIds, tableData, resultLocation, options)
+            arguments
+                ~
+                batch
+                batchIds
+                tableData
+                resultLocation
+                options.ProgressReporter (1, 1) function_handle = @(~) []
+            end
+            outcome = openmebius.application.batch.BatchOperationController ...
+                .executeCommand(@inheritBatches);
+            function inheritBatches()
+                batch.updateBatchFromGUI(tableData);
+                batch.inheritBatches(batchIds, resultLocation, ...
+                    ProgressReporter = options.ProgressReporter);
+            end
+        end
+
         function outcome = move(~, batch, batchIds, direction, tableData)
 
             arguments

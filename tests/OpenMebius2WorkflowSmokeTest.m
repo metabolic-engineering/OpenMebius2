@@ -443,6 +443,31 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
 
         end
 
+        function inheritsSelectedResultThroughContextMenu(testCase)
+            app = testCase.App;
+            projectDirectory = OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli");
+            OpenMebius2WorkflowSmokeTest.selectProject(app, projectDirectory);
+            testCase.press(app.ProjectLoadButton);
+            before = app.RunTable.UserData.RawData;
+            sourceId = string(before.ID(2));
+            app.RunTable.Selection = [2, 1];
+            menu = findobj(app.ContextMenuRun, 'Tag', 'InheritThisBatch');
+            testCase.assertNumElements(menu, 1);
+            callback = menu.MenuSelectedFcn;
+            callback(menu, []);
+            after = app.RunTable.UserData.RawData;
+            testCase.assertEqual(height(after), height(before) + 1);
+            newId = string(after.ID(end));
+            testCase.verifyNotEqual(newId, sourceId);
+            location = openmebius.domain.result.ResultLocation(fullfile(projectDirectory, 'results'));
+            repository = openmebius.infrastructure.result.InheritedResultRepository();
+            snapshot = repository.load(location, newId);
+            testCase.verifyEqual(snapshot.SourceID, sourceId);
+            testCase.verifyEqual(snapshot.Data.RSS, h5read(location.resultFile(sourceId), '/RSS'));
+            testCase.verifyEmpty(app.Test_Alerts);
+        end
+
         function tracerPatternsRemainReadOnlyAndOpenWithoutSaving(testCase)
 
             app = testCase.App;
@@ -539,6 +564,36 @@ classdef OpenMebius2WorkflowSmokeTest < matlab.uitest.TestCase
             testCase.verifyEqual(string(persisted.id), originalIds);
             testCase.verifyEmpty(app.Test_Alerts);
 
+        end
+
+        function reloadsChangedResultWithoutLosingSelectionOrGraphics(testCase)
+            app = testCase.App;
+            project = OpenMebius2WorkflowSmokeTest.copyTutorial( ...
+                testCase.TemporaryRoot, "ecoli_grid_search");
+            OpenMebius2WorkflowSmokeTest.selectProject(app, project);
+            testCase.press(app.ProjectLoadButton);
+            testCase.choose(app.TabGroup, "Result");
+            testCase.choose(app.ResultSubTable, [1, 1]);
+            data = app.ResultSubTable.UserData.RawData;
+            id = string(data.ID(1));
+            imageHandle = findobj(app.MainUIAxes, 'Type', 'image');
+            histogramHandle = findobj(app.SubUIAxes, 'Type', 'histogram');
+            testCase.assertNotEmpty(imageHandle);
+            testCase.assertNotEmpty(histogramHandle);
+            resultPath = fullfile(project, 'results', id + ".h5");
+            rss = h5read(resultPath, '/RSS');
+            h5write(resultPath, '/RSS', rss + 1);
+            testCase.press(app.ResultReloadButton);
+            testCase.verifyEqual(app.ResultSubTable.Selection, 1);
+            testCase.verifyEqual(app.ResultSubTable.UserData.RawData.RSS(1), min(rss) + 1);
+            testCase.verifyTrue(isvalid(imageHandle));
+            testCase.verifyTrue(isvalid(histogramHandle));
+            testCase.verifyEqual(sort(histogramHandle.Data(:)), sort(rss(:) + 1));
+            delete(resultPath);
+            testCase.press(app.ResultReloadButton);
+            testCase.verifyFalse(any(string(app.ResultSubTable.UserData.RawData.ID) == id));
+            testCase.verifyEmpty(app.ResultMainTable.Data);
+            testCase.verifyEmpty(app.SubUIAxes.Children);
         end
 
         function rendersGridSearchAxesAfterWindowReload(testCase)

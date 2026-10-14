@@ -14,6 +14,65 @@ classdef LabelConfigActionTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function addingLabelPreservesEditedNamesAndCarbonCounts(testCase)
+
+            [context, ~, ~] = LabelConfigActionTest.context();
+            app = LabelConfig_exported(context);
+            cleanup = onCleanup( ...
+                @() LabelConfigActionTest.deleteIfValid(app));
+            addCallback = app.AddLabelButton.ButtonPushedFcn;
+            addCallback([], []);
+            edited = app.LabelTable.Data;
+            edited.Name{end} = 'Custom glucose';
+            edited.Num{end} = 6;
+            app.LabelTable.Data = edited;
+
+            addCallback([], []);
+
+            testCase.verifyEqual(app.LabelTable.Data(1:end - 1, :), edited);
+            testCase.verifyEqual(context.Action.LabelTable, app.LabelTable.Data);
+
+        end
+
+        function removingLabelPreservesOtherEditedRows(testCase)
+
+            [context, ~, ~] = LabelConfigActionTest.context();
+            app = LabelConfig_exported(context);
+            cleanup = onCleanup( ...
+                @() LabelConfigActionTest.deleteIfValid(app));
+            addCallback = app.AddLabelButton.ButtonPushedFcn;
+            addCallback([], []);
+            edited = app.LabelTable.Data;
+            edited.Name{end} = 'Custom glucose';
+            edited.Num{end} = 6;
+            app.LabelTable.Data = edited;
+            app.LabelTable.Selection = [1, 1];
+
+            removeCallback = app.RemoveLabelButton.ButtonPushedFcn;
+            removeCallback([], []);
+
+            testCase.verifyEqual(app.LabelTable.Data, edited(2, :));
+            testCase.verifyEqual(context.Action.LabelTable, edited(2, :));
+
+        end
+
+        function clearingRatioDisplayDoesNotEraseSelectedPattern(testCase)
+
+            [context, ~, ratioTables] = LabelConfigActionTest.context();
+            app = LabelConfig_exported(context);
+            cleanup = onCleanup( ...
+                @() LabelConfigActionTest.deleteIfValid(app));
+            selectCallback = app.LabelTable.CellSelectionCallback;
+            selectCallback([], struct('Indices', [1, 1]));
+            app.RatioTable.Data = {};
+
+            displayCallback = app.RatioTable.DisplayDataChangedFcn;
+            displayCallback([], []);
+
+            testCase.verifyEqual(context.Action.RatioTables, ratioTables);
+
+        end
+
         function contextProvidesInitialEditorState(testCase)
 
             [context, labelTable, ~] = ...

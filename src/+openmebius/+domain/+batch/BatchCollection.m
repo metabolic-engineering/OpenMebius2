@@ -89,18 +89,11 @@ classdef BatchCollection < handle
             end
 
             ids = string(ids(:));
-            statuses = strings(size(ids));
-
-            for i = 1:numel(ids)
-                index = find(obj.TableData.id == ids(i), 1);
-
-                if isempty(index)
-                    statuses(i) = "unknown";
-                else
-                    statuses(i) = ...
-                        string(obj.TableData.config(index).status);
-                end
-
+            statuses = repmat("unknown", size(ids));
+            [found, indices] = ismember(ids, obj.TableData.id);
+            if any(found)
+                configs = obj.TableData.config(indices(found));
+                statuses(found) = string({configs.status});
             end
 
         end % statusesFor
@@ -119,6 +112,9 @@ classdef BatchCollection < handle
             for i = 1:numel(indices)
                 index = indices(i);
                 updatedConfig = config;
+                updatedConfig.inheritedFrom = obj.TableData.config(index).inheritedFrom;
+                updatedConfig = openmebius.domain.batch.InheritedBatchConfig ...
+                    .preserveOptimization(obj.TableData.config(index), updatedConfig);
                 currentStatus = ...
                     string(obj.TableData.config(index).status);
 
@@ -143,6 +139,9 @@ classdef BatchCollection < handle
             config = openmebius.domain.batch.BatchConfig.normalize(config);
             index = obj.indexOf(id);
             currentStatus = string(obj.TableData.config(index).status);
+            config.inheritedFrom = obj.TableData.config(index).inheritedFrom;
+            config = openmebius.domain.batch.InheritedBatchConfig ...
+                .preserveOptimization(obj.TableData.config(index), config);
 
             if openmebius.domain.batch.BatchConfig ...
                     .isTerminalStatus(currentStatus)
@@ -251,6 +250,7 @@ classdef BatchCollection < handle
                 sourceIndex = obj.indexOf(sourceIds(batchIndex));
                 config = sourceTable.config(sourceIndex);
                 config.status = 'ready';
+                config.inheritedFrom = '';
                 newIds(batchIndex) = obj.add( ...
                     sourceTable.name(sourceIndex), ...
                     sourceTable.exp(sourceIndex), ...
@@ -321,6 +321,12 @@ classdef BatchCollection < handle
             end
 
             obj.TableData.name(index) = name;
+            if openmebius.domain.batch.InheritedBatchConfig ...
+                    .isInherited(obj.TableData.config(index))
+                config = openmebius.domain.batch.InheritedBatchConfig ...
+                    .preserveOptimization(obj.TableData.config(index), config);
+                experiments = obj.TableData.exp(index);
+            end
             obj.TableData.exp(index) = experiments;
             obj.TableData.description(index) = description;
             obj.TableData.config(index) = config;

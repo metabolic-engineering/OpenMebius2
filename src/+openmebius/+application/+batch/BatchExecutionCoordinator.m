@@ -70,8 +70,14 @@ classdef BatchExecutionCoordinator
                 end
 
                 if batchTable.config(i).deleteResultFile
-                    obj.ArtifactRepository.deleteBatchArtifacts( ...
-                        resultLocation, batchTable.id(i));
+                    if openmebius.domain.batch.InheritedBatchConfig ...
+                            .isInherited(batchTable.config(i))
+                        obj.ArtifactRepository.deleteBatchArtifacts( ...
+                            resultLocation, batchTable.id(i), PreserveInheritance = true);
+                    else
+                        obj.ArtifactRepository.deleteBatchArtifacts( ...
+                            resultLocation, batchTable.id(i));
+                    end
                 end
 
                 provenance = provenances{i};
@@ -115,6 +121,8 @@ classdef BatchExecutionCoordinator
                 batchTable.config(i).status = "finished";
                 progressTracker.reportStatus(i, "finished");
                 options.CheckpointWriter(batchTable);
+                % Publish after persisting status and all CI/suggestion phases.
+                options.ResultReporter(struct('ID', batchTable.id(i)));
             end
 
         end % run

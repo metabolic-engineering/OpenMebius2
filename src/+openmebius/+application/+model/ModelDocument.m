@@ -148,7 +148,6 @@ classdef ModelDocument < handle
                 "Failed to build the metabolite list.");
 
             loadLabel(obj);
-            createLabelView(obj);
 
         end % ModelDocument
 
@@ -293,6 +292,7 @@ classdef ModelDocument < handle
                 obj.ModelLocation, ...
                 obj.fileLabel, ...
                 obj.fileTypeLabel);
+            createLabelView(obj);
 
             reset(obj);
             updateMsg(obj, ...
@@ -315,6 +315,7 @@ classdef ModelDocument < handle
                 obj.fileLabel, ...
                 obj.fileTypeLabel, ...
                 obj.structLabel);
+            createLabelView(obj);
 
             reset(obj);
             updateMsg(obj, ...
@@ -808,6 +809,7 @@ classdef ModelDocument < handle
             %     The label structure to be updated
 
             obj.structLabel = structLabelIn;
+            createLabelView(obj);
 
             updateMsg(obj, "The label structure has been updated successfully.", "Info", obj.logLevel);
 
@@ -876,25 +878,23 @@ classdef ModelDocument < handle
             numField = numel(fieldNames);
 
             tempLabelView = cell(numField, 2);
+            ratioTables = struct();
 
             for i = 1:numel(fieldNames)
 
                 tempLabelView{i, 1} = app.structLabel.(fieldNames{i}).name;
                 tempLabelView{i, 2} = app.structLabel.(fieldNames{i}).num;
 
-                % if isempty(fieldnames(app.structLabelView))
-                %     app.structLabelView = struct();
-                % end
-
                 ratioVariableNames = app.ratioTableVariableNames;
 
-                app.structLabelView.(fieldNames{i}) = cell2table( ...
+                ratioTables.(fieldNames{i}) = cell2table( ...
                     [app.structLabel.(fieldNames{i}).label, num2cell(app.structLabel.(fieldNames{i}).ratio)], ...
                     'VariableNames', ratioVariableNames ...
                     );
 
             end
 
+            app.structLabelView = ratioTables;
             app.tableLabelView = table( ...
                 tempLabelView(:, 1), ...
                 tempLabelView(:, 2), ...
@@ -921,9 +921,12 @@ classdef ModelDocument < handle
                 convertedLabel.(labelFieldName).name = label.Name{i};
                 convertedLabel.(labelFieldName).num = label.Num{i};
                 convertedLabel.(labelFieldName).label = ...
-                    ratio.(ratioFieldName).Label;
-                convertedLabel.(labelFieldName).ratio = ...
-                    ratio.(ratioFieldName).Ratio;
+                    cellstr(string(ratio.(ratioFieldName).Label));
+                ratios = ratio.(ratioFieldName).Ratio;
+                if iscell(ratios)
+                    ratios = cell2mat(ratios);
+                end
+                convertedLabel.(labelFieldName).ratio = ratios;
 
             end % for
 

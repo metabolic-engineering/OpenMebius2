@@ -148,6 +148,12 @@ classdef ResultRepositoryTest < matlab.unittest.TestCase
                 'openmebius.core.notification.Message');
             testCase.verifyEqual(observer.LastEvent.Level, "error");
 
+            [summaries, mask] = result.loadResultSummaries(["missing", "other"]);
+            testCase.verifyEqual(summaries, cell(1, 2));
+            testCase.verifyEqual(mask, [false, false]);
+            testCase.verifyEqual(observer.EventCount, 3);
+            testCase.verifyEqual(observer.LastEvent.Level, "error");
+
         end
 
         function writeExcelTableCanBeReadBack(testCase)

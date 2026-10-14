@@ -133,6 +133,9 @@ classdef BatchProgressTracker < handle
 
             totals = [double(config.iteration), 0, 0];
             weights = [1, 0, 0];
+            if openmebius.domain.batch.InheritedBatchConfig.isInherited(config)
+                totals(1) = 0;
+            end
 
             if ~logical(config.isCalcCI) || ...
                     logical(config.suggestNextFlux)

@@ -36,6 +36,10 @@ classdef ResultLocation
 
         end % resultArtifactFiles
 
+        function path = inheritanceFile(obj, id)
+            path = fullfile(obj.Directory, '.inheritance', string(id) + '.mat');
+        end
+
         function path = reportFile(obj, fileName)
 
             path = obj.artifactFile(fileName);

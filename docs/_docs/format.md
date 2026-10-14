@@ -221,6 +221,42 @@ The current Batch schema is version 2:
 `contentHash` is not shown in the GUI and represents semantic analysis inputs;
 it excludes random state and transient runtime fields.
 
+`initialFlux.maxTime` is the initial-flux search timeout in seconds. It must
+be a positive finite number and defaults to `600`, including when loading
+older configurations without this field. The General tab exposes it as
+**Timeout (s)** directly below **Parallel workers**. It controls the existing
+sampling/retry time checks; candidate scoring and solver calls can finish
+after that interval. Inherited batches retain the source value because
+they reuse initial fluxes and optimization results.
+
+`CIConf.grid.parallelIterations` defaults to `false`. When grid parallel
+execution is enabled, `false` distributes reactions across workers; `true`
+processes reactions and grid points sequentially and distributes the
+optimization iterations at each point across workers. With grid parallel
+execution disabled, both choices run serially. `workerCount` limits the chosen
+parallel level; parallel loops are never nested.
+
+`inheritedFrom` is empty for ordinary batches. **Inherit this batch**, below
+**Duplicate this batch**, creates a ready batch with a new ID and records its
+source ID here. The original optimization settings and results are copied from
+the selected result into `results/.inheritance/<new-batch-id>.mat`. This file
+contains an independent snapshot, so the original batch can later be removed.
+Include the `.inheritance` directory when moving or backing up a project.
+
+Inherited batches allow confidence-interval settings (including grid reaction
+selection) and tracer-suggestion options to change. Initial optimization,
+fragment, efflux, and INST-MFA settings remain fixed. Execution restores the
+saved fluxes, initial candidates, FVA bounds, iteration results, and fit
+statistics, then runs the selected optional calculations without optimization.
+Saved reaction definitions, atom transitions, independent-variable flags,
+measurements, fragment selections, and experiment names are compared before
+reuse. Workbook byte hashes remain provenance metadata: Excel can rewrite an
+unchanged workbook with different bytes during the automatic pre-run save.
+New optional results use the new batch ID.
+Rerunning an inherited batch keeps its snapshot, while removing that batch
+deletes it. **Duplicate this batch** creates an ordinary batch that optimizes
+again, including when the source is inherited.
+
 # Result manifest
 
 Each current HDF5 result is accompanied by a version 1 JSON manifest. Its

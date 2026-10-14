@@ -36,6 +36,48 @@ classdef MFAResultCoordinator
 
         end % constructor
 
+        function [result, progress, isSuccess, message, isCanceled] = restoreOptimization(obj, data, resultID, options)
+            arguments
+                obj
+                data
+                resultID
+                options.ProgressReporter function_handle = @(~, ~) []
+                options.CancellationRequested function_handle = @() false
+            end
+            result = struct;
+            progress = openmebius.application.analysis.AnalysisProgress();
+            [isSuccess, message] = obj.noWriteResult();
+            isCanceled = options.CancellationRequested();
+            if isCanceled
+                return
+            end
+            if obj.IsExport
+                try
+                    repository = openmebius.infrastructure.result.InheritedResultRepository();
+                    isCanceled = repository.writeOptimization(obj.HDF5FilePath, data, resultID, ...
+                        ProgressReporter = options.ProgressReporter, ...
+                        CancellationRequested = options.CancellationRequested);
+                catch exception
+                    isSuccess = false;
+                    message = string(exception.message);
+                end
+                if ~isSuccess || isCanceled
+                    return
+                end
+            end
+            progress.markInitialFluxCompleted();
+            progress.markFluxDistributionCompleted();
+            result = rmfield(data, {'fluxResult', 'RSSIndex'});
+            result.ID = resultID;
+            result.status = progress.toStorageVector();
+            result.RSSIdx = data.RSSIndex;
+            names = fieldnames(data.fluxResult);
+            for index = 1:numel(names)
+                name = names{index};
+                result.(replace(name, 'iteration', 'fluxResult')) = data.fluxResult.(name);
+            end
+        end
+
         function [result, progress, isSuccess, message] = writeGeneral( ...
                 obj, result, progress, resultID, experimentalMDV, ...
                 fragmentList, fragmentMask)

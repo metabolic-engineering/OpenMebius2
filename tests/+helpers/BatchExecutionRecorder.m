@@ -5,6 +5,8 @@ classdef BatchExecutionRecorder < handle
         Checkpoints cell = {}
         MessageCount (1, 1) double = 0
         ResultCount (1, 1) double = 0
+        Results cell = {}
+        CheckpointCountsAtResult double = []
     end
 
     methods
@@ -27,9 +29,11 @@ classdef BatchExecutionRecorder < handle
 
         end
 
-        function recordResult(obj, ~)
+        function recordResult(obj, value)
 
             obj.ResultCount = obj.ResultCount + 1;
+            obj.Results{end + 1} = value;
+            obj.CheckpointCountsAtResult(end + 1) = numel(obj.Checkpoints);
 
         end
 

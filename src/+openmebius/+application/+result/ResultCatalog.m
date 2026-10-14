@@ -127,7 +127,7 @@ classdef ResultCatalog < handle
                 options.relativeTo (1, 1) string = ""
             end
 
-            data = obj.loadResultFile(id);
+            data = obj.loadBestFit(id);
 
             if isempty(data)
                 tableRtn = table();
@@ -154,7 +154,7 @@ classdef ResultCatalog < handle
                 batchID (1, 1) string
             end
 
-            data = obj.loadResultFile(batchID);
+            data = obj.loadBestFit(batchID, IncludeMDV = true);
 
             if isempty(data)
                 tableRtn = table();
@@ -189,7 +189,7 @@ classdef ResultCatalog < handle
                 batchID (1, 1) string
             end
 
-            data = obj.loadResultFile(batchID);
+            data = obj.loadBestFit(batchID, IncludeMDV = true);
 
             if isempty(data)
                 tableRtn = table();
@@ -222,9 +222,11 @@ classdef ResultCatalog < handle
                 return
             end
 
-            [data, mask] = obj.loadResultFiles( ...
-                batchIDs, readstatus = [true, true, false, false]);
-            data = data(mask);
+            data = cell(1, numel(batchIDs));
+            for index = 1:numel(batchIDs)
+                data{index} = obj.loadBestFit(batchIDs(index));
+            end
+            data = data(~cellfun(@isempty, data));
 
             try
                 [tableRtn, message] = obj.TableBuilder.fluxComparison( ...
@@ -277,12 +279,13 @@ classdef ResultCatalog < handle
 
         end % getCIReaction
 
-        function data = getOptimizationState(obj, batchID)
+        function data = getOptimizationState(obj, batchID, options)
             % GETOPTIMIZATIONSTATE Get RSS trials and their threshold.
 
             arguments
                 obj (1, 1) openmebius.application.result.ResultCatalog
                 batchID (1, 1) string
+                options.IncludeExitFlags (1, 1) logical = true
             end
 
             if ~obj.ResultLocation.hasResultFile(batchID)
@@ -291,7 +294,8 @@ classdef ResultCatalog < handle
                 return
             end
 
-            data = obj.QueryService.readOptimizationState(batchID);
+            data = obj.QueryService.readOptimizationState(batchID, ...
+                IncludeExitFlags = options.IncludeExitFlags);
 
         end % getOptimizationState
 
@@ -368,6 +372,39 @@ classdef ResultCatalog < handle
         end % getIsPassedChi2Test
 
         %% Public load functions
+        function invalidateCache(obj, ids)
+            if nargin < 2
+                ids = strings(0, 1);
+            end
+            obj.QueryService.invalidate(ids);
+        end
+
+        function [data, mask] = loadResultSummaries(obj, ids)
+            obj.IDs = string(ids(:)');
+            try
+                [data, mask] = obj.QueryService.readSummaries(ids);
+            catch exception
+                obj.notifyGeneralMessage("error", string(exception.message));
+                data = cell(size(obj.IDs));
+                mask = false(size(obj.IDs));
+            end
+            obj.dataMask = mask;
+        end
+
+        function data = loadBestFit(obj, id, options)
+            arguments
+                obj
+                id (1, 1) string
+                options.IncludeMDV (1, 1) logical = false
+            end
+            try
+                data = obj.QueryService.readBestFit(id, IncludeMDV = options.IncludeMDV);
+            catch exception
+                obj.notifyGeneralMessage("error", string(exception.message));
+                data = [];
+            end
+        end
+
         function [data, dataMask] = loadResultFiles(obj, ids, options)
             % LOADRESULTFILES Load the result files from the directory.
             %

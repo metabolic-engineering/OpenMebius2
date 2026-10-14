@@ -26,6 +26,8 @@ classdef MFAAnalysisController < handle
         FluxDistributionWorkflow
         ConfidenceIntervalApplicationWorkflow
         NextFluxExperimentWorkflow
+        InheritedResultWorkflow
+        InheritedResultRepository
     end
 
     methods
@@ -62,6 +64,8 @@ classdef MFAAnalysisController < handle
                 options.AnalysisRunLifecycle = []
                 options.Dependencies = []
                 options.InitialError (1, 1) logical = false
+                options.InheritedResultWorkflow = openmebius.application.analysis.MFAInheritedResultWorkflow()
+                options.InheritedResultRepository = openmebius.infrastructure.result.InheritedResultRepository()
             end
 
             obj.Model = model;
@@ -80,6 +84,8 @@ classdef MFAAnalysisController < handle
                 options.AnalysisRunLifecycle;
             obj.Dependencies = options.Dependencies;
             obj.IsError = options.InitialError;
+            obj.InheritedResultWorkflow = options.InheritedResultWorkflow;
+            obj.InheritedResultRepository = options.InheritedResultRepository;
             obj.FluxDistributionWorkflow = ...
                 options.FluxDistributionWorkflow;
             obj.ConfidenceIntervalApplicationWorkflow = ...
@@ -128,6 +134,30 @@ classdef MFAAnalysisController < handle
             obj.InputPreparation = result.InputPreparation;
             obj.recordResult(result);
 
+        end
+
+        function result = restoreFluxDistribution(obj, options)
+            arguments
+                obj
+                options.MessageReporter function_handle = @(~, ~) []
+            end
+            try
+                snapshot = obj.InheritedResultRepository.load(obj.ResultLocation, obj.ResultID);
+                obj.InheritedResultRepository.validateInputs(snapshot, obj.Config, obj.Provenance);
+                result = obj.InheritedResultWorkflow.run( ...
+                    obj.Model, obj.Experiments, obj.ExperimentList, ...
+                    obj.RunSettings.DistributionSettings, obj.RunContext, ...
+                    obj.ResultSession, obj.ResultID, snapshot.Data, ...
+                    MessageReporter = options.MessageReporter, ...
+                    CancellationRequested = @() obj.IsCanceled);
+                obj.InputPreparation = result.InputPreparation;
+            catch exception
+                options.MessageReporter('error', string(exception.message));
+                result = openmebius.application.analysis.MFAFluxDistributionResult( ...
+                    IsError = true, FailureStage = "input", ...
+                    ErrorMessage = string(exception.message));
+            end
+            obj.recordResult(result);
         end
 
         function result = calculateConfidenceInterval(obj, options)

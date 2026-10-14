@@ -12,6 +12,18 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function rerunningInheritedBatchPreservesItsSnapshot(testCase)
+            batchTable = BatchExecutionCoordinatorTest.batchTable("ready");
+            batchTable.config.inheritedFrom = 'bat_source';
+            batchTable.config.deleteResultFile = true;
+            [coordinator, ~, repository] = BatchExecutionCoordinatorTest.createCoordinator("finished");
+            coordinator.run(batchTable, struct, struct, ...
+                BatchExecutionCoordinatorTest.resultLocation(), ...
+                BatchExecutionCoordinatorTest.provenances(batchTable));
+            testCase.verifyEqual(repository.DeletedBatchIds, "bat_1");
+            testCase.verifyTrue(repository.PreservedInheritance);
+        end
+
         function coordinatesRunnableEntriesAndCheckpoints(testCase)
 
             batchTable = BatchExecutionCoordinatorTest.batchTable( ...
@@ -124,11 +136,14 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
                 BatchExecutionCoordinatorTest.provenances(batchTable), ...
                 MessageReporter = ...
                 @(eventData) recorder.recordMessage(eventData), ...
+                CheckpointWriter = @(value) recorder.writeCheckpoint(value), ...
                 ResultReporter = ...
                 @(eventData) recorder.recordResult(eventData));
 
             testCase.verifyEqual(recorder.MessageCount, 1);
-            testCase.verifyEqual(recorder.ResultCount, 1);
+            testCase.verifyEqual(recorder.ResultCount, 2);
+            testCase.verifyEqual(recorder.Results{2}.ID, "bat_1");
+            testCase.verifyEqual(recorder.CheckpointCountsAtResult, [0, 1]);
 
         end
 

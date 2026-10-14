@@ -15,6 +15,36 @@ classdef RunConfigMapperTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function gridIterationParallelismRoundTripsAndDefaultsOff(testCase)
+            config = openmebius.domain.batch.BatchConfig.normalize(struct());
+            view = openmebius.presentation.batch.RunConfigMapper.toViewModel(config);
+            testCase.verifyFalse(view.GridParallelIterations);
+            view.GridParallelIterations = true;
+            saved = openmebius.presentation.batch.RunConfigMapper.fromViewModel(view, config);
+            testCase.verifyTrue(saved.CIConf.grid.parallelIterations);
+            settings = openmebius.application.analysis.ConfidenceIntervalSettingsMapper.fromBatchConfig(saved);
+            testCase.verifyTrue(settings.GridSearchSettings.ParallelIterations);
+        end
+
+        function inheritedSettingsKeepOptimizationButAcceptCIChanges(testCase)
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.inheritedFrom = 'bat_original';
+            view = openmebius.presentation.batch.RunConfigMapper.toViewModel(config);
+            testCase.verifyTrue(view.InheritedOptimization);
+            view.Iteration = 99;
+            view.FluxUpperBound = 456;
+            view.CalculateCI = true;
+            view.MCIterations = 222;
+            view.GridParallelIterations = true;
+            saved = openmebius.presentation.batch.RunConfigMapper.fromViewModel(view, config);
+            testCase.verifyEqual(saved.iteration, config.iteration);
+            testCase.verifyEqual(saved.fluxUB, config.fluxUB);
+            testCase.verifyEqual(saved.inheritedFrom, config.inheritedFrom);
+            testCase.verifyTrue(saved.isCalcCI);
+            testCase.verifyEqual(saved.CIConf.MC.iteration, 222);
+            testCase.verifyTrue(saved.CIConf.grid.parallelIterations);
+        end
+
         function mapsAlgorithmLabels(testCase)
 
             testCase.verifyEqual( ...

@@ -9,6 +9,7 @@ classdef BatchConfig
             % Flux calculation configuration
             config = struct;
             config.iteration = 30;
+            config.initialFlux.maxTime = 600;
             config.initialFlux.restrictFreeEffluxSeeds = true;
             config.initialFlux.freeEffluxSeedSigmaMultiplier = 3;
             config.perturbateEfflux = false;
@@ -27,6 +28,7 @@ classdef BatchConfig
             % warning: warning
             config.status = 'ready';
             config.deleteResultFile = true;
+            config.inheritedFrom = '';
 
             config.optimizationMethod = 'gradient-only';
 
@@ -92,6 +94,7 @@ classdef BatchConfig
             config.CIConf.grid.alpha = 0.05;
             config.CIConf.grid.intervalMode = 'automatic';
             config.CIConf.grid.executionMode = 'parallel';
+            config.CIConf.grid.parallelIterations = false;
             config.CIConf.grid.reactions.select = logical([]);
             config.CIConf.grid.reactions.id = string([]);
             config.CIConf.grid.reactions.reaction = string([]);
@@ -171,6 +174,13 @@ classdef BatchConfig
             end
 
             BatchConfig.mustBePositiveInteger(config, 'iteration');
+            if ~(ischar(config.inheritedFrom) || isstring(config.inheritedFrom)) || ...
+                    ~isscalar(string(config.inheritedFrom)) || ...
+                    (~isempty(char(config.inheritedFrom)) && ...
+                    isempty(regexp(char(config.inheritedFrom), '^[A-Za-z0-9_-]+$', 'once')))
+                error('OpenMebius2:BatchConfig:InvalidInheritance', ...
+                    'The inherited batch ID must be a safe, scalar identifier.');
+            end
             BatchConfig.validateInitialFlux(config);
             BatchConfig.mustBeKnownMember( ...
                 config, ...
@@ -252,6 +262,7 @@ classdef BatchConfig
             import openmebius.domain.batch.BatchConfig
 
             BatchConfig.mustBeStruct(config, 'initialFlux');
+            BatchConfig.mustBePositiveNumber(config, 'initialFlux.maxTime');
             BatchConfig.mustBeLogical( ...
                 config, ...
                 'initialFlux.restrictFreeEffluxSeeds');
@@ -438,6 +449,7 @@ classdef BatchConfig
                 ["monte carlo", "grid search"]);
 
             BatchConfig.mustBeStruct(config, 'CIConf.grid');
+            BatchConfig.mustBeLogical(config, 'CIConf.grid.parallelIterations');
             BatchConfig.mustBePositiveNumber(config, 'CIConf.grid.delta');
             BatchConfig.mustBeKnownMember( ...
                 config, ...
