@@ -9,6 +9,7 @@ classdef RunConfigMapper
             config = openmebius.domain.batch.BatchConfig.normalize(config);
             viewModel = openmebius.presentation.batch.RunConfigViewModel();
             viewModel.Iteration = double(config.iteration);
+            viewModel.InheritedOptimization = strlength(string(config.inheritedFrom)) > 0;
             viewModel.Algorithm = openmebius.presentation.batch ...
                 .RunConfigMapper.algorithmToView(config.algorithm);
             viewModel.LargeScale = logical(config.largeScale);
@@ -71,6 +72,7 @@ classdef RunConfigMapper
                 monteCarlo.calculationMethod);
 
             grid = config.CIConf.grid;
+            viewModel.GridParallelIterations = logical(grid.parallelIterations);
             viewModel.GridAutomaticInterval = ...
                 strcmpi(string(grid.intervalMode), "automatic");
             viewModel.GridParallelExecution = ...
@@ -177,6 +179,7 @@ classdef RunConfigMapper
             end
 
             config.CIConf.grid.points = viewModel.GridPoints;
+            config.CIConf.grid.parallelIterations = viewModel.GridParallelIterations;
             config.CIConf.grid.delta = viewModel.GridDelta;
             config.CIConf.grid.iteration = viewModel.GridIterations;
             config.CIConf.grid.workerCount = viewModel.GridWorkers;
@@ -204,6 +207,8 @@ classdef RunConfigMapper
                     viewModel.INSTMFATimePointTable);
             end
 
+            config = openmebius.domain.batch.InheritedBatchConfig ...
+                .preserveOptimization(currentConfig, config);
             openmebius.domain.batch.BatchConfig.validate(config);
 
         end % fromViewModel

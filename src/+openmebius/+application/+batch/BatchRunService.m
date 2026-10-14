@@ -52,7 +52,11 @@ classdef BatchRunService
                 ProgressReporter = options.ProgressReporter);
             runCleanup = onCleanup(@() analysis.finalizeRun());
 
-            analysis.calculateFluxDistribution();
+            if openmebius.domain.batch.InheritedBatchConfig.isInherited(config)
+                analysis.restoreFluxDistribution();
+            else
+                analysis.calculateFluxDistribution();
+            end
             result = obj.terminalResult(analysis);
 
             if ~isempty(result)

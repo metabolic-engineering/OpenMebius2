@@ -3266,6 +3266,43 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
 
         end % removeSelectedBatches
 
+        function initializeBatchInheritanceContextMenu(app)
+            menu = uimenu(app.ContextMenuRun, 'Text', 'Inherit this batch', ...
+                'Tag', 'InheritThisBatch', 'Interruptible', 'off', 'BusyAction', 'cancel', ...
+                'MenuSelectedFcn', @(~, ~) app.inheritSelectedBatches());
+            children = app.ContextMenuRun.Children;
+            children(children == menu) = [];
+            % Context-menu Children are stored in reverse display order.
+            index = find(children == app.DuplicatethisbatchMenu, 1);
+            app.ContextMenuRun.Children = [children(1:index-1); menu; children(index:end)];
+        end
+
+        function inheritSelectedBatches(app)
+            selectedRows = app.selectedTableRows(app.RunTable);
+            if isempty(selectedRows)
+                app.publishMessage('warning', 'Please select a batch to inherit.');
+                return
+            end
+            batchData = app.getBatchOperationalData();
+            batchIds = string(batchData.ID(selectedRows));
+            progress = uiprogressdlg(app.OpenMebius2UIFigure, ...
+                'Title', 'Inherit this batch', 'Indeterminate', 'on', ...
+                'Message', 'Reading the saved optimization settings...');
+            cleanup = onCleanup(@() close(progress));
+            drawnow;
+            [outcome, batch] = app.ApplicationController.inheritBatches(batchIds, batchData, ...
+                ProgressReporter = @(message) app.renderInheritanceProgress(progress, message));
+            app.renderBatchOperationViewModel( ...
+                app.BatchPresenter.presentInheritOutcome(outcome, batch));
+        end
+
+        function renderInheritanceProgress(~, progress, message)
+            if isvalid(progress)
+                progress.Message = message;
+                drawnow limitrate;
+            end
+        end
+
         function duplicateSelectedBatches(app)
 
             selectedRows = app.selectedTableRows(app.RunTable);
@@ -4577,6 +4614,7 @@ classdef OpenMebius2_exported < matlab.apps.AppBase
             app.initializeSubPlotTypeControl();
             app.initializeModelContextMenu();
             app.initializeBatchOrderContextMenu();
+            app.initializeBatchInheritanceContextMenu();
             app.initializeResultContextMenu();
             dependencies = app.createMainAppDependencies();
             app.applyApplicationDependencies(dependencies);

@@ -36,6 +36,8 @@ classdef RunConfigViewModel
 
         GridAutomaticInterval (1, 1) logical = true
         GridParallelExecution (1, 1) logical = true
+        GridParallelIterations (1, 1) logical = false
+        InheritedOptimization (1, 1) logical = false
         GridPoints (1, 1) double = 10
         GridDelta (1, 1) double = 1
         GridIterations (1, 1) double = 30

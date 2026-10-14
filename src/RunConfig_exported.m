@@ -183,6 +183,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
         ExperimentPresenter openmebius.presentation.experiment.ExperimentPresenter
         MSFragmentTableMetadata
         IsReadOnly (1, 1) logical = false
+        IsInherited (1, 1) logical = false
+        GridParallelIterationsCheckBox matlab.ui.control.CheckBox
     end
 
     events
@@ -216,6 +218,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function initializeView(app, context)
 
+            app.initializeGridParallelIterationsControl();
             app.Session = context.Session;
             app.Presenter = context.Presenter;
             app.Controller = context.ConfigurationController;
@@ -232,6 +235,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.EffluxperturbationTab.Title = 'Flux perturbation';
             editor = context.Editor;
             app.IsReadOnly = editor.IsReadOnly;
+            app.IsInherited = editor.Config.InheritedOptimization;
             app.renderRunConfigViewModel(editor.Config);
             app.MSFragmentTableMetadata = editor.MSFragmentTable.Metadata;
             app.renderTableViewModel(app.MSTable, editor.MSFragmentTable);
@@ -353,6 +357,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
             app.DeterminegridintervalautomaticallyCheckBox.Value = ...
                 viewModel.GridAutomaticInterval;
             app.CheckBox.Value = viewModel.GridParallelExecution;
+            app.GridParallelIterationsCheckBox.Value = viewModel.GridParallelIterations;
             app.ThenumberofgridpointsEditField.Value = ...
                 viewModel.GridPoints;
             app.GridintervalDeltaixiEditField.Value = viewModel.GridDelta;
@@ -425,6 +430,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
             grid = app.onOff(state.GridEnabled);
             app.DeterminegridintervalautomaticallyCheckBox.Enable = grid;
+            app.GridParallelIterationsCheckBox.Enable = ...
+                app.onOff(state.GridExecutionModeEnabled && app.CheckBox.Value);
             app.CheckBox.Enable = ...
                 app.onOff(state.GridExecutionModeEnabled);
             app.ParallelworkersEditField.Enable = ...
@@ -455,7 +462,60 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         end % renderControlState
 
+        function initializeGridParallelIterationsControl(app)
+            % Runtime controls leave App Designer's component model intact.
+            rows = app.GridLayout11.RowHeight;
+            app.GridLayout11.RowHeight = [rows(1:2), {'fit'}, rows(3:end)];
+            children = app.GridLayout11.Children;
+            for index = 1:numel(children)
+                child = children(index);
+                if child.Layout.Row(1) >= 3
+                    child.Layout.Row = child.Layout.Row + 1;
+                end
+            end
+            app.GridParallelIterationsCheckBox = uicheckbox(app.GridLayout11);
+            app.GridParallelIterationsCheckBox.Text = 'Parallelize iterations at each grid point';
+            app.GridParallelIterationsCheckBox.Tooltip = ...
+                'Checked: parallel optimization iterations. Unchecked: parallel reactions.';
+            app.GridParallelIterationsCheckBox.Tag = 'GridParallelIterations';
+            app.GridParallelIterationsCheckBox.Layout.Row = 3;
+            app.GridParallelIterationsCheckBox.Layout.Column = 1;
+        end
+
+        function renderInheritedState(app)
+            if ~app.IsInherited
+                return
+            end
+            app.IterationSpinner.Enable = 'off';
+            app.PerturbateEffluxCheckBox.Enable = 'off';
+            app.INSTMFACheckBox.Enable = 'off';
+            app.DeleteResultButton.Enable = 'off';
+            app.GeneralRestoreDefaultButton.Enable = 'off';
+            tabs = [app.OptimizationTab, app.MSfragmentTab, ...
+                app.EffluxperturbationTab, app.INSTMFATab];
+            for tab = tabs
+                components = findall(tab);
+                for index = 1:numel(components)
+                    component = components(index);
+                    if isprop(component, 'Enable')
+                        component.Enable = 'off';
+                    end
+                    if isprop(component, 'ColumnEditable')
+                        component.ColumnEditable = app.readOnlyColumns(component.Data);
+                    end
+                end
+            end
+            buttons = [app.MSCloseButton, app.MSCancelButton, ...
+                app.OptimizationCloseButton, app.OptimizationCancelButton, ...
+                app.EffluxCloseButton, app.EffluxCancelButton, ...
+                app.INSTMFACloseButton, app.INSTMFACancelButton];
+            for button = buttons
+                button.Enable = 'on';
+            end
+        end
+
         function renderReadOnlyState(app)
+            app.renderInheritedState();
 
             if ~app.IsReadOnly
                 return
@@ -834,6 +894,8 @@ classdef RunConfig_exported < matlab.apps.AppBase
             viewModel.GridAutomaticInterval = ...
                 app.DeterminegridintervalautomaticallyCheckBox.Value;
             viewModel.GridParallelExecution = app.CheckBox.Value;
+            viewModel.GridParallelIterations = app.GridParallelIterationsCheckBox.Value;
+            viewModel.InheritedOptimization = app.IsInherited;
             viewModel.GridPoints = ...
                 app.ThenumberofgridpointsEditField.Value;
             viewModel.GridDelta = app.GridintervalDeltaixiEditField.Value;
@@ -903,7 +965,7 @@ classdef RunConfig_exported < matlab.apps.AppBase
 
         function restoreDefaultValues(app)
 
-            if app.IsReadOnly
+            if app.IsReadOnly || app.IsInherited
                 return
             end
 

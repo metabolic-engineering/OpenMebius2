@@ -12,6 +12,18 @@ classdef BatchExecutionCoordinatorTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function rerunningInheritedBatchPreservesItsSnapshot(testCase)
+            batchTable = BatchExecutionCoordinatorTest.batchTable("ready");
+            batchTable.config.inheritedFrom = 'bat_source';
+            batchTable.config.deleteResultFile = true;
+            [coordinator, ~, repository] = BatchExecutionCoordinatorTest.createCoordinator("finished");
+            coordinator.run(batchTable, struct, struct, ...
+                BatchExecutionCoordinatorTest.resultLocation(), ...
+                BatchExecutionCoordinatorTest.provenances(batchTable));
+            testCase.verifyEqual(repository.DeletedBatchIds, "bat_1");
+            testCase.verifyTrue(repository.PreservedInheritance);
+        end
+
         function coordinatesRunnableEntriesAndCheckpoints(testCase)
 
             batchTable = BatchExecutionCoordinatorTest.batchTable( ...

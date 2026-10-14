@@ -447,6 +447,19 @@ classdef MainApplicationController < handle
 
         end
 
+        function [outcome, batch] = inheritBatches(obj, batchIds, tableData, options)
+            arguments
+                obj
+                batchIds
+                tableData
+                options.ProgressReporter (1, 1) function_handle = @(~) []
+            end
+            batch = obj.Session.Batch;
+            location = obj.Session.Project.Paths.resultLocation();
+            outcome = obj.BatchController.inherit(batch, batchIds, tableData, location, ...
+                ProgressReporter = options.ProgressReporter);
+        end
+
         function [outcome, batch] = applyBatchExperimentSelection( ...
                 obj, selection)
 

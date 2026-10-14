@@ -12,6 +12,31 @@ classdef BatchCollectionTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function inheritedBatchLocksOptimizationAndNormalDuplicateUnlocksIt(testCase)
+            collection = BatchCollectionTest.emptyCollection();
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.inheritedFrom = 'bat_original';
+            id = collection.add("Inherited", {"exp-a"}, "", config);
+            config = collection.configFor(id);
+            regularId = BatchCollectionTest.addDefault(collection, "Regular");
+            requested = config;
+            requested.iteration = 999;
+            requested.isSelectMSFragment = true;
+            requested.isCalcCI = true;
+            requested.CIConf.MC.iteration = 222;
+            collection.replaceConfigs([id; regularId], requested);
+            saved = collection.configFor(id);
+            testCase.verifyEqual(saved.iteration, config.iteration);
+            testCase.verifyEqual(saved.MS, config.MS);
+            testCase.verifyFalse(saved.isSelectMSFragment);
+            testCase.verifyEqual(saved.CIConf.MC.iteration, 222);
+            testCase.verifyEmpty(collection.configFor(regularId).inheritedFrom);
+            duplicated = collection.duplicate(id);
+            testCase.verifyEmpty(collection.configFor(duplicated).inheritedFrom);
+            collection.replaceConfig(duplicated, struct('iteration', 88));
+            testCase.verifyEqual(collection.configFor(duplicated).iteration, 88);
+        end
+
         function addsNormalizesAndReadsEntries(testCase)
 
             collection = BatchCollectionTest.emptyCollection();

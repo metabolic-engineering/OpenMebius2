@@ -156,6 +156,12 @@ classdef BatchPresenter < handle
 
         end % presentDuplicateOutcome
 
+        function viewModel = presentInheritOutcome(obj, outcome, batch)
+            viewModel = obj.presentOperationOutcome(outcome, batch, ...
+                "Optimization results have been inherited into a new batch.", ...
+                "Batch inheritance failed");
+        end
+
         function viewModel = presentMoveOutcome(obj, outcome, batch)
 
             viewModel = obj.presentOperationOutcome( ...

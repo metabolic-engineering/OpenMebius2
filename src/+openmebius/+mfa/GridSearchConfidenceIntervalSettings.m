@@ -4,6 +4,7 @@ classdef GridSearchConfidenceIntervalSettings
     properties (SetAccess = private)
         IntervalMode (1, 1) openmebius.mfa.GridSearchIntervalMode
         ExecutionMode (1, 1) openmebius.mfa.GridSearchExecutionMode
+        ParallelIterations (1, 1) logical
         Delta (1, 1) double
         Threshold (1, 1) string
         PointCount (1, 1) double
@@ -26,6 +27,7 @@ classdef GridSearchConfidenceIntervalSettings
                     .GridSearchExecutionMode = openmebius.mfa ...
                     .GridSearchExecutionMode.Parallel
                 options.Delta (1, 1) double = 1
+                options.ParallelIterations (1, 1) logical = false
                 options.Threshold (1, 1) string = "chi-sq"
                 options.PointCount (1, 1) double = 10
                 options.IterationCount (1, 1) double = 30
@@ -85,6 +87,7 @@ classdef GridSearchConfidenceIntervalSettings
 
             obj.IntervalMode = options.IntervalMode;
             obj.ExecutionMode = options.ExecutionMode;
+            obj.ParallelIterations = options.ParallelIterations;
             obj.Delta = options.Delta;
             obj.Threshold = options.Threshold;
             obj.PointCount = options.PointCount;

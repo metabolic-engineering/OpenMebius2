@@ -15,6 +15,22 @@ classdef BatchConfigTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function oldConfigsUseReactionParallelismAndNoInheritance(testCase)
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config = rmfield(config, 'inheritedFrom');
+            config.CIConf.grid = rmfield(config.CIConf.grid, 'parallelIterations');
+            actual = openmebius.domain.batch.BatchConfig.normalize(config);
+            testCase.verifyFalse(actual.CIConf.grid.parallelIterations);
+            testCase.verifyEmpty(actual.inheritedFrom);
+        end
+
+        function invalidIterationParallelismIsRejected(testCase)
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.CIConf.grid.parallelIterations = 2;
+            testCase.verifyError(@() openmebius.domain.batch.BatchConfig.validate(config), ...
+                'OpenMebius2:BatchConfig:InvalidLogical');
+        end
+
         function identifiesFinishedAndFailedAsTerminal(testCase)
 
             testCase.verifyEqual( ...

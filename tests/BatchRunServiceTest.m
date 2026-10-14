@@ -12,6 +12,38 @@ classdef BatchRunServiceTest < matlab.unittest.TestCase
 
     methods (Test)
 
+        function inheritedBatchSkipsOptimizationAndRunsCI(testCase)
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.inheritedFrom = 'bat_original';
+            config.isCalcCI = true;
+            [service, analysis] = BatchRunServiceTest.createService(config);
+            result = BatchRunServiceTest.runService(service, config);
+            testCase.verifyTrue(result.isSuccess());
+            testCase.verifyEqual(analysis.Calls, ["restore", "ci"]);
+            testCase.verifyEqual(analysis.FinalizeCount, 1);
+        end
+
+        function failedInheritanceDoesNotRunOptions(testCase)
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.inheritedFrom = 'bat_original';
+            config.isCalcCI = true;
+            [service, analysis] = BatchRunServiceTest.createService(config, "error-restore");
+            result = BatchRunServiceTest.runService(service, config);
+            testCase.verifyTrue(result.isFailure());
+            testCase.verifyEqual(analysis.Calls, "restore");
+            testCase.verifyEqual(analysis.FinalizeCount, 1);
+        end
+
+        function canceledInheritanceDoesNotRunOptions(testCase)
+            config = openmebius.domain.batch.BatchConfig.defaultConfig();
+            config.inheritedFrom = 'bat_original';
+            config.suggestNextFlux = true;
+            [service, analysis] = BatchRunServiceTest.createService(config, "cancel-restore");
+            result = BatchRunServiceTest.runService(service, config);
+            testCase.verifyTrue(result.isCanceled());
+            testCase.verifyEqual(analysis.Calls, "restore");
+        end
+
         function runsFluxAndForwardsEvents(testCase)
 
             [service, analysis] = BatchRunServiceTest.createService();

@@ -148,6 +148,8 @@ classdef RunConfigPresenter < handle
         function editor = presentEditor(obj, session)
 
             config = obj.presentConfig(session.primaryConfig());
+            config.InheritedOptimization = any(arrayfun( ...
+                @openmebius.domain.batch.InheritedBatchConfig.isInherited, session.configs()));
             msFragment = obj.presentMSFragmentTable(session);
             gridReaction = obj.presentGridReactionTable(session);
             efflux = openmebius.presentation.batch ...
